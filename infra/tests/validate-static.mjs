@@ -31,6 +31,8 @@ function dockerStage(name) {
 const dockerfile = read("Dockerfile");
 const compose = read("compose.yaml");
 const toolingStage = dockerStage("tooling");
+const operationsStage = dockerStage("operations");
+const migrationScript = read("scripts/migrate-production.mjs");
 const cloudflare = read("infra/cloudflare/config.example.yml");
 const entrypoint = read("infra/docker/entrypoint.sh");
 const backup = read("scripts/backup/backup.sh");
@@ -65,12 +67,29 @@ expect(
   "all shipped application image families must inherit the package-manager-free final base",
 );
 expect(
-  /COPY --from=production-dependencies[^\n]+\/app\/node_modules/.test(toolingStage) &&
+    /COPY --from=production-dependencies[^\n]+\/app\/node_modules/.test(toolingStage) &&
     /COPY --chown=node:node drizzle \.\/drizzle/.test(toolingStage) &&
-    !/COPY --chown=node:node (?:package\.json|tsconfig\.json|content|src|scripts)/.test(toolingStage) &&
-    /CMD \["node", "--input-type=module", "--eval", "[^"]*drizzle-orm\/node-postgres\/migrator/.test(toolingStage) &&
+    /COPY --chown=node:node scripts\/migrate-production\.mjs \.\/scripts\/migrate-production\.mjs/.test(toolingStage) &&
+    (toolingStage.match(/COPY --chown=node:node scripts\//g) ?? []).length === 1 &&
+    !/COPY --chown=node:node (?:package\.json|tsconfig\.json|content|src)(?:\s|\/)/.test(toolingStage) &&
+    /CMD \["node", "\/app\/scripts\/migrate-production\.mjs"\]/.test(toolingStage) &&
     !/CMD \["npm", "run", "db:migrate"\]/.test(toolingStage),
-  "tooling migrations must use production dependencies and invoke the reviewed Drizzle ORM migrator directly",
+  "tooling migrations must use production dependencies and invoke the advisory-locked migration script",
+);
+expect(
+  /codestead:production-migration:v1/.test(migrationScript) &&
+    /select pg_try_advisory_lock\(hashtextextended\(\$1, 0\)\) acquired/.test(migrationScript) &&
+    /select pg_advisory_unlock\(hashtextextended\(\$1, 0\)\) released/.test(migrationScript) &&
+    /migrationsFolder = options\.migrationsFolder \?\? "\/app\/drizzle"/.test(migrationScript),
+  "production migrations must use the reviewed advisory lock and bundled Drizzle migrations",
+);
+expect(
+  /FROM worker AS operations/.test(dockerfile) &&
+    /COPY --chown=node:node content \.\/content/.test(operationsStage) &&
+    /COPY --chown=node:node scripts\/bootstrap-admin\.ts \.\/scripts\/bootstrap-admin\.ts/.test(operationsStage) &&
+    /COPY --chown=node:node scripts\/seed-platform\.ts \.\/scripts\/seed-platform\.ts/.test(operationsStage) &&
+    /CMD \["node", "--import", "tsx", "\/app\/scripts\/seed-platform\.ts"\]/.test(operationsStage),
+  "operations image must include curriculum content plus the bootstrap and seed scripts",
 );
 expect(/FROM worker AS scanner-worker/.test(dockerfile) && /scripts\/scan-uploads\.ts/.test(dockerfile), "scanner worker image target is required");
 expect(/FROM worker AS regrade-worker/.test(dockerfile) && /scripts\/process-assessment-regrades\.ts/.test(dockerfile), "assessment regrade worker image target is required");
@@ -108,6 +127,13 @@ expect(/cloudflared:[\s\S]*http:\/\/app:3000/.test(`${compose}\n${cloudflare}`),
 expect(/service: http_status:404\s*$/.test(cloudflare.trim()), "Cloudflare ingress must end with a 404 catch-all");
 
 expect(/_FILE/.test(entrypoint) && /exec "\$@"/.test(entrypoint), "entrypoint must load file secrets then exec");
+expect(
+  /for variable in[\s\S]*?BOOTSTRAP_ADMIN_PASSWORD[\s\S]*?do/.test(entrypoint),
+  "entrypoint must support BOOTSTRAP_ADMIN_PASSWORD_FILE",
+);
+read("scripts/bootstrap-admin.ts");
+read("scripts/seed-platform.ts");
+read("content/catalog.json");
 expect(!/RUNNER_SHARED_SECRET=[^$\n]{32,}/.test(compose), "Compose must not contain a literal runner secret");
 expect(/required_secrets=\([^)]*deletion_tombstone_key/.test(runtimeValidation), "runtime validation must require the deletion tombstone key");
 expect(/SOURCE_CODE_URL must be an HTTPS URL/.test(runtimeValidation), "runtime validation must reject a missing or non-HTTPS source-code URL");

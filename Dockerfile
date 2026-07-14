@@ -50,10 +50,11 @@ FROM final-base AS tooling
 ENV NODE_ENV=production
 COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node drizzle ./drizzle
+COPY --chown=node:node scripts/migrate-production.mjs ./scripts/migrate-production.mjs
 COPY --chmod=0555 infra/docker/entrypoint.sh /usr/local/bin/learncoding-entrypoint
 USER node
 ENTRYPOINT ["/usr/local/bin/learncoding-entrypoint"]
-CMD ["node", "--input-type=module", "--eval", "import pg from 'pg'; import { drizzle } from 'drizzle-orm/node-postgres'; import { migrate } from 'drizzle-orm/node-postgres/migrator'; const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 }); try { await migrate(drizzle(pool), { migrationsFolder: '/app/drizzle' }); } finally { await pool.end(); }"]
+CMD ["node", "/app/scripts/migrate-production.mjs"]
 
 FROM final-base AS worker
 ENV NODE_ENV=production
@@ -67,6 +68,12 @@ COPY --chmod=0555 infra/docker/entrypoint.sh /usr/local/bin/learncoding-entrypoi
 USER node
 ENTRYPOINT ["/usr/local/bin/learncoding-entrypoint"]
 CMD ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"]
+
+FROM worker AS operations
+COPY --chown=node:node content ./content
+COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
+COPY --chown=node:node scripts/seed-platform.ts ./scripts/seed-platform.ts
+CMD ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"]
 
 FROM worker AS regrade-worker
 COPY --chown=node:node scripts/process-assessment-regrades.ts ./scripts/process-assessment-regrades.ts

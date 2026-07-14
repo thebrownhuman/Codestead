@@ -8,7 +8,7 @@ export default defineConfig({
     }
   },
   test: {
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.{ts,tsx}"],
     // This route-import sweep intentionally loads the complete API graph. It
     // has its own mandatory gate so those import-only modules do not become
     // uncovered unit-coverage subjects.
