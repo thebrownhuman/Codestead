@@ -1,0 +1,161 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "git-tooling",
+  "title": "Git and Developer Tooling",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A practical tooling course covering filesystem and terminal fluency, Git's data model, commits, branches, remotes, collaboration, dependency/build hygiene, debugging, CI, secret safety and recovery.",
+  "audience": {
+    "level": "beginner to intermediate developer",
+    "assumed_knowledge": ["Basic file and folder use", "A current or planned code track"],
+    "target_capability": "Independently create, inspect, share, review, build and recover a small version-controlled project without destructive guesswork or secret leakage."
+  },
+  "scope": {
+    "includes": ["Filesystem paths and terminal commands", "Git working tree, index, objects and refs", "Commits and readable history", "Branches, merges and conflict resolution", "Remotes, fetch, pull and push", "Issues, pull requests and code review", "Dependency manifests, lockfiles and reproducible builds", "Debugger, formatter, linter and static-analysis workflow", "CI basics, secret hygiene, backup and safe recovery"],
+    "non_goals": ["Shell scripting as a full language", "Git server administration", "Advanced history surgery on shared repositories", "A specific CI vendor's complete feature set", "Replacing backups with Git", "Storing large binary datasets in ordinary Git"]
+  },
+  "authoritative_sources": [
+    { "id": "git-docs", "title": "Git Reference Documentation", "url": "https://git-scm.com/docs", "type": "official-docs", "version_or_date": "current stable accessed 2026-07" },
+    { "id": "pro-git", "title": "Pro Git", "url": "https://git-scm.com/book/en/v2", "type": "official-docs", "version_or_date": "second edition online" },
+    { "id": "github-docs", "title": "GitHub Documentation", "url": "https://docs.github.com/en", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "nist-ssdf", "title": "NIST Secure Software Development Framework", "url": "https://csrc.nist.gov/pubs/sp/800/218/final", "type": "security-guidance", "version_or_date": "SP 800-218 v1.1" },
+    { "id": "cs2023-se", "title": "CS2023 Software Engineering", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SE-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" }
+  ],
+  "runtime": {
+    "kind": "tooling",
+    "language": "Git CLI with shell examples for PowerShell and a POSIX shell",
+    "standard": "Current stable Git command behavior",
+    "toolchain": ["Git CLI", "PowerShell", "POSIX shell", "Visual debugger", "Formatter", "Linter", "Static analyzer", "Local CI simulator"],
+    "execution_environment": "Disposable local repositories and sandboxed remotes with no production credentials",
+    "file_extensions": [".gitignore", ".md", ".yml", ".yaml", ".json"],
+    "notes": ["Destructive and history-rewriting demonstrations use disposable repositories only.", "Commands are taught through state prediction, not rote recipes."]
+  },
+  "modules": [
+    {
+      "id": "git.shell-files",
+      "title": "Filesystem and terminal fluency",
+      "description": "Navigate and inspect project files safely across supported command environments.",
+      "required": true,
+      "prerequisites": ["pf.tools.files"],
+      "skills": [
+        { "id": "git.shell.paths", "title": "Paths and project trees", "description": "Resolve absolute, relative, parent and home paths and account for spaces and case behavior.", "outcomes": ["Navigate and explain a nested project tree without relying on the current GUI location."], "prerequisites": ["pf.tools.files"], "evidence_types": ["performance", "artifact", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["pro-git"] },
+        { "id": "git.shell.inspect", "title": "List, read and search", "description": "List hidden files, inspect text and search names or content with bounded commands.", "outcomes": ["Locate a configuration or symbol in a project without modifying files."], "prerequisites": ["git.shell.paths"], "evidence_types": ["performance", "artifact"], "status": "required", "coverage_status": "covered", "source_refs": ["pro-git", "cs2023-se"] },
+        { "id": "git.shell.create-move", "title": "Create, copy, move and rename", "description": "Manipulate files and directories with quoted literal paths and verify destinations.", "outcomes": ["Reorganize a disposable project tree and verify every resulting path."], "prerequisites": ["git.shell.inspect"], "evidence_types": ["performance", "artifact", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["pro-git"] },
+        { "id": "git.shell.safety", "title": "Command safety and help", "description": "Read help, preview scope, avoid destructive wildcards and stop when a computed target is uncertain.", "outcomes": ["Review a risky command sequence and propose a verifiable safer workflow."], "prerequisites": ["git.shell.create-move"], "evidence_types": ["review", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ssdf"] }
+      ]
+    },
+    {
+      "id": "git.model",
+      "title": "Repository model and first commit",
+      "description": "Understand Git state before changing it.",
+      "required": true,
+      "prerequisites": ["git.shell-files"],
+      "skills": [
+        { "id": "git.model.repository", "title": "Repository and working tree", "description": "Distinguish project files, repository metadata, tracked state and untracked files.", "outcomes": ["Initialize and inspect a repository without committing generated or secret files."], "prerequisites": ["git.shell.inspect"], "evidence_types": ["artifact", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.model.index", "title": "Working tree, index and HEAD", "description": "Predict differences among unstaged, staged and committed snapshots.", "outcomes": ["Use status and diff variants to explain every changed path before committing."], "prerequisites": ["git.model.repository"], "evidence_types": ["trace", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.model.ignore", "title": "Ignore policy", "description": "Ignore generated, machine-local and secret files without hiding required source or removing already tracked files by mistake.", "outcomes": ["Create and test a project-appropriate ignore file."], "prerequisites": ["git.model.repository"], "evidence_types": ["artifact", "test", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "github-docs", "nist-ssdf"] },
+        { "id": "git.model.stage-commit", "title": "Selective staging and first commit", "description": "Stage an intentional patch and create one coherent snapshot.", "outcomes": ["Produce a commit whose staged diff matches its stated purpose."], "prerequisites": ["git.model.index", "git.model.ignore"], "evidence_types": ["performance", "artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] }
+      ]
+    },
+    {
+      "id": "git.history",
+      "title": "Commits and history",
+      "description": "Create navigable history and inspect how snapshots relate.",
+      "required": true,
+      "prerequisites": ["git.model.stage-commit"],
+      "skills": [
+        { "id": "git.history.messages", "title": "Commit messages and scope", "description": "Write concise imperative subjects and include rationale when it is not obvious from the diff.", "outcomes": ["Split mixed changes and write messages that let a reviewer predict each commit."], "prerequisites": ["git.model.stage-commit"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["pro-git", "cs2023-se"] },
+        { "id": "git.history.log-show", "title": "Log, show and graph", "description": "Inspect commits, parents, authorship, patches and branch topology.", "outcomes": ["Locate and explain the commit that introduced a supplied change."], "prerequisites": ["git.history.messages"], "evidence_types": ["performance", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.history.diff", "title": "Diffs and patch review", "description": "Read line-level changes in working, staged and historical comparisons.", "outcomes": ["Review a patch for unintended files, whitespace-only churn and behavior changes."], "prerequisites": ["git.model.index", "git.history.log-show"], "evidence_types": ["review", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.history.tags", "title": "Tags and release points", "description": "Use annotated tags to name reviewed immutable release commits.", "outcomes": ["Create, inspect and verify a version tag on the intended commit."], "prerequisites": ["git.history.log-show"], "evidence_types": ["artifact", "performance", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] }
+      ]
+    },
+    {
+      "id": "git.branches",
+      "title": "Branches, merges and conflicts",
+      "description": "Develop isolated changes and integrate them with deliberate history.",
+      "required": true,
+      "prerequisites": ["git.history"],
+      "skills": [
+        { "id": "git.branches.refs", "title": "Branches as movable refs", "description": "Relate branch names, HEAD and commits without treating branches as copied folders.", "outcomes": ["Draw and manipulate a small branch graph while predicting HEAD movement."], "prerequisites": ["git.history.log-show"], "evidence_types": ["visual", "trace", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.branches.workflow", "title": "Short-lived feature branches", "description": "Create, switch, update and delete branches around one coherent change.", "outcomes": ["Complete an isolated feature branch and verify the base and tip before integration."], "prerequisites": ["git.branches.refs", "git.history.messages"], "evidence_types": ["performance", "artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["pro-git", "cs2023-se"] },
+        { "id": "git.branches.merge", "title": "Fast-forward and three-way merge", "description": "Predict when Git moves a ref or creates a merge commit and choose a repository policy deliberately.", "outcomes": ["Perform and explain fast-forward and divergent merges in a disposable repository."], "prerequisites": ["git.branches.workflow"], "evidence_types": ["trace", "performance", "visual"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.branches.conflicts", "title": "Conflict resolution", "description": "Interpret base, ours and theirs, edit the intended combined result and test before completing integration.", "outcomes": ["Resolve a content conflict and document why the final behavior is correct."], "prerequisites": ["git.branches.merge", "git.history.diff"], "evidence_types": ["debug", "artifact", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] }
+      ]
+    },
+    {
+      "id": "git.remotes",
+      "title": "Remotes and synchronization",
+      "description": "Exchange commits without confusing remote-tracking refs and local work.",
+      "required": true,
+      "prerequisites": ["git.branches"],
+      "skills": [
+        { "id": "git.remotes.clone", "title": "Clone and remote configuration", "description": "Create a local repository from a remote and inspect names, URLs and default branches.", "outcomes": ["Clone a sandbox repository and explain each local and remote-tracking ref."], "prerequisites": ["git.branches.refs"], "evidence_types": ["performance", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.remotes.fetch", "title": "Fetch and compare", "description": "Update remote-tracking refs without altering the working branch and inspect divergence first.", "outcomes": ["Fetch and explain ahead, behind and diverged states before integration."], "prerequisites": ["git.remotes.clone", "git.history.log-show"], "evidence_types": ["performance", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.remotes.pull", "title": "Pull policy", "description": "Understand pull as fetch plus configured integration and choose merge, rebase or fast-forward-only policy intentionally.", "outcomes": ["Predict and perform a pull under an explicit policy in a disposable repository."], "prerequisites": ["git.remotes.fetch", "git.branches.merge"], "evidence_types": ["trace", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.remotes.push", "title": "Push and non-fast-forward rejection", "description": "Publish local refs only after reviewing destination, upstream and remote divergence.", "outcomes": ["Push a feature branch and safely resolve a rejected update without force-overwriting others."], "prerequisites": ["git.remotes.pull", "git.branches.workflow"], "evidence_types": ["performance", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] }
+      ]
+    },
+    {
+      "id": "git.collaboration",
+      "title": "Issues, pull requests and review",
+      "description": "Coordinate changes through explicit requirements and reviewable evidence.",
+      "required": true,
+      "prerequisites": ["git.remotes"],
+      "skills": [
+        { "id": "git.collaboration.issue", "title": "Actionable issues", "description": "Describe problem, context, reproduction or desired outcome and acceptance criteria.", "outcomes": ["Write a scoped issue that another learner can understand and verify."], "prerequisites": ["pf.problem.io", "git.history.diff"], "evidence_types": ["artifact", "review", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["github-docs", "cs2023-se"] },
+        { "id": "git.collaboration.pr", "title": "Pull request narrative", "description": "Explain what changed, why, validation evidence, risks and follow-up without restating every diff line.", "outcomes": ["Open a focused pull request linked to acceptance criteria and tests."], "prerequisites": ["git.remotes.push", "git.collaboration.issue"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["github-docs", "cs2023-se"] },
+        { "id": "git.collaboration.review", "title": "Code review", "description": "Review correctness, tests, security, readability and scope with specific respectful comments.", "outcomes": ["Submit prioritized review feedback and distinguish blocker, suggestion and question."], "prerequisites": ["git.collaboration.pr", "git.history.diff"], "evidence_types": ["review", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["github-docs", "cs2023-se", "nist-ssdf"] },
+        { "id": "git.collaboration.integrate", "title": "Review updates and integration", "description": "Respond to review, keep evidence current and merge only an approved passing revision.", "outcomes": ["Revise, re-review and integrate a pull request while preserving traceability."], "prerequisites": ["git.collaboration.review", "git.branches.conflicts"], "evidence_types": ["artifact", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["github-docs", "cs2023-se"] }
+      ]
+    },
+    {
+      "id": "git.tools-build",
+      "title": "Dependencies and reproducible builds",
+      "description": "Make local and automated environments produce the same declared result.",
+      "required": true,
+      "prerequisites": ["git.model.ignore", "git.history"],
+      "skills": [
+        { "id": "git.tools.dependencies", "title": "Dependency manifests and lockfiles", "description": "Declare direct dependencies, review lockfile changes and avoid committing installed dependency directories.", "outcomes": ["Install and reproduce a project from reviewed manifest and lockfile data."], "prerequisites": ["git.model.ignore", "git.history.diff"], "evidence_types": ["artifact", "review", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ssdf", "github-docs"] },
+        { "id": "git.tools.build", "title": "Build and task commands", "description": "Expose documented, non-interactive build, test, lint and run commands through the language's normal tooling.", "outcomes": ["Run a clean checkout through setup, build, test and start without undocumented manual steps."], "prerequisites": ["git.tools.dependencies", "pf.tools.terminal-editor"], "evidence_types": ["performance", "artifact", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-se", "nist-ssdf"] },
+        { "id": "git.tools.config", "title": "Configuration and environment", "description": "Separate defaults, environment-specific configuration and secrets and document required variables safely.", "outcomes": ["Configure a project from an example environment file without committing credentials."], "prerequisites": ["git.tools.build", "git.model.ignore"], "evidence_types": ["artifact", "review", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ssdf", "github-docs"] },
+        { "id": "git.tools.artifacts", "title": "Generated artifacts and releases", "description": "Distinguish reproducible outputs from source and attach verified artifacts to versioned releases rather than ordinary commits.", "outcomes": ["Define and test an artifact policy for a small project."], "prerequisites": ["git.tools.build", "git.history.tags"], "evidence_types": ["design", "artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["github-docs", "nist-ssdf"] }
+      ]
+    },
+    {
+      "id": "git.quality-debug",
+      "title": "Debugging and quality automation",
+      "description": "Use repeatable tools and history evidence to isolate defects.",
+      "required": true,
+      "prerequisites": ["git.tools-build", "git.history"],
+      "skills": [
+        { "id": "git.quality.debugger", "title": "Debugger workflow", "description": "Set breakpoints, step, inspect variables and test a hypothesis rather than editing blindly.", "outcomes": ["Record and explain a debugger-assisted root-cause investigation."], "prerequisites": ["pf.tools.debug-test", "git.tools.build"], "evidence_types": ["debug", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-se"] },
+        { "id": "git.quality.format-lint", "title": "Formatter and linter", "description": "Automate style and static checks through one documented command with minimal unrelated churn.", "outcomes": ["Configure and apply formatter and linter checks to changed files."], "prerequisites": ["git.tools.build", "git.history.diff"], "evidence_types": ["artifact", "review", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-se", "nist-ssdf"] },
+        { "id": "git.quality.bisect", "title": "History-based regression isolation", "description": "Use a reproducible good/bad test and binary search over commits to find a regression introduction.", "outcomes": ["Locate a seeded regression with bisect and verify the causative patch."], "prerequisites": ["git.history.log-show", "git.tools.build"], "evidence_types": ["debug", "performance", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.quality.hooks", "title": "Local hooks and server checks", "description": "Use fast local feedback as convenience while keeping authoritative checks reproducible outside developer hooks.", "outcomes": ["Design a check placement plan for local, pre-push and CI stages."], "prerequisites": ["git.quality.format-lint", "git.tools.build"], "evidence_types": ["design", "artifact", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "nist-ssdf"] }
+      ]
+    },
+    {
+      "id": "git.ci-security-recovery",
+      "title": "CI, security and recovery",
+      "description": "Automate verification, protect credentials and recover from common mistakes with auditable actions.",
+      "required": true,
+      "prerequisites": ["git.collaboration", "git.quality-debug"],
+      "skills": [
+        { "id": "git.ci.pipeline", "title": "Continuous integration pipeline", "description": "Run clean setup, build, lint and tests on proposed changes with least required permissions.", "outcomes": ["Create and explain a minimal CI pipeline whose result gates integration."], "prerequisites": ["git.tools.build", "git.quality.format-lint", "git.collaboration.pr"], "evidence_types": ["artifact", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["github-docs", "nist-ssdf"] },
+        { "id": "git.security.secrets", "title": "Secret prevention and response", "description": "Keep secrets out of repositories, logs and artifacts and rotate exposed values rather than merely deleting a commit.", "outcomes": ["Review a leak scenario and execute a safe containment, rotation and history-remediation plan in a sandbox."], "prerequisites": ["git.tools.config", "git.history.log-show"], "evidence_types": ["review", "design", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["github-docs", "nist-ssdf"] },
+        { "id": "git.recovery.undo", "title": "Restore, revert, reset and reflog", "description": "Choose working-tree restoration, a new inverse commit, local ref movement or reflog recovery based on publication state.", "outcomes": ["Recover staged, committed and lost-ref mistakes in disposable repositories without overwriting shared history."], "prerequisites": ["git.model.index", "git.remotes.push", "git.history.log-show"], "evidence_types": ["trace", "performance", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "pro-git"] },
+        { "id": "git.project.collaboration", "title": "Collaborative repository capstone", "description": "Integrate issue, branch, commits, review, build, tests, CI, security and release evidence.", "outcomes": ["Deliver and explain a tagged collaborative change from scoped issue through passing reviewed integration."], "prerequisites": ["git.ci.pipeline", "git.security.secrets", "git.recovery.undo"], "evidence_types": ["project", "artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["git-docs", "github-docs", "cs2023-se", "nist-ssdf"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Predict and inspect working-tree, index, commit, branch and remote states before changing them.",
+    "Create focused history, resolve conflicts and collaborate through scoped issues, pull requests and reviews.",
+    "Reproduce dependency setup, builds, tests, formatting and analysis from a clean checkout and CI job.",
+    "Prevent secret leakage and recover safely from common working-tree, index, commit and ref mistakes.",
+    "Deliver a tagged reviewed change with traceable requirements and verification evidence."
+  ],
+  "coverage_summary": { "required_skills": 36, "elective_skills": 0, "total_skills": 36, "covered": 36, "partial": 0, "planned": 0 }
+}

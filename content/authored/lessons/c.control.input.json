@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.control.input.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.control-io",
+  "skillId": "c.control.input",
+  "title": "Validated text input",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Validated text input; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Validated text input",
+      "claim": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Validated text input",
+      "claim": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range. Your goal is to implement a console input loop that rejects malformed and out-of-range values safely. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Operators and precedence; pf control iteration; while, do and for; Conversions and numeric boundaries. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions. Therefore the draft explicitly rejects this beginner failure model: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Read bounded text, parse values and handle malformed or exhausted input.",
+      "Implement a console input loop that rejects malformed and out-of-range values safely."
+    ],
+    "excludes": [
+      "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions."
+    ]
+  },
+  "outcomes": [
+    "Implement a console input loop that rejects malformed and out-of-range values safely."
+  ],
+  "examples": [
+    {
+      "id": "c.control.input.example-a",
+      "title": "Validated text input: defined case",
+      "situation": "A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+      ],
+      "result": "The defined result follows because Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+    },
+    {
+      "id": "c.control.input.example-b",
+      "title": "Validated text input: boundary case",
+      "situation": "A scanf call checks that exactly one integer conversion succeeded before using the destination object.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A scanf call checks that exactly one integer conversion succeeded before using the destination object.",
+        "Step 2 — Keep this standard boundary visible: scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions.",
+        "Step 3 — Reject the tempting rule: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement a console input loop that rejects malformed and out-of-range values safely."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.control.input.misconception",
+      "mistakenBelief": "scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored.",
+      "correction": "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Validated text input: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
+      "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
+      "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+      }
+    ],
+    "textAlternative": "Starting artifact: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range. Step 1, Source and state. State: evidence: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.. Check the conclusion against the boundary and reject this misconception: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Validated text input: defined case”: state its starting evidence, apply the Validated text input rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Validated text input: defined case.",
+        "Starting evidence: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
+        "Core rule: Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
+        "Observable result: The defined result follows because Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.",
+        "Boundary check: Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A scanf call checks that exactly one integer conversion succeeded before using the destination object.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
+        "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Validated text input, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement a console input loop that rejects malformed and out-of-range values safely.",
+        "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.control.input.misconception",
+      "explanation": "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'return value' and state the decisive evidence: A scanf call checks that exactly one integer conversion succeeded before using the destination object."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement a console input loop that rejects malformed and out-of-range values safely. Keep this boundary in view: scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions.",
+    "retrievalPrompts": [
+      "Explain Validated text input using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored.",
+      "Apply the checkpoint 'return value' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Declarations, prototypes and definitions”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

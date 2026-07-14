@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.collaboration.issue.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.collaboration",
+  "skillId": "git.collaboration.issue",
+  "title": "Actionable issues deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Actionable issues; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "github-docs",
+    "cs2023-se"
+  ],
+  "items": [
+    {
+      "id": "git.collaboration.issue.mcq.misconception",
+      "skillId": "git.collaboration.issue",
+      "title": "Actionable issues: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? A short title such as login broken is enough because developers can discover the environment and expected behavior themselves.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.",
+        "incorrect": "The selected statement preserves the documented misconception. Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Actionable issues instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+      }
+    }
+  ]
+}

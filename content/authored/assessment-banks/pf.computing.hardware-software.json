@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.computing.hardware-software.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.computing",
+  "skillId": "pf.computing.hardware-software",
+  "title": "Hardware and software roles deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Hardware and software roles; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.computing.hardware-software.mcq.misconception",
+      "skillId": "pf.computing.hardware-software",
+      "title": "Hardware and software roles: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Adding more disk storage always makes every running program faster because storage and working memory are the same resource.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists.",
+        "incorrect": "The selected statement preserves the documented misconception. Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Hardware and software roles instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Adding more disk storage always makes every running program faster because storage and working memory are the same resource."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+      }
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.functions.parameters.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.control-functions",
+  "skillId": "javascript.functions.parameters",
+  "title": "Parameters, rest and return contracts",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Parameters, rest and return contracts; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Parameters, rest and return contracts",
+      "claim": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Parameters, rest and return contracts",
+      "claim": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A function uses options = {} before destructuring optional properties. Your goal is to design and test a function with a clear parameter and failure contract. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Values, types and expressions; pf abstraction calls; Function declarations, expressions and arrows; let, const and binding. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input. This draft therefore rejects: A default parameter runs for null and every other falsy argument."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use defaults, destructuring, rest parameters and explicit return behavior without shared mutable defaults.",
+      "Design and test a function with a clear parameter and failure contract."
+    ],
+    "excludes": [
+      "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input."
+    ]
+  },
+  "outcomes": [
+    "Design and test a function with a clear parameter and failure contract."
+  ],
+  "examples": [
+    {
+      "id": "javascript.functions.parameters.example-a",
+      "title": "Parameters, rest and return contracts: concrete case",
+      "situation": "A function uses options = {} before destructuring optional properties.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A function uses options = {} before destructuring optional properties.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+      ],
+      "result": "The result follows because Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+    },
+    {
+      "id": "javascript.functions.parameters.example-b",
+      "title": "Parameters, rest and return contracts: boundary case",
+      "situation": "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A default parameter runs for null and every other falsy argument."
+      ],
+      "result": "The boundary requires this correction: Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.functions.parameters.misconception",
+      "mistakenBelief": "A default parameter runs for null and every other falsy argument.",
+      "correction": "Parameter defaults apply when the argument is undefined, not for null or all falsy values.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: A default parameter runs for null and every other falsy argument."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Parameters, rest and return contracts, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Parameters, rest and return contracts before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A function uses options = {} before destructuring optional properties.",
+      "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
+      "Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A function uses options = {} before destructuring optional properties."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A default parameter runs for null and every other falsy argument."
+      }
+    ],
+    "textAlternative": "Starting artifact: A function uses options = {} before destructuring optional properties. Step 1, Artifact. State: evidence: A function uses options = {} before destructuring optional properties.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Parameter defaults apply when the argument is undefined, not for null or all falsy values.. Check the result against the boundary and reject this misconception: A default parameter runs for null and every other falsy argument."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Parameters, rest and return contracts: concrete case”: state its starting evidence, apply the Parameters, rest and return contracts rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Parameters, rest and return contracts: concrete case.",
+        "Starting evidence: A function uses options = {} before destructuring optional properties.",
+        "Core rule: Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
+        "Observable result: The result follows because Parameter defaults apply when the argument is undefined, not for null or all falsy values.",
+        "Boundary check: Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
+        "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Parameters, rest and return contracts and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Design and test a function with a clear parameter and failure contract.",
+        "Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.functions.parameters.misconception",
+      "explanation": "Parameter defaults apply when the argument is undefined, not for null or all falsy values.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'argument is undefined' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and test a function with a clear parameter and failure contract. Keep this boundary in view: Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
+    "retrievalPrompts": [
+      "Explain Parameters, rest and return contracts using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: A default parameter runs for null and every other falsy argument.",
+      "Apply checkpoint 'argument is undefined' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Arrays and indexed data”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

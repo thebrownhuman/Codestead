@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.analysis.asymptotic.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.entry-analysis",
+  "skillId": "dsa.analysis.asymptotic",
+  "title": "Time, space and asymptotic growth",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Time, space and asymptotic growth; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Time, space and asymptotic growth",
+      "claim": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds."
+    },
+    {
+      "sourceRef": "cs2023-msf",
+      "locator": "CS2023 Mathematical and Statistical Foundations; August 2023; material applicable to Time, space and asymptotic growth",
+      "claim": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two nested full n loops yield quadratic work while two consecutive n loops remain linear. Your goal is to derive and compare time and auxiliary-space bounds for iterative and nested algorithms. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf problem pseudocode; pf tools debug test; Correctness and counterexamples; pf control nested. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints. The draft therefore rejects: Big-O gives the exact runtime in seconds for every machine and input."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Count dominant operations and use O, Omega and Theta to compare growth independent of one machine.",
+      "Derive and compare time and auxiliary-space bounds for iterative and nested algorithms.",
+      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+    ],
+    "excludes": [
+      "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+    ]
+  },
+  "outcomes": [
+    "Derive and compare time and auxiliary-space bounds for iterative and nested algorithms."
+  ],
+  "examples": [
+    {
+      "id": "dsa.analysis.asymptotic.example-a",
+      "title": "Time, space and asymptotic growth: language-neutral trace",
+      "situation": "Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+      ],
+      "result": "The conceptual result follows because Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+    },
+    {
+      "id": "dsa.analysis.asymptotic.example-b",
+      "title": "Time, space and asymptotic growth: implementation transfer",
+      "situation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+        "Step 3 — Retest this boundary in the selected implementation: Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.analysis.asymptotic.misconception",
+      "mistakenBelief": "Big-O gives the exact runtime in seconds for every machine and input.",
+      "correction": "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Big-O gives the exact runtime in seconds for every machine and input."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Time, space and asymptotic growth, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
+      "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
+      "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
+      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Two nested full n loops yield quadratic work while two consecutive n loops remain linear."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+        },
+        "explanation": "Verify the result and reject this misconception: Big-O gives the exact runtime in seconds for every machine and input."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two nested full n loops yield quadratic work while two consecutive n loops remain linear. Step 1, Specification. State: scenario: Two nested full n loops yield quadratic work while two consecutive n loops remain linear.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics. Step 4, Conclusion. State: correction: Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.. Verify the result and reject this misconception: Big-O gives the exact runtime in seconds for every machine and input."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Time, space and asymptotic growth: language-neutral trace”: state its starting evidence, apply the Time, space and asymptotic growth rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Time, space and asymptotic growth: language-neutral trace.",
+        "Starting evidence: Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
+        "Core rule: Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
+        "Observable result: The conceptual result follows because Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
+        "Boundary check: Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+        "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Time, space and asymptotic growth case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Derive and compare time and auxiliary-space bounds for iterative and nested algorithms.",
+        "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.analysis.asymptotic.misconception",
+      "explanation": "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'growth, not exact time', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to derive and compare time and auxiliary-space bounds for iterative and nested algorithms. Keep this boundary in view: Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints.",
+    "retrievalPrompts": [
+      "State the Time, space and asymptotic growth invariant and complexity without code.",
+      "Why is this claim false: Big-O gives the exact runtime in seconds for every machine and input.",
+      "Map checkpoint 'growth, not exact time' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Array representation and operations”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

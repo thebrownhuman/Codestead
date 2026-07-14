@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.trees.balance-trie.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.trees",
+  "skillId": "dsa.trees.balance-trie",
+  "title": "Balanced trees and tries",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Balanced trees and tries; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Balanced trees and tries",
+      "claim": "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A trie retrieves all words under a prefix node without comparing entire unrelated keys. Your goal is to compare balanced BST and trie suitability and implement a tested trie. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Recursive problem design; Linked lists; Binary search tree operations; String traversal and matching basics. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation. The draft therefore rejects: A trie operation is O(1) because it does not depend on the number of stored words."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Explain balance guarantees and implement trie insert, lookup and prefix traversal.",
+      "Compare balanced BST and trie suitability and implement a tested trie.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "excludes": [
+      "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+    ]
+  },
+  "outcomes": [
+    "Compare balanced BST and trie suitability and implement a tested trie."
+  ],
+  "examples": [
+    {
+      "id": "dsa.trees.balance-trie.example-a",
+      "title": "Balanced trees and tries: language-neutral trace",
+      "situation": "A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+      ],
+      "result": "The conceptual result follows because Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+    },
+    {
+      "id": "dsa.trees.balance-trie.example-b",
+      "title": "Balanced trees and tries: implementation transfer",
+      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Step 3 — Retest this boundary in the selected implementation: Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.trees.balance-trie.misconception",
+      "mistakenBelief": "A trie operation is O(1) because it does not depend on the number of stored words.",
+      "correction": "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A trie operation is O(1) because it does not depend on the number of stored words."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Balanced trees and tries, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
+      "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
+      "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A trie retrieves all words under a prefix node without comparing entire unrelated keys."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+        },
+        "explanation": "Verify the result and reject this misconception: A trie operation is O(1) because it does not depend on the number of stored words."
+      }
+    ],
+    "textAlternative": "Starting artifact: A trie retrieves all words under a prefix node without comparing entire unrelated keys. Step 1, Specification. State: scenario: A trie retrieves all words under a prefix node without comparing entire unrelated keys.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.. Verify the result and reject this misconception: A trie operation is O(1) because it does not depend on the number of stored words."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Balanced trees and tries: language-neutral trace”: state its starting evidence, apply the Balanced trees and tries rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Balanced trees and tries: language-neutral trace.",
+        "Starting evidence: A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
+        "Core rule: Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
+        "Observable result: The conceptual result follows because Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
+        "Boundary check: Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Balanced trees and tries case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Compare balanced BST and trie suitability and implement a tested trie.",
+        "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.trees.balance-trie.misconception",
+      "explanation": "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'key length', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to compare balanced BST and trie suitability and implement a tested trie. Keep this boundary in view: Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation.",
+    "retrievalPrompts": [
+      "State the Balanced trees and tries invariant and complexity without code.",
+      "Why is this claim false: A trie operation is O(1) because it does not depend on the number of stored words.",
+      "Map checkpoint 'key length' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Heap property and array layout”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

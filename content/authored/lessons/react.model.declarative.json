@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.model.declarative.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.model-setup",
+  "skillId": "react.model.declarative",
+  "title": "Declarative UI and re-rendering",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Declarative UI and re-rendering; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Declarative UI and re-rendering",
+      "claim": "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes. Your goal is to translate a manual DOM update into state-driven rendering and trace its rerender. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: javascript project browser app; Application root and rendering; javascript dom query update. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization. This draft therefore rejects: Declarative React means DOM events and state updates never occur imperatively."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Describe UI as a function of current props and state rather than imperative DOM mutations.",
+      "Translate a manual DOM update into state-driven rendering and trace its rerender."
+    ],
+    "excludes": [
+      "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization."
+    ]
+  },
+  "outcomes": [
+    "Translate a manual DOM update into state-driven rendering and trace its rerender."
+  ],
+  "examples": [
+    {
+      "id": "react.model.declarative.example-a",
+      "title": "Declarative UI and re-rendering: concrete case",
+      "situation": "Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+      ],
+      "result": "The result follows because Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+    },
+    {
+      "id": "react.model.declarative.example-b",
+      "title": "Declarative UI and re-rendering: boundary case",
+      "situation": "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Declarative React means DOM events and state updates never occur imperatively."
+      ],
+      "result": "The boundary requires this correction: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.model.declarative.misconception",
+      "mistakenBelief": "Declarative React means DOM events and state updates never occur imperatively.",
+      "correction": "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Declarative React means DOM events and state updates never occur imperatively."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Declarative UI and re-rendering, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Declarative UI and re-rendering before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
+      "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
+      "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Declarative React means DOM events and state updates never occur imperatively."
+      }
+    ],
+    "textAlternative": "Starting artifact: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes. Step 1, Artifact. State: evidence: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.. Check the result against the boundary and reject this misconception: Declarative React means DOM events and state updates never occur imperatively."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Declarative UI and re-rendering: concrete case”: state its starting evidence, apply the Declarative UI and re-rendering rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Declarative UI and re-rendering: concrete case.",
+        "Starting evidence: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
+        "Core rule: React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
+        "Observable result: The result follows because Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.",
+        "Boundary check: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
+        "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Declarative UI and re-rendering and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Translate a manual DOM update into state-driven rendering and trace its rerender.",
+        "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.model.declarative.misconception",
+      "explanation": "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'UI from state' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to translate a manual DOM update into state-driven rendering and trace its rerender. Keep this boundary in view: Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
+    "retrievalPrompts": [
+      "Explain Declarative UI and re-rendering using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Declarative React means DOM events and state updates never occur imperatively.",
+      "Apply checkpoint 'UI from state' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “React developer tools”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

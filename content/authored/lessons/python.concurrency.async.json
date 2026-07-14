@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.concurrency.async.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.concurrency",
+  "skillId": "python.concurrency.async",
+  "title": "asyncio coroutines and tasks",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for asyncio coroutines and tasks; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; asyncio, concurrent.futures, threading, multiprocessing, queue, and synchronization documentation; atomic topic: asyncio coroutines and tasks",
+      "claim": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Data Model coroutine and asynchronous iterator protocols; atomic topic: asyncio coroutines and tasks",
+      "claim": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure. Your goal is to implement and trace a small asynchronous workflow with timeout and cancellation handling. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Typing, tests, logging and debugging; Generators and lazy pipelines; Concurrency versus parallelism; Exception handling and propagation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically. The learner must reject this documented misconception: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use async, await and task coordination for bounded I/O-style examples without blocking the event loop.",
+      "Implement and trace a small asynchronous workflow with timeout and cancellation handling."
+    ],
+    "excludes": [
+      "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically."
+    ]
+  },
+  "outcomes": [
+    "Implement and trace a small asynchronous workflow with timeout and cancellation handling."
+  ],
+  "examples": [
+    {
+      "id": "python.concurrency.async.example.direct",
+      "title": "asyncio coroutines and tasks: direct language case",
+      "situation": "Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      ],
+      "result": "The example meets the atomic outcome because Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+    },
+    {
+      "id": "python.concurrency.async.example.boundary",
+      "title": "asyncio coroutines and tasks: boundary and transfer case",
+      "situation": "A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function.",
+        "Step 2 — Keep the language boundary explicit: Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically.",
+        "Step 3 — Reject the tempting but incorrect rule: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and trace a small asynchronous workflow with timeout and cancellation handling."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.concurrency.async.misconception",
+      "mistakenBelief": "Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking.",
+      "correction": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a coordination desk that overlaps waiting jobs, assigns CPU work to separate rooms, and protects complete shared transitions can introduce asyncio coroutines and tasks, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "concurrency models, asyncio, threads, processes, cancellation, and safety"
+    ],
+    "limitations": [
+      "the event loop, GIL, serialization, atomicity, scheduling, and cancellation points must be reasoned about technically",
+      "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
+      "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
+      "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+      }
+    ],
+    "textAlternative": "Starting artifact: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure. Step 1, Observe. State: evidence: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.. Compare the observation with the correction and explain why the misconception fails: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “asyncio coroutines and tasks: direct language case”: state its starting evidence, apply the asyncio coroutines and tasks rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: asyncio coroutines and tasks: direct language case.",
+        "Starting evidence: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
+        "Core rule: An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
+        "Observable result: The example meets the atomic outcome because Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
+        "Boundary check: Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
+        "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of asyncio coroutines and tasks, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement and trace a small asynchronous workflow with timeout and cancellation handling.",
+        "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.concurrency.async.misconception",
+      "explanation": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and trace a small asynchronous workflow with timeout and cancellation handling. Keep this boundary in view: Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically.",
+    "retrievalPrompts": [
+      "Explain asyncio coroutines and tasks using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking.",
+      "Predict this case from memory: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function."
+    ],
+    "nextReviewPrompt": "Next: continue to “Threads and processes”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.forms.labels-controls.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.forms",
+  "skillId": "html.forms.labels-controls",
+  "title": "Labels and input controls",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Labels and input controls; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Labels and input controls",
+      "claim": "A label associates an accessible name with its form control through nesting or matching for and id values."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Labels and input controls",
+      "claim": "A label associates an accessible name with its form control through nesting or matching for and id values."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A label associates an accessible name with its form control through nesting or matching for and id values.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A label for=email points to one input id=email while help and errors are connected separately. Your goal is to create a keyboard-operable form whose controls have persistent accessible names. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Paragraph and inline meaning; Relative and absolute URLs; Form submission model. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A label associates an accessible name with its form control through nesting or matching for and id values. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state. This draft therefore rejects: Placeholder text is an adequate replacement for a visible label."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Associate visible labels with suitable native input, textarea, select and button controls.",
+      "Create a keyboard-operable form whose controls have persistent accessible names."
+    ],
+    "excludes": [
+      "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state."
+    ]
+  },
+  "outcomes": [
+    "Create a keyboard-operable form whose controls have persistent accessible names."
+  ],
+  "examples": [
+    {
+      "id": "html.forms.labels-controls.example-a",
+      "title": "Labels and input controls: concrete case",
+      "situation": "A label for=email points to one input id=email while help and errors are connected separately.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A label for=email points to one input id=email while help and errors are connected separately.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+      ],
+      "result": "The result follows because Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+    },
+    {
+      "id": "html.forms.labels-controls.example-b",
+      "title": "Labels and input controls: boundary case",
+      "situation": "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Placeholder text is an adequate replacement for a visible label."
+      ],
+      "result": "The boundary requires this correction: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.forms.labels-controls.misconception",
+      "mistakenBelief": "Placeholder text is an adequate replacement for a visible label.",
+      "correction": "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Placeholder text is an adequate replacement for a visible label."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Labels and input controls, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Labels and input controls before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A label for=email points to one input id=email while help and errors are connected separately.",
+      "A label associates an accessible name with its form control through nesting or matching for and id values.",
+      "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A label for=email points to one input id=email while help and errors are connected separately."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A label associates an accessible name with its form control through nesting or matching for and id values."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Placeholder text is an adequate replacement for a visible label."
+      }
+    ],
+    "textAlternative": "Starting artifact: A label for=email points to one input id=email while help and errors are connected separately. Step 1, Artifact. State: evidence: A label for=email points to one input id=email while help and errors are connected separately.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A label associates an accessible name with its form control through nesting or matching for and id values.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.. Check the result against the boundary and reject this misconception: Placeholder text is an adequate replacement for a visible label."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Labels and input controls: concrete case”: state its starting evidence, apply the Labels and input controls rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Labels and input controls: concrete case.",
+        "Starting evidence: A label for=email points to one input id=email while help and errors are connected separately.",
+        "Core rule: A label associates an accessible name with its form control through nesting or matching for and id values.",
+        "Observable result: The result follows because Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.",
+        "Boundary check: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A label associates an accessible name with its form control through nesting or matching for and id values.",
+        "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Labels and input controls and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Create a keyboard-operable form whose controls have persistent accessible names.",
+        "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.forms.labels-controls.misconception",
+      "explanation": "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'programmatic label' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a keyboard-operable form whose controls have persistent accessible names. Keep this boundary in view: Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
+    "retrievalPrompts": [
+      "Explain Labels and input controls using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Placeholder text is an adequate replacement for a visible label.",
+      "Apply checkpoint 'programmatic label' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Groups, choices and autocomplete”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

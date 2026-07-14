@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.functions.scope-storage.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.functions",
+  "skillId": "c.functions.scope-storage",
+  "title": "Scope, linkage and storage duration",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Scope, linkage and storage duration; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to Scope, linkage and storage duration",
+      "claim": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Scope, linkage and storage duration",
+      "claim": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function. Your goal is to resolve name visibility and lifetime in a multi-function example. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: while, do and for; pf abstraction calls; Declarations, prototypes and definitions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases. Therefore the draft explicitly rejects this beginner failure model: A static local variable is globally visible because it lives for the entire program."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish block/file scope, internal/external linkage and automatic/static duration.",
+      "Resolve name visibility and lifetime in a multi-function example."
+    ],
+    "excludes": [
+      "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases."
+    ]
+  },
+  "outcomes": [
+    "Resolve name visibility and lifetime in a multi-function example."
+  ],
+  "examples": [
+    {
+      "id": "c.functions.scope-storage.example-a",
+      "title": "Scope, linkage and storage duration: defined case",
+      "situation": "A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+      ],
+      "result": "The defined result follows because A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+    },
+    {
+      "id": "c.functions.scope-storage.example-b",
+      "title": "Scope, linkage and storage duration: boundary case",
+      "situation": "A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit.",
+        "Step 2 — Keep this standard boundary visible: Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases.",
+        "Step 3 — Reject the tempting rule: A static local variable is globally visible because it lives for the entire program."
+      ],
+      "result": "This case demonstrates the declared outcome: Resolve name visibility and lifetime in a multi-function example."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.functions.scope-storage.misconception",
+      "mistakenBelief": "A static local variable is globally visible because it lives for the entire program.",
+      "correction": "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A static local variable is globally visible because it lives for the entire program."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Scope, linkage and storage duration: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
+      "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
+      "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A static local variable is globally visible because it lives for the entire program."
+      }
+    ],
+    "textAlternative": "Starting artifact: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function. Step 1, Source and state. State: evidence: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.. Check the conclusion against the boundary and reject this misconception: A static local variable is globally visible because it lives for the entire program."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Scope, linkage and storage duration: defined case”: state its starting evidence, apply the Scope, linkage and storage duration rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Scope, linkage and storage duration: defined case.",
+        "Starting evidence: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
+        "Core rule: Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
+        "Observable result: The defined result follows because A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.",
+        "Boundary check: A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
+        "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Scope, linkage and storage duration, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Resolve name visibility and lifetime in a multi-function example.",
+        "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.functions.scope-storage.misconception",
+      "explanation": "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'block scope' and state the decisive evidence: A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to resolve name visibility and lifetime in a multi-function example. Keep this boundary in view: Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases.",
+    "retrievalPrompts": [
+      "Explain Scope, linkage and storage duration using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: A static local variable is globally visible because it lives for the entire program.",
+      "Apply the checkpoint 'block scope' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Recursive functions”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

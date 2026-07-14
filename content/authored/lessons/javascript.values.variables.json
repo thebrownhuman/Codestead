@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.values.variables.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.values",
+  "skillId": "javascript.values.variables",
+  "title": "let, const and binding",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for let, const and binding; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to let, const and binding",
+      "claim": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to let, const and binding",
+      "claim": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A const array can receive push because its binding stays fixed while the array object mutates. Your goal is to trace bindings through blocks and choose const unless reassignment is intended. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scripts and console; pf state expressions; Primitive values and typeof; pf state variables. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime. This draft therefore rejects: const makes every nested property of an object immutable."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use block-scoped declarations and distinguish binding reassignment from object mutation.",
+      "Trace bindings through blocks and choose const unless reassignment is intended."
+    ],
+    "excludes": [
+      "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime."
+    ]
+  },
+  "outcomes": [
+    "Trace bindings through blocks and choose const unless reassignment is intended."
+  ],
+  "examples": [
+    {
+      "id": "javascript.values.variables.example-a",
+      "title": "let, const and binding: concrete case",
+      "situation": "A const array can receive push because its binding stays fixed while the array object mutates.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A const array can receive push because its binding stays fixed while the array object mutates.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+      ],
+      "result": "The result follows because const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+    },
+    {
+      "id": "javascript.values.variables.example-b",
+      "title": "let, const and binding: boundary case",
+      "situation": "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: const makes every nested property of an object immutable."
+      ],
+      "result": "The boundary requires this correction: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.values.variables.misconception",
+      "mistakenBelief": "const makes every nested property of an object immutable.",
+      "correction": "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: const makes every nested property of an object immutable."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model let, const and binding, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for let, const and binding before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A const array can receive push because its binding stays fixed while the array object mutates.",
+      "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
+      "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A const array can receive push because its binding stays fixed while the array object mutates."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: const makes every nested property of an object immutable."
+      }
+    ],
+    "textAlternative": "Starting artifact: A const array can receive push because its binding stays fixed while the array object mutates. Step 1, Artifact. State: evidence: A const array can receive push because its binding stays fixed while the array object mutates.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.. Check the result against the boundary and reject this misconception: const makes every nested property of an object immutable."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “let, const and binding: concrete case”: state its starting evidence, apply the let, const and binding rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: let, const and binding: concrete case.",
+        "Starting evidence: A const array can receive push because its binding stays fixed while the array object mutates.",
+        "Core rule: let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
+        "Observable result: The result follows because const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.",
+        "Boundary check: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
+        "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for let, const and binding and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace bindings through blocks and choose const unless reassignment is intended.",
+        "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.values.variables.misconception",
+      "explanation": "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'prevents rebinding' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace bindings through blocks and choose const unless reassignment is intended. Keep this boundary in view: Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
+    "retrievalPrompts": [
+      "Explain let, const and binding using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: const makes every nested property of an object immutable.",
+      "Apply checkpoint 'prevents rebinding' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Equality, truthiness and coercion”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

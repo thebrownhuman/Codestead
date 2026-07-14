@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.knowledge.inference.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.knowledge-uncertainty",
+  "skillId": "ai.knowledge.inference",
+  "title": "Logical inference and consistency deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Logical inference and consistency; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai",
+    "cs2023-msf"
+  ],
+  "items": [
+    {
+      "id": "ai.knowledge.inference.mcq.misconception",
+      "skillId": "ai.knowledge.inference",
+      "title": "Logical inference and consistency: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation.",
+        "incorrect": "That option preserves the overclaim. Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+        },
+        {
+          "id": "overclaim",
+          "text": "A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+      }
+    },
+    {
+      "id": "ai.knowledge.inference.fill.checkpoint",
+      "skillId": "ai.knowledge.inference",
+      "title": "Logical inference and consistency: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'lack of proof'. Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; [[checkpoint]] alone is not negation.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "lack of proof"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+      }
+    },
+    {
+      "id": "ai.knowledge.inference.code.offline",
+      "skillId": "ai.knowledge.inference",
+      "title": "Logical inference and consistency: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read comma-separated initial facts, a line of whitespace-separated rules a>b, and a query. Compute forward closure and print entailed or unknown.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.knowledge.inference.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "bird\nbird>animal animal>living\nliving\n",
+          "expectedStdout": "entailed",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.knowledge.inference.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "bird\nbird>animal\nflies\n",
+          "expectedStdout": "unknown",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    lines = data.splitlines()\n    facts = {item for item in lines[0].split(',') if item}\n    rules = [tuple(rule.split('>', 1)) for rule in lines[1].split()]\n    changed = True\n    while changed:\n        changed = False\n        for premise, conclusion in rules:\n            if premise in facts and conclusion not in facts:\n                facts.add(conclusion); changed = True\n    return 'entailed' if lines[2].strip() in facts else 'unknown'\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The result is relative to the explicit facts and one-premise rules; lack of derivation remains unknown rather than false."
+      }
+    }
+  ]
+}

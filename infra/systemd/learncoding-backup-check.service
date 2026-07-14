@@ -1,0 +1,16 @@
+[Unit]
+Description=Check LearnCoding backup freshness, checksums, and capacity
+Documentation=/opt/learncoding/docs/runbooks/backup-and-restore.md
+OnFailure=learncoding-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/bash /opt/learncoding/scripts/backup/check-backups.sh
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+UMask=0077
+TimeoutStartSec=30min

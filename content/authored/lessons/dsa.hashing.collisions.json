@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.hashing.collisions.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.hashing",
+  "skillId": "dsa.hashing.collisions",
+  "title": "Collision resolution",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Collision resolution; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Collision resolution",
+      "claim": "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved. Your goal is to trace insert, find and delete through collisions in a teaching hash table. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Hash and equality contract; Singly linked representation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time. The draft therefore rejects: Two different keys with one hash value overwrite each other automatically."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Explain chaining and open addressing with load factor, probing and clustering trade-offs.",
+      "Trace insert, find and delete through collisions in a teaching hash table.",
+      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+    ],
+    "excludes": [
+      "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+    ]
+  },
+  "outcomes": [
+    "Trace insert, find and delete through collisions in a teaching hash table."
+  ],
+  "examples": [
+    {
+      "id": "dsa.hashing.collisions.example-a",
+      "title": "Collision resolution: language-neutral trace",
+      "situation": "Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+      ],
+      "result": "The conceptual result follows because A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+    },
+    {
+      "id": "dsa.hashing.collisions.example-b",
+      "title": "Collision resolution: implementation transfer",
+      "situation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+        "Step 3 — Retest this boundary in the selected implementation: Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.hashing.collisions.misconception",
+      "mistakenBelief": "Two different keys with one hash value overwrite each other automatically.",
+      "correction": "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Two different keys with one hash value overwrite each other automatically."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Collision resolution, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
+      "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
+      "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
+      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+        },
+        "explanation": "Verify the result and reject this misconception: Two different keys with one hash value overwrite each other automatically."
+      }
+    ],
+    "textAlternative": "Starting artifact: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved. Step 1, Specification. State: scenario: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__. Step 4, Conclusion. State: correction: A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.. Verify the result and reject this misconception: Two different keys with one hash value overwrite each other automatically."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Collision resolution: language-neutral trace”: state its starting evidence, apply the Collision resolution rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Collision resolution: language-neutral trace.",
+        "Starting evidence: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
+        "Core rule: Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
+        "Observable result: The conceptual result follows because A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
+        "Boundary check: A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+        "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Collision resolution case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Trace insert, find and delete through collisions in a teaching hash table.",
+        "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.hashing.collisions.misconception",
+      "explanation": "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'compares colliding keys', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace insert, find and delete through collisions in a teaching hash table. Keep this boundary in view: Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time.",
+    "retrievalPrompts": [
+      "State the Collision resolution invariant and complexity without code.",
+      "Why is this claim false: Two different keys with one hash value overwrite each other automatically.",
+      "Map checkpoint 'compares colliding keys' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Resizing and expected complexity”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

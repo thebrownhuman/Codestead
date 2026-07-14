@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.concurrency.tasks.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.runtime-concurrency",
+  "skillId": "java.concurrency.tasks",
+  "title": "Threads, tasks and executors",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Threads, tasks and executors; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; JVM/runtime concepts, Concurrency, and Virtual Threads learning paths; atomic topic: Threads, tasks and executors",
+      "claim": "Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path. Your goal is to run independent tasks and collect results while shutting down resources correctly. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Packages, builds and tests; List, Set, Map and Queue; Exception flow and stack traces; Functional interfaces and lambdas. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Submitting does not guarantee immediate start or success, Future.get can block or wrap failure, cancellation is cooperative, unbounded queues can exhaust memory, and executor threads keep a process alive. The learner must reject this documented misconception: ExecutorService automatically shuts down when submitted tasks finish, and Future.get always returns a value promptly."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Express units of work and manage execution through structured executor boundaries.",
+      "Run independent tasks and collect results while shutting down resources correctly."
+    ],
+    "excludes": [
+      "Submitting does not guarantee immediate start or success, Future.get can block or wrap failure, cancellation is cooperative, unbounded queues can exhaust memory, and executor threads keep a process alive."
+    ]
+  },
+  "outcomes": [
+    "Run independent tasks and collect results while shutting down resources correctly."
+  ],
+  "examples": [
+    {
+      "id": "java.concurrency.tasks.example.direct",
+      "title": "Threads, tasks and executors: direct language case",
+      "situation": "A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor."
+      ],
+      "result": "The example meets the atomic outcome because Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor."
+    },
+    {
+      "id": "java.concurrency.tasks.example.boundary",
+      "title": "Threads, tasks and executors: boundary and transfer case",
+      "situation": "A timeout cancels remaining work and awaits termination instead of abandoning live executor threads after the first failure.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A timeout cancels remaining work and awaits termination instead of abandoning live executor threads after the first failure.",
+        "Step 2 — Keep the language boundary explicit: Submitting does not guarantee immediate start or success, Future.get can block or wrap failure, cancellation is cooperative, unbounded queues can exhaust memory, and executor threads keep a process alive.",
+        "Step 3 — Reject the tempting but incorrect rule: ExecutorService automatically shuts down when submitted tasks finish, and Future.get always returns a value promptly."
+      ],
+      "result": "This case demonstrates the declared outcome: Run independent tasks and collect results while shutting down resources correctly."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.concurrency.tasks.misconception",
+      "mistakenBelief": "ExecutorService automatically shuts down when submitted tasks finish, and Future.get always returns a value promptly.",
+      "correction": "Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: ExecutorService automatically shuts down when submitted tasks finish, and Future.get always returns a value promptly."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a dispatch center that tracks reachable work orders and assigns bounded tasks while protecting shared ledgers can introduce Threads, tasks and executors, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "reachability, executors, races, and virtual-thread workload choice"
+    ],
+    "limitations": [
+      "memory visibility, scheduling, atomicity, cancellation, and garbage-collection timing cannot be inferred from human dispatch",
+      "Submitting does not guarantee immediate start or success, Future.get can block or wrap failure, cancellation is cooperative, unbounded queues can exhaust memory, and executor threads keep a process alive."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path.",
+      "Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle.",
+      "Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: ExecutorService automatically shuts down when submitted tasks finish, and Future.get always returns a value promptly."
+      }
+    ],
+    "textAlternative": "Starting artifact: A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path. Step 1, Observe. State: evidence: A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor.. Compare the observation with the correction and explain why the misconception fails: ExecutorService automatically shuts down when submitted tasks finish, and Future.get always returns a value promptly."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Threads, tasks and executors: direct language case”: state its starting evidence, apply the Threads, tasks and executors rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Threads, tasks and executors: direct language case.",
+        "Starting evidence: A fixed executor runs three independent Callable tasks, collects each Future result, handles failure, and shuts down in a finally path.",
+        "Core rule: Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle.",
+        "Observable result: The example meets the atomic outcome because Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor.",
+        "Boundary check: Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A timeout cancels remaining work and awaits termination instead of abandoning live executor threads after the first failure.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java tasks describe units of work, while executors own scheduling, worker resources, result futures, cancellation, and an explicit shutdown lifecycle.",
+        "Submitting does not guarantee immediate start or success, Future.get can block or wrap failure, cancellation is cooperative, unbounded queues can exhaust memory, and executor threads keep a process alive."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Threads, tasks and executors, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Run independent tasks and collect results while shutting down resources correctly.",
+        "Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.concurrency.tasks.misconception",
+      "explanation": "Own the executor lifecycle explicitly: bound work and waiting, inspect task failure, request cancellation when needed, and shut down or close the executor.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A timeout cancels remaining work and awaits termination instead of abandoning live executor threads after the first failure."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to run independent tasks and collect results while shutting down resources correctly. Keep this boundary in view: Submitting does not guarantee immediate start or success, Future.get can block or wrap failure, cancellation is cooperative, unbounded queues can exhaust memory, and executor threads keep a process alive.",
+    "retrievalPrompts": [
+      "Explain Threads, tasks and executors using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: ExecutorService automatically shuts down when submitted tasks finish, and Future.get always returns a value promptly.",
+      "Predict this case from memory: A timeout cancels remaining work and awaits termination instead of abandoning live executor threads after the first failure."
+    ],
+    "nextReviewPrompt": "Next: continue to “Race conditions and synchronization”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

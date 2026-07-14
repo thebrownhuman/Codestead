@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.collections.arrays.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.collections",
+  "skillId": "javascript.collections.arrays",
+  "title": "Arrays and indexed data",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Arrays and indexed data; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Arrays and indexed data",
+      "claim": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Arrays and indexed data",
+      "claim": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: slice returns a shallow copied range while splice mutates the source array. Your goal is to implement and test array traversal, update and copy operations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Control flow and functions; pf data selection; Loops and iterable traversal. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers. This draft therefore rejects: slice and splice are interchangeable ways to copy an array section."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create, index, copy and mutate arrays with explicit bounds and sparse-array awareness.",
+      "Implement and test array traversal, update and copy operations."
+    ],
+    "excludes": [
+      "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers."
+    ]
+  },
+  "outcomes": [
+    "Implement and test array traversal, update and copy operations."
+  ],
+  "examples": [
+    {
+      "id": "javascript.collections.arrays.example-a",
+      "title": "Arrays and indexed data: concrete case",
+      "situation": "slice returns a shallow copied range while splice mutates the source array.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: slice returns a shallow copied range while splice mutates the source array.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+      ],
+      "result": "The result follows because slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+    },
+    {
+      "id": "javascript.collections.arrays.example-b",
+      "title": "Arrays and indexed data: boundary case",
+      "situation": "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: slice and splice are interchangeable ways to copy an array section."
+      ],
+      "result": "The boundary requires this correction: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.collections.arrays.misconception",
+      "mistakenBelief": "slice and splice are interchangeable ways to copy an array section.",
+      "correction": "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: slice and splice are interchangeable ways to copy an array section."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Arrays and indexed data, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Arrays and indexed data before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "slice returns a shallow copied range while splice mutates the source array.",
+      "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
+      "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "slice returns a shallow copied range while splice mutates the source array."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: slice and splice are interchangeable ways to copy an array section."
+      }
+    ],
+    "textAlternative": "Starting artifact: slice returns a shallow copied range while splice mutates the source array. Step 1, Artifact. State: evidence: slice returns a shallow copied range while splice mutates the source array.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.. Check the result against the boundary and reject this misconception: slice and splice are interchangeable ways to copy an array section."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Arrays and indexed data: concrete case”: state its starting evidence, apply the Arrays and indexed data rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Arrays and indexed data: concrete case.",
+        "Starting evidence: slice returns a shallow copied range while splice mutates the source array.",
+        "Core rule: Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
+        "Observable result: The result follows because slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.",
+        "Boundary check: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
+        "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Arrays and indexed data and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test array traversal, update and copy operations.",
+        "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.collections.arrays.misconception",
+      "explanation": "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'splice mutates' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test array traversal, update and copy operations. Keep this boundary in view: Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
+    "retrievalPrompts": [
+      "Explain Arrays and indexed data using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: slice and splice are interchangeable ways to copy an array section.",
+      "Apply checkpoint 'splice mutates' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Array transformation methods”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

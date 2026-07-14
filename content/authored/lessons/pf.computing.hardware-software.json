@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.computing.hardware-software.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.computing",
+  "skillId": "pf.computing.hardware-software",
+  "title": "Hardware and software roles",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Hardware and software roles; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Hardware and software roles",
+      "claim": "A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels. Your goal is to explain where instructions and data reside while a small program runs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Program, code and algorithm. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Real machines use caches, virtual memory, firmware, accelerators, and many operating-system layers, so the simple processor-memory-storage picture is a first model rather than a wiring diagram. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Adding more disk storage always makes every running program faster because storage and working memory are the same resource."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Relate processor, memory, storage, devices, operating system and application software.",
+      "Explain where instructions and data reside while a small program runs."
+    ],
+    "excludes": [
+      "Real machines use caches, virtual memory, firmware, accelerators, and many operating-system layers, so the simple processor-memory-storage picture is a first model rather than a wiring diagram."
+    ]
+  },
+  "outcomes": [
+    "Explain where instructions and data reside while a small program runs."
+  ],
+  "examples": [
+    {
+      "id": "pf.computing.hardware-software.example-a",
+      "title": "Hardware and software roles: direct case",
+      "situation": "An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+      ],
+      "result": "The case supports the declared outcome because Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+    },
+    {
+      "id": "pf.computing.hardware-software.example-b",
+      "title": "Hardware and software roles: boundary case",
+      "situation": "Saving the image asks the operating system to persist new bytes; closing without saving can discard the in-memory edit while the old stored file remains.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: Saving the image asks the operating system to persist new bytes; closing without saving can discard the in-memory edit while the old stored file remains.",
+        "Step 2 — Keep this boundary explicit: Real machines use caches, virtual memory, firmware, accelerators, and many operating-system layers, so the simple processor-memory-storage picture is a first model rather than a wiring diagram.",
+        "Step 3 — Reject the documented misconception: Adding more disk storage always makes every running program faster because storage and working memory are the same resource."
+      ],
+      "result": "This case demonstrates the declared outcome: Explain where instructions and data reside while a small program runs."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.computing.hardware-software.misconception",
+      "mistakenBelief": "Adding more disk storage always makes every running program faster because storage and working memory are the same resource.",
+      "correction": "Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Adding more disk storage always makes every running program faster because storage and working memory are the same resource."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A workshop can model Hardware and software roles: instructions direct workers, the workbench holds active materials, and shelves preserve supplies between jobs.",
+    "usefulFor": [
+      "Separating active execution, temporary state, persistent material, and coordinating roles"
+    ],
+    "limitations": [
+      "Computer components follow formal interfaces and timing rules that a human workshop does not reproduce.",
+      "Real machines use caches, virtual memory, firmware, accelerators, and many operating-system layers, so the simple processor-memory-storage picture is a first model rather than a wiring diagram."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels.",
+      "A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware.",
+      "Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware."
+        },
+        "explanation": "Apply the declared Hardware and software roles model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Adding more disk storage always makes every running program faster because storage and working memory are the same resource."
+      }
+    ],
+    "textAlternative": "Starting artifact: An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels. Step 1, Observe. State: evidence: An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware.. Apply the declared Hardware and software roles model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists.. Compare the observation with the correction and reject the misconception: Adding more disk storage always makes every running program faster because storage and working memory are the same resource."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Hardware and software roles: direct case”: state its starting evidence, apply the Hardware and software roles rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Hardware and software roles: direct case.",
+        "Starting evidence: An image editor loads compressed bytes from storage into working memory while the processor applies a crop operation and the display shows the changed pixels.",
+        "Core rule: A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware.",
+        "Observable result: The case supports the declared outcome because Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists.",
+        "Boundary check: Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: Saving the image asks the operating system to persist new bytes; closing without saving can discard the in-memory edit while the old stored file remains.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A processor executes instructions, working memory holds active instructions and data, storage retains files, devices exchange data, and the operating system coordinates access to hardware.",
+        "Real machines use caches, virtual memory, firmware, accelerators, and many operating-system layers, so the simple processor-memory-storage picture is a first model rather than a wiring diagram."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Hardware and software roles, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Explain where instructions and data reside while a small program runs.",
+        "Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.computing.hardware-software.misconception",
+      "explanation": "Storage capacity and working memory serve different roles; performance depends on the actual bottleneck, while unsaved active state can disappear even when ample storage exists.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Saving the image asks the operating system to persist new bytes; closing without saving can discard the in-memory edit while the old stored file remains."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to explain where instructions and data reside while a small program runs. Keep this boundary in view: Real machines use caches, virtual memory, firmware, accelerators, and many operating-system layers, so the simple processor-memory-storage picture is a first model rather than a wiring diagram.",
+    "retrievalPrompts": [
+      "Explain Hardware and software roles without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Adding more disk storage always makes every running program faster because storage and working memory are the same resource.",
+      "Apply the model to this case from memory: Saving the image asks the operating system to persist new bytes; closing without saving can discard the in-memory edit while the old stored file remains."
+    ],
+    "nextReviewPrompt": "Next: continue to “Source-to-execution models”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

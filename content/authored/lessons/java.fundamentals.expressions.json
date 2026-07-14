@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.fundamentals.expressions.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.fundamentals",
+  "skillId": "java.fundamentals.expressions",
+  "title": "Operators and conversions",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Operators and conversions; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Java Language Basics: variables, operators, control flow, and numbers; atomic topic: Operators and conversions",
+      "claim": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS chapters 4, 5, 14, and 15: types, conversions, statements, and expressions; atomic topic: Operators and conversions",
+      "claim": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result. Your goal is to trace mixed expressions and guard explicit narrowing or overflow-sensitive operations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: First source and main; pf state expressions; Primitive types and variables. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally. The learner must reject this documented misconception: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Evaluate arithmetic, relational, logical and conditional expressions including promotion and narrowing.",
+      "Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations."
+    ],
+    "excludes": [
+      "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally."
+    ]
+  },
+  "outcomes": [
+    "Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations."
+  ],
+  "examples": [
+    {
+      "id": "java.fundamentals.expressions.example.direct",
+      "title": "Operators and conversions: direct language case",
+      "situation": "The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+      ],
+      "result": "The example meets the atomic outcome because Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+    },
+    {
+      "id": "java.fundamentals.expressions.example.boundary",
+      "title": "Operators and conversions: boundary and transfer case",
+      "situation": "A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed.",
+        "Step 2 — Keep the language boundary explicit: Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally.",
+        "Step 3 — Reject the tempting but incorrect rule: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.fundamentals.expressions.misconception",
+      "mistakenBelief": "The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe.",
+      "correction": "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a control panel whose typed gauges, expressions, switches, and repeating cycles produce observable state can introduce Operators and conversions, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "tracing primitive values, operators, decisions, and loop progress"
+    ],
+    "limitations": [
+      "the panel does not model promotion, overflow, short-circuit evaluation, scope, or JVM representation exactly",
+      "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
+      "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
+      "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+      }
+    ],
+    "textAlternative": "Starting artifact: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result. Step 1, Observe. State: evidence: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.. Compare the observation with the correction and explain why the misconception fails: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Operators and conversions: direct language case”: state its starting evidence, apply the Operators and conversions rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Operators and conversions: direct language case.",
+        "Starting evidence: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
+        "Core rule: Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
+        "Observable result: The example meets the atomic outcome because Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.",
+        "Boundary check: Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
+        "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Operators and conversions, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations.",
+        "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.fundamentals.expressions.misconception",
+      "explanation": "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace mixed expressions and guard explicit narrowing or overflow-sensitive operations. Keep this boundary in view: Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally.",
+    "retrievalPrompts": [
+      "Explain Operators and conversions using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe.",
+      "Predict this case from memory: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed."
+    ],
+    "nextReviewPrompt": "Next: continue to “if and switch”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.css.quality.devtools.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.quality-project",
+  "skillId": "css.quality.devtools",
+  "title": "Computed styles and layout inspectors deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because DevTools investigation evidence is an observed diagnostic process, not a deterministic final-DOM property."
+  },
+  "sourceRefs": [
+    "mdn-css"
+  ],
+  "items": [
+    {
+      "skillId": "css.quality.devtools",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "css.quality.devtools.mcq.misconception",
+      "title": "Computed styles and layout inspectors: reject the invalid model",
+      "prompt": "Which statement correctly resolves this CSS: Responsive and Accessible Styling misconception? The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade.",
+        "incorrect": "That preserves the misconception. Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked CSS: Responsive and Accessible Styling correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+        },
+        {
+          "id": "misconception",
+          "text": "The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+      }
+    },
+    {
+      "skillId": "css.quality.devtools",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "css.quality.devtools.fill.checkpoint",
+      "title": "Computed styles and layout inspectors: complete the rule",
+      "prompt": "Complete the missing CSS: Responsive and Accessible Styling checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: computed values.",
+        "incorrect": "Recheck the exact rule. Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Inspect matched and overridden rules plus {{key-rule}}; a crossed-out declaration often explains the competing cascade.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "computed values"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+      }
+    }
+  ]
+}

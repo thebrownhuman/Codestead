@@ -1,0 +1,452 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.dsa.sort.elementary.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.search-sort",
+  "skillId": "dsa.sort.elementary",
+  "title": "Selection and insertion sort deterministic concept bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Added four pinned-runtime executable parity drafts for Selection and insertion sort; all remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-al"
+  ],
+  "items": [
+    {
+      "skillId": "dsa.sort.elementary",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted DSA draft awaiting independent algorithm and four-language implementation review."
+      },
+      "privateAuthorNotes": [
+        "Human reviewers must verify concept correctness, language parity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "dsa.sort.elementary.mcq.misconception",
+      "title": "Selection and insertion sort: reject the invalid invariant",
+      "prompt": "Which statement correctly resolves this DSA misconception? All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with the shared invariant, counterexample, and complexity boundary."
+      ],
+      "feedback": {
+        "correct": "Correct. Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable.",
+        "incorrect": "That preserves the misconception. Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "concept-rule",
+            "description": "Selects the source-linked algorithmic correction rather than the misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+        },
+        {
+          "id": "misconception",
+          "text": "All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+      }
+    },
+    {
+      "skillId": "dsa.sort.elementary",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted DSA draft awaiting independent algorithm and four-language implementation review."
+      },
+      "privateAuthorNotes": [
+        "Human reviewers must verify concept correctness, language parity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "dsa.sort.elementary.fill.checkpoint",
+      "title": "Selection and insertion sort: complete the invariant",
+      "prompt": "Complete the exact language-neutral checkpoint in the source-linked correction.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the phrase that makes the invariant or complexity claim valid."
+      ],
+      "feedback": {
+        "correct": "Correct: insertion can be stable and adaptive.",
+        "incorrect": "Recheck the invariant. Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact algorithmic checkpoint that completes the correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Compare invariants and properties: {{key-rule}}, while selection minimizes swaps but is typically unstable.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing DSA checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "insertion can be stable and adaptive"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+      }
+    },
+    {
+      "id": "dsa.sort.elementary.code.c.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "kind": "code",
+      "points": 10,
+      "title": "Selection and insertion sort: C parity contract",
+      "prompt": "Read n integers, sort them with an elementary stable insertion-style contract, and print ascending output. This is the C variant of one language-neutral input/output contract for Selection and insertion sort.",
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted four-language DSA parity draft; independent algorithm, language-idiom, test-oracle, safety, pedagogy, and accessibility review is required."
+      },
+      "hints": [
+        "Preserve the exact input/output contract and handle the visible boundary without relying on hidden values."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden deterministic parity checks passed.",
+        "incorrect": "At least one contract check failed; inspect the invariant, boundary, and exact output without revealing hidden data."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "parity-contract",
+            "description": "Passes both equivalent normal and boundary contracts in the pinned language runtime.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Generated from a module-scoped numeric parity kernel. Human reviewers must confirm that this executable facet genuinely assesses the named skill and replace non-idiomatic implementation choices before approval."
+      ],
+      "starterCode": "#include <stdio.h>\nint main(void) { /* Parse the declared numeric contract and implement solve. */ return 0; }\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "c",
+        "version": "gcc (Alpine 14.2.0) 14.2.0",
+        "imageDigest": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+        "entrypoint": "main.c",
+        "timeLimitMs": 3000,
+        "memoryLimitMb": 128
+      },
+      "parity": {
+        "parityId": "dsa.sort.elementary.parity-v1",
+        "contractVersion": "1.0.0",
+        "language": "c",
+        "equivalentLanguages": [
+          "c",
+          "cpp",
+          "java",
+          "python"
+        ],
+        "testContractHash": "sha256:4be7be35a64b234663e1158bda9db0dbb8f6a304157547a209f5562b85ed500c",
+        "facet": "executable-contract"
+      },
+      "tests": [
+        {
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "5 4 1 3 2 5\n",
+          "expectedStdout": "1 2 3 4 5\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.visible"
+        },
+        {
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "3 -1 -3 0\n",
+          "expectedStdout": "-3 -1 0\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.hidden"
+        }
+      ],
+      "answer": {
+        "referenceSolution": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n#define TASK 21\n#define MAXN 128\n#define INF 0x3fffffffffffffffLL\n\nstatic int cmp_ll(const void *a, const void *b) {\n    long long x = *(const long long *)a, y = *(const long long *)b;\n    return (x > y) - (x < y);\n}\nstatic void print_values(const long long *a, int n) {\n    for (int i = 0; i < n; ++i) printf(\"%s%lld\", i ? \" \" : \"\", a[i]);\n    putchar('\\n');\n}\nstatic long long fib(int n) { return n < 2 ? n : fib(n - 1) + fib(n - 2); }\nstatic long long gcd_ll(long long a, long long b) {\n    if (a < 0) a = -a; if (b < 0) b = -b;\n    while (b) { long long t = a % b; a = b; b = t; }\n    return a;\n}\nstatic int parent[MAXN], size_set[MAXN];\nstatic int find_set(int x) { return parent[x] == x ? x : (parent[x] = find_set(parent[x])); }\nstatic int unite(int a, int b) {\n    a = find_set(a); b = find_set(b); if (a == b) return 0;\n    if (size_set[a] < size_set[b]) { int t = a; a = b; b = t; }\n    parent[b] = a; size_set[a] += size_set[b]; return 1;\n}\nstatic int tree_height(const long long *a, int n, int i) {\n    if (i >= n || a[i] == -999) return 0;\n    int l = tree_height(a, n, 2 * i + 1), r = tree_height(a, n, 2 * i + 2);\n    return 1 + (l > r ? l : r);\n}\nstatic void preorder(const long long *a, int n, int i, long long *out, int *count) {\n    if (i >= n || a[i] == -999) return;\n    out[(*count)++] = a[i]; preorder(a, n, 2 * i + 1, out, count); preorder(a, n, 2 * i + 2, out, count);\n}\nstatic int bst_valid(const long long *a, int n, int i, long long low, long long high) {\n    if (i >= n || a[i] == -999) return 1;\n    if (a[i] <= low || a[i] >= high) return 0;\n    return bst_valid(a, n, 2 * i + 1, low, a[i]) && bst_valid(a, n, 2 * i + 2, a[i], high);\n}\nstatic void heap_down(long long *a, int n, int i) {\n    for (;;) {\n        int best = i, l = 2 * i + 1, r = l + 1;\n        if (l < n && a[l] > a[best]) best = l;\n        if (r < n && a[r] > a[best]) best = r;\n        if (best == i) return;\n        long long t = a[i]; a[i] = a[best]; a[best] = t; i = best;\n    }\n}\n\nint main(void) {\n    long long t[512]; int count = 0;\n    while (count < 512 && scanf(\"%lld\", &t[count]) == 1) ++count;\n    const int group = TASK / 4, variant = TASK % 4;\n    long long out[256]; int outn = 0;\n\n    if (group == 0) {\n        int n = count ? (int)t[0] : 0;\n        if (variant == 0) { long long s = 0; for (int i = 0; i < n; ++i) s += t[1 + i]; printf(\"%lld\\n\", s); }\n        else if (variant == 1) { int c = 0; for (int i = 0; i < n; ++i) if (t[1 + i] > 0) ++c; printf(\"%d\\n\", c); }\n        else if (variant == 2) { int p = -1; for (int i = 1; i < n; ++i) if (t[i] > t[i + 1]) { p = i; break; } printf(\"%d\\n\", p); }\n        else printf(\"%lld\\n\", (long long)n * (n - 1) / 2);\n    } else if (group == 1) {\n        if (variant == 0) { int n = (int)t[0], at = (int)t[1]; for (int i = 0; i < n; ++i) if (i != at) out[outn++] = t[2 + i]; print_values(out, outn); }\n        else if (variant == 1) { int r = (int)t[0], c = (int)t[1], m = r < c ? r : c; long long s = 0; for (int i = 0; i < m; ++i) s += t[2 + i * c + i]; printf(\"%lld\\n\", s); }\n        else if (variant == 2) { int n = (int)t[0], ok = 1; for (int i = 0; i < n / 2; ++i) if (t[1 + i] != t[n - i]) ok = 0; printf(\"%d\\n\", ok); }\n        else { int n = (int)t[0], l = (int)t[1], r = (int)t[2]; long long s = 0; for (int i = l; i <= r && i < n; ++i) s += t[3 + i]; printf(\"%lld\\n\", s); }\n    } else if (group == 2) {\n        if (variant == 0) { int n = (int)t[0]; long long s = 0; for (int i = 0; i < n; ++i) s += t[1 + i]; printf(\"%lld\\n\", s); }\n        else if (variant == 1) { int n = (int)t[0], ins = (int)t[1], del = (int)t[3]; long long x = t[2]; for (int i = 0; i <= n; ++i) { long long value = i == ins ? x : t[4 + i - (i > ins)]; if (i != del) out[outn++] = value; } print_values(out, outn); }\n        else if (variant == 2) { int n = (int)t[0]; long long f = 0, r = 0; for (int i = 0; i < n; ++i) { f += (i + 1) * t[1 + i]; r += (i + 1) * t[n - i]; } printf(\"%lld %lld\\n\", f, r); }\n        else { int n = (int)t[0], slow = 0, fast = 0, cycle = 0; while (fast >= 0 && fast < n) { fast = (int)t[1 + fast]; if (fast < 0 || fast >= n) break; fast = (int)t[1 + fast]; slow = (int)t[1 + slow]; if (fast == slow) { cycle = 1; break; } } printf(\"%d\\n\", cycle); }\n    } else if (group == 3) {\n        int n = (int)t[0];\n        if (variant == 0) { long long stack[MAXN]; int top = 0; for (int i = 0; i < n; ++i) { long long x = t[1 + i]; if (x == 0) { if (top) --top; } else stack[top++] = x; } printf(\"%lld\\n\", top ? stack[top - 1] : -999LL); }\n        else if (variant == 1) { long long q[MAXN]; int head = 0, tail = 0; for (int i = 0; i < n; ++i) { long long x = t[1 + i]; if (x == 0) { if (head < tail) ++head; } else q[tail++] = x; } if (head == tail) puts(\"-999 -999\"); else printf(\"%lld %lld\\n\", q[head], q[tail - 1]); }\n        else if (variant == 2) { int ok = 1; for (int i = 0; i < n / 2; ++i) if (t[1 + i] != t[n - i]) ok = 0; printf(\"%d\\n\", ok); }\n        else { int balance = 0, ok = 1; for (int i = 0; i < n; ++i) { balance += (int)t[1 + i]; if (balance < 0) ok = 0; } printf(\"%d\\n\", ok && balance == 0); }\n    } else if (group == 4) {\n        if (variant == 0) { int n = (int)t[0], ok = 1; for (int i = 0; i < n; ++i) for (int j = i + 1; j < n; ++j) if (t[1 + 2*i] == t[1 + 2*j] && t[2 + 2*i] != t[2 + 2*j]) ok = 0; printf(\"%d\\n\", ok); }\n        else if (variant == 1) { int cap = (int)t[0], n = (int)t[1], used[MAXN] = {0}, collisions = 0; for (int i = 0; i < n; ++i) { int p = (int)((t[2+i] % cap + cap) % cap); while (used[p]) { ++collisions; p = (p + 1) % cap; } used[p] = 1; } printf(\"%d\\n\", collisions); }\n        else if (variant == 2) { long long cap = t[0], n = t[1]; while (n * 4 > cap * 3) cap *= 2; printf(\"%lld\\n\", cap); }\n        else { int n = (int)t[0], best = 0; long long bestv = 0; for (int i = 0; i < n; ++i) { int c = 0; for (int j = 0; j < n; ++j) if (t[1+i] == t[1+j]) ++c; if (c > best || (c == best && t[1+i] < bestv)) { best = c; bestv = t[1+i]; } } printf(\"%lld\\n\", bestv); }\n    } else if (group == 5) {\n        int n = (int)t[0];\n        if (variant == 0) { long long target = t[1]; int lo = 0, hi = n, ans = -1; while (lo < hi) { int m = (lo + hi) / 2; if (t[2+m] >= target) hi = m; else lo = m + 1; } if (lo < n && t[2+lo] == target) ans = lo; printf(\"%d\\n\", ans); }\n        else { int offset = variant == 3 ? 2 : 1, k = variant == 3 ? (int)t[1] : 0; for (int i = 0; i < n; ++i) out[i] = t[offset+i]; qsort(out, n, sizeof(long long), cmp_ll); if (variant == 3) printf(\"%lld\\n\", out[k]); else print_values(out, n); }\n    } else if (group == 6) {\n        if (variant == 0) printf(\"%lld\\n\", gcd_ll(t[0], t[1]));\n        else if (variant == 1) printf(\"%lld\\n\", t[0] + 1);\n        else if (variant == 2) printf(\"%lld\\n\", fib((int)t[0]));\n        else { int n = (int)t[0]; long long best = t[1]; for (int i = 1; i < n; ++i) if (t[1+i] > best) best = t[1+i]; printf(\"%lld\\n\", best); }\n    } else if (group == 7) {\n        if (variant == 3) { int n = (int)t[0], digits = (int)t[1], c = 0; long long p10 = 1; while (digits >= p10) p10 *= 10; for (int i = 0; i < n; ++i) { long long x = t[2+i]; while (x >= p10) x /= 10; if (x == digits) ++c; } printf(\"%d\\n\", c); }\n        else { int n = (int)t[0]; if (variant == 0) printf(\"%d\\n\", tree_height(t+1, n, 0)); else if (variant == 1) { preorder(t+1, n, 0, out, &outn); print_values(out, outn); } else printf(\"%d\\n\", bst_valid(t+1, n, 0, -INF, INF)); }\n    } else if (group == 8) {\n        int n = (int)t[0], offset = variant == 2 ? 2 : 1, k = variant == 2 ? (int)t[1] : 0; for (int i = 0; i < n; ++i) out[i] = t[offset+i];\n        if (variant == 0) { int ok = 1; for (int i = 1; i < n; ++i) if (out[(i-1)/2] < out[i]) ok = 0; printf(\"%d\\n\", ok); }\n        else if (variant == 1) { for (int i = n/2-1; i >= 0; --i) heap_down(out,n,i); print_values(out,n); }\n        else { qsort(out,n,sizeof(long long),cmp_ll); if (variant == 2) { for (int i = 0; i < k; ++i) printf(\"%s%lld\",i?\" \":\"\",out[n-1-i]); putchar('\\n'); } else print_values(out,n); }\n    } else if (group == 9 || group == 10 || group == 14 && variant == 3) {\n        int n = (int)t[0], m = (int)t[1], weighted = group == 10 && variant > 0 || group == 14;\n        long long d[MAXN][MAXN]; for (int i=0;i<n;++i) for(int j=0;j<n;++j) d[i][j]=i==j?0:INF;\n        int pos=2; for(int e=0;e<m;++e){int u=(int)t[pos++],v=(int)t[pos++];long long w=weighted?t[pos++]:1; if(w<d[u][v])d[u][v]=w; if(group==10&&variant==2 && w<d[v][u])d[v][u]=w; if(group==9 && variant!=0 && w<d[v][u])d[v][u]=w;}\n        if (group == 9 && variant == 0) printf(\"%d %d\\n\", n, m);\n        else if (group == 9 && variant == 1) { for(int i=0;i<n;++i){long long deg=0;for(int j=0;j<n;++j)if(d[i][j]<INF&&i!=j)++deg;out[outn++]=deg;}print_values(out,outn); }\n        else if (group == 9 && variant == 2) { long long dist[MAXN];int q[MAXN],h=0,z=0;for(int i=0;i<n;++i)dist[i]=-1;dist[0]=0;q[z++]=0;while(h<z){int u=q[h++];for(int v=0;v<n;++v)if(d[u][v]<INF&&u!=v&&dist[v]<0){dist[v]=dist[u]+1;q[z++]=v;}}print_values(dist,n); }\n        else if (group == 9) { for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;}int comps=n,cycles=0;for(int u=0;u<n;++u)for(int v=u+1;v<n;++v)if(d[u][v]<INF){if(unite(u,v))--comps;else ++cycles;}printf(\"%d %d\\n\",comps,cycles); }\n        else if (group == 10 && variant == 0) { int indeg[MAXN]={0},used[MAXN]={0};for(int u=0;u<n;++u)for(int v=0;v<n;++v)if(u!=v&&d[u][v]<INF)++indeg[v];for(int z=0;z<n;++z){int u=-1;for(int i=0;i<n;++i)if(!used[i]&&indeg[i]==0){u=i;break;}if(u<0){puts(\"cycle\");return 0;}used[u]=1;out[outn++]=u;for(int v=0;v<n;++v)if(u!=v&&d[u][v]<INF)--indeg[v];}print_values(out,outn); }\n        else if (group == 10 && variant == 2) { for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;} long long total=0;int edges=0; while(edges<n-1){long long best=INF;int bu=-1,bv=-1;for(int u=0;u<n;++u)for(int v=u+1;v<n;++v)if(d[u][v]<best&&find_set(u)!=find_set(v)){best=d[u][v];bu=u;bv=v;}if(bu<0)break;unite(bu,bv);total+=best;++edges;}printf(\"%lld\\n\",edges==n-1?total:-1LL); }\n        else { for(int k=0;k<n;++k)for(int i=0;i<n;++i)for(int j=0;j<n;++j)if(d[i][k]<INF&&d[k][j]<INF&&d[i][k]+d[k][j]<d[i][j])d[i][j]=d[i][k]+d[k][j];int s=(int)t[pos],target=(int)t[pos+1];printf(\"%lld\\n\",d[s][target]>=INF?-1LL:d[s][target]); }\n    } else if (group == 11) {\n        int n=(int)t[0],m=(int)t[1],pos=2,cycles=0;for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;}for(int i=0;i<m;++i){int a=(int)t[pos++],b=(int)t[pos++];if(!unite(a,b))++cycles;}int comps=0,best=0;for(int i=0;i<n;++i)if(find_set(i)==i){++comps;if(size_set[i]>best)best=size_set[i];}if(variant==0)printf(\"%d\\n\",comps);else if(variant==1)printf(\"%d\\n\",best);else if(variant==2){int depth=0;for(int i=0;i<n;++i)if(parent[i]!=i)depth=1;printf(\"%d\\n\",depth);}else printf(\"%d\\n\",cycles);\n    } else if (group == 12) {\n        if(variant==0){int n=(int)t[0];long long pairs[MAXN][2];for(int i=0;i<n;++i){pairs[i][0]=t[1+2*i];pairs[i][1]=t[2+2*i];}for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(pairs[j][1]<pairs[i][1]){long long a=pairs[i][0],b=pairs[i][1];pairs[i][0]=pairs[j][0];pairs[i][1]=pairs[j][1];pairs[j][0]=a;pairs[j][1]=b;}int c=0;long long end=-INF;for(int i=0;i<n;++i)if(pairs[i][0]>=end){++c;end=pairs[i][1];}printf(\"%d\\n\",c);}\n        else if(variant==1){int n=(int)t[0],target=(int)t[1],possible[2048]={0};possible[0]=1;for(int i=0;i<n;++i)for(int s=target;s>=t[2+i];--s)if(possible[s-t[2+i]])possible[s]=1;printf(\"%d\\n\",possible[target]);}\n        else if(variant==2)printf(\"%lld\\n\",fib((int)t[0]));\n        else{int n=(int)t[0],target=(int)t[1],dp[2048];for(int s=0;s<=target;++s)dp[s]=s?9999:0;for(int s=1;s<=target;++s)for(int i=0;i<n;++i)if(t[2+i]<=s&&dp[s-(int)t[2+i]]+1<dp[s])dp[s]=dp[s-(int)t[2+i]]+1;printf(\"%d\\n\",dp[target]>=9999?-1:dp[target]);}\n    } else if (group == 13) {\n        int n=(int)t[0];\n        if(variant==0){long long target=t[1];int ok=0;for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(t[2+i]+t[2+j]==target)ok=1;printf(\"%d\\n\",ok);}\n        else if(variant==1){int k=(int)t[1];long long best=-INF;for(int i=0;i+k<=n;++i){long long s=0;for(int j=0;j<k;++j)s+=t[2+i+j];if(s>best)best=s;}printf(\"%lld\\n\",best);}\n        else if(variant==2){for(int i=0;i<n;++i){long long next=-1;for(int j=i+1;j<n;++j)if(t[1+j]>t[1+i]){next=t[1+j];break;}out[outn++]=next;}print_values(out,outn);}\n        else{long long p[MAXN][2];for(int i=0;i<n;++i){p[i][0]=t[1+2*i];p[i][1]=t[2+2*i];}for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(p[j][0]<p[i][0]){long long a=p[i][0],b=p[i][1];p[i][0]=p[j][0];p[i][1]=p[j][1];p[j][0]=a;p[j][1]=b;}int merged=0;long long end=-INF;for(int i=0;i<n;++i)if(!merged||p[i][0]>end){++merged;end=p[i][1];}else if(p[i][1]>end)end=p[i][1];printf(\"%d\\n\",merged);}\n    } else if (group == 14) {\n        int n=(int)t[0];\n        if(variant==0){int best=0;long long bestv=0;for(int i=0;i<n;++i){int c=0;for(int j=0;j<n;++j)if(t[1+i]==t[1+j])++c;if(c>best||(c==best&&t[1+i]<bestv)){best=c;bestv=t[1+i];}}printf(\"%lld\\n\",bestv);}\n        else if(variant==1){long long q[MAXN];int h=0,z=0;for(int i=0;i<n;++i){long long x=t[1+i];if(x==0){if(h<z)++h;}else q[z++]=x;}if(h==z)puts(\"-999 -999\");else printf(\"%lld %lld\\n\",q[h],q[z-1]);}\n        else{int sorted=1,dup=0;long long mn=n?t[1]:0,mx=mn;for(int i=0;i<n;++i){if(i&&t[i]>t[i+1])sorted=0;for(int j=0;j<i;++j)if(t[1+j]==t[1+i])dup=1;if(t[1+i]<mn)mn=t[1+i];if(t[1+i]>mx)mx=t[1+i];}printf(\"%d %d %lld %lld\\n\",sorted,dup,mn,mx);}\n    }\n    return 0;\n}\n",
+        "explanation": "The pinned c reference executes parity contract dsa.sort.elementary.parity-v1. It is deterministic draft evidence, not proof of pedagogy, idiomatic style, or exam readiness."
+      }
+    },
+    {
+      "id": "dsa.sort.elementary.code.cpp.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "kind": "code",
+      "points": 10,
+      "title": "Selection and insertion sort: CPP parity contract",
+      "prompt": "Read n integers, sort them with an elementary stable insertion-style contract, and print ascending output. This is the CPP variant of one language-neutral input/output contract for Selection and insertion sort.",
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted four-language DSA parity draft; independent algorithm, language-idiom, test-oracle, safety, pedagogy, and accessibility review is required."
+      },
+      "hints": [
+        "Preserve the exact input/output contract and handle the visible boundary without relying on hidden values."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden deterministic parity checks passed.",
+        "incorrect": "At least one contract check failed; inspect the invariant, boundary, and exact output without revealing hidden data."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "parity-contract",
+            "description": "Passes both equivalent normal and boundary contracts in the pinned language runtime.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Generated from a module-scoped numeric parity kernel. Human reviewers must confirm that this executable facet genuinely assesses the named skill and replace non-idiomatic implementation choices before approval."
+      ],
+      "starterCode": "#include <iostream>\nint main() { // Parse the declared numeric contract and implement solve.\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "cpp",
+        "version": "g++ (Alpine 14.2.0) 14.2.0",
+        "imageDigest": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+        "entrypoint": "main.cpp",
+        "timeLimitMs": 3000,
+        "memoryLimitMb": 128
+      },
+      "parity": {
+        "parityId": "dsa.sort.elementary.parity-v1",
+        "contractVersion": "1.0.0",
+        "language": "cpp",
+        "equivalentLanguages": [
+          "c",
+          "cpp",
+          "java",
+          "python"
+        ],
+        "testContractHash": "sha256:4be7be35a64b234663e1158bda9db0dbb8f6a304157547a209f5562b85ed500c",
+        "facet": "executable-contract"
+      },
+      "tests": [
+        {
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "5 4 1 3 2 5\n",
+          "expectedStdout": "1 2 3 4 5\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.visible"
+        },
+        {
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "3 -1 -3 0\n",
+          "expectedStdout": "-3 -1 0\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.hidden"
+        }
+      ],
+      "answer": {
+        "referenceSolution": "// C++ reference: the bounded parity kernel deliberately uses only portable arrays and C-compatible\n// library facilities so identical numeric contracts can be compared with C before idiomatic review.\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n#define TASK 21\n#define MAXN 128\n#define INF 0x3fffffffffffffffLL\n\nstatic int cmp_ll(const void *a, const void *b) {\n    long long x = *(const long long *)a, y = *(const long long *)b;\n    return (x > y) - (x < y);\n}\nstatic void print_values(const long long *a, int n) {\n    for (int i = 0; i < n; ++i) printf(\"%s%lld\", i ? \" \" : \"\", a[i]);\n    putchar('\\n');\n}\nstatic long long fib(int n) { return n < 2 ? n : fib(n - 1) + fib(n - 2); }\nstatic long long gcd_ll(long long a, long long b) {\n    if (a < 0) a = -a; if (b < 0) b = -b;\n    while (b) { long long t = a % b; a = b; b = t; }\n    return a;\n}\nstatic int parent[MAXN], size_set[MAXN];\nstatic int find_set(int x) { return parent[x] == x ? x : (parent[x] = find_set(parent[x])); }\nstatic int unite(int a, int b) {\n    a = find_set(a); b = find_set(b); if (a == b) return 0;\n    if (size_set[a] < size_set[b]) { int t = a; a = b; b = t; }\n    parent[b] = a; size_set[a] += size_set[b]; return 1;\n}\nstatic int tree_height(const long long *a, int n, int i) {\n    if (i >= n || a[i] == -999) return 0;\n    int l = tree_height(a, n, 2 * i + 1), r = tree_height(a, n, 2 * i + 2);\n    return 1 + (l > r ? l : r);\n}\nstatic void preorder(const long long *a, int n, int i, long long *out, int *count) {\n    if (i >= n || a[i] == -999) return;\n    out[(*count)++] = a[i]; preorder(a, n, 2 * i + 1, out, count); preorder(a, n, 2 * i + 2, out, count);\n}\nstatic int bst_valid(const long long *a, int n, int i, long long low, long long high) {\n    if (i >= n || a[i] == -999) return 1;\n    if (a[i] <= low || a[i] >= high) return 0;\n    return bst_valid(a, n, 2 * i + 1, low, a[i]) && bst_valid(a, n, 2 * i + 2, a[i], high);\n}\nstatic void heap_down(long long *a, int n, int i) {\n    for (;;) {\n        int best = i, l = 2 * i + 1, r = l + 1;\n        if (l < n && a[l] > a[best]) best = l;\n        if (r < n && a[r] > a[best]) best = r;\n        if (best == i) return;\n        long long t = a[i]; a[i] = a[best]; a[best] = t; i = best;\n    }\n}\n\nint main(void) {\n    long long t[512]; int count = 0;\n    while (count < 512 && scanf(\"%lld\", &t[count]) == 1) ++count;\n    const int group = TASK / 4, variant = TASK % 4;\n    long long out[256]; int outn = 0;\n\n    if (group == 0) {\n        int n = count ? (int)t[0] : 0;\n        if (variant == 0) { long long s = 0; for (int i = 0; i < n; ++i) s += t[1 + i]; printf(\"%lld\\n\", s); }\n        else if (variant == 1) { int c = 0; for (int i = 0; i < n; ++i) if (t[1 + i] > 0) ++c; printf(\"%d\\n\", c); }\n        else if (variant == 2) { int p = -1; for (int i = 1; i < n; ++i) if (t[i] > t[i + 1]) { p = i; break; } printf(\"%d\\n\", p); }\n        else printf(\"%lld\\n\", (long long)n * (n - 1) / 2);\n    } else if (group == 1) {\n        if (variant == 0) { int n = (int)t[0], at = (int)t[1]; for (int i = 0; i < n; ++i) if (i != at) out[outn++] = t[2 + i]; print_values(out, outn); }\n        else if (variant == 1) { int r = (int)t[0], c = (int)t[1], m = r < c ? r : c; long long s = 0; for (int i = 0; i < m; ++i) s += t[2 + i * c + i]; printf(\"%lld\\n\", s); }\n        else if (variant == 2) { int n = (int)t[0], ok = 1; for (int i = 0; i < n / 2; ++i) if (t[1 + i] != t[n - i]) ok = 0; printf(\"%d\\n\", ok); }\n        else { int n = (int)t[0], l = (int)t[1], r = (int)t[2]; long long s = 0; for (int i = l; i <= r && i < n; ++i) s += t[3 + i]; printf(\"%lld\\n\", s); }\n    } else if (group == 2) {\n        if (variant == 0) { int n = (int)t[0]; long long s = 0; for (int i = 0; i < n; ++i) s += t[1 + i]; printf(\"%lld\\n\", s); }\n        else if (variant == 1) { int n = (int)t[0], ins = (int)t[1], del = (int)t[3]; long long x = t[2]; for (int i = 0; i <= n; ++i) { long long value = i == ins ? x : t[4 + i - (i > ins)]; if (i != del) out[outn++] = value; } print_values(out, outn); }\n        else if (variant == 2) { int n = (int)t[0]; long long f = 0, r = 0; for (int i = 0; i < n; ++i) { f += (i + 1) * t[1 + i]; r += (i + 1) * t[n - i]; } printf(\"%lld %lld\\n\", f, r); }\n        else { int n = (int)t[0], slow = 0, fast = 0, cycle = 0; while (fast >= 0 && fast < n) { fast = (int)t[1 + fast]; if (fast < 0 || fast >= n) break; fast = (int)t[1 + fast]; slow = (int)t[1 + slow]; if (fast == slow) { cycle = 1; break; } } printf(\"%d\\n\", cycle); }\n    } else if (group == 3) {\n        int n = (int)t[0];\n        if (variant == 0) { long long stack[MAXN]; int top = 0; for (int i = 0; i < n; ++i) { long long x = t[1 + i]; if (x == 0) { if (top) --top; } else stack[top++] = x; } printf(\"%lld\\n\", top ? stack[top - 1] : -999LL); }\n        else if (variant == 1) { long long q[MAXN]; int head = 0, tail = 0; for (int i = 0; i < n; ++i) { long long x = t[1 + i]; if (x == 0) { if (head < tail) ++head; } else q[tail++] = x; } if (head == tail) puts(\"-999 -999\"); else printf(\"%lld %lld\\n\", q[head], q[tail - 1]); }\n        else if (variant == 2) { int ok = 1; for (int i = 0; i < n / 2; ++i) if (t[1 + i] != t[n - i]) ok = 0; printf(\"%d\\n\", ok); }\n        else { int balance = 0, ok = 1; for (int i = 0; i < n; ++i) { balance += (int)t[1 + i]; if (balance < 0) ok = 0; } printf(\"%d\\n\", ok && balance == 0); }\n    } else if (group == 4) {\n        if (variant == 0) { int n = (int)t[0], ok = 1; for (int i = 0; i < n; ++i) for (int j = i + 1; j < n; ++j) if (t[1 + 2*i] == t[1 + 2*j] && t[2 + 2*i] != t[2 + 2*j]) ok = 0; printf(\"%d\\n\", ok); }\n        else if (variant == 1) { int cap = (int)t[0], n = (int)t[1], used[MAXN] = {0}, collisions = 0; for (int i = 0; i < n; ++i) { int p = (int)((t[2+i] % cap + cap) % cap); while (used[p]) { ++collisions; p = (p + 1) % cap; } used[p] = 1; } printf(\"%d\\n\", collisions); }\n        else if (variant == 2) { long long cap = t[0], n = t[1]; while (n * 4 > cap * 3) cap *= 2; printf(\"%lld\\n\", cap); }\n        else { int n = (int)t[0], best = 0; long long bestv = 0; for (int i = 0; i < n; ++i) { int c = 0; for (int j = 0; j < n; ++j) if (t[1+i] == t[1+j]) ++c; if (c > best || (c == best && t[1+i] < bestv)) { best = c; bestv = t[1+i]; } } printf(\"%lld\\n\", bestv); }\n    } else if (group == 5) {\n        int n = (int)t[0];\n        if (variant == 0) { long long target = t[1]; int lo = 0, hi = n, ans = -1; while (lo < hi) { int m = (lo + hi) / 2; if (t[2+m] >= target) hi = m; else lo = m + 1; } if (lo < n && t[2+lo] == target) ans = lo; printf(\"%d\\n\", ans); }\n        else { int offset = variant == 3 ? 2 : 1, k = variant == 3 ? (int)t[1] : 0; for (int i = 0; i < n; ++i) out[i] = t[offset+i]; qsort(out, n, sizeof(long long), cmp_ll); if (variant == 3) printf(\"%lld\\n\", out[k]); else print_values(out, n); }\n    } else if (group == 6) {\n        if (variant == 0) printf(\"%lld\\n\", gcd_ll(t[0], t[1]));\n        else if (variant == 1) printf(\"%lld\\n\", t[0] + 1);\n        else if (variant == 2) printf(\"%lld\\n\", fib((int)t[0]));\n        else { int n = (int)t[0]; long long best = t[1]; for (int i = 1; i < n; ++i) if (t[1+i] > best) best = t[1+i]; printf(\"%lld\\n\", best); }\n    } else if (group == 7) {\n        if (variant == 3) { int n = (int)t[0], digits = (int)t[1], c = 0; long long p10 = 1; while (digits >= p10) p10 *= 10; for (int i = 0; i < n; ++i) { long long x = t[2+i]; while (x >= p10) x /= 10; if (x == digits) ++c; } printf(\"%d\\n\", c); }\n        else { int n = (int)t[0]; if (variant == 0) printf(\"%d\\n\", tree_height(t+1, n, 0)); else if (variant == 1) { preorder(t+1, n, 0, out, &outn); print_values(out, outn); } else printf(\"%d\\n\", bst_valid(t+1, n, 0, -INF, INF)); }\n    } else if (group == 8) {\n        int n = (int)t[0], offset = variant == 2 ? 2 : 1, k = variant == 2 ? (int)t[1] : 0; for (int i = 0; i < n; ++i) out[i] = t[offset+i];\n        if (variant == 0) { int ok = 1; for (int i = 1; i < n; ++i) if (out[(i-1)/2] < out[i]) ok = 0; printf(\"%d\\n\", ok); }\n        else if (variant == 1) { for (int i = n/2-1; i >= 0; --i) heap_down(out,n,i); print_values(out,n); }\n        else { qsort(out,n,sizeof(long long),cmp_ll); if (variant == 2) { for (int i = 0; i < k; ++i) printf(\"%s%lld\",i?\" \":\"\",out[n-1-i]); putchar('\\n'); } else print_values(out,n); }\n    } else if (group == 9 || group == 10 || group == 14 && variant == 3) {\n        int n = (int)t[0], m = (int)t[1], weighted = group == 10 && variant > 0 || group == 14;\n        long long d[MAXN][MAXN]; for (int i=0;i<n;++i) for(int j=0;j<n;++j) d[i][j]=i==j?0:INF;\n        int pos=2; for(int e=0;e<m;++e){int u=(int)t[pos++],v=(int)t[pos++];long long w=weighted?t[pos++]:1; if(w<d[u][v])d[u][v]=w; if(group==10&&variant==2 && w<d[v][u])d[v][u]=w; if(group==9 && variant!=0 && w<d[v][u])d[v][u]=w;}\n        if (group == 9 && variant == 0) printf(\"%d %d\\n\", n, m);\n        else if (group == 9 && variant == 1) { for(int i=0;i<n;++i){long long deg=0;for(int j=0;j<n;++j)if(d[i][j]<INF&&i!=j)++deg;out[outn++]=deg;}print_values(out,outn); }\n        else if (group == 9 && variant == 2) { long long dist[MAXN];int q[MAXN],h=0,z=0;for(int i=0;i<n;++i)dist[i]=-1;dist[0]=0;q[z++]=0;while(h<z){int u=q[h++];for(int v=0;v<n;++v)if(d[u][v]<INF&&u!=v&&dist[v]<0){dist[v]=dist[u]+1;q[z++]=v;}}print_values(dist,n); }\n        else if (group == 9) { for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;}int comps=n,cycles=0;for(int u=0;u<n;++u)for(int v=u+1;v<n;++v)if(d[u][v]<INF){if(unite(u,v))--comps;else ++cycles;}printf(\"%d %d\\n\",comps,cycles); }\n        else if (group == 10 && variant == 0) { int indeg[MAXN]={0},used[MAXN]={0};for(int u=0;u<n;++u)for(int v=0;v<n;++v)if(u!=v&&d[u][v]<INF)++indeg[v];for(int z=0;z<n;++z){int u=-1;for(int i=0;i<n;++i)if(!used[i]&&indeg[i]==0){u=i;break;}if(u<0){puts(\"cycle\");return 0;}used[u]=1;out[outn++]=u;for(int v=0;v<n;++v)if(u!=v&&d[u][v]<INF)--indeg[v];}print_values(out,outn); }\n        else if (group == 10 && variant == 2) { for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;} long long total=0;int edges=0; while(edges<n-1){long long best=INF;int bu=-1,bv=-1;for(int u=0;u<n;++u)for(int v=u+1;v<n;++v)if(d[u][v]<best&&find_set(u)!=find_set(v)){best=d[u][v];bu=u;bv=v;}if(bu<0)break;unite(bu,bv);total+=best;++edges;}printf(\"%lld\\n\",edges==n-1?total:-1LL); }\n        else { for(int k=0;k<n;++k)for(int i=0;i<n;++i)for(int j=0;j<n;++j)if(d[i][k]<INF&&d[k][j]<INF&&d[i][k]+d[k][j]<d[i][j])d[i][j]=d[i][k]+d[k][j];int s=(int)t[pos],target=(int)t[pos+1];printf(\"%lld\\n\",d[s][target]>=INF?-1LL:d[s][target]); }\n    } else if (group == 11) {\n        int n=(int)t[0],m=(int)t[1],pos=2,cycles=0;for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;}for(int i=0;i<m;++i){int a=(int)t[pos++],b=(int)t[pos++];if(!unite(a,b))++cycles;}int comps=0,best=0;for(int i=0;i<n;++i)if(find_set(i)==i){++comps;if(size_set[i]>best)best=size_set[i];}if(variant==0)printf(\"%d\\n\",comps);else if(variant==1)printf(\"%d\\n\",best);else if(variant==2){int depth=0;for(int i=0;i<n;++i)if(parent[i]!=i)depth=1;printf(\"%d\\n\",depth);}else printf(\"%d\\n\",cycles);\n    } else if (group == 12) {\n        if(variant==0){int n=(int)t[0];long long pairs[MAXN][2];for(int i=0;i<n;++i){pairs[i][0]=t[1+2*i];pairs[i][1]=t[2+2*i];}for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(pairs[j][1]<pairs[i][1]){long long a=pairs[i][0],b=pairs[i][1];pairs[i][0]=pairs[j][0];pairs[i][1]=pairs[j][1];pairs[j][0]=a;pairs[j][1]=b;}int c=0;long long end=-INF;for(int i=0;i<n;++i)if(pairs[i][0]>=end){++c;end=pairs[i][1];}printf(\"%d\\n\",c);}\n        else if(variant==1){int n=(int)t[0],target=(int)t[1],possible[2048]={0};possible[0]=1;for(int i=0;i<n;++i)for(int s=target;s>=t[2+i];--s)if(possible[s-t[2+i]])possible[s]=1;printf(\"%d\\n\",possible[target]);}\n        else if(variant==2)printf(\"%lld\\n\",fib((int)t[0]));\n        else{int n=(int)t[0],target=(int)t[1],dp[2048];for(int s=0;s<=target;++s)dp[s]=s?9999:0;for(int s=1;s<=target;++s)for(int i=0;i<n;++i)if(t[2+i]<=s&&dp[s-(int)t[2+i]]+1<dp[s])dp[s]=dp[s-(int)t[2+i]]+1;printf(\"%d\\n\",dp[target]>=9999?-1:dp[target]);}\n    } else if (group == 13) {\n        int n=(int)t[0];\n        if(variant==0){long long target=t[1];int ok=0;for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(t[2+i]+t[2+j]==target)ok=1;printf(\"%d\\n\",ok);}\n        else if(variant==1){int k=(int)t[1];long long best=-INF;for(int i=0;i+k<=n;++i){long long s=0;for(int j=0;j<k;++j)s+=t[2+i+j];if(s>best)best=s;}printf(\"%lld\\n\",best);}\n        else if(variant==2){for(int i=0;i<n;++i){long long next=-1;for(int j=i+1;j<n;++j)if(t[1+j]>t[1+i]){next=t[1+j];break;}out[outn++]=next;}print_values(out,outn);}\n        else{long long p[MAXN][2];for(int i=0;i<n;++i){p[i][0]=t[1+2*i];p[i][1]=t[2+2*i];}for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(p[j][0]<p[i][0]){long long a=p[i][0],b=p[i][1];p[i][0]=p[j][0];p[i][1]=p[j][1];p[j][0]=a;p[j][1]=b;}int merged=0;long long end=-INF;for(int i=0;i<n;++i)if(!merged||p[i][0]>end){++merged;end=p[i][1];}else if(p[i][1]>end)end=p[i][1];printf(\"%d\\n\",merged);}\n    } else if (group == 14) {\n        int n=(int)t[0];\n        if(variant==0){int best=0;long long bestv=0;for(int i=0;i<n;++i){int c=0;for(int j=0;j<n;++j)if(t[1+i]==t[1+j])++c;if(c>best||(c==best&&t[1+i]<bestv)){best=c;bestv=t[1+i];}}printf(\"%lld\\n\",bestv);}\n        else if(variant==1){long long q[MAXN];int h=0,z=0;for(int i=0;i<n;++i){long long x=t[1+i];if(x==0){if(h<z)++h;}else q[z++]=x;}if(h==z)puts(\"-999 -999\");else printf(\"%lld %lld\\n\",q[h],q[z-1]);}\n        else{int sorted=1,dup=0;long long mn=n?t[1]:0,mx=mn;for(int i=0;i<n;++i){if(i&&t[i]>t[i+1])sorted=0;for(int j=0;j<i;++j)if(t[1+j]==t[1+i])dup=1;if(t[1+i]<mn)mn=t[1+i];if(t[1+i]>mx)mx=t[1+i];}printf(\"%d %d %lld %lld\\n\",sorted,dup,mn,mx);}\n    }\n    return 0;\n}\n\n",
+        "explanation": "The pinned cpp reference executes parity contract dsa.sort.elementary.parity-v1. It is deterministic draft evidence, not proof of pedagogy, idiomatic style, or exam readiness."
+      }
+    },
+    {
+      "id": "dsa.sort.elementary.code.java.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "kind": "code",
+      "points": 10,
+      "title": "Selection and insertion sort: JAVA parity contract",
+      "prompt": "Read n integers, sort them with an elementary stable insertion-style contract, and print ascending output. This is the JAVA variant of one language-neutral input/output contract for Selection and insertion sort.",
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted four-language DSA parity draft; independent algorithm, language-idiom, test-oracle, safety, pedagogy, and accessibility review is required."
+      },
+      "hints": [
+        "Preserve the exact input/output contract and handle the visible boundary without relying on hidden values."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden deterministic parity checks passed.",
+        "incorrect": "At least one contract check failed; inspect the invariant, boundary, and exact output without revealing hidden data."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "parity-contract",
+            "description": "Passes both equivalent normal and boundary contracts in the pinned language runtime.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Generated from a module-scoped numeric parity kernel. Human reviewers must confirm that this executable facet genuinely assesses the named skill and replace non-idiomatic implementation choices before approval."
+      ],
+      "starterCode": "public class Main { public static void main(String[] args) { /* Parse the declared numeric contract and implement solve. */ } }\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "java",
+        "version": "openjdk version \"21.0.11\" 2026-04-21 LTS",
+        "imageDigest": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+        "entrypoint": "Main.java",
+        "timeLimitMs": 3000,
+        "memoryLimitMb": 128
+      },
+      "parity": {
+        "parityId": "dsa.sort.elementary.parity-v1",
+        "contractVersion": "1.0.0",
+        "language": "java",
+        "equivalentLanguages": [
+          "c",
+          "cpp",
+          "java",
+          "python"
+        ],
+        "testContractHash": "sha256:4be7be35a64b234663e1158bda9db0dbb8f6a304157547a209f5562b85ed500c",
+        "facet": "executable-contract"
+      },
+      "tests": [
+        {
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "5 4 1 3 2 5\n",
+          "expectedStdout": "1 2 3 4 5\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.visible"
+        },
+        {
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "3 -1 -3 0\n",
+          "expectedStdout": "-3 -1 0\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.hidden"
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import java.io.*;\nimport java.util.*;\n\npublic class Main {\n  static final int TASK = 21, MAXN = 128;\n  static final long INF = Long.MAX_VALUE / 4;\n  static final class FastScanner {\n    final InputStream in = System.in; final byte[] buffer = new byte[8192]; int at, length;\n    int read() throws IOException { if (at >= length) { length = in.read(buffer); at = 0; if (length < 0) return -1; } return buffer[at++]; }\n    Long nextLong() throws IOException { int c; do { c = read(); if (c < 0) return null; } while (c <= 32); long sign = 1, value = 0; if (c == '-') { sign = -1; c = read(); } while (c > 32 && c >= 0) { value = value * 10 + c - '0'; c = read(); } return value * sign; }\n  }\n  static void emit(long[] values, int length) { StringBuilder out = new StringBuilder(); for (int i=0;i<length;i++) { if(i>0)out.append(' '); out.append(values[i]); } System.out.println(out); }\n  static long fib(int n) { long a=0,b=1; for(int i=0;i<n;i++){long c=a+b;a=b;b=c;} return a; }\n  static long gcd(long a,long b){a=Math.abs(a);b=Math.abs(b);while(b!=0){long c=a%b;a=b;b=c;}return a;}\n  static int treeHeight(long[] a,int n,int i){if(i>=n||a[i]==-999)return 0;return 1+Math.max(treeHeight(a,n,2*i+1),treeHeight(a,n,2*i+2));}\n  static void preorder(long[] a,int n,int i,List<Long> out){if(i>=n||a[i]==-999)return;out.add(a[i]);preorder(a,n,2*i+1,out);preorder(a,n,2*i+2,out);}\n  static boolean bst(long[] a,int n,int i,long low,long high){if(i>=n||a[i]==-999)return true;return low<a[i]&&a[i]<high&&bst(a,n,2*i+1,low,a[i])&&bst(a,n,2*i+2,a[i],high);}\n  static final class DSU { int[] parent,size; DSU(int n){parent=new int[n];size=new int[n];for(int i=0;i<n;i++){parent[i]=i;size[i]=1;}} int find(int x){return parent[x]==x?x:(parent[x]=find(parent[x]));} boolean union(int a,int b){a=find(a);b=find(b);if(a==b)return false;if(size[a]<size[b]){int c=a;a=b;b=c;}parent[b]=a;size[a]+=size[b];return true;} }\n\n  public static void main(String[] args) throws Exception {\n    FastScanner scanner=new FastScanner(); long[] t=new long[512]; int count=0; Long value;\n    while(count<t.length&&(value=scanner.nextLong())!=null)t[count++]=value;\n    int group=TASK/4, variant=TASK%4; long[] out=new long[256]; int outn=0;\n    if(group==0){int n=(int)t[0];if(variant==0){long s=0;for(int i=0;i<n;i++)s+=t[1+i];System.out.println(s);}else if(variant==1){int c=0;for(int i=0;i<n;i++)if(t[1+i]>0)c++;System.out.println(c);}else if(variant==2){int p=-1;for(int i=1;i<n;i++)if(t[i]>t[i+1]){p=i;break;}System.out.println(p);}else System.out.println((long)n*(n-1)/2);}\n    else if(group==1){if(variant==0){int n=(int)t[0],at=(int)t[1];for(int i=0;i<n;i++)if(i!=at)out[outn++]=t[2+i];emit(out,outn);}else if(variant==1){int r=(int)t[0],c=(int)t[1];long s=0;for(int i=0;i<Math.min(r,c);i++)s+=t[2+i*c+i];System.out.println(s);}else if(variant==2){int n=(int)t[0];boolean ok=true;for(int i=0;i<n/2;i++)if(t[1+i]!=t[n-i])ok=false;System.out.println(ok?1:0);}else{int n=(int)t[0],l=(int)t[1],r=(int)t[2];long s=0;for(int i=l;i<=r&&i<n;i++)s+=t[3+i];System.out.println(s);}}\n    else if(group==2){if(variant==0){int n=(int)t[0];long s=0;for(int i=0;i<n;i++)s+=t[1+i];System.out.println(s);}else if(variant==1){int n=(int)t[0],ins=(int)t[1],del=(int)t[3];long x=t[2];List<Long> values=new ArrayList<>();for(int i=0;i<n;i++)values.add(t[4+i]);values.add(ins,x);values.remove(del);for(long x2:values)out[outn++]=x2;emit(out,outn);}else if(variant==2){int n=(int)t[0];long f=0,r=0;for(int i=0;i<n;i++){f+=(i+1)*t[1+i];r+=(i+1)*t[n-i];}System.out.println(f+\" \"+r);}else{int n=(int)t[0],slow=0,fast=0;boolean cycle=false;while(0<=fast&&fast<n){fast=(int)t[1+fast];if(fast<0||fast>=n)break;fast=(int)t[1+fast];slow=(int)t[1+slow];if(fast==slow){cycle=true;break;}}System.out.println(cycle?1:0);}}\n    else if(group==3){int n=(int)t[0];if(variant==0){Deque<Long> stack=new ArrayDeque<>();for(int i=0;i<n;i++){long x=t[1+i];if(x==0){if(!stack.isEmpty())stack.pop();}else stack.push(x);}System.out.println(stack.isEmpty()?-999:stack.peek());}else if(variant==1){Deque<Long> queue=new ArrayDeque<>();for(int i=0;i<n;i++){long x=t[1+i];if(x==0){if(!queue.isEmpty())queue.removeFirst();}else queue.addLast(x);}System.out.println(queue.isEmpty()?\"-999 -999\":queue.getFirst()+\" \"+queue.getLast());}else if(variant==2){boolean ok=true;for(int i=0;i<n/2;i++)if(t[1+i]!=t[n-i])ok=false;System.out.println(ok?1:0);}else{int balance=0;boolean ok=true;for(int i=0;i<n;i++){balance+=(int)t[1+i];if(balance<0)ok=false;}System.out.println(ok&&balance==0?1:0);}}\n    else if(group==4){if(variant==0){int n=(int)t[0];Map<Long,Long> seen=new HashMap<>();boolean ok=true;for(int i=0;i<n;i++){long key=t[1+2*i],hash=t[2+2*i];if(seen.containsKey(key)&&seen.get(key)!=hash)ok=false;seen.put(key,hash);}System.out.println(ok?1:0);}else if(variant==1){int cap=(int)t[0],n=(int)t[1],collisions=0;boolean[] used=new boolean[cap];for(int i=0;i<n;i++){int p=Math.floorMod(t[2+i],cap);while(used[p]){collisions++;p=(p+1)%cap;}used[p]=true;}System.out.println(collisions);}else if(variant==2){long cap=t[0],n=t[1];while(n*4>cap*3)cap*=2;System.out.println(cap);}else{int n=(int)t[0];Map<Long,Integer> frequencies=new HashMap<>();for(int i=0;i<n;i++)frequencies.merge(t[1+i],1,Integer::sum);long best=0;int frequency=-1;for(var entry:frequencies.entrySet())if(entry.getValue()>frequency||entry.getValue()==frequency&&entry.getKey()<best){best=entry.getKey();frequency=entry.getValue();}System.out.println(best);}}\n    else if(group==5){int n=(int)t[0];if(variant==0){long target=t[1];int low=0,high=n;while(low<high){int middle=(low+high)/2;if(t[2+middle]>=target)high=middle;else low=middle+1;}System.out.println(low<n&&t[2+low]==target?low:-1);}else{int offset=variant==3?2:1,k=variant==3?(int)t[1]:0;long[] values=Arrays.copyOfRange(t,offset,offset+n);Arrays.sort(values);if(variant==3)System.out.println(values[k]);else emit(values,n);}}\n    else if(group==6){if(variant==0)System.out.println(gcd(t[0],t[1]));else if(variant==1)System.out.println(t[0]+1);else if(variant==2)System.out.println(fib((int)t[0]));else{int n=(int)t[0];long best=t[1];for(int i=1;i<n;i++)best=Math.max(best,t[1+i]);System.out.println(best);}}\n    else if(group==7){if(variant==3){int n=(int)t[0];String prefix=Long.toString(t[1]);int matches=0;for(int i=0;i<n;i++)if(Long.toString(t[2+i]).startsWith(prefix))matches++;System.out.println(matches);}else{int n=(int)t[0];long[] values=Arrays.copyOfRange(t,1,1+n);if(variant==0)System.out.println(treeHeight(values,n,0));else if(variant==1){List<Long> order=new ArrayList<>();preorder(values,n,0,order);for(long x:order)out[outn++]=x;emit(out,outn);}else System.out.println(bst(values,n,0,-INF,INF)?1:0);}}\n    else if(group==8){int n=(int)t[0],offset=variant==2?2:1,k=variant==2?(int)t[1]:0;long[] values=Arrays.copyOfRange(t,offset,offset+n);if(variant==0){boolean ok=true;for(int i=1;i<n;i++)if(values[(i-1)/2]<values[i])ok=false;System.out.println(ok?1:0);}else if(variant==1){for(int start=n/2-1;start>=0;start--){int current=start;while(true){int best=current,left=2*current+1,right=left+1;if(left<n&&values[left]>values[best])best=left;if(right<n&&values[right]>values[best])best=right;if(best==current)break;long x=values[current];values[current]=values[best];values[best]=x;current=best;}}emit(values,n);}else{Arrays.sort(values);if(variant==2){for(int i=0;i<k;i++)out[outn++]=values[n-1-i];emit(out,outn);}else emit(values,n);}}\n    else if(group==9||group==10||group==14&&variant==3){int n=(int)t[0],m=(int)t[1],position=2;boolean weighted=group==10&&variant>0||group==14;long[][] d=new long[n][n];for(int i=0;i<n;i++){Arrays.fill(d[i],INF);d[i][i]=0;}for(int e=0;e<m;e++){int left=(int)t[position++],right=(int)t[position++];long weight=weighted?t[position++]:1;d[left][right]=Math.min(d[left][right],weight);if(group==10&&variant==2||group==9&&variant!=0)d[right][left]=Math.min(d[right][left],weight);}if(group==9&&variant==0)System.out.println(n+\" \"+m);else if(group==9&&variant==1){for(int i=0;i<n;i++){long degree=0;for(int j=0;j<n;j++)if(i!=j&&d[i][j]<INF)degree++;out[outn++]=degree;}emit(out,outn);}else if(group==9&&variant==2){long[] distance=new long[n];Arrays.fill(distance,-1);distance[0]=0;Deque<Integer> queue=new ArrayDeque<>();queue.add(0);while(!queue.isEmpty()){int current=queue.remove();for(int target=0;target<n;target++)if(current!=target&&d[current][target]<INF&&distance[target]<0){distance[target]=distance[current]+1;queue.add(target);}}emit(distance,n);}else if(group==9){DSU dsu=new DSU(n);int components=n,cycles=0;for(int left=0;left<n;left++)for(int right=left+1;right<n;right++)if(d[left][right]<INF){if(dsu.union(left,right))components--;else cycles++;}System.out.println(components+\" \"+cycles);}else if(group==10&&variant==0){int[] indegree=new int[n];boolean[] used=new boolean[n];for(int source=0;source<n;source++)for(int target=0;target<n;target++)if(source!=target&&d[source][target]<INF)indegree[target]++;for(int step=0;step<n;step++){int node=-1;for(int i=0;i<n;i++)if(!used[i]&&indegree[i]==0){node=i;break;}if(node<0){System.out.println(\"cycle\");return;}used[node]=true;out[outn++]=node;for(int target=0;target<n;target++)if(node!=target&&d[node][target]<INF)indegree[target]--;}emit(out,outn);}else if(group==10&&variant==2){DSU dsu=new DSU(n);long total=0;int edges=0;while(edges<n-1){long best=INF;int a=-1,b=-1;for(int left=0;left<n;left++)for(int right=left+1;right<n;right++)if(d[left][right]<best&&dsu.find(left)!=dsu.find(right)){best=d[left][right];a=left;b=right;}if(a<0)break;dsu.union(a,b);total+=best;edges++;}System.out.println(edges==n-1?total:-1);}else{for(int middle=0;middle<n;middle++)for(int left=0;left<n;left++)for(int right=0;right<n;right++)if(d[left][middle]<INF&&d[middle][right]<INF)d[left][right]=Math.min(d[left][right],d[left][middle]+d[middle][right]);int source=(int)t[position],target=(int)t[position+1];System.out.println(d[source][target]>=INF?-1:d[source][target]);}}\n    else if(group==11){int n=(int)t[0],m=(int)t[1],position=2,cycles=0;DSU dsu=new DSU(n);for(int i=0;i<m;i++){if(!dsu.union((int)t[position],(int)t[position+1]))cycles++;position+=2;}Set<Integer> roots=new HashSet<>();int best=0;for(int i=0;i<n;i++){int root=dsu.find(i);roots.add(root);best=Math.max(best,dsu.size[root]);}if(variant==0)System.out.println(roots.size());else if(variant==1)System.out.println(best);else if(variant==2){boolean depth=false;for(int i=0;i<n;i++)if(dsu.parent[i]!=i)depth=true;System.out.println(depth?1:0);}else System.out.println(cycles);}\n    else if(group==12){if(variant==0){int n=(int)t[0];long[][] intervals=new long[n][2];for(int i=0;i<n;i++){intervals[i][0]=t[1+2*i];intervals[i][1]=t[2+2*i];}Arrays.sort(intervals,Comparator.comparingLong(pair->pair[1]));int selected=0;long end=-INF;for(long[] interval:intervals)if(interval[0]>=end){selected++;end=interval[1];}System.out.println(selected);}else if(variant==1){int n=(int)t[0],target=(int)t[1];boolean[] possible=new boolean[target+1];possible[0]=true;for(int i=0;i<n;i++)for(int sum=target;sum>=t[2+i];sum--)if(possible[sum-(int)t[2+i]])possible[sum]=true;System.out.println(possible[target]?1:0);}else if(variant==2)System.out.println(fib((int)t[0]));else{int n=(int)t[0],target=(int)t[1];int[] dp=new int[target+1];Arrays.fill(dp,9999);dp[0]=0;for(int amount=1;amount<=target;amount++)for(int i=0;i<n;i++)if(t[2+i]<=amount)dp[amount]=Math.min(dp[amount],dp[amount-(int)t[2+i]]+1);System.out.println(dp[target]>=9999?-1:dp[target]);}}\n    else if(group==13){int n=(int)t[0];if(variant==0){long target=t[1];boolean ok=false;for(int i=0;i<n;i++)for(int j=i+1;j<n;j++)if(t[2+i]+t[2+j]==target)ok=true;System.out.println(ok?1:0);}else if(variant==1){int k=(int)t[1];long best=-INF;for(int i=0;i+k<=n;i++){long sum=0;for(int j=0;j<k;j++)sum+=t[2+i+j];best=Math.max(best,sum);}System.out.println(best);}else if(variant==2){for(int i=0;i<n;i++){long next=-1;for(int j=i+1;j<n;j++)if(t[1+j]>t[1+i]){next=t[1+j];break;}out[outn++]=next;}emit(out,outn);}else{long[][] intervals=new long[n][2];for(int i=0;i<n;i++){intervals[i][0]=t[1+2*i];intervals[i][1]=t[2+2*i];}Arrays.sort(intervals,Comparator.comparingLong(pair->pair[0]));int merged=0;long end=-INF;for(long[] interval:intervals)if(merged==0||interval[0]>end){merged++;end=interval[1];}else end=Math.max(end,interval[1]);System.out.println(merged);}}\n    else if(group==14){int n=(int)t[0];if(variant==0){Map<Long,Integer> frequencies=new HashMap<>();for(int i=0;i<n;i++)frequencies.merge(t[1+i],1,Integer::sum);long best=0;int frequency=-1;for(var entry:frequencies.entrySet())if(entry.getValue()>frequency||entry.getValue()==frequency&&entry.getKey()<best){best=entry.getKey();frequency=entry.getValue();}System.out.println(best);}else if(variant==1){Deque<Long> queue=new ArrayDeque<>();for(int i=0;i<n;i++){long x=t[1+i];if(x==0){if(!queue.isEmpty())queue.removeFirst();}else queue.addLast(x);}System.out.println(queue.isEmpty()?\"-999 -999\":queue.getFirst()+\" \"+queue.getLast());}else{boolean sorted=true,duplicate=false;long minimum=n>0?t[1]:0,maximum=minimum;for(int i=0;i<n;i++){if(i>0&&t[i]>t[i+1])sorted=false;for(int j=0;j<i;j++)if(t[1+j]==t[1+i])duplicate=true;minimum=Math.min(minimum,t[1+i]);maximum=Math.max(maximum,t[1+i]);}System.out.println((sorted?1:0)+\" \"+(duplicate?1:0)+\" \"+minimum+\" \"+maximum);}}\n  }\n}\n",
+        "explanation": "The pinned java reference executes parity contract dsa.sort.elementary.parity-v1. It is deterministic draft evidence, not proof of pedagogy, idiomatic style, or exam readiness."
+      }
+    },
+    {
+      "id": "dsa.sort.elementary.code.python.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "kind": "code",
+      "points": 10,
+      "title": "Selection and insertion sort: PYTHON parity contract",
+      "prompt": "Read n integers, sort them with an elementary stable insertion-style contract, and print ascending output. This is the PYTHON variant of one language-neutral input/output contract for Selection and insertion sort.",
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted four-language DSA parity draft; independent algorithm, language-idiom, test-oracle, safety, pedagogy, and accessibility review is required."
+      },
+      "hints": [
+        "Preserve the exact input/output contract and handle the visible boundary without relying on hidden values."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden deterministic parity checks passed.",
+        "incorrect": "At least one contract check failed; inspect the invariant, boundary, and exact output without revealing hidden data."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "parity-contract",
+            "description": "Passes both equivalent normal and boundary contracts in the pinned language runtime.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Generated from a module-scoped numeric parity kernel. Human reviewers must confirm that this executable facet genuinely assesses the named skill and replace non-idiomatic implementation choices before approval."
+      ],
+      "starterCode": "import sys\n# Parse the declared numeric contract and implement solve.\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14.6",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 3000,
+        "memoryLimitMb": 128
+      },
+      "parity": {
+        "parityId": "dsa.sort.elementary.parity-v1",
+        "contractVersion": "1.0.0",
+        "language": "python",
+        "equivalentLanguages": [
+          "c",
+          "cpp",
+          "java",
+          "python"
+        ],
+        "testContractHash": "sha256:4be7be35a64b234663e1158bda9db0dbb8f6a304157547a209f5562b85ed500c",
+        "facet": "executable-contract"
+      },
+      "tests": [
+        {
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "5 4 1 3 2 5\n",
+          "expectedStdout": "1 2 3 4 5\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.visible"
+        },
+        {
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "3 -1 -3 0\n",
+          "expectedStdout": "-3 -1 0\n",
+          "comparison": "trimmed",
+          "critical": true,
+          "id": "dsa.sort.elementary.parity.hidden"
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\nfrom collections import Counter, deque\n\nTASK = 21\nINF = 10**18\nt = [int(value) for value in sys.stdin.buffer.read().split()]\ngroup, variant = divmod(TASK, 4)\n\ndef emit(values):\n    print(\" \".join(map(str, values)))\n\ndef fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n\ndef tree_height(values, index=0):\n    if index >= len(values) or values[index] == -999:\n        return 0\n    return 1 + max(tree_height(values, index * 2 + 1), tree_height(values, index * 2 + 2))\n\ndef preorder(values, index=0):\n    if index >= len(values) or values[index] == -999:\n        return []\n    return [values[index], *preorder(values, index * 2 + 1), *preorder(values, index * 2 + 2)]\n\ndef bst_valid(values, index=0, low=-INF, high=INF):\n    if index >= len(values) or values[index] == -999:\n        return True\n    value = values[index]\n    return low < value < high and bst_valid(values, index * 2 + 1, low, value) and bst_valid(values, index * 2 + 2, value, high)\n\nclass DSU:\n    def __init__(self, n):\n        self.parent = list(range(n)); self.size = [1] * n\n    def find(self, value):\n        if self.parent[value] != value:\n            self.parent[value] = self.find(self.parent[value])\n        return self.parent[value]\n    def union(self, left, right):\n        left, right = self.find(left), self.find(right)\n        if left == right: return False\n        if self.size[left] < self.size[right]: left, right = right, left\n        self.parent[right] = left; self.size[left] += self.size[right]\n        return True\n\nif group == 0:\n    n, values = t[0], t[1:]\n    if variant == 0: print(sum(values[:n]))\n    elif variant == 1: print(sum(value > 0 for value in values[:n]))\n    elif variant == 2: print(next((i for i in range(1, n) if values[i - 1] > values[i]), -1))\n    else: print(n * (n - 1) // 2)\nelif group == 1:\n    if variant == 0:\n        n, at = t[:2]; emit([value for i, value in enumerate(t[2:2+n]) if i != at])\n    elif variant == 1:\n        rows, columns = t[:2]; values = t[2:]; print(sum(values[i * columns + i] for i in range(min(rows, columns))))\n    elif variant == 2:\n        n = t[0]; values = t[1:1+n]; print(int(values == values[::-1]))\n    else:\n        n, left, right = t[:3]; print(sum(t[3+left:3+min(n, right+1)]))\nelif group == 2:\n    if variant == 0:\n        n = t[0]; print(sum(t[1:1+n]))\n    elif variant == 1:\n        n, insert_at, value, delete_at = t[:4]; values = t[4:4+n]; values.insert(insert_at, value); values.pop(delete_at); emit(values)\n    elif variant == 2:\n        n = t[0]; values = t[1:1+n]; print(sum((i+1)*v for i,v in enumerate(values)), sum((i+1)*v for i,v in enumerate(reversed(values))))\n    else:\n        n = t[0]; links = t[1:1+n]; slow = fast = 0; cycle = False\n        while 0 <= fast < n:\n            fast = links[fast]\n            if not 0 <= fast < n: break\n            fast = links[fast]; slow = links[slow]\n            if fast == slow: cycle = True; break\n        print(int(cycle))\nelif group == 3:\n    n, operations = t[0], t[1:]\n    if variant == 0:\n        stack = []\n        for value in operations[:n]:\n            if value == 0:\n                if stack: stack.pop()\n            else: stack.append(value)\n        print(stack[-1] if stack else -999)\n    elif variant == 1:\n        queue = deque()\n        for value in operations[:n]:\n            if value == 0:\n                if queue: queue.popleft()\n            else: queue.append(value)\n        print(f\"{queue[0]} {queue[-1]}\" if queue else \"-999 -999\")\n    elif variant == 2: print(int(operations[:n] == operations[:n][::-1]))\n    else:\n        balance = 0; valid = True\n        for value in operations[:n]:\n            balance += value; valid = valid and balance >= 0\n        print(int(valid and balance == 0))\nelif group == 4:\n    if variant == 0:\n        n = t[0]; pairs = list(zip(t[1:1+2*n:2], t[2:2+2*n:2])); seen = {}; valid = True\n        for key, value_hash in pairs:\n            if key in seen and seen[key] != value_hash: valid = False\n            seen[key] = value_hash\n        print(int(valid))\n    elif variant == 1:\n        capacity, n = t[:2]; used = [False] * capacity; collisions = 0\n        for key in t[2:2+n]:\n            position = key % capacity\n            while used[position]: collisions += 1; position = (position + 1) % capacity\n            used[position] = True\n        print(collisions)\n    elif variant == 2:\n        capacity, n = t[:2]\n        while n * 4 > capacity * 3: capacity *= 2\n        print(capacity)\n    else:\n        n = t[0]; counts = Counter(t[1:1+n]); print(min(counts, key=lambda key: (-counts[key], key)))\nelif group == 5:\n    n = t[0]\n    if variant == 0:\n        target, values = t[1], t[2:2+n]; left, right = 0, n\n        while left < right:\n            middle = (left + right) // 2\n            if values[middle] >= target: right = middle\n            else: left = middle + 1\n        print(left if left < n and values[left] == target else -1)\n    elif variant == 3:\n        k, values = t[1], sorted(t[2:2+n]); print(values[k])\n    else: emit(sorted(t[1:1+n]))\nelif group == 6:\n    if variant == 0:\n        import math; print(math.gcd(t[0], t[1]))\n    elif variant == 1: print(t[0] + 1)\n    elif variant == 2: print(fib(t[0]))\n    else: print(max(t[1:1+t[0]]))\nelif group == 7:\n    if variant == 3:\n        n, prefix = t[:2]; print(sum(str(value).startswith(str(prefix)) for value in t[2:2+n]))\n    else:\n        n = t[0]; values = t[1:1+n]\n        if variant == 0: print(tree_height(values))\n        elif variant == 1: emit(preorder(values))\n        else: print(int(bst_valid(values)))\nelif group == 8:\n    n = t[0]; k = t[1] if variant == 2 else 0; values = t[2:2+n] if variant == 2 else t[1:1+n]\n    if variant == 0: print(int(all(values[(i-1)//2] >= values[i] for i in range(1, n))))\n    elif variant == 1:\n        for index in range(n//2-1, -1, -1):\n            current = index\n            while True:\n                candidates = [current, current*2+1, current*2+2]; best = max((i for i in candidates if i < n), key=values.__getitem__)\n                if best == current: break\n                values[current], values[best] = values[best], values[current]; current = best\n        emit(values)\n    elif variant == 2: emit(sorted(values, reverse=True)[:k])\n    else: emit(sorted(values))\nelif group in (9, 10) or group == 14 and variant == 3:\n    n, m = t[:2]; weighted = group == 10 and variant > 0 or group == 14\n    distance = [[0 if i == j else INF for j in range(n)] for i in range(n)]; position = 2\n    for _ in range(m):\n        left, right = t[position:position+2]; position += 2; weight = t[position] if weighted else 1; position += int(weighted)\n        distance[left][right] = min(distance[left][right], weight)\n        if group == 10 and variant == 2 or group == 9 and variant != 0: distance[right][left] = min(distance[right][left], weight)\n    if group == 9 and variant == 0: print(n, m)\n    elif group == 9 and variant == 1: emit([sum(i != j and distance[i][j] < INF for j in range(n)) for i in range(n)])\n    elif group == 9 and variant == 2:\n        result = [-1] * n; result[0] = 0; queue = deque([0])\n        while queue:\n            current = queue.popleft()\n            for target in range(n):\n                if current != target and distance[current][target] < INF and result[target] < 0: result[target] = result[current] + 1; queue.append(target)\n        emit(result)\n    elif group == 9:\n        dsu = DSU(n); components, cycles = n, 0\n        for left in range(n):\n            for right in range(left+1, n):\n                if distance[left][right] < INF:\n                    if dsu.union(left, right): components -= 1\n                    else: cycles += 1\n        print(components, cycles)\n    elif group == 10 and variant == 0:\n        indegree = [sum(source != target and distance[source][target] < INF for source in range(n)) for target in range(n)]; result=[]\n        while len(result) < n:\n            available = next((node for node in range(n) if node not in result and indegree[node] == 0), None)\n            if available is None: print(\"cycle\"); break\n            result.append(available)\n            for target in range(n):\n                if available != target and distance[available][target] < INF: indegree[target] -= 1\n        else: emit(result)\n    elif group == 10 and variant == 2:\n        dsu=DSU(n); total=0; chosen=0\n        for weight,left,right in sorted((distance[left][right],left,right) for left in range(n) for right in range(left+1,n) if distance[left][right] < INF):\n            if dsu.union(left,right): total += weight; chosen += 1\n        print(total if chosen == n-1 else -1)\n    else:\n        for middle in range(n):\n            for left in range(n):\n                for right in range(n):\n                    distance[left][right] = min(distance[left][right], distance[left][middle] + distance[middle][right])\n        source, target = t[position:position+2]; print(distance[source][target] if distance[source][target] < INF else -1)\nelif group == 11:\n    n, m = t[:2]; dsu=DSU(n); cycles=0; position=2\n    for _ in range(m):\n        if not dsu.union(t[position], t[position+1]): cycles += 1\n        position += 2\n    roots={dsu.find(i) for i in range(n)}\n    if variant == 0: print(len(roots))\n    elif variant == 1: print(max(dsu.size[root] for root in roots))\n    elif variant == 2: print(int(any(dsu.parent[i] != i for i in range(n))))\n    else: print(cycles)\nelif group == 12:\n    if variant == 0:\n        n=t[0]; intervals=sorted(zip(t[1:1+2*n:2],t[2:2+2*n:2]),key=lambda pair:pair[1]); count=0; end=-INF\n        for left,right in intervals:\n            if left >= end: count += 1; end = right\n        print(count)\n    elif variant == 1:\n        n,target=t[:2]; possible={0}\n        for value in t[2:2+n]: possible |= {subtotal+value for subtotal in tuple(possible) if subtotal+value <= target}\n        print(int(target in possible))\n    elif variant == 2: print(fib(t[0]))\n    else:\n        n,target=t[:2]; coins=t[2:2+n]; dp=[0]+[INF]*target\n        for amount in range(1,target+1): dp[amount]=min((dp[amount-coin]+1 for coin in coins if coin<=amount),default=INF)\n        print(dp[target] if dp[target] < INF else -1)\nelif group == 13:\n    n=t[0]\n    if variant == 0:\n        target=t[1]; values=t[2:2+n]; print(int(any(values[i]+values[j]==target for i in range(n) for j in range(i+1,n))))\n    elif variant == 1:\n        k=t[1]; values=t[2:2+n]; print(max(sum(values[i:i+k]) for i in range(n-k+1)))\n    elif variant == 2:\n        values=t[1:1+n]; emit([next((right for right in values[i+1:] if right>value),-1) for i,value in enumerate(values)])\n    else:\n        intervals=sorted(zip(t[1:1+2*n:2],t[2:2+2*n:2])); merged=[]\n        for left,right in intervals:\n            if not merged or left>merged[-1][1]: merged.append([left,right])\n            else: merged[-1][1]=max(merged[-1][1],right)\n        print(len(merged))\nelif group == 14:\n    n=t[0]; values=t[1:1+n]\n    if variant == 0:\n        counts=Counter(values); print(min(counts,key=lambda key:(-counts[key],key)))\n    elif variant == 1:\n        queue=deque()\n        for value in values:\n            if value==0:\n                if queue: queue.popleft()\n            else: queue.append(value)\n        print(f\"{queue[0]} {queue[-1]}\" if queue else \"-999 -999\")\n    else:\n        print(int(values==sorted(values)),int(len(values)!=len(set(values))),min(values,default=0),max(values,default=0))\n",
+        "explanation": "The pinned python reference executes parity contract dsa.sort.elementary.parity-v1. It is deterministic draft evidence, not proof of pedagogy, idiomatic style, or exam readiness."
+      }
+    }
+  ]
+}

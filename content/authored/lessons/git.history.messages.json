@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.history.messages.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.history",
+  "skillId": "git.history.messages",
+  "title": "Commit messages and scope",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Commit messages and scope; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Commit messages and scope",
+      "claim": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Commit messages and scope",
+      "claim": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update. Your goal is to split mixed changes and write messages that let a reviewer predict each commit. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Selective staging and first commit. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Write concise imperative subjects and include rationale when it is not obvious from the diff.",
+      "Split mixed changes and write messages that let a reviewer predict each commit."
+    ],
+    "excludes": [
+      "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit."
+    ]
+  },
+  "outcomes": [
+    "Split mixed changes and write messages that let a reviewer predict each commit."
+  ],
+  "examples": [
+    {
+      "id": "git.history.messages.example-a",
+      "title": "Commit messages and scope: direct case",
+      "situation": "Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+      ],
+      "result": "The case supports the declared outcome because Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+    },
+    {
+      "id": "git.history.messages.example-b",
+      "title": "Commit messages and scope: boundary case",
+      "situation": "A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files.",
+        "Step 2 — Keep this boundary explicit: Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit.",
+        "Step 3 — Reject the documented misconception: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+      ],
+      "result": "This case demonstrates the declared outcome: Split mixed changes and write messages that let a reviewer predict each commit."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.history.messages.misconception",
+      "mistakenBelief": "Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work.",
+      "correction": "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A signed lab notebook can model Commit messages and scope: stable entries record why a change happened, named markers identify milestones, and comparisons expose differences.",
+    "usefulFor": [
+      "Inspecting immutable records, messages, selected versions, differences, and milestone names"
+    ],
+    "limitations": [
+      "Git history is a directed graph with movable references, merges, and content-addressed objects, not a single bound notebook.",
+      "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
+      "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
+      "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis."
+        },
+        "explanation": "Apply the declared Commit messages and scope model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+      }
+    ],
+    "textAlternative": "Starting artifact: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update. Step 1, Observe. State: evidence: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.. Apply the declared Commit messages and scope model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.. Compare the observation with the correction and reject the misconception: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Commit messages and scope: direct case”: state its starting evidence, apply the Commit messages and scope rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Commit messages and scope: direct case.",
+        "Starting evidence: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
+        "Core rule: A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
+        "Observable result: The case supports the declared outcome because Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.",
+        "Boundary check: Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
+        "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Commit messages and scope, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Split mixed changes and write messages that let a reviewer predict each commit.",
+        "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.history.messages.misconception",
+      "explanation": "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to split mixed changes and write messages that let a reviewer predict each commit. Keep this boundary in view: Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit.",
+    "retrievalPrompts": [
+      "Explain Commit messages and scope without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work.",
+      "Apply the model to this case from memory: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files."
+    ],
+    "nextReviewPrompt": "Next: continue to “Log, show and graph”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

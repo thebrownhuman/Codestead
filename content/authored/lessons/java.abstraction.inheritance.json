@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.abstraction.inheritance.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.abstraction",
+  "skillId": "java.abstraction.inheritance",
+  "title": "Class inheritance",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Class inheritance; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Interfaces, Inheritance, Polymorphism, and composition guidance; atomic topic: Class inheritance",
+      "claim": "Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS chapters 8-9 and §§15.12.2, 15.12.4: inheritance, interfaces, overload selection, and dispatch; atomic topic: Class inheritance",
+      "claim": "Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...). Your goal is to evaluate and implement a small inheritance hierarchy without exposing mutable representation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and invariants; Interfaces. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Private representation is not inherited as accessible state, constructors chain, final restricts extension or override, and field hiding does not provide polymorphic state. The learner must reject this documented misconception: Inheritance is appropriate whenever two classes share fields or helper code, even if the subtype rejects base operations."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Extend a base class only for a valid substitution relationship and initialize base state correctly.",
+      "Evaluate and implement a small inheritance hierarchy without exposing mutable representation."
+    ],
+    "excludes": [
+      "Private representation is not inherited as accessible state, constructors chain, final restricts extension or override, and field hiding does not provide polymorphic state."
+    ]
+  },
+  "outcomes": [
+    "Evaluate and implement a small inheritance hierarchy without exposing mutable representation."
+  ],
+  "examples": [
+    {
+      "id": "java.abstraction.inheritance.example.direct",
+      "title": "Class inheritance: direct language case",
+      "situation": "Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...).",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...).",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it."
+      ],
+      "result": "The example meets the atomic outcome because Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it."
+    },
+    {
+      "id": "java.abstraction.inheritance.example.boundary",
+      "title": "Class inheritance: boundary and transfer case",
+      "situation": "A read-only collection subtype that throws from an inherited mutator violates substitution, so the design uses a narrower interface or composition.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A read-only collection subtype that throws from an inherited mutator violates substitution, so the design uses a narrower interface or composition.",
+        "Step 2 — Keep the language boundary explicit: Private representation is not inherited as accessible state, constructors chain, final restricts extension or override, and field hiding does not provide polymorphic state.",
+        "Step 3 — Reject the tempting but incorrect rule: Inheritance is appropriate whenever two classes share fields or helper code, even if the subtype rejects base operations."
+      ],
+      "result": "This case demonstrates the declared outcome: Evaluate and implement a small inheritance hierarchy without exposing mutable representation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.abstraction.inheritance.misconception",
+      "mistakenBelief": "Inheritance is appropriate whenever two classes share fields or helper code, even if the subtype rejects base operations.",
+      "correction": "Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Inheritance is appropriate whenever two classes share fields or helper code, even if the subtype rejects base operations."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a plug-and-socket system in which contracts describe compatible behavior while components hide their implementation can introduce Class inheritance, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "interfaces, substitution, dispatch, and composition"
+    ],
+    "limitations": [
+      "overload resolution, method hiding, constructor order, and multiple interface defaults require Java-specific rules",
+      "Private representation is not inherited as accessible state, constructors chain, final restricts extension or override, and field hiding does not provide polymorphic state."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...).",
+      "Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately.",
+      "Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...)."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Inheritance is appropriate whenever two classes share fields or helper code, even if the subtype rejects base operations."
+      }
+    ],
+    "textAlternative": "Starting artifact: Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...). Step 1, Observe. State: evidence: Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...).. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it.. Compare the observation with the correction and explain why the misconception fails: Inheritance is appropriate whenever two classes share fields or helper code, even if the subtype rejects base operations."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Class inheritance: direct language case”: state its starting evidence, apply the Class inheritance rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Class inheritance: direct language case.",
+        "Starting evidence: Circle extends Shape because every Circle supports the complete Shape area contract and initializes required Shape state through super(...).",
+        "Core rule: Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately.",
+        "Observable result: The example meets the atomic outcome because Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it.",
+        "Boundary check: Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A read-only collection subtype that throws from an inherited mutator violates substitution, so the design uses a narrower interface or composition.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Class inheritance reuses and specializes behavior only when every subtype can honor the base contract, with superclass construction and protected/public surface controlled deliberately.",
+        "Private representation is not inherited as accessible state, constructors chain, final restricts extension or override, and field hiding does not provide polymorphic state."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Class inheritance, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Evaluate and implement a small inheritance hierarchy without exposing mutable representation.",
+        "Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.abstraction.inheritance.misconception",
+      "explanation": "Use inheritance only for a valid substitution relationship; otherwise extract a collaborator or shared helper and compose it.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A read-only collection subtype that throws from an inherited mutator violates substitution, so the design uses a narrower interface or composition."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to evaluate and implement a small inheritance hierarchy without exposing mutable representation. Keep this boundary in view: Private representation is not inherited as accessible state, constructors chain, final restricts extension or override, and field hiding does not provide polymorphic state.",
+    "retrievalPrompts": [
+      "Explain Class inheritance using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Inheritance is appropriate whenever two classes share fields or helper code, even if the subtype rejects base operations.",
+      "Predict this case from memory: A read-only collection subtype that throws from an inherited mutator violates substitution, so the design uses a narrower interface or composition."
+    ],
+    "nextReviewPrompt": "Next: continue to “Overriding and dynamic dispatch”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

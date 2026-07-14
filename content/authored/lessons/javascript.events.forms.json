@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.events.forms.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.dom-events",
+  "skillId": "javascript.events.forms",
+  "title": "Forms, validation and accessible state",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Forms, validation and accessible state; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-dom",
+      "locator": "DOM Standard; living standard accessed 2026-07; provisions applicable to Forms, validation and accessible state",
+      "claim": "Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Forms, validation and accessible state",
+      "claim": "Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A submit listener prevents navigation only after validation and disables duplicate requests while showing status. Your goal is to implement client validation as enhancement and verify keyboard focus and error announcement behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scope, closures and modules; html project site; Event propagation and delegation; html forms validation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control. This draft therefore rejects: Handling the submit button's click is equivalent to handling every form submission."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use form events and constraint APIs while preserving labels, native submission and perceivable errors.",
+      "Implement client validation as enhancement and verify keyboard focus and error announcement behavior."
+    ],
+    "excludes": [
+      "Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control."
+    ]
+  },
+  "outcomes": [
+    "Implement client validation as enhancement and verify keyboard focus and error announcement behavior."
+  ],
+  "examples": [
+    {
+      "id": "javascript.events.forms.example-a",
+      "title": "Forms, validation and accessible state: concrete case",
+      "situation": "A submit listener prevents navigation only after validation and disables duplicate requests while showing status.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A submit listener prevents navigation only after validation and disables duplicate requests while showing status.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Listen for the form submit event so keyboard and programmatic submissions follow the same path."
+      ],
+      "result": "The result follows because Listen for the form submit event so keyboard and programmatic submissions follow the same path."
+    },
+    {
+      "id": "javascript.events.forms.example-b",
+      "title": "Forms, validation and accessible state: boundary case",
+      "situation": "Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Handling the submit button's click is equivalent to handling every form submission."
+      ],
+      "result": "The boundary requires this correction: Listen for the form submit event so keyboard and programmatic submissions follow the same path."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.events.forms.misconception",
+      "mistakenBelief": "Handling the submit button's click is equivalent to handling every form submission.",
+      "correction": "Listen for the form submit event so keyboard and programmatic submissions follow the same path.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Handling the submit button's click is equivalent to handling every form submission."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Forms, validation and accessible state, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Forms, validation and accessible state before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A submit listener prevents navigation only after validation and disables duplicate requests while showing status.",
+      "Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission.",
+      "Listen for the form submit event so keyboard and programmatic submissions follow the same path."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A submit listener prevents navigation only after validation and disables duplicate requests while showing status."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Listen for the form submit event so keyboard and programmatic submissions follow the same path."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Handling the submit button's click is equivalent to handling every form submission."
+      }
+    ],
+    "textAlternative": "Starting artifact: A submit listener prevents navigation only after validation and disables duplicate requests while showing status. Step 1, Artifact. State: evidence: A submit listener prevents navigation only after validation and disables duplicate requests while showing status.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Listen for the form submit event so keyboard and programmatic submissions follow the same path.. Check the result against the boundary and reject this misconception: Handling the submit button's click is equivalent to handling every form submission."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Forms, validation and accessible state: concrete case”: state its starting evidence, apply the Forms, validation and accessible state rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Forms, validation and accessible state: concrete case.",
+        "Starting evidence: A submit listener prevents navigation only after validation and disables duplicate requests while showing status.",
+        "Core rule: Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission.",
+        "Observable result: The result follows because Listen for the form submit event so keyboard and programmatic submissions follow the same path.",
+        "Boundary check: Listen for the form submit event so keyboard and programmatic submissions follow the same path."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Form events should use submit at the form boundary, read named controls, validate, and preserve native keyboard submission.",
+        "Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Forms, validation and accessible state and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement client validation as enhancement and verify keyboard focus and error announcement behavior.",
+        "Listen for the form submit event so keyboard and programmatic submissions follow the same path."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.events.forms.misconception",
+      "explanation": "Listen for the form submit event so keyboard and programmatic submissions follow the same path.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'submit event' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement client validation as enhancement and verify keyboard focus and error announcement behavior. Keep this boundary in view: Click-only handling misses Enter submission, disabled fields are omitted, and async submission needs duplicate and error control.",
+    "retrievalPrompts": [
+      "Explain Forms, validation and accessible state using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Handling the submit button's click is equivalent to handling every form submission.",
+      "Apply checkpoint 'submit event' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Promises and chains”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

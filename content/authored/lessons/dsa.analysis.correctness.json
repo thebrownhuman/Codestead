@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.analysis.correctness.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.entry-analysis",
+  "skillId": "dsa.analysis.correctness",
+  "title": "Correctness and counterexamples",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Correctness and counterexamples; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Correctness and counterexamples",
+      "claim": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input."
+    },
+    {
+      "sourceRef": "cs2023-msf",
+      "locator": "CS2023 Mathematical and Statistical Foundations; August 2023; material applicable to Correctness and counterexamples",
+      "claim": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A loop invariant states that the retained maximum equals the maximum of all elements already visited. Your goal is to find a counterexample to an incorrect algorithm and explain a corrected invariant. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf problem pseudocode; pf tools debug test; Algorithm specification and invariants; pf problem examples. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant. The draft therefore rejects: Many passing random tests prove an algorithm correct for all inputs."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use cases, invariants and counterexamples to distinguish plausible code from a correct algorithm.",
+      "Find a counterexample to an incorrect algorithm and explain a corrected invariant.",
+      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+    ],
+    "excludes": [
+      "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+    ]
+  },
+  "outcomes": [
+    "Find a counterexample to an incorrect algorithm and explain a corrected invariant."
+  ],
+  "examples": [
+    {
+      "id": "dsa.analysis.correctness.example-a",
+      "title": "Correctness and counterexamples: language-neutral trace",
+      "situation": "A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+      ],
+      "result": "The conceptual result follows because Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+    },
+    {
+      "id": "dsa.analysis.correctness.example-b",
+      "title": "Correctness and counterexamples: implementation transfer",
+      "situation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+        "Step 3 — Retest this boundary in the selected implementation: Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.analysis.correctness.misconception",
+      "mistakenBelief": "Many passing random tests prove an algorithm correct for all inputs.",
+      "correction": "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Many passing random tests prove an algorithm correct for all inputs."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Correctness and counterexamples, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
+      "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
+      "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
+      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A loop invariant states that the retained maximum equals the maximum of all elements already visited."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+        },
+        "explanation": "Verify the result and reject this misconception: Many passing random tests prove an algorithm correct for all inputs."
+      }
+    ],
+    "textAlternative": "Starting artifact: A loop invariant states that the retained maximum equals the maximum of all elements already visited. Step 1, Specification. State: scenario: A loop invariant states that the retained maximum equals the maximum of all elements already visited.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics. Step 4, Conclusion. State: correction: Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.. Verify the result and reject this misconception: Many passing random tests prove an algorithm correct for all inputs."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Correctness and counterexamples: language-neutral trace”: state its starting evidence, apply the Correctness and counterexamples rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Correctness and counterexamples: language-neutral trace.",
+        "Starting evidence: A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
+        "Core rule: Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
+        "Observable result: The conceptual result follows because Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
+        "Boundary check: Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+        "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Correctness and counterexamples case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Find a counterexample to an incorrect algorithm and explain a corrected invariant.",
+        "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.analysis.correctness.misconception",
+      "explanation": "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'correctness argument', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to find a counterexample to an incorrect algorithm and explain a corrected invariant. Keep this boundary in view: Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant.",
+    "retrievalPrompts": [
+      "State the Correctness and counterexamples invariant and complexity without code.",
+      "Why is this claim false: Many passing random tests prove an algorithm correct for all inputs.",
+      "Map checkpoint 'correctness argument' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Time, space and asymptotic growth”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

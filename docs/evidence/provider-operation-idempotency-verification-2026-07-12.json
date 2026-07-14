@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-07-12T15:24:00.000Z",
+  "scope": "Durable provider-call idempotency for authenticated tutor POST and administrator credential test/replace. Credential reveal is deliberately excluded and remains a fresh-MFA, reason, audit, and learner-notification ceremony on every access.",
+  "implementation": {
+    "migration": "0025_legal_christian_walker",
+    "receiptKey": [
+      "owner_user_id",
+      "action",
+      "request_id"
+    ],
+    "actions": [
+      "tutor.post",
+      "credential.test",
+      "credential.replace"
+    ],
+    "canonicalHash": "SHA-256 of a deterministic, key-sorted JSON projection. Tutor input uses the sanitized message plus course, skill, and nullable thread. Administrator input uses credential, learner, action, reason, and replacement material only when replacing; plaintext is never stored in the receipt.",
+    "states": [
+      "processing",
+      "completed"
+    ],
+    "storedResponse": "Only a JSON-object body, HTTP status, and completion time; maximum serialized body is 262144 bytes.",
+    "concurrency": "A PostgreSQL unique claim selects one executor. Exact concurrent retries poll the durable processing receipt and replay the completed response. The executor stores completion before returning HTTP.",
+    "mismatch": "The same owner/action/request UUID with a different canonical hash returns 409 IDEMPOTENCY_KEY_REUSED before provider or mutation work.",
+    "lostResponse": "A completed exact retry returns the original safe status/body with X-Idempotent-Replay=true and does not re-enter rate limiting, provider routing, credential mutation, audit, notification, model-call, or chat writes.",
+    "indeterminateFailure": "A processing receipt is never automatically reclaimed because the provider may already have received the operation. Wait timeout returns retryable 503 rather than risking a duplicate provider call.",
+    "client": "Tutor and administrator credential test/replace clients generate UUIDs and retry one transport exception with the byte-equivalent payload and UUID. Application/provider error responses are not blindly retried.",
+    "retention": "Tutor response copies are deleted in bounded batches at the existing 12-calendar-month raw-chat cutoff. Credential test/replace receipts are administrator/security records with no automatic launch purge and cascade with owning-account deletion."
+  },
+  "securityInvariants": {
+    "tutorRedaction": "The immediate learner message is sanitized once before canonical hashing, provider transmission, model-call hashing, or chat persistence.",
+    "credentialSecrets": "The receipt has no secret/plaintext column, ordinary response contains no credential, repository secret scan passes, and reveal responses never enter this receipt system.",
+    "credentialCas": "Existing active-row owner/key-version/exact-updated-at provider outcome compare-and-set remains unchanged. Administrator service key-version checks remain inside its locked mutation transaction.",
+    "authorization": "Receipt owner is derived only from the authenticated session. Existing tutor thread owner/status gates and administrator role/fresh-MFA/learner binding remain in place.",
+    "databaseConstraints": [
+      "owner/action/request unique index",
+      "owner foreign key with delete cascade",
+      "allowlisted action check",
+      "64-lowercase-hex input hash check",
+      "processing/completed state check",
+      "status/body/completed-at consistency check",
+      "HTTP status range and response byte-size checks"
+    ]
+  },
+  "verification": {
+    "focusedUnitRouteComponentRetention": {
+      "command": "npm.cmd test -- --run src/lib/ai/__tests__/provider-operation-idempotency.test.ts src/app/api/ai/tutor/__tests__/thread-lifecycle.test.ts src/app/api/admin/credentials/[id]/route.test.ts src/app/api/admin/credentials/[id]/reveal/route.test.ts src/components/product/__tests__/tutor-thread-lifecycle.test.tsx src/components/admin/__tests__/admin-credential-manager.test.tsx src/lib/data-lifecycle/__tests__/retention-runtime.test.ts",
+      "result": "7 files passed; 67 tests passed"
+    },
+    "realPostgresConcurrency": {
+      "command": "npm.cmd run test:integration -- integration/provider-operation-idempotency.integration.test.ts",
+      "result": "1 file passed; 3 tests passed; migrations through 0025 applied successfully twice",
+      "coverage": [
+        "two concurrent tutor executions make one synthetic provider call, one model_call, one thread, and one user/assistant message pair",
+        "completed lost-response tutor replay returns the original call/thread response without execution",
+        "payload mismatch rejects before execution",
+        "actual administrator credential test and replace each validate the provider once under concurrent duplicate requests",
+        "actual administrator service persists one requested/completed audit pair, one requested/completed in-app notice pair, one requested/completed email pair, and one credential mutation",
+        "replacement retains key-version/CAS behavior and receipt JSON excludes replacement plaintext"
+      ]
+    },
+    "typecheck": "passed",
+    "lint": "passed with 0 errors and 0 warnings in the final repository gate",
+    "secretScan": "passed",
+    "encodingScan": "passed",
+    "apiAuthorizationMatrix": {
+      "files": 94,
+      "operations": 114,
+      "matrixRows": 114,
+      "identifierOwnershipContracts": 27,
+      "supportingOwnershipContracts": 9,
+      "errors": 0
+    }
+  },
+  "remainingLimitations": [
+    "No upstream provider transaction can make an unknowable host crash after provider acceptance but before durable completion replayable. The application deliberately leaves that receipt processing and refuses automatic re-execution; operator diagnosis is required.",
+    "This focused artifact is not a production live-provider quality/terms/availability test.",
+    "The final repository-wide gate and 19-file/87-test PostgreSQL suite passed, but this artifact remains local evidence rather than a live-provider or deployed-host proof."
+  ],
+  "sourceSha256": {
+    "drizzle/0025_legal_christian_walker.sql": "be39966a7486c5758bfc420b524007fd3f0d2a97b2c73dd6f203021122859f9f",
+    "drizzle/meta/0025_snapshot.json": "920876441ef996f879bb4ebd7d412afed81d5c67e8db4692c0c828fa1b17ee1c",
+    "src/lib/db/schema.ts": "e724a8ce0e84438e9559353728d43bfd9811f83355631fd53559ee52387f633e",
+    "src/lib/ai/provider-operation-idempotency.ts": "7a581b7670bda3a48b985e8a1ccfe2f9eff4dc18c861399c914663b135c48535",
+    "src/app/api/ai/tutor/route.ts": "7c3710049f5f03a5d23865d64c1310b8493a5a218785fada222753cba3ff0343",
+    "src/app/api/admin/credentials/[id]/route.ts": "7f3c29ae270dc14acf998abd561cb48888ffcdf4888e08bebb9afa92f629fb6e",
+    "src/app/api/admin/credentials/[id]/reveal/route.ts": "bdd9890fdbec9484d4b87b20c99d4a2e938005af1b2a3b40465fe46e1ad2e1b4",
+    "src/components/product/tutor-view.tsx": "7b55d07e5e5dfefd823ffc0ec70726567de198aad19a58d73acd8be3e196e82c",
+    "src/components/admin/admin-credential-manager.tsx": "de9358afbaf33eef065d38b11b1c5147e29ce03101b7f8d3559cd4cb5f457a23",
+    "src/lib/data-lifecycle/retention.ts": "d1d83c81cf878e6187366bfc8099ee74ae979f4dc34403443b174649bbff71d2",
+    "integration/provider-operation-idempotency.integration.test.ts": "32fe1071243b9f1a1137a44a9dfb9bd5e605ee9635b190e086871a593382b7ad",
+    "src/lib/ai/__tests__/provider-operation-idempotency.test.ts": "ea7ef5c850cb0d59c3a68dd6443b01a230699303de8726c1f7cf8e9b9e538eed"
+  }
+}

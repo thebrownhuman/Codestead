@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.quality.debugger.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.quality-debug",
+  "skillId": "git.quality.debugger",
+  "title": "Debugger workflow deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Debugger workflow; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-se"
+  ],
+  "items": [
+    {
+      "id": "git.quality.debugger.mcq.misconception",
+      "skillId": "git.quality.debugger",
+      "title": "Debugger workflow: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? The best debugging strategy is to step through every line from program start until something looks suspicious.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test.",
+        "incorrect": "The selected statement preserves the documented misconception. Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Debugger workflow instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "The best debugging strategy is to step through every line from program start until something looks suspicious."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+      }
+    }
+  ]
+}

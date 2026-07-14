@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.javascript.runtime.devtools.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.runtime",
+  "skillId": "javascript.runtime.devtools",
+  "title": "Sources, console and debugger deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because Breakpoints, scope inspection, and live-object interpretation require recorded human DevTools process evidence."
+  },
+  "sourceRefs": [
+    "mdn-js"
+  ],
+  "items": [
+    {
+      "skillId": "javascript.runtime.devtools",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.runtime.devtools.mcq.misconception",
+      "title": "Sources, console and debugger: reject the invalid model",
+      "prompt": "Which statement correctly resolves this JavaScript: Language and Browser Applications misconception? The console is only for printing and cannot alter application behavior.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.",
+        "incorrect": "That preserves the misconception. Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked JavaScript: Language and Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+        },
+        {
+          "id": "misconception",
+          "text": "The console is only for printing and cannot alter application behavior."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      }
+    },
+    {
+      "skillId": "javascript.runtime.devtools",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.runtime.devtools.fill.checkpoint",
+      "title": "Sources, console and debugger: complete the rule",
+      "prompt": "Complete the missing JavaScript: Language and Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: can also mutate state.",
+        "incorrect": "Recheck the exact rule. Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Treat DevTools as an observation environment that {{key-rule}}; verify changes in source and tests.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "can also mutate state"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.problem.decomposition.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.problem-solving",
+  "skillId": "pf.problem.decomposition",
+  "title": "Decomposition deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Decomposition; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.problem.decomposition.mcq.misconception",
+      "skillId": "pf.problem.decomposition",
+      "title": "Decomposition: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.",
+        "incorrect": "The selected statement preserves the documented misconception. A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Decomposition instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+      }
+    }
+  ]
+}

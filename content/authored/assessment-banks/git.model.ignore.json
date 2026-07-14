@@ -1,0 +1,80 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.model.ignore.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.model",
+  "skillId": "git.model.ignore",
+  "title": "Ignore policy deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Ignore policy; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "github-docs",
+    "nist-ssdf"
+  ],
+  "items": [
+    {
+      "id": "git.model.ignore.mcq.misconception",
+      "skillId": "git.model.ignore",
+      "title": "Ignore policy: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Adding a secret file to .gitignore erases it from existing commits and remote history.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process.",
+        "incorrect": "The selected statement preserves the documented misconception. Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Ignore policy instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Adding a secret file to .gitignore erases it from existing commits and remote history."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+      }
+    }
+  ]
+}

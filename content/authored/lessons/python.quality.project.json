@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.quality.project.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.quality",
+  "skillId": "python.quality.project",
+  "title": "Debugger and final project",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Debugger and final project; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; typing, unittest, logging, pdb, and development-tools documentation; atomic topic: Debugger and final project",
+      "claim": "A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; CS2023 Software Development Fundamentals: programming practices, testing, debugging, abstraction, data, and concurrency outcomes as applicable; atomic topic: Debugger and final project",
+      "claim": "A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README. Your goal is to deliver and explain a typed, tested, logged multi-module CLI project with reproducible setup. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Project metadata and command entry; Exceptions, files and resources; Classes and object protocols; Type hints and static checking concepts; Automated tests; Logging and diagnostics. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "A local editable install can hide packaging gaps, debugger state can change timing, platform paths vary, optional dependencies need policy, and a passing happy path is not portfolio-ready evidence. The learner must reject this documented misconception: A project is complete once it runs from the developer's source directory and produces the expected output for one sample."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use breakpoints, state inspection and tests to complete a packaged command-line application.",
+      "Deliver and explain a typed, tested, logged multi-module CLI project with reproducible setup."
+    ],
+    "excludes": [
+      "A local editable install can hide packaging gaps, debugger state can change timing, platform paths vary, optional dependencies need policy, and a passing happy path is not portfolio-ready evidence."
+    ]
+  },
+  "outcomes": [
+    "Deliver and explain a typed, tested, logged multi-module CLI project with reproducible setup."
+  ],
+  "examples": [
+    {
+      "id": "python.quality.project.example.direct",
+      "title": "Debugger and final project: direct language case",
+      "situation": "A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands."
+      ],
+      "result": "The example meets the atomic outcome because Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands."
+    },
+    {
+      "id": "python.quality.project.example.boundary",
+      "title": "Debugger and final project: boundary and transfer case",
+      "situation": "A breakpoint finds one invalid state transition, the fix gains a regression test, and logging records safe context without leaking input secrets.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A breakpoint finds one invalid state transition, the fix gains a regression test, and logging records safe context without leaking input secrets.",
+        "Step 2 — Keep the language boundary explicit: A local editable install can hide packaging gaps, debugger state can change timing, platform paths vary, optional dependencies need policy, and a passing happy path is not portfolio-ready evidence.",
+        "Step 3 — Reject the tempting but incorrect rule: A project is complete once it runs from the developer's source directory and produces the expected output for one sample."
+      ],
+      "result": "This case demonstrates the declared outcome: Deliver and explain a typed, tested, logged multi-module CLI project with reproducible setup."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.quality.project.misconception",
+      "mistakenBelief": "A project is complete once it runs from the developer's source directory and produces the expected output for one sample.",
+      "correction": "Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A project is complete once it runs from the developer's source directory and produces the expected output for one sample."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an inspected delivery package whose interface notes, repeatable checks, safe incident log, and clean installation prove bounded quality claims can introduce Debugger and final project, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "typing, tests, logging, debugging, and project completion"
+    ],
+    "limitations": [
+      "annotations do not enforce runtime types, mocks can mislead, logs can leak, and local editable installs can hide packaging defects",
+      "A local editable install can hide packaging gaps, debugger state can change timing, platform paths vary, optional dependencies need policy, and a passing happy path is not portfolio-ready evidence."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README.",
+      "A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence.",
+      "Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A project is complete once it runs from the developer's source directory and produces the expected output for one sample."
+      }
+    ],
+    "textAlternative": "Starting artifact: A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README. Step 1, Observe. State: evidence: A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands.. Compare the observation with the correction and explain why the misconception fails: A project is complete once it runs from the developer's source directory and produces the expected output for one sample."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Debugger and final project: direct language case”: state its starting evidence, apply the Debugger and final project rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Debugger and final project: direct language case.",
+        "Starting evidence: A fresh virtual environment installs the built wheel, runs the CLI's normal and failure cases, executes tests, and records exact commands in the project README.",
+        "Core rule: A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence.",
+        "Observable result: The example meets the atomic outcome because Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands.",
+        "Boundary check: Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A breakpoint finds one invalid state transition, the fix gains a regression test, and logging records safe context without leaking input secrets.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Python project is completed through reproducible setup, a package and command boundary, typed contracts, deterministic tests, safe logging, debugger-guided diagnosis, and documented verification evidence.",
+        "A local editable install can hide packaging gaps, debugger state can change timing, platform paths vary, optional dependencies need policy, and a passing happy path is not portfolio-ready evidence."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Debugger and final project, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Deliver and explain a typed, tested, logged multi-module CLI project with reproducible setup.",
+        "Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.quality.project.misconception",
+      "explanation": "Verify the built artifact from a fresh environment and demonstrate normal, boundary, and failure contracts with tests, safe diagnostics, and reproducible commands.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A breakpoint finds one invalid state transition, the fix gains a regression test, and logging records safe context without leaking input secrets."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to deliver and explain a typed, tested, logged multi-module CLI project with reproducible setup. Keep this boundary in view: A local editable install can hide packaging gaps, debugger state can change timing, platform paths vary, optional dependencies need policy, and a passing happy path is not portfolio-ready evidence.",
+    "retrievalPrompts": [
+      "Explain Debugger and final project using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A project is complete once it runs from the developer's source directory and produces the expected output for one sample.",
+      "Predict this case from memory: A breakpoint finds one invalid state transition, the fix gains a regression test, and logging records safe context without leaking input secrets."
+    ],
+    "nextReviewPrompt": "Next: continue to “Concurrency versus parallelism”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

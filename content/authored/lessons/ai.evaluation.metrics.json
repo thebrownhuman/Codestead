@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.evaluation.metrics.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.evaluation-risk",
+  "skillId": "ai.evaluation.metrics",
+  "title": "Metrics, thresholds and baselines",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Metrics, thresholds and baselines; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "sklearn",
+      "locator": "scikit-learn User Guide; 1.9.x target, accessed 2026-07; User Guide sections 3 and 5: metrics, scoring, cross-validation, inspection, uncertainty, and baselines; atomic topic: Metrics, thresholds and baselines",
+      "claim": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Core: Govern, Map, Measure, and Manage functions and trustworthiness characteristics; atomic topic: Metrics, thresholds and baselines",
+      "claim": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone. Your goal is to create and justify an evaluation table for regression, classification or generation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Supervised learning; Generative AI, LLMs and retrieval; Classification and probabilities; Problem, target and success measure. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence. The learner must reject this overclaim: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose task and decision metrics, compare simple baselines and report uncertainty rather than one headline score.",
+      "Create and justify an evaluation table for regression, classification or generation."
+    ],
+    "excludes": [
+      "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence."
+    ]
+  },
+  "outcomes": [
+    "Create and justify an evaluation table for regression, classification or generation."
+  ],
+  "examples": [
+    {
+      "id": "ai.evaluation.metrics.example.direct",
+      "title": "Metrics, thresholds and baselines: bounded direct case",
+      "situation": "A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+      ],
+      "result": "This example supports only the atomic outcome because Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+    },
+    {
+      "id": "ai.evaluation.metrics.example.stress",
+      "title": "Metrics, thresholds and baselines: stress and transfer case",
+      "situation": "A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness.",
+        "Step 2 — Keep the non-claim visible: Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence.",
+        "Step 3 — Reject the tempting overclaim: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+      ],
+      "result": "This case demonstrates the declared outcome: Create and justify an evaluation table for regression, classification or generation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.evaluation.metrics.misconception",
+      "mistakenBelief": "The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user.",
+      "correction": "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an evidence and risk register linking metrics, stress cases, affected slices, accountable owners, controls, monitors, and stop decisions can introduce Metrics, thresholds and baselines only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "evaluation, robustness, fairness, explanations, and lifecycle governance"
+    ],
+    "limitations": [
+      "no metric suite or framework checklist certifies safety, fairness, causality, or future robustness",
+      "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
+      "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
+      "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+      }
+    ],
+    "textAlternative": "Starting artifact: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone. Step 1, Observe. State: boundedEvidence: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.. State what the evidence does not establish and reject the misconception: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Metrics, thresholds and baselines: bounded direct case”: state its starting evidence, apply the Metrics, thresholds and baselines rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Metrics, thresholds and baselines: bounded direct case.",
+        "Starting evidence: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
+        "Core rule: Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
+        "Observable result: This example supports only the atomic outcome because Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.",
+        "Boundary check: Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
+        "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Metrics, thresholds and baselines and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Create and justify an evaluation table for regression, classification or generation.",
+        "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.evaluation.metrics.misconception",
+      "explanation": "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and justify an evaluation table for regression, classification or generation. Keep this boundary in view: Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence.",
+    "retrievalPrompts": [
+      "Explain Metrics, thresholds and baselines with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user.",
+      "Apply the boundary to: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness."
+    ],
+    "nextReviewPrompt": "Next: continue to “Robustness, drift and adversarial cases”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

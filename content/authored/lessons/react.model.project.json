@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.model.project.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.model-setup",
+  "skillId": "react.model.project",
+  "title": "Vite project and dependency pinning",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Vite project and dependency pinning; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Vite project and dependency pinning",
+      "claim": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior."
+    },
+    {
+      "sourceRef": "react-versions",
+      "locator": "React Versions; 19.2.7, June 2026; provisions applicable to Vite project and dependency pinning",
+      "claim": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build. Your goal is to create and reproduce a React project from its manifest and lockfile. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: javascript project browser app; Application root and rendering; git tools dependencies. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ. This draft therefore rejects: If the development server works, dependency and production configuration are necessarily correct."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Run development, build and preview commands while preserving a reviewed lockfile.",
+      "Create and reproduce a React project from its manifest and lockfile."
+    ],
+    "excludes": [
+      "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ."
+    ]
+  },
+  "outcomes": [
+    "Create and reproduce a React project from its manifest and lockfile."
+  ],
+  "examples": [
+    {
+      "id": "react.model.project.example-a",
+      "title": "Vite project and dependency pinning: concrete case",
+      "situation": "A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+      ],
+      "result": "The result follows because Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+    },
+    {
+      "id": "react.model.project.example-b",
+      "title": "Vite project and dependency pinning: boundary case",
+      "situation": "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: If the development server works, dependency and production configuration are necessarily correct."
+      ],
+      "result": "The boundary requires this correction: Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.model.project.misconception",
+      "mistakenBelief": "If the development server works, dependency and production configuration are necessarily correct.",
+      "correction": "Verify the pinned production build and runtime configuration; development success is not deployment evidence.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: If the development server works, dependency and production configuration are necessarily correct."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Vite project and dependency pinning, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Vite project and dependency pinning before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
+      "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
+      "Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: If the development server works, dependency and production configuration are necessarily correct."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build. Step 1, Artifact. State: evidence: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Verify the pinned production build and runtime configuration; development success is not deployment evidence.. Check the result against the boundary and reject this misconception: If the development server works, dependency and production configuration are necessarily correct."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Vite project and dependency pinning: concrete case”: state its starting evidence, apply the Vite project and dependency pinning rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Vite project and dependency pinning: concrete case.",
+        "Starting evidence: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
+        "Core rule: A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
+        "Observable result: The result follows because Verify the pinned production build and runtime configuration; development success is not deployment evidence.",
+        "Boundary check: Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
+        "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Vite project and dependency pinning and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Create and reproduce a React project from its manifest and lockfile.",
+        "Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.model.project.misconception",
+      "explanation": "Verify the pinned production build and runtime configuration; development success is not deployment evidence.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'production build' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and reproduce a React project from its manifest and lockfile. Keep this boundary in view: Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
+    "retrievalPrompts": [
+      "Explain Vite project and dependency pinning using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: If the development server works, dependency and production configuration are necessarily correct.",
+      "Apply checkpoint 'production build' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Declarative UI and re-rendering”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

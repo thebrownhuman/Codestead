@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.react.robustness.performance.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.robustness",
+  "skillId": "react.robustness.performance",
+  "title": "Measure before optimization deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because Optimization decisions require profiler traces and a human justification, not a fixed pass/fail DOM state."
+  },
+  "sourceRefs": [
+    "react-docs",
+    "react-versions"
+  ],
+  "items": [
+    {
+      "skillId": "react.robustness.performance",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.robustness.performance.mcq.misconception",
+      "title": "Measure before optimization: reject the invalid model",
+      "prompt": "Which statement correctly resolves this React: Component-Based Browser Applications misconception? Every rerender is a performance bug that should be prevented.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Rerenders are normal; optimize measured expensive work and verify the user-visible improvement.",
+        "incorrect": "That preserves the misconception. Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked React: Component-Based Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+        },
+        {
+          "id": "misconception",
+          "text": "Every rerender is a performance bug that should be prevented."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+      }
+    },
+    {
+      "skillId": "react.robustness.performance",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.robustness.performance.fill.checkpoint",
+      "title": "Measure before optimization: complete the rule",
+      "prompt": "Complete the missing React: Component-Based Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: measured expensive work.",
+        "incorrect": "Recheck the exact rule. Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Rerenders are normal; optimize {{key-rule}} and verify the user-visible improvement.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "measured expensive work"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+      }
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.objects.prototype.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.object-model",
+  "skillId": "javascript.objects.prototype",
+  "title": "Prototype delegation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Prototype delegation; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Prototype delegation",
+      "claim": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Prototype delegation",
+      "claim": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An instance method is found on the class prototype while instance data remains an own property. Your goal is to inspect and explain a short prototype chain and a shadowed property. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows; Method calls and this. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care. This draft therefore rejects: Every object contains a private copied version of all prototype methods."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Trace own and inherited property lookup without treating prototypes as class copies.",
+      "Inspect and explain a short prototype chain and a shadowed property."
+    ],
+    "excludes": [
+      "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care."
+    ]
+  },
+  "outcomes": [
+    "Inspect and explain a short prototype chain and a shadowed property."
+  ],
+  "examples": [
+    {
+      "id": "javascript.objects.prototype.example-a",
+      "title": "Prototype delegation: concrete case",
+      "situation": "An instance method is found on the class prototype while instance data remains an own property.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: An instance method is found on the class prototype while instance data remains an own property.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Prototype methods are shared and found by delegated lookup, not copied into every instance."
+      ],
+      "result": "The result follows because Prototype methods are shared and found by delegated lookup, not copied into every instance."
+    },
+    {
+      "id": "javascript.objects.prototype.example-b",
+      "title": "Prototype delegation: boundary case",
+      "situation": "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Every object contains a private copied version of all prototype methods."
+      ],
+      "result": "The boundary requires this correction: Prototype methods are shared and found by delegated lookup, not copied into every instance."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.objects.prototype.misconception",
+      "mistakenBelief": "Every object contains a private copied version of all prototype methods.",
+      "correction": "Prototype methods are shared and found by delegated lookup, not copied into every instance.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Every object contains a private copied version of all prototype methods."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Prototype delegation, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Prototype delegation before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An instance method is found on the class prototype while instance data remains an own property.",
+      "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
+      "Prototype methods are shared and found by delegated lookup, not copied into every instance."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "An instance method is found on the class prototype while instance data remains an own property."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Prototype methods are shared and found by delegated lookup, not copied into every instance."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Every object contains a private copied version of all prototype methods."
+      }
+    ],
+    "textAlternative": "Starting artifact: An instance method is found on the class prototype while instance data remains an own property. Step 1, Artifact. State: evidence: An instance method is found on the class prototype while instance data remains an own property.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Prototype methods are shared and found by delegated lookup, not copied into every instance.. Check the result against the boundary and reject this misconception: Every object contains a private copied version of all prototype methods."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Prototype delegation: concrete case”: state its starting evidence, apply the Prototype delegation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Prototype delegation: concrete case.",
+        "Starting evidence: An instance method is found on the class prototype while instance data remains an own property.",
+        "Core rule: Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
+        "Observable result: The result follows because Prototype methods are shared and found by delegated lookup, not copied into every instance.",
+        "Boundary check: Prototype methods are shared and found by delegated lookup, not copied into every instance."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
+        "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Prototype delegation and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Inspect and explain a short prototype chain and a shadowed property.",
+        "Prototype methods are shared and found by delegated lookup, not copied into every instance."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.objects.prototype.misconception",
+      "explanation": "Prototype methods are shared and found by delegated lookup, not copied into every instance.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'delegated lookup' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to inspect and explain a short prototype chain and a shadowed property. Keep this boundary in view: Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
+    "retrievalPrompts": [
+      "Explain Prototype delegation using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Every object contains a private copied version of all prototype methods.",
+      "Apply checkpoint 'delegated lookup' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Classes and private state”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

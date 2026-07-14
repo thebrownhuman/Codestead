@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.tools.files.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.tools-quality",
+  "skillId": "pf.tools.files",
+  "title": "Files, folders and paths",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Files, folders and paths; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Files, folders and paths",
+      "claim": "A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Files, folders and paths",
+      "claim": "A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root. Your goal is to construct and explain relative and absolute paths in a small project tree. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Source-to-execution models; Examples and edge cases; Hardware and software roles. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Separators, drive roots, case sensitivity, symbolic links, permissions, and reserved names differ across operating systems and filesystems. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A relative path always resolves from the user's home folder and a file extension proves the file's format."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create, locate and organize source and data files using paths and extensions.",
+      "Construct and explain relative and absolute paths in a small project tree."
+    ],
+    "excludes": [
+      "Separators, drive roots, case sensitivity, symbolic links, permissions, and reserved names differ across operating systems and filesystems."
+    ]
+  },
+  "outcomes": [
+    "Construct and explain relative and absolute paths in a small project tree."
+  ],
+  "examples": [
+    {
+      "id": "pf.tools.files.example-a",
+      "title": "Files, folders and paths: direct case",
+      "situation": "From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+      ],
+      "result": "The case supports the declared outcome because Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+    },
+    {
+      "id": "pf.tools.files.example-b",
+      "title": "Files, folders and paths: boundary case",
+      "situation": "Renaming notes.txt to notes.py changes the extension but does not transform its text into valid Python source.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: Renaming notes.txt to notes.py changes the extension but does not transform its text into valid Python source.",
+        "Step 2 — Keep this boundary explicit: Separators, drive roots, case sensitivity, symbolic links, permissions, and reserved names differ across operating systems and filesystems.",
+        "Step 3 — Reject the documented misconception: A relative path always resolves from the user's home folder and a file extension proves the file's format."
+      ],
+      "result": "This case demonstrates the declared outcome: Construct and explain relative and absolute paths in a small project tree."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.tools.files.misconception",
+      "mistakenBelief": "A relative path always resolves from the user's home folder and a file extension proves the file's format.",
+      "correction": "Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A relative path always resolves from the user's home folder and a file extension proves the file's format."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A repair bench can model Files, folders and paths: identify the correct part, use a named tool, read the first reliable symptom, test one cause, and verify the repair.",
+    "usefulFor": [
+      "Building a careful inspect, edit, run, diagnose, and verify workflow"
+    ],
+    "limitations": [
+      "Software tools have shell parsing, filesystem, runtime, and diagnostic rules that physical tools do not share.",
+      "Separators, drive roots, case sensitivity, symbolic links, permissions, and reserved names differ across operating systems and filesystems."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root.",
+      "A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content.",
+      "Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content."
+        },
+        "explanation": "Apply the declared Files, folders and paths model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A relative path always resolves from the user's home folder and a file extension proves the file's format."
+      }
+    ],
+    "textAlternative": "Starting artifact: From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root. Step 1, Observe. State: evidence: From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content.. Apply the declared Files, folders and paths model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone.. Compare the observation with the correction and reject the misconception: A relative path always resolves from the user's home folder and a file extension proves the file's format."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Files, folders and paths: direct case”: state its starting evidence, apply the Files, folders and paths rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Files, folders and paths: direct case.",
+        "Starting evidence: From project/src, the relative path ../tests/input.txt moves to project and then enters tests, while an absolute path starts from the system root.",
+        "Core rule: A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content.",
+        "Observable result: The case supports the declared outcome because Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone.",
+        "Boundary check: Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: Renaming notes.txt to notes.py changes the extension but does not transform its text into valid Python source.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A path identifies a filesystem location using roots and segments; relative paths resolve from a declared working directory, while extensions are naming conventions rather than guarantees of content.",
+        "Separators, drive roots, case sensitivity, symbolic links, permissions, and reserved names differ across operating systems and filesystems."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Files, folders and paths, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Construct and explain relative and absolute paths in a small project tree.",
+        "Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.tools.files.misconception",
+      "explanation": "Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Renaming notes.txt to notes.py changes the extension but does not transform its text into valid Python source."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to construct and explain relative and absolute paths in a small project tree. Keep this boundary in view: Separators, drive roots, case sensitivity, symbolic links, permissions, and reserved names differ across operating systems and filesystems.",
+    "retrievalPrompts": [
+      "Explain Files, folders and paths without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A relative path always resolves from the user's home folder and a file extension proves the file's format.",
+      "Apply the model to this case from memory: Renaming notes.txt to notes.py changes the extension but does not transform its text into valid Python source."
+    ],
+    "nextReviewPrompt": "Next: continue to “Editor and terminal workflow”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

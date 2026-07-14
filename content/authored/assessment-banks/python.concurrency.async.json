@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.concurrency.async.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.concurrency",
+  "skillId": "python.concurrency.async",
+  "title": "asyncio coroutines and tasks deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for asyncio coroutines and tasks; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-stdlib",
+    "py-reference"
+  ],
+  "items": [
+    {
+      "id": "python.concurrency.async.mcq.misconception",
+      "skillId": "python.concurrency.async",
+      "title": "asyncio coroutines and tasks: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
+        "incorrect": "That choice preserves the misconception. Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+        },
+        {
+          "id": "misconception",
+          "text": "Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      }
+    },
+    {
+      "id": "python.concurrency.async.fill.checkpoint",
+      "skillId": "python.concurrency.async",
+      "title": "asyncio coroutines and tasks: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'creates a coroutine'. Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
+        "incorrect": "The phrase must preserve the exact language rule. Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Calling async [[checkpoint]]; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "creates a coroutine"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      }
+    }
+  ]
+}

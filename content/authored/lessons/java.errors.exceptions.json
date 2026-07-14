@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.errors.exceptions.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.errors-io",
+  "skillId": "java.errors.exceptions",
+  "title": "Exception flow and stack traces",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Exception flow and stack traces; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Exceptions and Java I/O learning paths; atomic topic: Exception flow and stack traces",
+      "claim": "Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS chapter 11: exception kinds, checking, causes, and abrupt completion; atomic topic: Exception flow and stack traces",
+      "claim": "Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context. Your goal is to trace exception propagation and preserve useful cause and context. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and invariants; String and text processing; Method contracts and parameters; Compiler and runtime diagnostics. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "finally and try-with-resources affect cleanup, a catch order must place specific types first, suppressed exceptions can accompany resource failure, and broad catches can hide programming defects. The learner must reject this documented misconception: Catching Exception at every method makes a program robust because no failure can escape."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Throw, propagate and catch exceptions at responsible abstraction boundaries.",
+      "Trace exception propagation and preserve useful cause and context."
+    ],
+    "excludes": [
+      "finally and try-with-resources affect cleanup, a catch order must place specific types first, suppressed exceptions can accompany resource failure, and broad catches can hide programming defects."
+    ]
+  },
+  "outcomes": [
+    "Trace exception propagation and preserve useful cause and context."
+  ],
+  "examples": [
+    {
+      "id": "java.errors.exceptions.example.direct",
+      "title": "Exception flow and stack traces: direct language case",
+      "situation": "A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act."
+      ],
+      "result": "The example meets the atomic outcome because Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act."
+    },
+    {
+      "id": "java.errors.exceptions.example.boundary",
+      "title": "Exception flow and stack traces: boundary and transfer case",
+      "situation": "A parser catches NumberFormatException at the input boundary, reports the invalid field, and does not catch unrelated RuntimeException values as ordinary input failure.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A parser catches NumberFormatException at the input boundary, reports the invalid field, and does not catch unrelated RuntimeException values as ordinary input failure.",
+        "Step 2 — Keep the language boundary explicit: finally and try-with-resources affect cleanup, a catch order must place specific types first, suppressed exceptions can accompany resource failure, and broad catches can hide programming defects.",
+        "Step 3 — Reject the tempting but incorrect rule: Catching Exception at every method makes a program robust because no failure can escape."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace exception propagation and preserve useful cause and context."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.errors.exceptions.misconception",
+      "mistakenBelief": "Catching Exception at every method makes a program robust because no failure can escape.",
+      "correction": "Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Catching Exception at every method makes a program robust because no failure can escape."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a document desk that records a failure chain, handles only recoverable cases, and always closes borrowed equipment can introduce Exception flow and stack traces, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "exception boundaries, paths, text encodings, and resource cleanup"
+    ],
+    "limitations": [
+      "suppressed exceptions, stack unwinding, filesystem semantics, and serialization attacks need exact technical treatment",
+      "finally and try-with-resources affect cleanup, a catch order must place specific types first, suppressed exceptions can accompany resource failure, and broad catches can hide programming defects."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context.",
+      "Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause.",
+      "Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Catching Exception at every method makes a program robust because no failure can escape."
+      }
+    ],
+    "textAlternative": "Starting artifact: A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context. Step 1, Observe. State: evidence: A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act.. Compare the observation with the correction and explain why the misconception fails: Catching Exception at every method makes a program robust because no failure can escape."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Exception flow and stack traces: direct language case”: state its starting evidence, apply the Exception flow and stack traces rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Exception flow and stack traces: direct language case.",
+        "Starting evidence: A repository method lets an IOException propagate, while a service wraps it in a domain exception with the original cause and useful operation context.",
+        "Core rule: Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause.",
+        "Observable result: The example meets the atomic outcome because Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act.",
+        "Boundary check: Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A parser catches NumberFormatException at the input boundary, reports the invalid field, and does not catch unrelated RuntimeException values as ordinary input failure.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java exceptions propagate up call frames until a compatible handler is reached; responsible boundaries catch only failures they can translate, recover from, or enrich without losing the cause.",
+        "finally and try-with-resources affect cleanup, a catch order must place specific types first, suppressed exceptions can accompany resource failure, and broad catches can hide programming defects."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Exception flow and stack traces, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace exception propagation and preserve useful cause and context.",
+        "Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.errors.exceptions.misconception",
+      "explanation": "Catch an exception only at a responsible boundary, preserve its cause and context, and let unhandled failures propagate to a policy that can act.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A parser catches NumberFormatException at the input boundary, reports the invalid field, and does not catch unrelated RuntimeException values as ordinary input failure."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace exception propagation and preserve useful cause and context. Keep this boundary in view: finally and try-with-resources affect cleanup, a catch order must place specific types first, suppressed exceptions can accompany resource failure, and broad catches can hide programming defects.",
+    "retrievalPrompts": [
+      "Explain Exception flow and stack traces using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Catching Exception at every method makes a program robust because no failure can escape.",
+      "Predict this case from memory: A parser catches NumberFormatException at the input boundary, reports the invalid field, and does not catch unrelated RuntimeException values as ordinary input failure."
+    ],
+    "nextReviewPrompt": "Next: continue to “Checked and unchecked exception design”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.document.dom.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.document",
+  "skillId": "html.document.dom",
+  "title": "Document tree and DOM concept",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Document tree and DOM concept; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Document tree and DOM concept",
+      "claim": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself."
+    },
+    {
+      "sourceRef": "mdn-html",
+      "locator": "MDN HTML Guide; accessed 2026-07; provisions applicable to Document tree and DOM concept",
+      "claim": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source. Your goal is to draw or inspect the element tree for a supplied document and diagnose a parser repair. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Elements, attributes and nesting. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text. This draft therefore rejects: The DOM and the saved HTML file are always byte-for-byte identical."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Relate nested source elements to parent, child and sibling nodes exposed to browser tools.",
+      "Draw or inspect the element tree for a supplied document and diagnose a parser repair."
+    ],
+    "excludes": [
+      "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text."
+    ]
+  },
+  "outcomes": [
+    "Draw or inspect the element tree for a supplied document and diagnose a parser repair."
+  ],
+  "examples": [
+    {
+      "id": "html.document.dom.example-a",
+      "title": "Document tree and DOM concept: concrete case",
+      "situation": "A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+      ],
+      "result": "The result follows because Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+    },
+    {
+      "id": "html.document.dom.example-b",
+      "title": "Document tree and DOM concept: boundary case",
+      "situation": "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: The DOM and the saved HTML file are always byte-for-byte identical."
+      ],
+      "result": "The boundary requires this correction: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.document.dom.misconception",
+      "mistakenBelief": "The DOM and the saved HTML file are always byte-for-byte identical.",
+      "correction": "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The DOM and the saved HTML file are always byte-for-byte identical."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Document tree and DOM concept, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Document tree and DOM concept before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
+      "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
+      "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: The DOM and the saved HTML file are always byte-for-byte identical."
+      }
+    ],
+    "textAlternative": "Starting artifact: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source. Step 1, Artifact. State: evidence: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.. Check the result against the boundary and reject this misconception: The DOM and the saved HTML file are always byte-for-byte identical."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Document tree and DOM concept: concrete case”: state its starting evidence, apply the Document tree and DOM concept rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Document tree and DOM concept: concrete case.",
+        "Starting evidence: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
+        "Core rule: The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
+        "Observable result: The result follows because Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.",
+        "Boundary check: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
+        "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Document tree and DOM concept and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Draw or inspect the element tree for a supplied document and diagnose a parser repair.",
+        "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.document.dom.misconception",
+      "explanation": "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'live parsed tree' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to draw or inspect the element tree for a supplied document and diagnose a parser repair. Keep this boundary in view: Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
+    "retrievalPrompts": [
+      "Explain Document tree and DOM concept using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: The DOM and the saved HTML file are always byte-for-byte identical.",
+      "Apply checkpoint 'live parsed tree' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Comments and character references”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

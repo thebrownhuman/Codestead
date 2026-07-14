@@ -1,0 +1,522 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-13T10:09:18.577Z",
+  "revalidatedAt": "2026-07-13T20:49:22+05:30",
+  "evidenceKind": "local-working-tree-release-gate-summary",
+  "status": "passed-with-external-and-manual-gates-open",
+  "repositoryGate": {
+    "command": "npm run check",
+    "result": "passed",
+    "unitCoverage": {
+      "filesPassed": 209,
+      "testsPassed": 1744,
+      "testsSkipped": 1,
+      "testsFailed": 0,
+      "coverage": {
+        "statements": {
+          "covered": 10758,
+          "total": 12538,
+          "percent": 85.8
+        },
+        "branches": {
+          "covered": 7718,
+          "total": 9936,
+          "percent": 77.67
+        },
+        "functions": {
+          "covered": 2114,
+          "total": 2515,
+          "percent": 84.05
+        },
+        "lines": {
+          "covered": 9714,
+          "total": 10919,
+          "percent": 88.96
+        }
+      },
+      "thresholds": {
+        "statements": 80,
+        "branches": 75,
+        "functions": 80,
+        "lines": 80
+      }
+    },
+    "authorization": {
+      "routeFiles": 102,
+      "operations": 123,
+      "boundaryCounts": {
+        "public": 5,
+        "authHandler": 2,
+        "authenticated": 65,
+        "administrator": 51
+      },
+      "authBoundaryTestsPassed": 3,
+      "errors": 0,
+      "report": "docs/evidence/api-authorization-matrix-2026-07-12.json"
+    },
+    "architecture": {
+      "files": 568,
+      "imports": 2368,
+      "documentedExceptions": 10,
+      "violations": 0,
+      "staleExceptions": 0,
+      "report": "docs/evidence/architecture-import-boundaries-2026-07-12.json"
+    },
+    "offlineAiEvaluation": {
+      "casesPassed": 16,
+      "casesTotal": 16,
+      "checksPassed": 280,
+      "checksTotal": 280,
+      "externalProviderCalls": 0,
+      "productionModelQualityEvidence": false,
+      "report": "docs/evidence/ai-eval-offline-2026-07-12.json"
+    },
+    "curriculum": {
+      "launchTracks": 12,
+      "roadmapEntries": 10,
+      "skills": 476,
+      "lessons": 476,
+      "assessmentBanks": 476,
+      "examEligibleItems": 0,
+      "validation": "passed",
+      "localRuntimeCases": {
+        "dsa": {
+          "passed": 480,
+          "failed": 0
+        },
+        "cAndCpp": {
+          "passed": 199,
+          "failed": 0
+        },
+        "foundationsJavaPython": {
+          "passed": 91,
+          "failed": 0
+        },
+        "ai": {
+          "passed": 48,
+          "failed": 0
+        },
+        "web": {
+          "passed": 256,
+          "failed": 0
+        },
+        "total": {
+          "passed": 1074,
+          "failed": 0
+        },
+        "reports": [
+          {
+            "path": "docs/evidence/dsa-parity-runtime-2026-07-12.json",
+            "sha256": "5180598a8cb1fea35ea54944c154f342d4592041d5f36a3817eaf55a6dd20ebd"
+          },
+          {
+            "path": "docs/evidence/c-cpp-executable-runtime-2026-07-12.json",
+            "sha256": "91c9abb27000b48769ae0f524f3d67a2eaa25c224cc39ed25f5d42e5698b285c"
+          },
+          {
+            "path": "docs/evidence/java-python-executable-runtime-2026-07-12.json",
+            "sha256": "b22f8d80de27523a71054de582ef87d465bc64a0277b5ca4284b589681d3a519"
+          },
+          {
+            "path": "docs/evidence/ai-code-executable-runtime-2026-07-12.json",
+            "sha256": "46e7e51f4404b0c9d6d6e8f8d09305457d97d4b520cc57b479b62c7be39fe705"
+          },
+          {
+            "path": "docs/evidence/web-executable-runtime-2026-07-12.json",
+            "sha256": "eb528dad87a9f30edf8639cafbc219fecf5bc74b58aa866a5d4fdf537780791e"
+          }
+        ]
+      }
+    },
+    "releaseAudit": {
+      "requirements": 115,
+      "implemented": 43,
+      "partial": 70,
+      "missing": 2,
+      "validation": "passed"
+    },
+    "productionBuild": {
+      "result": "passed",
+      "pages": 76
+    },
+    "otherStages": {
+      "lint": "passed",
+      "typecheck": "passed",
+      "secretScan": "passed",
+      "encodingScan": "passed",
+      "apiSurface": "passed",
+      "importBoundaries": "passed",
+      "evidenceIntegrity": "passed"
+    }
+  },
+  "postgresIntegration": {
+    "command": "npm run test:integration",
+    "result": "passed",
+    "filesPassed": 27,
+    "testsPassed": 149,
+    "testsFailed": 0,
+    "finalSourceRerun": true,
+    "deprecationWarningsFatal": true,
+    "database": "disposable PostgreSQL 17 container",
+    "migrationChainAppliedTwice": true
+  },
+  "runnerVerification": {
+    "unitTestFilesPassed": 8,
+    "unitTestsPassed": 87,
+    "unitTestsSkipped": 1,
+    "runtimeContractsPassed": 17,
+    "realExecutorChecksPassed": 4,
+    "inventory": {
+      "path": "docs/evidence/container-security/runner/runner-inventory.json",
+      "sha256": "79caf9ae360b49b514604dcc688cb561c8f63562a201551a2fa19b999b229116"
+    },
+    "runtimeContracts": {
+      "path": "docs/evidence/container-security/runner/runtime-contract-report.json",
+      "sha256": "19263138a3235bd622eb8f5b7be1481c3dafd3c9ce13b450c04d6366c84e3df1"
+    },
+    "realExecutor": {
+      "path": "docs/evidence/container-security/runner/runtime-executor-report.json",
+      "sha256": "cd517f1fd02d1232d3793990107f2aaf45b9caf0d4b8b0ea5c36cc59457dbcd1"
+    },
+    "runtimeImages": {
+      "path": "docs/evidence/container-security/runner/runtime-images.json",
+      "sha256": "a48625268f7fe237938ac804d56cbbacc9644fd987d3e0af87e84a747bf13ae0"
+    },
+    "runtimeInspection": {
+      "path": "docs/evidence/container-security/runner/runtime-inspection.json",
+      "sha256": "fa159b3ad086f29f458723edae7f00aaa15a2eb5dba6021660a3d5c4d8b80bf7"
+    },
+    "security": {
+      "images": 5,
+      "sboms": 5,
+      "high": 0,
+      "critical": 0
+    },
+    "scope": "Exact local Docker/runtime evidence only; not signed, registry-pushed, or production KVM/NUC isolation evidence."
+  },
+  "containerBuild": {
+    "result": "passed",
+    "imagesBuilt": 6,
+    "sbomsRetained": 6,
+    "platform": "linux/amd64",
+    "configuredUser": "node",
+    "packageManagerExecutablesAbsent": [
+      "apk",
+      "npm",
+      "npx",
+      "corepack",
+      "yarn",
+      "yarnpkg"
+    ],
+    "inventory": {
+      "path": "docs/evidence/final-container-image-inventory-2026-07-12.json",
+      "sha256": "dc65c6dacb89b0672c2f40303f5fb975dc267d917d41dc8be3e3531c6708f34f"
+    },
+    "images": [
+      {
+        "role": "application-runtime",
+        "imageId": "sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df",
+        "high": 0,
+        "critical": 0,
+        "scan": {
+          "path": "docs/evidence/container-security/app/trivy-runtime-5df2dd02e136-20260713.json",
+          "sha256": "f2a7c5adb1ce5e4adf41c55eb8c881e8721f2f660934c38252778f58a22fb0c3"
+        },
+        "sbom": {
+          "path": "docs/evidence/container-security/app/sbom-runtime-5df2dd02e136-20260713.spdx.json",
+          "sha256": "ce864dd7ba270994d0c29f6a1304dd67417044913b4cde9843b54734ea7705e8",
+          "imageIdMatchesLocalImageId": true,
+          "spdxVersion": "SPDX-2.3",
+          "packages": 55,
+          "relationships": 70,
+          "bindingOccurrences": 6,
+          "apkPackageMetadataRetained": true,
+          "signed": false
+        }
+      },
+      {
+        "role": "migration-tooling",
+        "imageId": "sha256:9b427ac18170715ca7141bbae3d66ea32cc6c5bcc19bbe102b31498c17e7f6e0",
+        "high": 0,
+        "critical": 0,
+        "scan": {
+          "path": "docs/evidence/container-security/app/trivy-tooling-9b427ac18170-20260713.json",
+          "sha256": "b371970d3bed06b0bdf53716e101b7bec6c3427417353dcfd79ab1075b511b13"
+        },
+        "sbom": {
+          "path": "docs/evidence/container-security/app/sbom-tooling-9b427ac18170-20260713.spdx.json",
+          "sha256": "702c2c50ef0a64ce211ee917e6587ea4eee51bd20e98c0a5e1a056f4e2eca170",
+          "imageIdMatchesLocalImageId": true,
+          "spdxVersion": "SPDX-2.3",
+          "packages": 334,
+          "relationships": 349,
+          "bindingOccurrences": 6,
+          "apkPackageMetadataRetained": true,
+          "signed": false
+        }
+      },
+      {
+        "role": "mail-and-lifecycle-worker",
+        "imageId": "sha256:736dbf79ee7a905ee8581799baf20dfa63687df51ed357e7c9c00debe8b3ec26",
+        "high": 0,
+        "critical": 0,
+        "scan": {
+          "path": "docs/evidence/container-security/app/trivy-worker-736dbf79ee7a-20260713.json",
+          "sha256": "ff6e7717ba575356000fc21165c7ab4f0692e1a2c998b120632e3e7e7fef1bfa"
+        },
+        "sbom": {
+          "path": "docs/evidence/container-security/app/sbom-worker-736dbf79ee7a-20260713.spdx.json",
+          "sha256": "61a9fbe464e7c632416fff884b825fcc268a8f5e29f5e5431c1c4aa975773107",
+          "imageIdMatchesLocalImageId": true,
+          "spdxVersion": "SPDX-2.3",
+          "packages": 334,
+          "relationships": 349,
+          "bindingOccurrences": 6,
+          "apkPackageMetadataRetained": true,
+          "signed": false
+        }
+      },
+      {
+        "role": "assessment-regrade-worker",
+        "imageId": "sha256:1fb0a3ce1809260a12969320ccd80301b0aaf21669e8b4ce17100daab58f3851",
+        "high": 0,
+        "critical": 0,
+        "scan": {
+          "path": "docs/evidence/container-security/app/trivy-regrade-1fb0a3ce1809-20260713.json",
+          "sha256": "7eee5c37164c6da1eaeb07c921901a12dd59794ca4ae4891ee96e1dcb126514e"
+        },
+        "sbom": {
+          "path": "docs/evidence/container-security/app/sbom-regrade-1fb0a3ce1809-20260713.spdx.json",
+          "sha256": "548728b6b91091e384451172addc608e4b02aa88174315388af781cfd2e42792",
+          "imageIdMatchesLocalImageId": true,
+          "spdxVersion": "SPDX-2.3",
+          "packages": 334,
+          "relationships": 349,
+          "bindingOccurrences": 6,
+          "apkPackageMetadataRetained": true,
+          "signed": false
+        }
+      },
+      {
+        "role": "project-review-correction-worker",
+        "imageId": "sha256:4681f62730dda8ccfa3791b978c10c1f90bc6266ccbeef5979fb7e3f5162f8b9",
+        "high": 0,
+        "critical": 0,
+        "scan": {
+          "path": "docs/evidence/container-security/app/trivy-project-review-4681f62730dd-20260713.json",
+          "sha256": "4fa3aa5c3d72c329e8072e98e4437a7a2dcf6311649459b7b07894d6e6a502c4"
+        },
+        "sbom": {
+          "path": "docs/evidence/container-security/app/sbom-project-review-4681f62730dd-20260713.spdx.json",
+          "sha256": "0356d1ec52abe45e9880302256f9b85237fadd73dedcdec97e8c2192b8d0da25",
+          "imageIdMatchesLocalImageId": true,
+          "spdxVersion": "SPDX-2.3",
+          "packages": 334,
+          "relationships": 349,
+          "bindingOccurrences": 6,
+          "apkPackageMetadataRetained": true,
+          "signed": false
+        }
+      },
+      {
+        "role": "upload-scanner-worker",
+        "imageId": "sha256:b4881646a3f9db5a367c4b9b96a04dfc4590efbc6496950140a69cfd4f8167e5",
+        "high": 0,
+        "critical": 0,
+        "scan": {
+          "path": "docs/evidence/container-security/app/trivy-scanner-b4881646a3f9-20260713.json",
+          "sha256": "01f6e459a9cf1079a2ff2143fa4b2b3b3adbf51310cc6a474cb63c6c9e1b725d"
+        },
+        "sbom": {
+          "path": "docs/evidence/container-security/app/sbom-scanner-b4881646a3f9-20260713.spdx.json",
+          "sha256": "e7db4a6bf04bbf52895eee5c8376a2b81a4319474a43e993799cc2713f64e875",
+          "imageIdMatchesLocalImageId": true,
+          "spdxVersion": "SPDX-2.3",
+          "packages": 334,
+          "relationships": 349,
+          "bindingOccurrences": 6,
+          "apkPackageMetadataRetained": true,
+          "signed": false
+        }
+      }
+    ],
+    "runtimeLoadProof": {
+      "reportPath": "docs/evidence/load-smoke-final-app-5df2dd02e136-20260713.json",
+      "reportSha256": "40246c9a216ef8228215a9bcd1586c21dee5f1d26363e725ecb7c6ea75f90361",
+      "reportBytes": 2598,
+      "boundRuntimeImageId": "sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df",
+      "bindingMethod": "This inventory cryptographically joins the immutable load-report SHA-256 to the exact inspected image ID and the disposable launch identity below.",
+      "disposableLaunch": {
+        "containerId": "14d3baa6991c7a233f39cab71aef90fffd14f9a638a00f82b3e7a239bc4a8f2e",
+        "imageIdVerifiedBeforeLoad": true,
+        "configuredUser": "node",
+        "platform": "linux/amd64",
+        "hostBinding": "127.0.0.1:3020",
+        "httpReadinessStatus": 200,
+        "readOnlyRoot": true,
+        "capabilitiesDropped": [
+          "ALL"
+        ],
+        "noNewPrivileges": true,
+        "pidsLimit": 256,
+        "memoryBytes": 2147483648,
+        "nanoCpus": 2000000000,
+        "writableTmpfs": [
+          "/tmp",
+          "/app/.next/cache",
+          "/var/lib/learncoding"
+        ],
+        "removedAfterTest": true
+      },
+      "config": {
+        "scenarios": 5,
+        "concurrency": 10,
+        "requestsPerScenario": 50,
+        "measuredRequests": 250,
+        "succeeded": 250,
+        "failed": 0,
+        "p95LimitMs": 1500
+      },
+      "scenarioP95Ms": {
+        "landing": 35.76,
+        "catalog": 211.89,
+        "learn": 84.59,
+        "roadmap": 75.13,
+        "review": 80.39
+      },
+      "passed": true
+    },
+    "toolingMigrationProof": {
+      "reportPath": "docs/evidence/tooling-migration-proof-9b427ac18170-20260713.json",
+      "reportSha256": "45e5f239ceb949cb77f7d3af2f69c18aff41f75b890c5a5017b6caaf782cc1c2",
+      "reportBytes": 1586,
+      "boundToolingImageId": "sha256:9b427ac18170715ca7141bbae3d66ea32cc6c5bcc19bbe102b31498c17e7f6e0",
+      "databaseImageId": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+      "imageDefaultCommandUsedWithoutOverride": true,
+      "runs": 2,
+      "drizzleMigrationRows": 41,
+      "publicTables": 89,
+      "idempotentSecondRunPassed": true,
+      "internalOnlyNetwork": true,
+      "hostPortBindings": 0,
+      "databaseDataStorage": "tmpfs",
+      "persistentVolumes": 0,
+      "ownedResourcesRemaining": 0,
+      "passed": true
+    },
+    "toolingMigrationEvidence": {
+      "path": "docs/evidence/tooling-migration-proof-9b427ac18170-20260713.json",
+      "sha256": "45e5f239ceb949cb77f7d3af2f69c18aff41f75b890c5a5017b6caaf782cc1c2"
+    },
+    "currentRuntimeSbom": {
+      "path": "docs/evidence/app-image-sbom-2026-07-12.spdx.json",
+      "exactCopyOf": "docs/evidence/container-security/app/sbom-runtime-5df2dd02e136-20260713.spdx.json",
+      "sha256": "ce864dd7ba270994d0c29f6a1304dd67417044913b4cde9843b54734ea7705e8",
+      "bytes": 103328,
+      "boundRuntimeImageId": "sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df",
+      "spdxVersion": "SPDX-2.3",
+      "creator": "Tool: trivy-0.69.2",
+      "documentNameMatchesRuntimeImageId": true,
+      "runtimeImageIdBindingOccurrences": 6,
+      "packages": 55,
+      "relationships": 70,
+      "apkPackageMetadataRetained": true,
+      "signed": false
+    },
+    "scope": "Exact local application-image evidence; not signed, registry-pushed, or production-deployed."
+  },
+  "disposableEncryptedBackupRestore": {
+    "verification": {
+      "path": "docs/evidence/docker-release-runtime-verification-2026-07-12.json",
+      "sha256": "46a321d2757a6e89a74ad1fedfb76608ddb424cb9e57557a8c7ce27f0c8ff75a"
+    },
+    "source": "dedicated disposable PostgreSQL 17 database plus disposable app-data volume",
+    "testOnlyAgeIdentity": true,
+    "encryptedArchiveVerified": true,
+    "retentionPolicy": "7 daily / 4 weekly / 12 monthly",
+    "capacityAndAgeCheckPassed": true,
+    "manualIsolatedRestorePassed": true,
+    "automatedRestoreReportPassed": true,
+    "restoredPublicTables": 82,
+    "databaseSentinelMatched": true,
+    "appDataMatched": true,
+    "sourceDatabaseModified": false,
+    "secretFilesAndEmailExportsExcluded": true,
+    "allDrillResourcesAndIdentityDeleted": true,
+    "scope": "Synthetic local evidence only; no real data, real keys, 2 TB target, Google Drive/rclone offsite, offsite download restore, production capacity, or measured RPO/RTO."
+  },
+  "linuxToolingInfrastructureRegression": {
+    "imageRebuiltAfterPortabilityFix": true,
+    "staticDeploymentValidator": "passed",
+    "semanticComposeValidator": "passed",
+    "backupConfiguration": "passed",
+    "backupRetention": "passed",
+    "emergencyBackupAtomicity": "passed",
+    "runtimeConfiguration": "passed",
+    "runnerReconciliation": "passed",
+    "scope": "Disposable Linux tooling-image verification; not a production Ubuntu NUC reboot, disk-fill, alert-delivery, or offsite drill."
+  },
+  "dependencyAudits": {
+    "applicationProductionGraph": {
+      "command": "npm audit --omit=dev --audit-level=high",
+      "result": "passed release threshold",
+      "critical": 0,
+      "high": 0,
+      "moderate": 7,
+      "disposition": "Retained esbuild development-server and bundled Next/PostCSS paths are documented in docs/dependency-risk.md; forced fixes are breaking or inappropriate."
+    },
+    "runnerProductionGraph": {
+      "result": "passed",
+      "vulnerabilities": 0
+    },
+    "containerCveScan": {
+      "scanner": "Trivy 0.69.2",
+      "applicationImages": 6,
+      "runnerImages": 5,
+      "totalImages": 11,
+      "high": 0,
+      "critical": 0,
+      "appInventory": "docs/evidence/final-container-image-inventory-2026-07-12.json",
+      "runnerInventory": "docs/evidence/container-security/runner/runner-inventory.json",
+      "limitations": "Local cached-database results are unsigned and do not replace continuous or deployed-image scanning."
+    }
+  },
+  "localLoadSmoke": {
+    "path": "docs/evidence/load-smoke-final-app-5df2dd02e136-20260713.json",
+    "sha256": "40246c9a216ef8228215a9bcd1586c21dee5f1d26363e725ecb7c6ea75f90361",
+    "host": "Windows x64 Docker Desktop Linux containers",
+    "concurrency": 10,
+    "scenarios": 5,
+    "requests": 250,
+    "failedResponses": 0,
+    "maximumScenarioP95Ms": 211.89,
+    "testedImageDigest": "sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df",
+    "binding": "This inventory cryptographically joins the immutable load-report SHA-256 to the exact inspected image ID and the disposable launch identity below.",
+    "scope": "Read-only landing/auth-redirect smoke; not authenticated API, quiz, code, tutor-first-token, NUC, runner, or thermal acceptance evidence."
+  },
+  "browserMatrix": {
+    "summary": {
+      "path": "docs/evidence/playwright-matrix-verification-2026-07-12.json",
+      "sha256": "b559f06c15bad196b30370c44307f52fec820a656da5516c67aebf3741bbfdcf"
+    },
+    "aggregate": {
+      "path": "docs/evidence/playwright-all-projects-2026-07-12.json",
+      "sha256": "16cd671cbc501ae0ffb7fd617c9cfa3224e71c016056fdd591ddbbf1467f1f47"
+    },
+    "discovered": 156,
+    "passed": 140,
+    "intentionalSkipped": 16,
+    "failed": 0,
+    "flaky": 0,
+    "ownedServerStopped": true,
+    "listenerPresentAfterCleanup": false,
+    "limitations": "WebKit and device emulation do not replace physical iOS/manual assistive-technology QA; Firefox required execution outside the restrictive process sandbox."
+  },
+  "limitations": [
+    "The working tree has no committed baseline, so this evidence is not bound to a Git commit SHA.",
+    "This is local workstation evidence, not a production Ubuntu NUC, Cloudflare, Gmail, Google OAuth, live-provider, offsite-restore, KVM, thermal, external-network, or manual-accessibility report.",
+    "All 1,074 curriculum cases pass locally, but the curriculum is human-unreviewed and has zero formal-exam-eligible items.",
+    "All 11 retained local images have SPDX SBOMs and zero Trivy HIGH/CRITICAL findings; the reports are unsigned and not deployment-bound.",
+    "The multi-browser result is engine/device emulation and does not replace physical-device or assistive-technology verification."
+  ]
+}

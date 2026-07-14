@@ -1,0 +1,3 @@
+// C++ reference: the bounded parity kernel deliberately uses only portable arrays and C-compatible
+// library facilities so identical numeric contracts can be compared with C before idiomatic review.
+__C_KERNEL__

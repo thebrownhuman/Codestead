@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.supervised.regression.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.supervised",
+  "skillId": "ai.supervised.regression",
+  "title": "Regression deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Regression; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "sklearn",
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.supervised.regression.mcq.misconception",
+      "skillId": "ai.supervised.regression",
+      "title": "Regression: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation.",
+        "incorrect": "That option preserves the overclaim. Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+        },
+        {
+          "id": "overclaim",
+          "text": "A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+      }
+    },
+    {
+      "id": "ai.supervised.regression.fill.checkpoint",
+      "skillId": "ai.supervised.regression",
+      "title": "Regression: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'predictive association'. Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; [[checkpoint]] does not establish causation.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "predictive association"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+      }
+    },
+    {
+      "id": "ai.supervised.regression.code.offline",
+      "skillId": "ai.supervised.regression",
+      "title": "Regression: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read n, n true targets, and n predictions. Print model MAE, mean-baseline MAE, and model or baseline for the lower error; ties choose baseline.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.supervised.regression.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "3 1 2 6 1 3 5\n",
+          "expectedStdout": "0.667 2.000 model",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.supervised.regression.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "2 4 4 4 4\n",
+          "expectedStdout": "0.000 0.000 baseline",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    values = list(map(float, data.split())); n = int(values[0])\n    truth = values[1:1+n]; predicted = values[1+n:1+2*n]\n    model_mae = sum(abs(a-b) for a,b in zip(truth, predicted)) / n\n    mean = sum(truth) / n\n    baseline_mae = sum(abs(value-mean) for value in truth) / n\n    winner = 'model' if model_mae < baseline_mae else 'baseline'\n    return f\"{model_mae:.3f} {baseline_mae:.3f} {winner}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The model is compared with a simple baseline using a declared scale-sensitive error summary; no causal or slice claim is inferred."
+      }
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.javascript.browser.storage.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.browser-security",
+  "skillId": "javascript.browser.storage",
+  "title": "Web storage and serialization deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "mdn-js"
+  ],
+  "items": [
+    {
+      "skillId": "javascript.browser.storage",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.browser.storage.mcq.misconception",
+      "title": "Web storage and serialization: reject the invalid model",
+      "prompt": "Which statement correctly resolves this JavaScript: Language and Browser Applications misconception? localStorage is encrypted and safe for long-lived API keys because it belongs to one origin.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there.",
+        "incorrect": "That preserves the misconception. Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked JavaScript: Language and Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+        },
+        {
+          "id": "misconception",
+          "text": "localStorage is encrypted and safe for long-lived API keys because it belongs to one origin."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+      }
+    },
+    {
+      "skillId": "javascript.browser.storage",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.browser.storage.fill.checkpoint",
+      "title": "Web storage and serialization: complete the rule",
+      "prompt": "Complete the missing JavaScript: Language and Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: script-readable.",
+        "incorrect": "Recheck the exact rule. Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Treat browser storage as {{key-rule}} and untrusted; do not store sensitive long-lived credentials there.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "script-readable"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+      }
+    },
+    {
+      "id": "javascript.browser.storage.code.verified-facet",
+      "skillId": "javascript.browser.storage",
+      "title": "Web storage and serialization: verified implementation facet",
+      "kind": "code",
+      "prompt": "Persist small non-sensitive preferences with versioned parsing and quota or corruption handling. Build a bounded artifact demonstrating versioned JSON preference in same-origin storage; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "// TODO: implement the declared bounded browser behavior.\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "javascript",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "main.js",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        }
+      },
+      "tests": [
+        {
+          "id": "javascript.browser.storage.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"stored JSON round-trips\",\n      \"expression\": \"JSON.parse(localStorage.getItem('preferences.v1')).mode\",\n      \"expected\": \"review\"\n    }\n  ],\n  \"url\": \"https://learncoding.test/?mode=review\",\n  \"document\": \"<main><h1>Preferences</h1><output></output></main>\"\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "javascript.browser.storage.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"client output reflects parsed stored value\",\n      \"expression\": \"document.querySelector('output').textContent.endsWith(':review')\",\n      \"expected\": true\n    }\n  ],\n  \"url\": \"https://learncoding.test/?mode=review\",\n  \"document\": \"<main><h1>Preferences</h1><output></output></main>\"\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "const url = new URL(location.href); const mode = url.searchParams.get(\"mode\") ?? \"learn\"; let stored = \"\"; try { localStorage.setItem(\"preferences.v1\", JSON.stringify({ mode })); stored = JSON.parse(localStorage.getItem(\"preferences.v1\") ?? \"{}\").mode ?? \"fallback\"; } catch { stored = \"fallback\"; } document.querySelector(\"output\").textContent = mode + \":\" + stored; history.replaceState({ mode }, \"\", \"?mode=\" + encodeURIComponent(mode));",
+        "explanation": "The reference is a bounded javascript artifact for versioned JSON preference in same-origin storage. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

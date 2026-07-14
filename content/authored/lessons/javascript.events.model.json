@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.events.model.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.dom-events",
+  "skillId": "javascript.events.model",
+  "title": "Event propagation and delegation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Event propagation and delegation; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-dom",
+      "locator": "DOM Standard; living standard accessed 2026-07; provisions applicable to Event propagation and delegation",
+      "claim": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Event propagation and delegation",
+      "claim": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: One list listener uses event delegation and closest to handle buttons added later. Your goal is to trace propagation and implement a delegated interaction without duplicate handlers. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scope, closures and modules; html project site; Create and remove nodes; Method calls and this. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action. This draft therefore rejects: preventDefault also stops the event from reaching ancestor listeners."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Handle capture, target and bubble phases and delegate stable ancestor events when appropriate.",
+      "Trace propagation and implement a delegated interaction without duplicate handlers."
+    ],
+    "excludes": [
+      "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action."
+    ]
+  },
+  "outcomes": [
+    "Trace propagation and implement a delegated interaction without duplicate handlers."
+  ],
+  "examples": [
+    {
+      "id": "javascript.events.model.example-a",
+      "title": "Event propagation and delegation: concrete case",
+      "situation": "One list listener uses event delegation and closest to handle buttons added later.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: One list listener uses event delegation and closest to handle buttons added later.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: preventDefault cancels a cancelable default action; propagation controls are separate."
+      ],
+      "result": "The result follows because preventDefault cancels a cancelable default action; propagation controls are separate."
+    },
+    {
+      "id": "javascript.events.model.example-b",
+      "title": "Event propagation and delegation: boundary case",
+      "situation": "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: preventDefault also stops the event from reaching ancestor listeners."
+      ],
+      "result": "The boundary requires this correction: preventDefault cancels a cancelable default action; propagation controls are separate."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.events.model.misconception",
+      "mistakenBelief": "preventDefault also stops the event from reaching ancestor listeners.",
+      "correction": "preventDefault cancels a cancelable default action; propagation controls are separate.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: preventDefault also stops the event from reaching ancestor listeners."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Event propagation and delegation, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Event propagation and delegation before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "One list listener uses event delegation and closest to handle buttons added later.",
+      "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
+      "preventDefault cancels a cancelable default action; propagation controls are separate."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "One list listener uses event delegation and closest to handle buttons added later."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "preventDefault cancels a cancelable default action; propagation controls are separate."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: preventDefault also stops the event from reaching ancestor listeners."
+      }
+    ],
+    "textAlternative": "Starting artifact: One list listener uses event delegation and closest to handle buttons added later. Step 1, Artifact. State: evidence: One list listener uses event delegation and closest to handle buttons added later.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: preventDefault cancels a cancelable default action; propagation controls are separate.. Check the result against the boundary and reject this misconception: preventDefault also stops the event from reaching ancestor listeners."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Event propagation and delegation: concrete case”: state its starting evidence, apply the Event propagation and delegation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Event propagation and delegation: concrete case.",
+        "Starting evidence: One list listener uses event delegation and closest to handle buttons added later.",
+        "Core rule: DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
+        "Observable result: The result follows because preventDefault cancels a cancelable default action; propagation controls are separate.",
+        "Boundary check: preventDefault cancels a cancelable default action; propagation controls are separate."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
+        "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Event propagation and delegation and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace propagation and implement a delegated interaction without duplicate handlers.",
+        "preventDefault cancels a cancelable default action; propagation controls are separate."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.events.model.misconception",
+      "explanation": "preventDefault cancels a cancelable default action; propagation controls are separate.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'default action' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace propagation and implement a delegated interaction without duplicate handlers. Keep this boundary in view: Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
+    "retrievalPrompts": [
+      "Explain Event propagation and delegation using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: preventDefault also stops the event from reaching ancestor listeners.",
+      "Apply checkpoint 'default action' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Forms, validation and accessible state”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

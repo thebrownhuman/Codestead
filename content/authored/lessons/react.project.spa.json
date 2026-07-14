@@ -1,0 +1,211 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.project.spa.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.testing-project",
+  "skillId": "react.project.spa",
+  "title": "Intermediate single-page application",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Intermediate single-page application; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Intermediate single-page application",
+      "claim": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback."
+    },
+    {
+      "sourceRef": "react-router",
+      "locator": "React Router Documentation; stable declarative mode accessed 2026-07; provisions applicable to Intermediate single-page application",
+      "claim": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback."
+    },
+    {
+      "sourceRef": "react-testing",
+      "locator": "React Testing Library; accessed 2026-07; provisions applicable to Intermediate single-page application",
+      "claim": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Intermediate single-page application",
+      "claim": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle. Your goal is to deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Accessibility, errors and performance; Routing and application context; Routing and integration tests; Error boundaries and recovery; Measure before optimization. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures. This draft therefore rejects: Finishing all visible screens is sufficient evidence that an SPA is complete."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Integrate routed views, forms, remote data, complete async states, accessibility, errors and tests.",
+      "Deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests."
+    ],
+    "excludes": [
+      "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures."
+    ]
+  },
+  "outcomes": [
+    "Deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests."
+  ],
+  "examples": [
+    {
+      "id": "react.project.spa.example-a",
+      "title": "Intermediate single-page application: concrete case",
+      "situation": "A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+      ],
+      "result": "The result follows because Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+    },
+    {
+      "id": "react.project.spa.example-b",
+      "title": "Intermediate single-page application: boundary case",
+      "situation": "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Finishing all visible screens is sufficient evidence that an SPA is complete."
+      ],
+      "result": "The boundary requires this correction: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.project.spa.misconception",
+      "mistakenBelief": "Finishing all visible screens is sufficient evidence that an SPA is complete.",
+      "correction": "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Finishing all visible screens is sufficient evidence that an SPA is complete."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Intermediate single-page application, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Intermediate single-page application before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
+      "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
+      "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Finishing all visible screens is sufficient evidence that an SPA is complete."
+      }
+    ],
+    "textAlternative": "Starting artifact: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle. Step 1, Artifact. State: evidence: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.. Check the result against the boundary and reject this misconception: Finishing all visible screens is sufficient evidence that an SPA is complete."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Intermediate single-page application: concrete case”: state its starting evidence, apply the Intermediate single-page application rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Intermediate single-page application: concrete case.",
+        "Starting evidence: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
+        "Core rule: A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
+        "Observable result: The result follows because Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.",
+        "Boundary check: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
+        "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Intermediate single-page application and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests.",
+        "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.project.spa.misconception",
+      "explanation": "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'full state and route model' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests. Keep this boundary in view: A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
+    "retrievalPrompts": [
+      "Explain Intermediate single-page application using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Finishing all visible screens is sufficient evidence that an SPA is complete.",
+      "Apply checkpoint 'full state and route model' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

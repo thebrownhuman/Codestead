@@ -1,0 +1,202 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "ai",
+  "title": "Artificial Intelligence Foundations",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A broad AI foundation spanning agents, search, knowledge representation, uncertainty, planning, machine learning, neural networks, language and perception, generative AI, evaluation and responsible risk management.",
+  "audience": {
+    "level": "beginner to intermediate AI learner",
+    "assumed_knowledge": ["Programming Foundations", "Intermediate Python", "Basic algebra, graphs, probability and descriptive statistics or assigned remediation"],
+    "target_capability": "Frame an AI problem, select and implement a modest symbolic or learned approach, evaluate it against meaningful baselines and risks, and communicate warranted limitations."
+  },
+  "scope": {
+    "includes": ["AI literacy, problem characteristics and agents", "State-space, heuristic and adversarial search", "Symbolic, probabilistic and learned representations", "Planning and decision making", "Data, features, splits and leakage", "Supervised and unsupervised learning", "Neural-network and transformer foundations", "NLP, vision and robotics survey", "Generative AI, prompting, embeddings and retrieval augmentation", "Metrics, robustness, fairness, privacy, explainability and human oversight", "Reproducible Python experiments and capstone"],
+    "non_goals": ["Training a foundation model", "Production MLOps platform engineering", "Advanced calculus-based derivations", "A vendor-specific model certification", "Autonomous deployment without human review", "NumPy or Pandas as full separate library courses"]
+  },
+  "authoritative_sources": [
+    { "id": "cs2023-ai", "title": "CS2023 Artificial Intelligence", "url": "https://csed.acm.org/wp-content/uploads/2023/09/AI-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" },
+    { "id": "cs2023-msf", "title": "CS2023 Mathematical and Statistical Foundations", "url": "https://csed.acm.org/wp-content/uploads/2023/09/MSF-Version-Gamma-V3.pdf", "type": "curriculum", "version_or_date": "August 2023" },
+    { "id": "nist-ai-rmf", "title": "NIST AI Risk Management Framework", "url": "https://www.nist.gov/itl/ai-risk-management-framework", "type": "security-guidance", "version_or_date": "AI RMF 1.0; revision status monitored" },
+    { "id": "nist-genai", "title": "NIST AI 600-1 Generative AI Profile", "url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf", "type": "security-guidance", "version_or_date": "July 2024" },
+    { "id": "sklearn", "title": "scikit-learn User Guide", "url": "https://scikit-learn.org/stable/user_guide.html", "type": "official-docs", "version_or_date": "1.9.x target, accessed 2026-07" },
+    { "id": "transformers", "title": "Transformers Documentation", "url": "https://huggingface.co/docs/transformers/index", "type": "official-docs", "version_or_date": "5.x target, accessed 2026-07" },
+    { "id": "rag-paper", "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks", "url": "https://arxiv.org/abs/2005.11401", "type": "research", "version_or_date": "2020" }
+  ],
+  "runtime": {
+    "kind": "multi-language",
+    "language": "Python for experiments; language-neutral mathematics and pseudocode for concepts",
+    "standard": "Python 3.14 with pinned scikit-learn 1.9.x and reviewed model/API fixtures",
+    "toolchain": ["CPython 3.14", "scikit-learn 1.9.x", "Matplotlib-compatible supplied visualizer", "Local toy-model fixtures", "Mocked generative-model API"],
+    "execution_environment": "Isolated notebooks or scripts with pinned datasets, seeded randomness, bounded compute and no autonomous external actions",
+    "file_extensions": [".py", ".json", ".csv"],
+    "notes": ["Course examples use small reviewed datasets and models, not live uncontrolled outputs.", "Vendor API demonstrations are mocked by default and never expose learner keys.", "Rapidly changing model-specific content requires source and version review before publication."]
+  },
+  "modules": [
+    {
+      "id": "ai.foundations",
+      "title": "AI problems and agents",
+      "description": "Define AI operationally and characterize environments, agents and limitations.",
+      "required": true,
+      "prerequisites": ["pf.problem.io", "python.quality.project"],
+      "skills": [
+        { "id": "ai.foundations.scope", "title": "AI, automation and intelligence claims", "description": "Distinguish AI techniques from fixed automation and evaluate claims by capability and evidence rather than marketing.", "outcomes": ["Classify example systems and state what evidence would support an intelligence claim."], "prerequisites": ["pf.problem.io"], "evidence_types": ["concept-check", "explain", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] },
+        { "id": "ai.foundations.problem-characteristics", "title": "Problem and environment characteristics", "description": "Classify observability, determinism, dynamics, discreteness, agents and uncertainty.", "outcomes": ["Characterize an AI task and explain how its properties constrain solution choices."], "prerequisites": ["ai.foundations.scope"], "evidence_types": ["design", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.foundations.agents", "title": "Agent, goal and utility models", "description": "Relate perception, state, actions, goals, utility and rationality under bounded information.", "outcomes": ["Specify a simple agent's percepts, actions, objective and performance measure."], "prerequisites": ["ai.foundations.problem-characteristics"], "evidence_types": ["design", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.foundations.history-limits", "title": "History, cycles and limits", "description": "Recognize symbolic, statistical and neural traditions and recurring gaps between benchmark and general capability.", "outcomes": ["Place major approach families in context and identify an overgeneralized historical claim."], "prerequisites": ["ai.foundations.scope"], "evidence_types": ["explain", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] }
+      ]
+    },
+    {
+      "id": "ai.search",
+      "title": "State-space and adversarial search",
+      "description": "Represent problems as state spaces and compare informed and uninformed exploration.",
+      "required": true,
+      "prerequisites": ["ai.foundations.agents", "dsa.graphs.bfs-dfs"],
+      "skills": [
+        { "id": "ai.search.state-space", "title": "States, actions, goals and costs", "description": "Encode a problem as an implicit graph with successors, goal test and path cost.", "outcomes": ["Design a state-space representation for a puzzle or grid task."], "prerequisites": ["ai.foundations.problem-characteristics", "dsa.graphs.model"], "evidence_types": ["design", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.search.uninformed", "title": "Uninformed search", "description": "Compare DFS, BFS, iterative deepening and uniform-cost search by completeness, optimality, time and space.", "outcomes": ["Select, implement and instrument an uninformed search for a stated state space."], "prerequisites": ["ai.search.state-space", "dsa.graphs.bfs-dfs", "dsa.heaps.priority-queue"], "evidence_types": ["code", "trace", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.search.heuristics", "title": "Heuristics, greedy search and A*", "description": "Design heuristic estimates and relate admissibility or consistency to optimality guarantees.", "outcomes": ["Implement A* and compare path cost and nodes expanded under two heuristics."], "prerequisites": ["ai.search.uninformed", "dsa.graphs.shortest-path"], "evidence_types": ["code", "design", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.search.adversarial", "title": "Minimax and alpha-beta", "description": "Back up utility through alternating choices and prune branches that cannot affect the decision.", "outcomes": ["Trace and implement bounded minimax with alpha-beta pruning for a small game."], "prerequisites": ["ai.search.state-space", "dsa.recursion.design"], "evidence_types": ["code", "trace", "visual"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] }
+      ]
+    },
+    {
+      "id": "ai.knowledge-uncertainty",
+      "title": "Knowledge representation and uncertainty",
+      "description": "Encode facts and uncertain relationships and reason within explicit assumptions.",
+      "required": true,
+      "prerequisites": ["ai.foundations", "ai.foundations.problem-characteristics"],
+      "skills": [
+        { "id": "ai.knowledge.symbolic", "title": "Symbols, predicates and rules", "description": "Translate a bounded natural-language domain into facts, relations, rules and queries.", "outcomes": ["Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions."], "prerequisites": ["ai.foundations.problem-characteristics", "pf.data.records"], "evidence_types": ["design", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "cs2023-msf"] },
+        { "id": "ai.knowledge.inference", "title": "Logical inference and consistency", "description": "Apply forward or backward rule reasoning and identify contradictions or unsupported conclusions.", "outcomes": ["Trace an inference chain and distinguish entailed, contradicted and unknown statements."], "prerequisites": ["ai.knowledge.symbolic"], "evidence_types": ["trace", "concept-check", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "cs2023-msf"] },
+        { "id": "ai.uncertainty.bayes", "title": "Conditional probability and Bayes rule", "description": "Update belief from prior, likelihood and evidence while avoiding base-rate neglect.", "outcomes": ["Compute and interpret a posterior probability for a diagnostic scenario."], "prerequisites": ["ai.foundations.problem-characteristics"], "evidence_types": ["trace", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "cs2023-msf"] },
+        { "id": "ai.uncertainty.graphical", "title": "Probabilistic graphical models concept", "description": "Read dependencies and conditional independence from a small Bayesian-network structure.", "outcomes": ["Construct and reason over a small directed probabilistic model without claiming causal meaning automatically."], "prerequisites": ["ai.uncertainty.bayes", "dsa.graphs.model"], "evidence_types": ["visual", "design", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] }
+      ]
+    },
+    {
+      "id": "ai.planning-decision",
+      "title": "Planning and decision making",
+      "description": "Choose action sequences or policies under constraints and uncertain outcomes.",
+      "required": true,
+      "prerequisites": ["ai.search", "ai.knowledge-uncertainty"],
+      "skills": [
+        { "id": "ai.planning.actions", "title": "Actions, preconditions and effects", "description": "Represent a planning domain and distinguish plan validity from plan quality.", "outcomes": ["Encode and validate a small goal-directed planning problem."], "prerequisites": ["ai.search.state-space", "ai.knowledge.symbolic"], "evidence_types": ["design", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.planning.constraints", "title": "Constraint-satisfaction problems", "description": "Model variables, domains and constraints and use propagation plus backtracking.", "outcomes": ["Implement and instrument a small CSP solver with a variable or value heuristic."], "prerequisites": ["dsa.backtracking.search", "ai.knowledge.inference"], "evidence_types": ["code", "design", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.decision.utility", "title": "Utility and expected decisions", "description": "Compare actions by outcome utility and probability while making value choices explicit.", "outcomes": ["Compute an expected-utility choice and critique sensitivity to its assumptions."], "prerequisites": ["ai.uncertainty.bayes"], "evidence_types": ["trace", "explain", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] },
+        { "id": "ai.decision.sequential", "title": "Sequential decision and reinforcement concepts", "description": "Recognize state, action, reward, policy and exploration in a Markov decision process without treating reward as neutral.", "outcomes": ["Specify a small sequential decision problem and identify reward-hacking risks."], "prerequisites": ["ai.decision.utility", "ai.foundations.agents"], "evidence_types": ["design", "visual", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] }
+      ]
+    },
+    {
+      "id": "ai.data-workflow",
+      "title": "Data and experimental workflow",
+      "description": "Turn a question into defensible data, features, splits and baselines.",
+      "required": true,
+      "prerequisites": ["python.quality.project", "ai.foundations.problem-characteristics"],
+      "skills": [
+        { "id": "ai.data.problem-target", "title": "Problem, target and success measure", "description": "Specify prediction unit, target, decision context and cost of errors before selecting a model.", "outcomes": ["Write a measurable ML problem statement with non-goals and baseline."], "prerequisites": ["ai.foundations.problem-characteristics", "pf.problem.io"], "evidence_types": ["design", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] },
+        { "id": "ai.data.quality", "title": "Sampling, labels and data quality", "description": "Inspect provenance, missingness, duplicates, measurement error, representation and label uncertainty.", "outcomes": ["Produce a data-quality report and identify who or what is absent or mismeasured."], "prerequisites": ["ai.data.problem-target"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ai-rmf", "cs2023-ai"] },
+        { "id": "ai.data.features", "title": "Features and preprocessing", "description": "Encode, scale or transform only using training-derived information and meaningful representations.", "outcomes": ["Build and explain a preprocessing pipeline that handles numeric and categorical inputs."], "prerequisites": ["ai.data.quality", "python.collections.dict-set"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn"] },
+        { "id": "ai.data.splits-leakage", "title": "Train, validation, test and leakage", "description": "Split according to deployment structure and keep test information outside training and tuning.", "outcomes": ["Choose a split strategy and detect target, temporal, group or preprocessing leakage."], "prerequisites": ["ai.data.features", "ai.data.problem-target"], "evidence_types": ["design", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "nist-ai-rmf"] }
+      ]
+    },
+    {
+      "id": "ai.supervised",
+      "title": "Supervised learning",
+      "description": "Fit and evaluate regression and classification models against meaningful baselines.",
+      "required": true,
+      "prerequisites": ["ai.data-workflow", "ai.uncertainty.bayes"],
+      "skills": [
+        { "id": "ai.supervised.regression", "title": "Regression", "description": "Model continuous targets and inspect residual patterns and scale-sensitive errors.", "outcomes": ["Train and evaluate a baseline and linear regression model with justified metrics."], "prerequisites": ["ai.data.splits-leakage"], "evidence_types": ["code", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "cs2023-ai"] },
+        { "id": "ai.supervised.classification", "title": "Classification and probabilities", "description": "Model categorical outcomes and distinguish class labels, scores and probability estimates.", "outcomes": ["Train and evaluate a classifier under class imbalance and asymmetric error costs."], "prerequisites": ["ai.data.splits-leakage", "ai.uncertainty.bayes"], "evidence_types": ["code", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "cs2023-ai"] },
+        { "id": "ai.supervised.models", "title": "Linear, neighbor and tree models", "description": "Compare assumptions, scaling needs, nonlinear boundaries and interpretability of common model families.", "outcomes": ["Select and compare at least three model families using the same split and metric plan."], "prerequisites": ["ai.supervised.regression", "ai.supervised.classification"], "evidence_types": ["code", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn"] },
+        { "id": "ai.supervised.generalization", "title": "Bias, variance and regularization", "description": "Diagnose underfitting and overfitting from learning evidence and control complexity without test-set tuning.", "outcomes": ["Interpret learning or validation results and justify a regularization or data response."], "prerequisites": ["ai.supervised.models", "ai.data.splits-leakage"], "evidence_types": ["visual", "explain", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "cs2023-ai"] }
+      ]
+    },
+    {
+      "id": "ai.unsupervised",
+      "title": "Unsupervised learning and representation",
+      "description": "Explore structure without pretending discovered groups are objective truth.",
+      "required": true,
+      "prerequisites": ["ai.data-workflow", "ai.supervised.generalization"],
+      "skills": [
+        { "id": "ai.unsupervised.clustering", "title": "Clustering", "description": "Compare centroid, density and hierarchical concepts and the role of scaling and distance.", "outcomes": ["Apply and critique a clustering result under at least two parameter or representation choices."], "prerequisites": ["ai.data.features"], "evidence_types": ["code", "visual", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "cs2023-ai"] },
+        { "id": "ai.unsupervised.dimensionality", "title": "Dimensionality reduction", "description": "Use low-dimensional projections for compression or exploration without overinterpreting visual separation.", "outcomes": ["Apply a linear projection and explain information retained and lost."], "prerequisites": ["ai.data.features"], "evidence_types": ["code", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "cs2023-ai"] },
+        { "id": "ai.unsupervised.anomaly", "title": "Anomaly detection", "description": "Define unusual relative to a reference population and evaluate rare-event alerts with review costs.", "outcomes": ["Design and evaluate a simple anomaly detector without assuming every outlier is harmful."], "prerequisites": ["ai.unsupervised.clustering", "ai.supervised.classification"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "nist-ai-rmf"] },
+        { "id": "ai.unsupervised.recommendation", "title": "Recommendation concepts", "description": "Distinguish content, collaborative and popularity baselines and identify feedback-loop and exposure bias.", "outcomes": ["Specify and critique a small recommender objective, baseline and offline evaluation."], "prerequisites": ["ai.unsupervised.dimensionality", "ai.data.problem-target"], "evidence_types": ["design", "explain", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] }
+      ]
+    },
+    {
+      "id": "ai.neural",
+      "title": "Neural networks and learned representations",
+      "description": "Understand layered differentiable models, training signals and architecture roles.",
+      "required": true,
+      "prerequisites": ["ai.supervised", "ai.data-workflow"],
+      "skills": [
+        { "id": "ai.neural.units-layers", "title": "Units, layers and activations", "description": "Trace weighted sums, nonlinear activations and composed representations through a small network.", "outcomes": ["Compute and visualize a forward pass through a tiny feed-forward network."], "prerequisites": ["ai.supervised.regression", "ai.supervised.classification"], "evidence_types": ["trace", "visual", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.neural.training", "title": "Loss, gradients and optimization", "description": "Explain how examples, loss and gradient-based updates change parameters without requiring full calculus derivations.", "outcomes": ["Trace a simple parameter update and diagnose learning-rate or scale problems."], "prerequisites": ["ai.neural.units-layers", "ai.supervised.generalization"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai"] },
+        { "id": "ai.neural.regularization", "title": "Validation, regularization and reproducibility", "description": "Use validation, early stopping, regularization and seeded experiments while reporting variability.", "outcomes": ["Design and compare a controlled neural-network experiment without test-set leakage."], "prerequisites": ["ai.neural.training", "ai.data.splits-leakage"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] },
+        { "id": "ai.neural.architectures", "title": "Convolution, sequence and attention roles", "description": "Recognize how locality, recurrence and attention encode different structure and compute trade-offs.", "outcomes": ["Match a data structure and task to an architecture family and state limitations."], "prerequisites": ["ai.neural.units-layers", "ai.unsupervised.dimensionality"], "evidence_types": ["concept-check", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "transformers"] }
+      ]
+    },
+    {
+      "id": "ai.applications",
+      "title": "Language, perception and embodied applications",
+      "description": "Connect representations and models to major application domains and their measurement limits.",
+      "required": true,
+      "prerequisites": ["ai.neural", "ai.knowledge-uncertainty"],
+      "skills": [
+        { "id": "ai.applications.nlp", "title": "Natural-language processing", "description": "Distinguish tokenization, representation, classification, extraction, translation and generation tasks.", "outcomes": ["Frame and evaluate a small NLP task while identifying language and dialect coverage gaps."], "prerequisites": ["ai.neural.architectures", "ai.data.problem-target"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "transformers"] },
+        { "id": "ai.applications.vision", "title": "Computer vision and perception", "description": "Relate pixels, features, detection, classification and segmentation to sensing conditions and label policy.", "outcomes": ["Design an evaluation plan that includes lighting, viewpoint and subgroup conditions."], "prerequisites": ["ai.neural.architectures", "ai.data.quality"], "evidence_types": ["design", "visual", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] },
+        { "id": "ai.applications.robotics", "title": "Robotics and embodied agents", "description": "Connect sensing, localization, planning, control and actuation under physical safety constraints.", "outcomes": ["Map an embodied task into perception, state, planning and action components with fallback behavior."], "prerequisites": ["ai.foundations.agents", "ai.planning.actions", "ai.applications.vision"], "evidence_types": ["design", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf"] },
+        { "id": "ai.applications.multimodal", "title": "Multimodal systems", "description": "Combine modalities while recognizing alignment, missing-modality, provenance and cross-modal error risks.", "outcomes": ["Review a multimodal application and specify modality-specific and joint evaluations."], "prerequisites": ["ai.applications.nlp", "ai.applications.vision"], "evidence_types": ["design", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-genai"] }
+      ]
+    },
+    {
+      "id": "ai.generative",
+      "title": "Generative AI, LLMs and retrieval",
+      "description": "Use generative systems as probabilistic components with grounding, validation and security boundaries.",
+      "required": true,
+      "prerequisites": ["ai.neural.architectures", "ai.applications.nlp"],
+      "skills": [
+        { "id": "ai.generative.language-model", "title": "Tokens, next-token modeling and context", "description": "Explain LLM generation as conditional token prediction with finite context rather than database retrieval or understanding proof.", "outcomes": ["Trace a toy token-generation example and identify unsupported capability claims."], "prerequisites": ["ai.neural.architectures", "ai.applications.nlp"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "transformers", "nist-genai"] },
+        { "id": "ai.generative.prompt-output", "title": "Prompts and constrained outputs", "description": "Specify task, context, constraints and output schema while treating generated output as untrusted.", "outcomes": ["Design and test a prompt-plus-validator workflow against normal and adversarial cases."], "prerequisites": ["ai.generative.language-model", "python.io.files-json"], "evidence_types": ["design", "test", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-genai"] },
+        { "id": "ai.generative.embeddings-rag", "title": "Embeddings and retrieval augmentation", "description": "Retrieve relevant versioned passages, preserve provenance and distinguish retrieval failure from generation failure.", "outcomes": ["Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately."], "prerequisites": ["ai.unsupervised.dimensionality", "ai.generative.prompt-output", "dsa.heaps.priority-queue"], "evidence_types": ["code", "design", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["rag-paper", "transformers", "nist-genai"] },
+        { "id": "ai.generative.api-safety", "title": "API, tool and prompt-injection boundaries", "description": "Keep keys server-side, minimize transmitted data, validate tool arguments and separate untrusted content from instructions.", "outcomes": ["Threat-model and test a mocked LLM API or tool call without exposing secrets or granting autonomous authority."], "prerequisites": ["ai.generative.embeddings-rag", "git.security.secrets"], "evidence_types": ["design", "review", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-genai", "nist-ai-rmf"] }
+      ]
+    },
+    {
+      "id": "ai.evaluation-risk",
+      "title": "Evaluation and responsible AI",
+      "description": "Measure performance and harms in context and manage risk across the lifecycle.",
+      "required": true,
+      "prerequisites": ["ai.supervised", "ai.generative"],
+      "skills": [
+        { "id": "ai.evaluation.metrics", "title": "Metrics, thresholds and baselines", "description": "Choose task and decision metrics, compare simple baselines and report uncertainty rather than one headline score.", "outcomes": ["Create and justify an evaluation table for regression, classification or generation."], "prerequisites": ["ai.supervised.classification", "ai.data.problem-target"], "evidence_types": ["design", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "nist-ai-rmf"] },
+        { "id": "ai.evaluation.robustness", "title": "Robustness, drift and adversarial cases", "description": "Evaluate distribution shifts, malformed inputs, rare cases, abuse and changing performance after deployment.", "outcomes": ["Design and execute a stress-test matrix and specify monitoring triggers."], "prerequisites": ["ai.evaluation.metrics", "ai.data.quality"], "evidence_types": ["test", "review", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ai-rmf", "nist-genai"] },
+        { "id": "ai.evaluation.fairness-explain", "title": "Fairness and explainability", "description": "Measure relevant group outcomes, examine proxy features and match explanation method to stakeholder and decision.", "outcomes": ["Audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits."], "prerequisites": ["ai.evaluation.metrics", "ai.data.quality"], "evidence_types": ["code", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ai-rmf", "cs2023-ai"] },
+        { "id": "ai.risk.lifecycle", "title": "Govern, map, measure and manage", "description": "Assign ownership, document context, measure prioritized risks and implement proportionate controls and incident response.", "outcomes": ["Produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria."], "prerequisites": ["ai.evaluation.robustness", "ai.evaluation.fairness-explain", "ai.generative.api-safety"], "evidence_types": ["artifact", "design", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ai-rmf", "nist-genai"] }
+      ]
+    },
+    {
+      "id": "ai.project",
+      "title": "Reproducible AI capstone",
+      "description": "Integrate problem framing, modeling, evaluation and governance into a bounded project.",
+      "required": true,
+      "prerequisites": ["ai.evaluation-risk", "ai.applications"],
+      "skills": [
+        { "id": "ai.project.design", "title": "Project card and experiment plan", "description": "Document users, decision context, data, baseline, metrics, risks, non-goals and acceptance or stop criteria.", "outcomes": ["Produce an admin-reviewable project and experiment plan before model fitting."], "prerequisites": ["ai.data.problem-target", "ai.risk.lifecycle"], "evidence_types": ["artifact", "design", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ai-rmf", "cs2023-ai"] },
+        { "id": "ai.project.reproducibility", "title": "Reproducible pipeline", "description": "Pin environment and data version, seed stochastic components and separate fit, evaluation and reporting steps.", "outcomes": ["Reproduce a recorded experiment from a clean environment and explain remaining nondeterminism."], "prerequisites": ["ai.project.design", "git.tools.dependencies", "ai.data.splits-leakage"], "evidence_types": ["artifact", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["sklearn", "nist-ai-rmf"] },
+        { "id": "ai.project.model-card", "title": "Model card and human oversight", "description": "Report intended use, exclusions, data, metrics, slices, limitations, review points and escalation paths.", "outcomes": ["Write a model card whose claims match recorded evaluation evidence."], "prerequisites": ["ai.project.reproducibility", "ai.evaluation.fairness-explain"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["nist-ai-rmf", "nist-genai"] },
+        { "id": "ai.project.capstone", "title": "AI foundations capstone", "description": "Implement a modest symbolic, learned or retrieval-grounded system and evaluate it against baseline, stress and risk criteria.", "outcomes": ["Deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability."], "prerequisites": ["ai.project.model-card", "ai.risk.lifecycle"], "evidence_types": ["project", "code", "artifact", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-ai", "nist-ai-rmf", "nist-genai", "sklearn"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Characterize AI problems and implement modest search, reasoning, planning or machine-learning solutions.",
+    "Build leakage-resistant data and evaluation workflows with meaningful baselines, metrics and stress tests.",
+    "Explain neural, language, perception and generative systems at a warranted conceptual level without anthropomorphic claims.",
+    "Use prompting, retrieval and model APIs through validation, provenance, secret and prompt-injection controls.",
+    "Deliver a reproducible AI project with documented intended use, limits, human oversight and residual risks."
+  ],
+  "coverage_summary": { "required_skills": 48, "elective_skills": 0, "total_skills": 48, "covered": 48, "partial": 0, "planned": 0 }
+}

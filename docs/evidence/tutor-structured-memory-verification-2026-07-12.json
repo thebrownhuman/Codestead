@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-12T17:05:00+05:30",
+  "scope": "AI-005/AI-008 persisted learner context: current-skill mastery/confidence/status, valid deterministic active misconception tags, goals/preferences, latest stored weekly summary, and a bounded selected owner-active thread tail.",
+  "policy": {
+    "promptVersion": "buddy-tutor-v3",
+    "contextPolicyVersion": "tutor-context-v2",
+    "untrustedRole": "All stored learner/profile/summary/chat strings are redacted and serialized inside one user-role UNTRUSTED_CONTEXT_DATA JSON envelope; stored assistant text is never replayed as an assistant-role instruction.",
+    "learnerMessageBoundary": "The current learner message is sanitized once before provider transmission, request hashing, and chat persistence. The UI replaces optimistic text with the server-accepted sanitized value and discloses redaction.",
+    "credentialOutcomeCAS": "Provider health writes require the active owner row plus keyVersion and an exact microsecond updated_at token. Success never assigns active status, so concurrent disable/replacement/admin validation wins.",
+    "caps": {
+      "goals": 8,
+      "goalChars": 240,
+      "selectedTracks": 12,
+      "evidenceRows": 40,
+      "misconceptionTags": 8,
+      "weeklySummaryChars": 2000,
+      "selectedThreadMessages": 6,
+      "selectedThreadMessageChars": 1200,
+      "selectedThreadTotalChars": 4800
+    },
+    "exclusions": [
+      "email",
+      "provider credentials and credential identifiers",
+      "hidden tests, reference answers, and grading keys",
+      "other learners",
+      "archived or non-owned thread messages",
+      "raw unbounded chat history",
+      "administrator mentor evidence"
+    ]
+  },
+  "verification": [
+    {
+      "command": "npx.cmd vitest run <10 focused tutor/context/lifecycle/export/offline-eval files>",
+      "result": "pass",
+      "files": 10,
+      "tests": 52
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "result": "pass",
+      "files": 17,
+      "tests": 71,
+      "database": "disposable PostgreSQL 17; migrations applied twice",
+      "structuredMemoryCases": 2
+    },
+    {
+      "command": "npm.cmd run test:integration -- integration/tutor-memory.integration.test.ts integration/chat-lifecycle.integration.test.ts",
+      "result": "pass",
+      "files": 2,
+      "tests": 5,
+      "database": "fresh disposable PostgreSQL 17; migrations applied twice"
+    },
+    {
+      "command": "npm.cmd run test:integration -- integration/provider-credential-outcome.integration.test.ts",
+      "result": "pass",
+      "files": 1,
+      "tests": 5,
+      "database": "fresh disposable PostgreSQL 17; migrations applied twice",
+      "races": [
+        "concurrent disable wins",
+        "keyVersion replacement wins",
+        "newer updated_at administration wins",
+        "unchanged success applies without status transition",
+        "unchanged authentication failure applies invalid status"
+      ]
+    },
+    {
+      "command": "npx.cmd vitest run <8 redaction/CAS/context/route/UI files>",
+      "result": "pass",
+      "files": 8,
+      "tests": 47
+    },
+    {
+      "command": "npm.cmd run ai:eval -- --check --date=2026-07-12",
+      "result": "pass",
+      "cases": "16/16",
+      "checks": "280/280",
+      "externalProviderCalls": 0,
+      "productionModelQualityEvidence": false
+    },
+    {
+      "command": "npm.cmd run security:api-surface",
+      "result": "pass",
+      "files": 94,
+      "operations": 114,
+      "matrixRows": 114,
+      "identifierOwnershipContracts": 27,
+      "supportingOwnershipContracts": 9,
+      "errors": 0
+    },
+    {
+      "command": "npm.cmd run test:auth-boundary",
+      "result": "pass",
+      "tests": 3
+    },
+    {
+      "command": "npm.cmd run security:secrets && npm.cmd run security:encoding",
+      "result": "pass"
+    },
+    {
+      "command": "npx.cmd eslint <12 tutor-memory/context/lifecycle/route/UI/test files>",
+      "result": "pass"
+    },
+    {
+      "command": "npm.cmd run lint && npm.cmd run typecheck",
+      "result": "pass"
+    },
+    {
+      "command": "provider-operation idempotency follow-up: 7 focused files / 49 tests plus 1 PostgreSQL file / 3 tests",
+      "result": "pass",
+      "evidence": "docs/evidence/provider-operation-idempotency-verification-2026-07-12.json",
+      "notes": "Validates the final tutor route/UI revisions, durable request replay, and migrations through 0025 applied twice."
+    }
+  ],
+  "sourceSha256": {
+    "src/lib/ai/chat-lifecycle.ts": "8ca5e2a88a7f2ac3f8e572d02ca8e33d83345f334703ba91cabba0f5a2763f5a",
+    "src/lib/ai/tutor-memory.ts": "084e6640307745c3d1056e275ce481f7bc0e0b3f82b131ae8b437d8da5f1208b",
+    "src/lib/ai/context.ts": "d6756f666d932e2dd864c9e240e155173c18e382ef550aff7eefc44cff37619e",
+    "src/lib/ai/provider-credential-outcome.ts": "48d3ab2c997ad918bc3747b31fd0cd263230711eba161fe620cb8e0d7b46fc01",
+    "src/lib/security/sensitive-text.ts": "e1b55371ce0569fabdccf80b387712f3993f6b9bba849b76eacde6d742e28f84",
+    "src/lib/admin-mentor/evidence-reader.ts": "91886f9d7c8b2f68529f013cff09598f24d4ddca0ce0d5e25817d93814b68d93",
+    "src/app/api/ai/tutor/route.ts": "7c3710049f5f03a5d23865d64c1310b8493a5a218785fada222753cba3ff0343",
+    "src/components/product/tutor-view.tsx": "7b55d07e5e5dfefd823ffc0ec70726567de198aad19a58d73acd8be3e196e82c",
+    "integration/tutor-memory.integration.test.ts": "dfa8782af8c22c803e61c310273abdb3e92519666575d2539d06500c3d4319b5",
+    "integration/provider-credential-outcome.integration.test.ts": "984c0779c4723f8d73dd65752d9bb2f4b9c5c68b78e9b0e6e716ca5c7128ee47",
+    "evals/ai-tutor/v1/golden-cases.json": "5c4f7061c604e9bee9cd139745189945a811c343272e5ea8d4cb3552a5e25226",
+    "scripts/scan-mojibake.ts": "3166ffb8441ec7fb9bb28da9f53dd8e5856cc89b1ad1cf14c4e9bb8d8d304d00",
+    "scripts/run-integration-tests.ts": "6563a8546d23ab66ebd871ab5ba75fb51b1f6f6983f42aedba0695d0d10182b1"
+  },
+  "remainingLimitations": [
+    "There is no dedicated versioned per-thread/per-skill summary-generation worker. The latest already-stored weekly-summary text may be stale or broad; if absent, the category is omitted.",
+    "The 40-row deterministic evidence window is deliberately bounded; very old misconception history outside that window is not sent to a provider.",
+    "No live provider call was made. Offline contract evidence does not prove production-model teaching quality.",
+    "The complete shared PostgreSQL suite after the CAS/idempotency follow-ups is owned by the root release gate; the affected PostgreSQL files passed in fresh isolated runs.",
+    "Deployed NUC/Cloudflare browser E2E and manual device/assistive-technology validation remain release-level external checks."
+  ]
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "learning_session" ADD COLUMN "review_only" boolean DEFAULT false NOT NULL;

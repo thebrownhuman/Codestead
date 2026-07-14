@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.forms.validation.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.forms",
+  "skillId": "html.forms.validation",
+  "title": "Native constraints and error semantics",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Native constraints and error semantics; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Native constraints and error semantics",
+      "claim": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Native constraints and error semantics",
+      "claim": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation. Your goal is to implement and test native constraints and describe how errors will be identified and corrected. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Paragraph and inline meaning; Relative and absolute URLs; Groups, choices and autocomplete. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error. This draft therefore rejects: The required attribute guarantees valid and trustworthy data reaches the server."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use required, type, range, length and pattern constraints while planning understandable server validation.",
+      "Implement and test native constraints and describe how errors will be identified and corrected."
+    ],
+    "excludes": [
+      "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error."
+    ]
+  },
+  "outcomes": [
+    "Implement and test native constraints and describe how errors will be identified and corrected."
+  ],
+  "examples": [
+    {
+      "id": "html.forms.validation.example-a",
+      "title": "Native constraints and error semantics: concrete case",
+      "situation": "An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+      ],
+      "result": "The result follows because Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+    },
+    {
+      "id": "html.forms.validation.example-b",
+      "title": "Native constraints and error semantics: boundary case",
+      "situation": "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: The required attribute guarantees valid and trustworthy data reaches the server."
+      ],
+      "result": "The boundary requires this correction: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.forms.validation.misconception",
+      "mistakenBelief": "The required attribute guarantees valid and trustworthy data reaches the server.",
+      "correction": "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The required attribute guarantees valid and trustworthy data reaches the server."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Native constraints and error semantics, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Native constraints and error semantics before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
+      "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
+      "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "An email input is labeled, required, and reports a text error linked to the control while the server repeats validation."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: The required attribute guarantees valid and trustworthy data reaches the server."
+      }
+    ],
+    "textAlternative": "Starting artifact: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation. Step 1, Artifact. State: evidence: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.. Check the result against the boundary and reject this misconception: The required attribute guarantees valid and trustworthy data reaches the server."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Native constraints and error semantics: concrete case”: state its starting evidence, apply the Native constraints and error semantics rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Native constraints and error semantics: concrete case.",
+        "Starting evidence: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
+        "Core rule: Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
+        "Observable result: The result follows because Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.",
+        "Boundary check: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
+        "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Native constraints and error semantics and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test native constraints and describe how errors will be identified and corrected.",
+        "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.forms.validation.misconception",
+      "explanation": "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'authoritative validation on the server' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test native constraints and describe how errors will be identified and corrected. Keep this boundary in view: Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
+    "retrievalPrompts": [
+      "Explain Native constraints and error semantics using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: The required attribute guarantees valid and trustworthy data reaches the server.",
+      "Apply checkpoint 'authoritative validation on the server' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Title and descriptive metadata”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

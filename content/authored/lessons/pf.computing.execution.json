@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.computing.execution.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.computing",
+  "skillId": "pf.computing.execution",
+  "title": "Source-to-execution models",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Source-to-execution models; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Source-to-execution models",
+      "claim": "Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears. Your goal is to trace a high-level source file through a named toolchain to observable output. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Hardware and software roles. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Compiled and interpreted are not permanent language categories; one implementation can combine ahead-of-time compilation, bytecode, interpretation, and just-in-time compilation. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Compiled languages run directly from source while interpreted languages never translate any code."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Recognize compilation, interpretation and virtual-machine execution without false absolutes.",
+      "Trace a high-level source file through a named toolchain to observable output."
+    ],
+    "excludes": [
+      "Compiled and interpreted are not permanent language categories; one implementation can combine ahead-of-time compilation, bytecode, interpretation, and just-in-time compilation."
+    ]
+  },
+  "outcomes": [
+    "Trace a high-level source file through a named toolchain to observable output."
+  ],
+  "examples": [
+    {
+      "id": "pf.computing.execution.example-a",
+      "title": "Source-to-execution models: direct case",
+      "situation": "A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies."
+      ],
+      "result": "The case supports the declared outcome because Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies."
+    },
+    {
+      "id": "pf.computing.execution.example-b",
+      "title": "Source-to-execution models: boundary case",
+      "situation": "A Java source file becomes bytecode that a JVM loads and may interpret or compile further while the application is running.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A Java source file becomes bytecode that a JVM loads and may interpret or compile further while the application is running.",
+        "Step 2 — Keep this boundary explicit: Compiled and interpreted are not permanent language categories; one implementation can combine ahead-of-time compilation, bytecode, interpretation, and just-in-time compilation.",
+        "Step 3 — Reject the documented misconception: Compiled languages run directly from source while interpreted languages never translate any code."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace a high-level source file through a named toolchain to observable output."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.computing.execution.misconception",
+      "mistakenBelief": "Compiled languages run directly from source while interpreted languages never translate any code.",
+      "correction": "Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Compiled languages run directly from source while interpreted languages never translate any code."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A workshop can model Source-to-execution models: instructions direct workers, the workbench holds active materials, and shelves preserve supplies between jobs.",
+    "usefulFor": [
+      "Separating active execution, temporary state, persistent material, and coordinating roles"
+    ],
+    "limitations": [
+      "Computer components follow formal interfaces and timing rules that a human workshop does not reproduce.",
+      "Compiled and interpreted are not permanent language categories; one implementation can combine ahead-of-time compilation, bytecode, interpretation, and just-in-time compilation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears.",
+      "Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form.",
+      "Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form."
+        },
+        "explanation": "Apply the declared Source-to-execution models model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Compiled languages run directly from source while interpreted languages never translate any code."
+      }
+    ],
+    "textAlternative": "Starting artifact: A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears. Step 1, Observe. State: evidence: A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form.. Apply the declared Source-to-execution models model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies.. Compare the observation with the correction and reject the misconception: Compiled languages run directly from source while interpreted languages never translate any code."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Source-to-execution models: direct case”: state its starting evidence, apply the Source-to-execution models rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Source-to-execution models: direct case.",
+        "Starting evidence: A C source file is passed to a compiler and linker, producing an executable that the operating system loads before its output appears.",
+        "Core rule: Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form.",
+        "Observable result: The case supports the declared outcome because Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies.",
+        "Boundary check: Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A Java source file becomes bytecode that a JVM loads and may interpret or compile further while the application is running.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Source text reaches observable behavior through a named toolchain: a compiler may translate ahead of time, an interpreter may execute through another runtime, and a virtual machine may execute an intermediate form.",
+        "Compiled and interpreted are not permanent language categories; one implementation can combine ahead-of-time compilation, bytecode, interpretation, and just-in-time compilation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Source-to-execution models, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Trace a high-level source file through a named toolchain to observable output.",
+        "Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.computing.execution.misconception",
+      "explanation": "Execution must name the concrete implementation and stages; source is represented or translated before a processor carries out machine instructions, and runtimes can mix strategies.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A Java source file becomes bytecode that a JVM loads and may interpret or compile further while the application is running."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace a high-level source file through a named toolchain to observable output. Keep this boundary in view: Compiled and interpreted are not permanent language categories; one implementation can combine ahead-of-time compilation, bytecode, interpretation, and just-in-time compilation.",
+    "retrievalPrompts": [
+      "Explain Source-to-execution models without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Compiled languages run directly from source while interpreted languages never translate any code.",
+      "Apply the model to this case from memory: A Java source file becomes bytecode that a JVM loads and may interpret or compile further while the application is running."
+    ],
+    "nextReviewPrompt": "Next: continue to “Instructions, state and determinism”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

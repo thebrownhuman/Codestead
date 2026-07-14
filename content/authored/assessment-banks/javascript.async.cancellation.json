@@ -1,0 +1,203 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.javascript.async.cancellation.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.async-network",
+  "skillId": "javascript.async.cancellation",
+  "title": "Cancellation, timeout and stale results deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "whatwg-fetch",
+    "mdn-js"
+  ],
+  "items": [
+    {
+      "skillId": "javascript.async.cancellation",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.async.cancellation.mcq.misconception",
+      "title": "Cancellation, timeout and stale results: reject the invalid model",
+      "prompt": "Which statement correctly resolves this JavaScript: Language and Browser Applications misconception? Dropping a promise variable automatically cancels its underlying request.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations.",
+        "incorrect": "That preserves the misconception. Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked JavaScript: Language and Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+        },
+        {
+          "id": "misconception",
+          "text": "Dropping a promise variable automatically cancels its underlying request."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+      }
+    },
+    {
+      "skillId": "javascript.async.cancellation",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.async.cancellation.fill.checkpoint",
+      "title": "Cancellation, timeout and stale results: complete the rule",
+      "prompt": "Complete the missing JavaScript: Language and Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: AbortSignal.",
+        "incorrect": "Recheck the exact rule. Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Promises do not cancel by being ignored; pass and trigger an {{key-rule}} to supported operations.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "AbortSignal"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+      }
+    },
+    {
+      "id": "javascript.async.cancellation.code.verified-facet",
+      "skillId": "javascript.async.cancellation",
+      "title": "Cancellation, timeout and stale results: verified implementation facet",
+      "kind": "code",
+      "prompt": "Abort obsolete work and prevent older responses from overwriting current interface state. Build a bounded artifact demonstrating AbortController prevents obsolete work; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "// TODO: implement the declared bounded browser behavior.\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "javascript",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "main.js",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        }
+      },
+      "tests": [
+        {
+          "id": "javascript.async.cancellation.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"request begins in a bounded state\",\n      \"expression\": \"['loading','Network lesson'].includes(document.querySelector('output').textContent)\",\n      \"expected\": true\n    }\n  ],\n  \"document\": \"<main><h1>Fetch</h1><output></output></main>\",\n  \"routes\": [\n    {\n      \"url\": \"https://learncoding.test/api/lesson\",\n      \"status\": 200,\n      \"contentType\": \"application/json\",\n      \"body\": \"{\\\"title\\\":\\\"Network lesson\\\"}\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "javascript.async.cancellation.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"abort produces explicit cancelled state\",\n      \"expression\": \"document.querySelector('output').textContent\",\n      \"expected\": \"cancelled\"\n    }\n  ],\n  \"document\": \"<main><h1>Fetch</h1><output></output></main>\",\n  \"routes\": [\n    {\n      \"url\": \"https://learncoding.test/api/lesson\",\n      \"status\": 200,\n      \"contentType\": \"application/json\",\n      \"body\": \"{\\\"title\\\":\\\"late\\\"}\",\n      \"delayMs\": 100\n    }\n  ],\n  \"actions\": [\n    {\n      \"type\": \"evaluate\",\n      \"expression\": \"globalThis.cancelRequest()\"\n    },\n    {\n      \"type\": \"wait\",\n      \"milliseconds\": 10\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "const controller = new AbortController(); globalThis.cancelRequest = () => controller.abort(); async function load() { const output = document.querySelector(\"output\"); output.textContent = \"loading\"; try { const response = await fetch(\"https://learncoding.test/api/lesson\", { signal: controller.signal }); if (!response.ok) throw new Error(\"HTTP \" + response.status); const body = await response.json(); output.textContent = body.title; } catch (error) { output.textContent = error.name === \"AbortError\" ? \"cancelled\" : \"failed\"; } } load();",
+        "explanation": "The reference is a bounded javascript artifact for AbortController prevents obsolete work. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

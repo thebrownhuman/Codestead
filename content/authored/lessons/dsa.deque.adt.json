@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.deque.adt.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.linear-adts",
+  "skillId": "dsa.deque.adt",
+  "title": "Deque ADT",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Deque ADT; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Deque ADT",
+      "claim": "A deque supports insertion and removal at both front and back while preserving a sequence order."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A deque supports insertion and removal at both front and back while preserving a sequence order.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back. Your goal is to use or implement a deque and justify it over a stack, queue or list. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Queue and circular buffer; Doubly and circular lists. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "A deque supports insertion and removal at both front and back while preserving a sequence order. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "It does not imply random middle access, and circular-buffer wraparound requires careful size invariants. The draft therefore rejects: A deque is just a queue with a faster middle insertion operation."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Support insertion and removal at both ends and identify deque-suitable problems.",
+      "Use or implement a deque and justify it over a stack, queue or list.",
+      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+    ],
+    "excludes": [
+      "It does not imply random middle access, and circular-buffer wraparound requires careful size invariants."
+    ]
+  },
+  "outcomes": [
+    "Use or implement a deque and justify it over a stack, queue or list."
+  ],
+  "examples": [
+    {
+      "id": "dsa.deque.adt.example-a",
+      "title": "Deque ADT: language-neutral trace",
+      "situation": "A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants."
+      ],
+      "result": "The conceptual result follows because A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants."
+    },
+    {
+      "id": "dsa.deque.adt.example-b",
+      "title": "Deque ADT: implementation transfer",
+      "situation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+        "Step 3 — Retest this boundary in the selected implementation: It does not imply random middle access, and circular-buffer wraparound requires careful size invariants."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.deque.adt.misconception",
+      "mistakenBelief": "A deque is just a queue with a faster middle insertion operation.",
+      "correction": "A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A deque is just a queue with a faster middle insertion operation."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Deque ADT, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "It does not imply random middle access, and circular-buffer wraparound requires careful size invariants."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back.",
+      "A deque supports insertion and removal at both front and back while preserving a sequence order.",
+      "A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants.",
+      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "A deque supports insertion and removal at both front and back while preserving a sequence order."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants."
+        },
+        "explanation": "Verify the result and reject this misconception: A deque is just a queue with a faster middle insertion operation."
+      }
+    ],
+    "textAlternative": "Starting artifact: A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back. Step 1, Specification. State: scenario: A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A deque supports insertion and removal at both front and back while preserving a sequence order.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends. Step 4, Conclusion. State: correction: A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants.. Verify the result and reject this misconception: A deque is just a queue with a faster middle insertion operation."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Deque ADT: language-neutral trace”: state its starting evidence, apply the Deque ADT rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Deque ADT: language-neutral trace.",
+        "Starting evidence: A sliding-window algorithm removes expired indexes from the front and dominated indexes from the back.",
+        "Core rule: A deque supports insertion and removal at both front and back while preserving a sequence order.",
+        "Observable result: The conceptual result follows because A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants.",
+        "Boundary check: A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A deque supports insertion and removal at both front and back while preserving a sequence order.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+        "It does not imply random middle access, and circular-buffer wraparound requires careful size invariants."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Deque ADT case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Use or implement a deque and justify it over a stack, queue or list.",
+        "A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.deque.adt.misconception",
+      "explanation": "A deque exposes both ends, not arbitrary middle insertion; maintain front, back, and size invariants.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'both ends', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to use or implement a deque and justify it over a stack, queue or list. Keep this boundary in view: It does not imply random middle access, and circular-buffer wraparound requires careful size invariants.",
+    "retrievalPrompts": [
+      "State the Deque ADT invariant and complexity without code.",
+      "Why is this claim false: A deque is just a queue with a faster middle insertion operation.",
+      "Map checkpoint 'both ends' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Stack and queue applications”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

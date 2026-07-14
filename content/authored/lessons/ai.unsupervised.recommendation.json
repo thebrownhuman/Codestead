@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.unsupervised.recommendation.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.unsupervised",
+  "skillId": "ai.unsupervised.recommendation",
+  "title": "Recommendation concepts",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Recommendation concepts; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning: unsupervised methods, clustering, dimensionality, and recommendation concepts; atomic topic: Recommendation concepts",
+      "claim": "Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Map/Measure outcomes for context, harmful bias, feedback, monitoring, and affected stakeholders; atomic topic: Recommendation concepts",
+      "claim": "Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls. Your goal is to specify and critique a small recommender objective, baseline and offline evaluation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Data and experimental workflow; Bias, variance and regularization; Dimensionality reduction; Problem, target and success measure. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Offline held-out clicks are biased by past policy, cold-start differs, optimizing engagement can narrow or harm, popularity amplifies incumbents, and user welfare is not one metric. The learner must reject this overclaim: Historical clicks are unbiased preference labels and a higher offline click metric proves the recommender benefits users."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish content, collaborative and popularity baselines and identify feedback-loop and exposure bias.",
+      "Specify and critique a small recommender objective, baseline and offline evaluation."
+    ],
+    "excludes": [
+      "Offline held-out clicks are biased by past policy, cold-start differs, optimizing engagement can narrow or harm, popularity amplifies incumbents, and user welfare is not one metric."
+    ]
+  },
+  "outcomes": [
+    "Specify and critique a small recommender objective, baseline and offline evaluation."
+  ],
+  "examples": [
+    {
+      "id": "ai.unsupervised.recommendation.example.direct",
+      "title": "Recommendation concepts: bounded direct case",
+      "situation": "A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms."
+      ],
+      "result": "This example supports only the atomic outcome because Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms."
+    },
+    {
+      "id": "ai.unsupervised.recommendation.example.stress",
+      "title": "Recommendation concepts: stress and transfer case",
+      "situation": "Items never exposed have no clicks, so the system does not treat zero interaction as proof of dislike and documents counterfactual limits.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Items never exposed have no clicks, so the system does not treat zero interaction as proof of dislike and documents counterfactual limits.",
+        "Step 2 — Keep the non-claim visible: Offline held-out clicks are biased by past policy, cold-start differs, optimizing engagement can narrow or harm, popularity amplifies incumbents, and user welfare is not one metric.",
+        "Step 3 — Reject the tempting overclaim: Historical clicks are unbiased preference labels and a higher offline click metric proves the recommender benefits users."
+      ],
+      "result": "This case demonstrates the declared outcome: Specify and critique a small recommender objective, baseline and offline evaluation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.unsupervised.recommendation.misconception",
+      "mistakenBelief": "Historical clicks are unbiased preference labels and a higher offline click metric proves the recommender benefits users.",
+      "correction": "Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Historical clicks are unbiased preference labels and a higher offline click metric proves the recommender benefits users."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an exploratory sorting table whose representation, distance, projection, reference population, and exposure policy determine visible patterns can introduce Recommendation concepts only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "clustering, dimensionality reduction, anomaly scoring, and recommendation"
+    ],
+    "limitations": [
+      "algorithmic groups and outliers are parameter-dependent summaries rather than discovered human categories or harms",
+      "Offline held-out clicks are biased by past policy, cold-start differs, optimizing engagement can narrow or harm, popularity amplifies incumbents, and user welfare is not one metric."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls.",
+      "Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference.",
+      "Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Historical clicks are unbiased preference labels and a higher offline click metric proves the recommender benefits users."
+      }
+    ],
+    "textAlternative": "Starting artifact: A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls. Step 1, Observe. State: boundedEvidence: A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms.. State what the evidence does not establish and reject the misconception: Historical clicks are unbiased preference labels and a higher offline click metric proves the recommender benefits users."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Recommendation concepts: bounded direct case”: state its starting evidence, apply the Recommendation concepts rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Recommendation concepts: bounded direct case.",
+        "Starting evidence: A personalized ranker is compared with recent-popularity and random baselines using time splits, catalog coverage, repeat rate, and user controls.",
+        "Core rule: Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference.",
+        "Observable result: This example supports only the atomic outcome because Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms.",
+        "Boundary check: Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Items never exposed have no clicks, so the system does not treat zero interaction as proof of dislike and documents counterfactual limits.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Recommendation ranks items using popularity, content, collaborative signals, or combinations, and must account for exposure because observed interactions reflect what users were shown as well as preference.",
+        "Offline held-out clicks are biased by past policy, cold-start differs, optimizing engagement can narrow or harm, popularity amplifies incumbents, and user welfare is not one metric."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Recommendation concepts and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Specify and critique a small recommender objective, baseline and offline evaluation.",
+        "Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.unsupervised.recommendation.misconception",
+      "explanation": "Model exposure and policy effects, compare simple baselines, and evaluate relevance together with coverage, diversity, control, feedback loops, and stakeholder harms.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Items never exposed have no clicks, so the system does not treat zero interaction as proof of dislike and documents counterfactual limits."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to specify and critique a small recommender objective, baseline and offline evaluation. Keep this boundary in view: Offline held-out clicks are biased by past policy, cold-start differs, optimizing engagement can narrow or harm, popularity amplifies incumbents, and user welfare is not one metric.",
+    "retrievalPrompts": [
+      "Explain Recommendation concepts with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Historical clicks are unbiased preference labels and a higher offline click metric proves the recommender benefits users.",
+      "Apply the boundary to: Items never exposed have no clicks, so the system does not treat zero interaction as proof of dislike and documents counterfactual limits."
+    ],
+    "nextReviewPrompt": "Next: continue to “Units, layers and activations”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

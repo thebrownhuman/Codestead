@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.tools.files.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.tools-quality",
+  "skillId": "pf.tools.files",
+  "title": "Files, folders and paths deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Files, folders and paths; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf",
+    "cs2023-se"
+  ],
+  "items": [
+    {
+      "id": "pf.tools.files.mcq.misconception",
+      "skillId": "pf.tools.files",
+      "title": "Files, folders and paths: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? A relative path always resolves from the user's home folder and a file extension proves the file's format.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone.",
+        "incorrect": "The selected statement preserves the documented misconception. Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Files, folders and paths instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "A relative path always resolves from the user's home folder and a file extension proves the file's format."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Resolve relative paths from the current working directory, normalize segments carefully, and inspect or validate content instead of trusting an extension alone."
+      }
+    }
+  ]
+}

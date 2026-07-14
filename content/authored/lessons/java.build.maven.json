@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.build.maven.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.packaging-quality",
+  "skillId": "java.build.maven",
+  "title": "Maven project lifecycle",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Maven project lifecycle; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "maven",
+      "locator": "Apache Maven Getting Started Guide; current accessed 2026-07; Creating a Project, Standard Directory Layout, POM, Dependencies, and Build Lifecycle; atomic topic: Maven project lifecycle",
+      "claim": "A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml. Your goal is to build, test and package a multi-package application with Maven. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Exceptions, resources and I/O; Lambdas, streams and optionals; Packages and access control; JDK, JVM and Java language. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Dependency ranges, unpinned plugins, profiles, repositories, generated sources, local caches, and environment-sensitive tests can still break reproducibility. The learner must reject this documented misconception: If mvn package succeeds once, the pom fully captures the build and the same artifact is guaranteed everywhere."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Declare coordinates, source layout, dependencies, plugins and reproducible test execution.",
+      "Build, test and package a multi-package application with Maven."
+    ],
+    "excludes": [
+      "Dependency ranges, unpinned plugins, profiles, repositories, generated sources, local caches, and environment-sensitive tests can still break reproducibility."
+    ]
+  },
+  "outcomes": [
+    "Build, test and package a multi-package application with Maven."
+  ],
+  "examples": [
+    {
+      "id": "java.build.maven.example.direct",
+      "title": "Maven project lifecycle: direct language case",
+      "situation": "mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment."
+      ],
+      "result": "The example meets the atomic outcome because Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment."
+    },
+    {
+      "id": "java.build.maven.example.boundary",
+      "title": "Maven project lifecycle: boundary and transfer case",
+      "situation": "A build succeeds locally only because an undeclared jar exists in the developer cache, so the dependency is declared and CI verifies from a clean cache.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A build succeeds locally only because an undeclared jar exists in the developer cache, so the dependency is declared and CI verifies from a clean cache.",
+        "Step 2 — Keep the language boundary explicit: Dependency ranges, unpinned plugins, profiles, repositories, generated sources, local caches, and environment-sensitive tests can still break reproducibility.",
+        "Step 3 — Reject the tempting but incorrect rule: If mvn package succeeds once, the pom fully captures the build and the same artifact is guaranteed everywhere."
+      ],
+      "result": "This case demonstrates the declared outcome: Build, test and package a multi-package application with Maven."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.build.maven.misconception",
+      "mistakenBelief": "If mvn package succeeds once, the pom fully captures the build and the same artifact is guaranteed everywhere.",
+      "correction": "Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: If mvn package succeeds once, the pom fully captures the build and the same artifact is guaranteed everywhere."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a versioned delivery line whose public labels, recipe, inspections, and investigation record make one artifact reproducible can introduce Maven project lifecycle, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "packages, Maven, JUnit, debugging, and project evidence"
+    ],
+    "limitations": [
+      "access control is not a security boundary and caches, plugins, bytecode, secrets, and platform differences need technical controls",
+      "Dependency ranges, unpinned plugins, profiles, repositories, generated sources, local caches, and environment-sensitive tests can still break reproducibility."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml.",
+      "A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs.",
+      "Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: If mvn package succeeds once, the pom fully captures the build and the same artifact is guaranteed everywhere."
+      }
+    ],
+    "textAlternative": "Starting artifact: mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml. Step 1, Observe. State: evidence: mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment.. Compare the observation with the correction and explain why the misconception fails: If mvn package succeeds once, the pom fully captures the build and the same artifact is guaranteed everywhere."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Maven project lifecycle: direct language case”: state its starting evidence, apply the Maven project lifecycle rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Maven project lifecycle: direct language case.",
+        "Starting evidence: mvn verify compiles main and test sources, runs deterministic tests, and produces a versioned artifact from the committed pom.xml.",
+        "Core rule: A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs.",
+        "Observable result: The example meets the atomic outcome because Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment.",
+        "Boundary check: Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A build succeeds locally only because an undeclared jar exists in the developer cache, so the dependency is declared and CI verifies from a clean cache.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Maven project declares coordinates, conventional source/test layout, dependencies, plugins, and lifecycle phases so a clean environment can reproduce test and package outputs.",
+        "Dependency ranges, unpinned plugins, profiles, repositories, generated sources, local caches, and environment-sensitive tests can still break reproducibility."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Maven project lifecycle, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Build, test and package a multi-package application with Maven.",
+        "Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.build.maven.misconception",
+      "explanation": "Treat the POM and locked build policy as an executable contract, pin relevant plugin and dependency behavior, and verify from a clean environment.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A build succeeds locally only because an undeclared jar exists in the developer cache, so the dependency is declared and CI verifies from a clean cache."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to build, test and package a multi-package application with Maven. Keep this boundary in view: Dependency ranges, unpinned plugins, profiles, repositories, generated sources, local caches, and environment-sensitive tests can still break reproducibility.",
+    "retrievalPrompts": [
+      "Explain Maven project lifecycle using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: If mvn package succeeds once, the pom fully captures the build and the same artifact is guaranteed everywhere.",
+      "Predict this case from memory: A build succeeds locally only because an undeclared jar exists in the developer cache, so the dependency is declared and CI verifies from a clean cache."
+    ],
+    "nextReviewPrompt": "Next: continue to “JUnit tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

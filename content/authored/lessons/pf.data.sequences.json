@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.data.sequences.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.data",
+  "skillId": "pf.data.sequences",
+  "title": "Sequences and indexes",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Sequences and indexes; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Sequences and indexes",
+      "claim": "A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once. Your goal is to trace indexed reads, updates and traversal without off-by-one errors. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Values and types. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Index origins, negative indexes, slicing bounds, mutability, and out-of-range behavior differ by language and sequence type. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A sequence of length four has a valid element at index four because length names the last position."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use ordered collections and valid positions, including empty and boundary cases.",
+      "Trace indexed reads, updates and traversal without off-by-one errors."
+    ],
+    "excludes": [
+      "Index origins, negative indexes, slicing bounds, mutability, and out-of-range behavior differ by language and sequence type."
+    ]
+  },
+  "outcomes": [
+    "Trace indexed reads, updates and traversal without off-by-one errors."
+  ],
+  "examples": [
+    {
+      "id": "pf.data.sequences.example-a",
+      "title": "Sequences and indexes: direct case",
+      "situation": "For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly."
+      ],
+      "result": "The case supports the declared outcome because For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly."
+    },
+    {
+      "id": "pf.data.sequences.example-b",
+      "title": "Sequences and indexes: boundary case",
+      "situation": "Removing the first queue item changes later positions, so cached indexes must be reconsidered before another access.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: Removing the first queue item changes later positions, so cached indexes must be reconsidered before another access.",
+        "Step 2 — Keep this boundary explicit: Index origins, negative indexes, slicing bounds, mutability, and out-of-range behavior differ by language and sequence type.",
+        "Step 3 — Reject the documented misconception: A sequence of length four has a valid element at index four because length names the last position."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace indexed reads, updates and traversal without off-by-one errors."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.data.sequences.misconception",
+      "mistakenBelief": "A sequence of length four has a valid element at index four because length names the last position.",
+      "correction": "For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A sequence of length four has a valid element at index four because length names the last position."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "An organized storeroom can model Sequences and indexes: shelves preserve order, labeled bins group fields, membership lists avoid duplicates, and indexes locate values.",
+    "usefulFor": [
+      "Comparing organization by order, name, membership, lookup, and update needs"
+    ],
+    "limitations": [
+      "Physical storage hides concrete complexity, equality, hashing, mutation, allocation, and concurrency guarantees.",
+      "Index origins, negative indexes, slicing bounds, mutability, and out-of-range behavior differ by language and sequence type."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once.",
+      "A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes.",
+      "For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes."
+        },
+        "explanation": "Apply the declared Sequences and indexes model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A sequence of length four has a valid element at index four because length names the last position."
+      }
+    ],
+    "textAlternative": "Starting artifact: For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once. Step 1, Observe. State: evidence: For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes.. Apply the declared Sequences and indexes model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly.. Compare the observation with the correction and reject the misconception: A sequence of length four has a valid element at index four because length names the last position."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Sequences and indexes: direct case”: state its starting evidence, apply the Sequences and indexes rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Sequences and indexes: direct case.",
+        "Starting evidence: For four items with zero-based indexing, valid indexes are zero through three and a loop condition index less than length visits each exactly once.",
+        "Core rule: A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes.",
+        "Observable result: The case supports the declared outcome because For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly.",
+        "Boundary check: For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: Removing the first queue item changes later positions, so cached indexes must be reconsidered before another access.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A sequence stores ordered elements at valid positions; indexed access, update, slicing, and traversal must respect empty input and the first and last valid indexes.",
+        "Index origins, negative indexes, slicing bounds, mutability, and out-of-range behavior differ by language and sequence type."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Sequences and indexes, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Trace indexed reads, updates and traversal without off-by-one errors.",
+        "For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.data.sequences.misconception",
+      "explanation": "For a zero-based sequence, the last valid index is length minus one; test empty, first, last, and one-past-last cases explicitly.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Removing the first queue item changes later positions, so cached indexes must be reconsidered before another access."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace indexed reads, updates and traversal without off-by-one errors. Keep this boundary in view: Index origins, negative indexes, slicing bounds, mutability, and out-of-range behavior differ by language and sequence type.",
+    "retrievalPrompts": [
+      "Explain Sequences and indexes without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A sequence of length four has a valid element at index four because length names the last position.",
+      "Apply the model to this case from memory: Removing the first queue item changes later positions, so cached indexes must be reconsidered before another access."
+    ],
+    "nextReviewPrompt": "Next: continue to “Records and entities”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

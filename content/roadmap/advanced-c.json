@@ -1,0 +1,15 @@
+{
+  "$schema": "../schema/roadmap-track.schema.json",
+  "format": "roadmap-track",
+  "schema_version": "1.0.0",
+  "id": "advanced-c",
+  "title": "Advanced C",
+  "status": "coming-soon",
+  "release": "launch-2",
+  "prerequisites": ["c"],
+  "scope_brief": "A separately reviewed post-intermediate C track focused on systems-level reasoning beyond the Launch 1 C boundary.",
+  "planned_scope": ["Advanced object lifetime and storage analysis", "Concurrency and atomics with portable boundaries", "Systems interfaces, profiling and defensive performance work"],
+  "non_goals": ["No lesson, assessment, exam or mastery claim exists in Launch 1."],
+  "approval": { "state": "approved-for-roadmap-only", "required_role": "admin", "decision_ref": "owner-scope-2026-07-12" },
+  "publication": { "learner_content_available": false, "authored_lessons": 0, "assessment_banks": 0, "exam_eligible_items": 0, "requires_separate_verified_release": true }
+}

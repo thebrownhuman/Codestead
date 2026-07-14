@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.quality.debug.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.packaging-quality",
+  "skillId": "java.quality.debug",
+  "title": "Debugging, logging and final project",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Debugging, logging and final project; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Packages, debugging, tools, and application project guidance; atomic topic: Debugging, logging and final project",
+      "claim": "Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; CS2023 Software Development Fundamentals: programming practices, testing, debugging, abstraction, data, and concurrency outcomes as applicable; atomic topic: Debugging, logging and final project",
+      "claim": "Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test. Your goal is to deliver and explain a tested multi-package CLI application with reproducible build output. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Exceptions, resources and I/O; Lambdas, streams and optionals; JUnit tests; Resource management and serialization boundaries; Reduction and collectors. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "A debugger can change timing, logs can leak secrets or become user-facing control flow, optimized/runtime internals may differ, and the first visible bad value can have an earlier cause. The learner must reject this documented misconception: Adding print statements until the symptom disappears is sufficient debugging evidence and production logging may include any value useful to a developer."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use debugger state and structured logging without leaking secrets or replacing error handling.",
+      "Deliver and explain a tested multi-package CLI application with reproducible build output."
+    ],
+    "excludes": [
+      "A debugger can change timing, logs can leak secrets or become user-facing control flow, optimized/runtime internals may differ, and the first visible bad value can have an earlier cause."
+    ]
+  },
+  "outcomes": [
+    "Deliver and explain a tested multi-package CLI application with reproducible build output."
+  ],
+  "examples": [
+    {
+      "id": "java.quality.debug.example.direct",
+      "title": "Debugging, logging and final project: direct language case",
+      "situation": "A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test."
+      ],
+      "result": "The example meets the atomic outcome because Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test."
+    },
+    {
+      "id": "java.quality.debug.example.boundary",
+      "title": "Debugging, logging and final project: boundary and transfer case",
+      "situation": "Structured logging records an operation id and safe status without printing tokens, passwords, full personal data, or replacing exception propagation.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: Structured logging records an operation id and safe status without printing tokens, passwords, full personal data, or replacing exception propagation.",
+        "Step 2 — Keep the language boundary explicit: A debugger can change timing, logs can leak secrets or become user-facing control flow, optimized/runtime internals may differ, and the first visible bad value can have an earlier cause.",
+        "Step 3 — Reject the tempting but incorrect rule: Adding print statements until the symptom disappears is sufficient debugging evidence and production logging may include any value useful to a developer."
+      ],
+      "result": "This case demonstrates the declared outcome: Deliver and explain a tested multi-package CLI application with reproducible build output."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.quality.debug.misconception",
+      "mistakenBelief": "Adding print statements until the symptom disappears is sufficient debugging evidence and production logging may include any value useful to a developer.",
+      "correction": "Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Adding print statements until the symptom disappears is sufficient debugging evidence and production logging may include any value useful to a developer."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a versioned delivery line whose public labels, recipe, inspections, and investigation record make one artifact reproducible can introduce Debugging, logging and final project, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "packages, Maven, JUnit, debugging, and project evidence"
+    ],
+    "limitations": [
+      "access control is not a security boundary and caches, plugins, bytecode, secrets, and platform differences need technical controls",
+      "A debugger can change timing, logs can leak secrets or become user-facing control flow, optimized/runtime internals may differ, and the first visible bad value can have an earlier cause."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test.",
+      "Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair.",
+      "Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Adding print statements until the symptom disappears is sufficient debugging evidence and production logging may include any value useful to a developer."
+      }
+    ],
+    "textAlternative": "Starting artifact: A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test. Step 1, Observe. State: evidence: A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test.. Compare the observation with the correction and explain why the misconception fails: Adding print statements until the symptom disappears is sufficient debugging evidence and production logging may include any value useful to a developer."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Debugging, logging and final project: direct language case”: state its starting evidence, apply the Debugging, logging and final project rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Debugging, logging and final project: direct language case.",
+        "Starting evidence: A conditional breakpoint stops at the first invalid balance, the learner traces its assignment backward, fixes the invariant, and adds a boundary regression test.",
+        "Core rule: Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair.",
+        "Observable result: The example meets the atomic outcome because Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test.",
+        "Boundary check: Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: Structured logging records an operation id and safe status without printing tokens, passwords, full personal data, or replacing exception propagation.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java debugging combines a reproducible failing case, breakpoints and state inspection, stack-aware hypotheses, structured diagnostics, and a regression test that proves the repair.",
+        "A debugger can change timing, logs can leak secrets or become user-facing control flow, optimized/runtime internals may differ, and the first visible bad value can have an earlier cause."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Debugging, logging and final project, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Deliver and explain a tested multi-package CLI application with reproducible build output.",
+        "Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.quality.debug.misconception",
+      "explanation": "Debug from a reproducible failure and explicit hypothesis, inspect the causal state, protect sensitive data, and preserve the fix with an automated regression test.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Structured logging records an operation id and safe status without printing tokens, passwords, full personal data, or replacing exception propagation."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to deliver and explain a tested multi-package CLI application with reproducible build output. Keep this boundary in view: A debugger can change timing, logs can leak secrets or become user-facing control flow, optimized/runtime internals may differ, and the first visible bad value can have an earlier cause.",
+    "retrievalPrompts": [
+      "Explain Debugging, logging and final project using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Adding print statements until the symptom disappears is sufficient debugging evidence and production logging may include any value useful to a developer.",
+      "Predict this case from memory: Structured logging records an operation id and safe status without printing tokens, passwords, full personal data, or replacing exception propagation."
+    ],
+    "nextReviewPrompt": "Next: continue to “References, heap and garbage collection”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

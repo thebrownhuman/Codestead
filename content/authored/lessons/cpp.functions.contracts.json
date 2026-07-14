@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.functions.contracts.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.functions",
+  "skillId": "cpp.functions.contracts",
+  "title": "Function contracts and return values",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Function contracts and return values; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Function contracts and return values",
+      "claim": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; provisions applicable to Function contracts and return values",
+      "claim": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching. Your goal is to design and implement cohesive functions with testable contracts. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and range iteration; pf abstraction calls; pf abstraction functions; Fundamental types and initialization. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone. Therefore the draft explicitly rejects this beginner failure model: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Specify preconditions, outputs and effects and prefer return values for results.",
+      "Design and implement cohesive functions with testable contracts."
+    ],
+    "excludes": [
+      "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone."
+    ]
+  },
+  "outcomes": [
+    "Design and implement cohesive functions with testable contracts."
+  ],
+  "examples": [
+    {
+      "id": "cpp.functions.contracts.example-a",
+      "title": "Function contracts and return values: defined case",
+      "situation": "A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+      ],
+      "result": "The defined result follows because Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+    },
+    {
+      "id": "cpp.functions.contracts.example-b",
+      "title": "Function contracts and return values: boundary case",
+      "situation": "A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior.",
+        "Step 2 — Keep this standard boundary visible: A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone.",
+        "Step 3 — Reject the tempting rule: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and implement cohesive functions with testable contracts."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.functions.contracts.misconception",
+      "mistakenBelief": "If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature.",
+      "correction": "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Function contracts and return values: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
+      "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
+      "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+      }
+    ],
+    "textAlternative": "Starting artifact: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching. Step 1, Source and state. State: evidence: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.. Check the conclusion against the boundary and reject this misconception: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Function contracts and return values: defined case”: state its starting evidence, apply the Function contracts and return values rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Function contracts and return values: defined case.",
+        "Starting evidence: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
+        "Core rule: A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
+        "Observable result: The defined result follows because Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.",
+        "Boundary check: Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
+        "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Function contracts and return values, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Design and implement cohesive functions with testable contracts.",
+        "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.functions.contracts.misconception",
+      "explanation": "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'semantic preconditions' and state the decisive evidence: A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and implement cohesive functions with testable contracts. Keep this boundary in view: A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone.",
+    "retrievalPrompts": [
+      "Explain Function contracts and return values using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature.",
+      "Apply the checkpoint 'semantic preconditions' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Value, reference and const-reference parameters”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

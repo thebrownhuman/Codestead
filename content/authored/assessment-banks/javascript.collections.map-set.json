@@ -1,0 +1,207 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.javascript.collections.map-set.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.collections",
+  "skillId": "javascript.collections.map-set",
+  "title": "Map, Set and structured copying deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible isolated-runner implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "ecma262",
+    "mdn-js"
+  ],
+  "items": [
+    {
+      "skillId": "javascript.collections.map-set",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.collections.map-set.mcq.misconception",
+      "title": "Map, Set and structured copying: reject the invalid model",
+      "prompt": "Which statement correctly resolves this JavaScript: Language and Browser Applications misconception? Two separate objects with identical properties are one Set value because their contents match.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries.",
+        "incorrect": "That preserves the misconception. Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked JavaScript: Language and Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+        },
+        {
+          "id": "misconception",
+          "text": "Two separate objects with identical properties are one Set value because their contents match."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+      }
+    },
+    {
+      "skillId": "javascript.collections.map-set",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.collections.map-set.fill.checkpoint",
+      "title": "Map, Set and structured copying: complete the rule",
+      "prompt": "Complete the missing JavaScript: Language and Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: use identity.",
+        "incorrect": "Recheck the exact rule. Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Object keys {{key-rule}} in Map and Set; structurally equal but distinct objects remain distinct entries.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "use identity"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+      }
+    },
+    {
+      "skillId": "javascript.collections.map-set",
+      "kind": "code",
+      "points": 10,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Digest-pinned runner evidence does not replace independent human technical, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use.",
+        "Reference execution is pinned to the reviewed local Node 22.23.1 runner image; the item remains human-unreviewed and exam-ineligible."
+      ],
+      "id": "javascript.collections.map-set.code.apply",
+      "title": "Map, Set and structured copying: executable evidence",
+      "prompt": "Read a JSON array and use Set to print the number of unique SameValueZero values.",
+      "evidenceLevel": "apply",
+      "hints": [
+        "Validate input, implement only the target behavior, and print exactly the declared output."
+      ],
+      "feedback": {
+        "correct": "All deterministic JavaScript behavior checks passed.",
+        "incorrect": "At least one behavior check failed; inspect input, state, and output without revealing hidden cases."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "behavior",
+            "description": "Passes every normal and boundary runner test in the pinned JavaScript runtime.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "starterCode": "const fs = require('node:fs');\nconst values = JSON.parse(fs.readFileSync(0, 'utf8'));\n// create Set and print unique count\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "javascript",
+        "version": "Node.js 22.23.1 (ECMAScript 2025)",
+        "entrypoint": "main.js",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128,
+        "imageDigest": "sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931"
+      },
+      "tests": [
+        {
+          "id": "set-visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "[1,1,2,3]\n",
+          "expectedStdout": "3\n",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "set-hidden-empty",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "[]\n",
+          "expectedStdout": "0\n",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "set-hidden-text",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "[\"a\",\"b\",\"a\"]\n",
+          "expectedStdout": "2\n",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "const fs = require('node:fs');\nconst values = JSON.parse(fs.readFileSync(0, 'utf8'));\nif (!Array.isArray(values)) process.exit(1);\nconsole.log(new Set(values).size);\n",
+        "explanation": "The reference implements the bounded Map, Set and structured copying behavior with exact deterministic output."
+      }
+    }
+  ]
+}

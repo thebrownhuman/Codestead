@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.toolchain.diagnostics.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.toolchain",
+  "skillId": "c.toolchain.diagnostics",
+  "title": "Warnings and diagnostics",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Warnings and diagnostics; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Warnings and diagnostics",
+      "claim": "A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Warnings and diagnostics",
+      "claim": "A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code. Your goal is to repair syntax and constraint violations reported by a strict compiler invocation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Preprocess, compile, assemble and link. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Warnings are tool-configurable, one cause can cascade into many messages, and no diagnostic is required for every undefined or incorrect behavior. Therefore the draft explicitly rejects this beginner failure model: A program with no compiler warnings is guaranteed to be defined, correct, and portable."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use diagnostic locations and warning categories instead of ignoring warnings.",
+      "Repair syntax and constraint violations reported by a strict compiler invocation."
+    ],
+    "excludes": [
+      "Warnings are tool-configurable, one cause can cascade into many messages, and no diagnostic is required for every undefined or incorrect behavior."
+    ]
+  },
+  "outcomes": [
+    "Repair syntax and constraint violations reported by a strict compiler invocation."
+  ],
+  "examples": [
+    {
+      "id": "c.toolchain.diagnostics.example-a",
+      "title": "Warnings and diagnostics: defined case",
+      "situation": "A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks."
+      ],
+      "result": "The defined result follows because Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks."
+    },
+    {
+      "id": "c.toolchain.diagnostics.example-b",
+      "title": "Warnings and diagnostics: boundary case",
+      "situation": "Strict warnings report an implicit narrowing or suspicious comparison even though object code could be emitted, prompting an explicit correctness review.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: Strict warnings report an implicit narrowing or suspicious comparison even though object code could be emitted, prompting an explicit correctness review.",
+        "Step 2 — Keep this standard boundary visible: Warnings are tool-configurable, one cause can cascade into many messages, and no diagnostic is required for every undefined or incorrect behavior.",
+        "Step 3 — Reject the tempting rule: A program with no compiler warnings is guaranteed to be defined, correct, and portable."
+      ],
+      "result": "This case demonstrates the declared outcome: Repair syntax and constraint violations reported by a strict compiler invocation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.toolchain.diagnostics.misconception",
+      "mistakenBelief": "A program with no compiler warnings is guaranteed to be defined, correct, and portable.",
+      "correction": "Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A program with no compiler warnings is guaranteed to be defined, correct, and portable."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Warnings and diagnostics: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Warnings are tool-configurable, one cause can cascade into many messages, and no diagnostic is required for every undefined or incorrect behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code.",
+      "A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair.",
+      "Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A program with no compiler warnings is guaranteed to be defined, correct, and portable."
+      }
+    ],
+    "textAlternative": "Starting artifact: A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code. Step 1, Source and state. State: evidence: A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks.. Check the conclusion against the boundary and reject this misconception: A program with no compiler warnings is guaranteed to be defined, correct, and portable."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Warnings and diagnostics: defined case”: state its starting evidence, apply the Warnings and diagnostics rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Warnings and diagnostics: defined case.",
+        "Starting evidence: A missing semicolon causes a parser diagnostic near the following token, so the learner inspects the preceding statement before changing unrelated code.",
+        "Core rule: A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair.",
+        "Observable result: The defined result follows because Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks.",
+        "Boundary check: Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: Strict warnings report an implicit narrowing or suspicious comparison even though object code could be emitted, prompting an explicit correctness review.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A diagnostic identifies a violated syntax or constraint or a tool-detected risk; its phase, primary location, severity, and first causal message guide repair.",
+        "Warnings are tool-configurable, one cause can cascade into many messages, and no diagnostic is required for every undefined or incorrect behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Warnings and diagnostics, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Repair syntax and constraint violations reported by a strict compiler invocation.",
+        "Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.toolchain.diagnostics.misconception",
+      "explanation": "Treat clean diagnostics as bounded tool evidence, not proof; compile with strict warnings and still test behavior, contracts, portability, and undefined-behavior risks.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'strict warnings' and state the decisive evidence: Strict warnings report an implicit narrowing or suspicious comparison even though object code could be emitted, prompting an explicit correctness review."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair syntax and constraint violations reported by a strict compiler invocation. Keep this boundary in view: Warnings are tool-configurable, one cause can cascade into many messages, and no diagnostic is required for every undefined or incorrect behavior.",
+    "retrievalPrompts": [
+      "Explain Warnings and diagnostics using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: A program with no compiler warnings is guaranteed to be defined, correct, and portable.",
+      "Apply the checkpoint 'strict warnings' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Library headers and declarations”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.sort.merge-quick.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.search-sort",
+  "skillId": "dsa.sort.merge-quick",
+  "title": "Merge sort and quicksort",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Merge sort and quicksort; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Merge sort and quicksort",
+      "claim": "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A merge step combines two sorted half-ranges while preserving their combined order invariant. Your goal is to implement and test merge sort and partition logic and compare their space and case behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Time, space and asymptotic growth; Selection and insertion sort; Divide-and-conquer strategy. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection. The draft therefore rejects: Quicksort is always O(n log n) regardless of pivot and input."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Apply divide-and-conquer to stable merging and partition-based sorting with worst-case awareness.",
+      "Implement and test merge sort and partition logic and compare their space and case behavior.",
+      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+    ],
+    "excludes": [
+      "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+    ]
+  },
+  "outcomes": [
+    "Implement and test merge sort and partition logic and compare their space and case behavior."
+  ],
+  "examples": [
+    {
+      "id": "dsa.sort.merge-quick.example-a",
+      "title": "Merge sort and quicksort: language-neutral trace",
+      "situation": "A merge step combines two sorted half-ranges while preserving their combined order invariant.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A merge step combines two sorted half-ranges while preserving their combined order invariant.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+      ],
+      "result": "The conceptual result follows because Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+    },
+    {
+      "id": "dsa.sort.merge-quick.example-b",
+      "title": "Merge sort and quicksort: implementation transfer",
+      "situation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+        "Step 3 — Retest this boundary in the selected implementation: Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.sort.merge-quick.misconception",
+      "mistakenBelief": "Quicksort is always O(n log n) regardless of pivot and input.",
+      "correction": "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Quicksort is always O(n log n) regardless of pivot and input."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Merge sort and quicksort, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A merge step combines two sorted half-ranges while preserving their combined order invariant.",
+      "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
+      "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
+      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A merge step combines two sorted half-ranges while preserving their combined order invariant."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+        },
+        "explanation": "Verify the result and reject this misconception: Quicksort is always O(n log n) regardless of pivot and input."
+      }
+    ],
+    "textAlternative": "Starting artifact: A merge step combines two sorted half-ranges while preserving their combined order invariant. Step 1, Specification. State: scenario: A merge step combines two sorted half-ranges while preserving their combined order invariant.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics. Step 4, Conclusion. State: correction: Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.. Verify the result and reject this misconception: Quicksort is always O(n log n) regardless of pivot and input."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Merge sort and quicksort: language-neutral trace”: state its starting evidence, apply the Merge sort and quicksort rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Merge sort and quicksort: language-neutral trace.",
+        "Starting evidence: A merge step combines two sorted half-ranges while preserving their combined order invariant.",
+        "Core rule: Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
+        "Observable result: The conceptual result follows because Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
+        "Boundary check: Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+        "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Merge sort and quicksort case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement and test merge sort and partition logic and compare their space and case behavior.",
+        "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.sort.merge-quick.misconception",
+      "explanation": "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'quadratic worst cases', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test merge sort and partition logic and compare their space and case behavior. Keep this boundary in view: Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection.",
+    "retrievalPrompts": [
+      "State the Merge sort and quicksort invariant and complexity without code.",
+      "Why is this claim false: Quicksort is always O(n log n) regardless of pivot and input.",
+      "Map checkpoint 'quadratic worst cases' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Sorting properties and selection”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

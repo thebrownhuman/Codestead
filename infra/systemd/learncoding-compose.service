@@ -1,0 +1,21 @@
+[Unit]
+Description=LearnCoding trusted application stack
+Documentation=/opt/learncoding/docs/deployment.md
+After=docker.service network-online.target local-fs.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/learncoding
+EnvironmentFile=/etc/learncoding/compose.env
+ExecStartPre=/usr/bin/bash /opt/learncoding/infra/ops/validate-runtime.sh
+ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build --remove-orphans
+ExecReload=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build --remove-orphans
+ExecStop=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans
+TimeoutStartSec=15min
+TimeoutStopSec=2min
+
+[Install]
+WantedBy=multi-user.target

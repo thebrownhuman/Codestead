@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.grid.responsive.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.flex-grid",
+  "skillId": "css.grid.responsive",
+  "title": "Intrinsic responsive grids",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Intrinsic responsive grids; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Intrinsic responsive grids",
+      "claim": "Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Intrinsic responsive grids",
+      "claim": "Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A gallery collapses naturally to one column when its minimum card size no longer fits twice. Your goal is to create a grid that adapts across content and container widths without fixed device assumptions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Normal flow and display; Intrinsic sizing and constraints; Grid tracks and placement; Flex axes and sizing. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order. This draft therefore rejects: A responsive grid requires a media query for every possible device width."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Combine flexible tracks, auto placement and content constraints before adding breakpoints.",
+      "Create a grid that adapts across content and container widths without fixed device assumptions."
+    ],
+    "excludes": [
+      "Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order."
+    ]
+  },
+  "outcomes": [
+    "Create a grid that adapts across content and container widths without fixed device assumptions."
+  ],
+  "examples": [
+    {
+      "id": "css.grid.responsive.example-a",
+      "title": "Intrinsic responsive grids: concrete case",
+      "situation": "A gallery collapses naturally to one column when its minimum card size no longer fits twice.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A gallery collapses naturally to one column when its minimum card size no longer fits twice.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change."
+      ],
+      "result": "The result follows because Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change."
+    },
+    {
+      "id": "css.grid.responsive.example-b",
+      "title": "Intrinsic responsive grids: boundary case",
+      "situation": "Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A responsive grid requires a media query for every possible device width."
+      ],
+      "result": "The boundary requires this correction: Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.grid.responsive.misconception",
+      "mistakenBelief": "A responsive grid requires a media query for every possible device width.",
+      "correction": "Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A responsive grid requires a media query for every possible device width."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Intrinsic responsive grids, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Intrinsic responsive grids before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A gallery collapses naturally to one column when its minimum card size no longer fits twice.",
+      "Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport.",
+      "Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A gallery collapses naturally to one column when its minimum card size no longer fits twice."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A responsive grid requires a media query for every possible device width."
+      }
+    ],
+    "textAlternative": "Starting artifact: A gallery collapses naturally to one column when its minimum card size no longer fits twice. Step 1, Artifact. State: evidence: A gallery collapses naturally to one column when its minimum card size no longer fits twice.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change.. Check the result against the boundary and reject this misconception: A responsive grid requires a media query for every possible device width."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Intrinsic responsive grids: concrete case”: state its starting evidence, apply the Intrinsic responsive grids rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Intrinsic responsive grids: concrete case.",
+        "Starting evidence: A gallery collapses naturally to one column when its minimum card size no longer fits twice.",
+        "Core rule: Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport.",
+        "Observable result: The result follows because Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change.",
+        "Boundary check: Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Responsive grid changes track count and size from available space and content needs rather than duplicating markup for each viewport.",
+        "Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Intrinsic responsive grids and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Create a grid that adapts across content and container widths without fixed device assumptions.",
+        "Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.grid.responsive.misconception",
+      "explanation": "Use content-aware track functions where suitable and add breakpoints only when the layout itself needs a structural change.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'content-aware track functions' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a grid that adapts across content and container widths without fixed device assumptions. Keep this boundary in view: Auto-fit and auto-fill differ for empty tracks, fixed minimums can overflow, and visual rearrangement must not contradict focus order.",
+    "retrievalPrompts": [
+      "Explain Intrinsic responsive grids using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: A responsive grid requires a media query for every possible device width.",
+      "Apply checkpoint 'content-aware track functions' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Media and feature queries”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

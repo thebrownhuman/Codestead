@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.problem.decomposition.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.problem-solving",
+  "skillId": "pf.problem.decomposition",
+  "title": "Decomposition",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Decomposition; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Decomposition",
+      "claim": "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result. Your goal is to create and justify a decomposition whose parts cover the original requirement. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Program, code and algorithm; Inputs, outputs and constraints. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Split a problem into cohesive, ordered subproblems.",
+      "Create and justify a decomposition whose parts cover the original requirement."
+    ],
+    "excludes": [
+      "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible."
+    ]
+  },
+  "outcomes": [
+    "Create and justify a decomposition whose parts cover the original requirement."
+  ],
+  "examples": [
+    {
+      "id": "pf.problem.decomposition.example-a",
+      "title": "Decomposition: direct case",
+      "situation": "A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+      ],
+      "result": "The case supports the declared outcome because A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+    },
+    {
+      "id": "pf.problem.decomposition.example-b",
+      "title": "Decomposition: boundary case",
+      "situation": "An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary.",
+        "Step 2 — Keep this boundary explicit: Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible.",
+        "Step 3 — Reject the documented misconception: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+      ],
+      "result": "This case demonstrates the declared outcome: Create and justify a decomposition whose parts cover the original requirement."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.problem.decomposition.misconception",
+      "mistakenBelief": "Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear.",
+      "correction": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "Planning a trip can model Decomposition: name the destination, inputs and constraints, divide the journey, and check routes before traveling.",
+    "usefulFor": [
+      "Making requirements, ordered decisions, decomposition, and edge conditions concrete"
+    ],
+    "limitations": [
+      "Programs require unambiguous executable rules, while a traveler can improvise from incomplete directions.",
+      "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
+      "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
+      "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need."
+        },
+        "explanation": "Apply the declared Decomposition model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+      }
+    ],
+    "textAlternative": "Starting artifact: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result. Step 1, Observe. State: evidence: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.. Apply the declared Decomposition model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.. Compare the observation with the correction and reject the misconception: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Decomposition: direct case”: state its starting evidence, apply the Decomposition rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Decomposition: direct case.",
+        "Starting evidence: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
+        "Core rule: Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
+        "Observable result: The case supports the declared outcome because A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.",
+        "Boundary check: A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
+        "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Decomposition, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Create and justify a decomposition whose parts cover the original requirement.",
+        "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.problem.decomposition.misconception",
+      "explanation": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and justify a decomposition whose parts cover the original requirement. Keep this boundary in view: Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible.",
+    "retrievalPrompts": [
+      "Explain Decomposition without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear.",
+      "Apply the model to this case from memory: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary."
+    ],
+    "nextReviewPrompt": "Next: continue to “Pseudocode”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

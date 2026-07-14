@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.generative.api-safety.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.generative",
+  "skillId": "ai.generative.api-safety",
+  "title": "API, tool and prompt-injection boundaries deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for API, tool and prompt-injection boundaries; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "nist-genai",
+    "nist-ai-rmf"
+  ],
+  "items": [
+    {
+      "id": "ai.generative.api-safety.mcq.misconception",
+      "skillId": "ai.generative.api-safety",
+      "title": "API, tool and prompt-injection boundaries: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result.",
+        "incorrect": "That option preserves the overclaim. Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+        },
+        {
+          "id": "overclaim",
+          "text": "A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+      }
+    },
+    {
+      "id": "ai.generative.api-safety.fill.checkpoint",
+      "skillId": "ai.generative.api-safety",
+      "title": "API, tool and prompt-injection boundaries: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'authorize every tool call'. Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Keep secrets and authority outside model context, parse and [[checkpoint]] deterministically, bind side effects to confirmation and idempotency, and audit the result.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "authorize every tool call"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+      }
+    },
+    {
+      "id": "ai.generative.api-safety.code.offline",
+      "skillId": "ai.generative.api-safety",
+      "title": "API, tool and prompt-injection boundaries: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read a JSON tool call. Authorize only {tool:'lookup', arguments:{id:<nonempty string>}} with no extra fields; print authorized or denied.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.generative.api-safety.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\"tool\":\"lookup\",\"arguments\":{\"id\":\"lesson-1\"}}\n",
+          "expectedStdout": "authorized",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.generative.api-safety.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\"tool\":\"lookup\",\"arguments\":{\"id\":\"x\",\"url\":\"https://evil.test\"}}\n",
+          "expectedStdout": "denied",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\nimport json\n\ndef solve(data: str) -> str:\n    try:\n        call = json.loads(data)\n    except json.JSONDecodeError:\n        return 'denied'\n    valid = (isinstance(call, dict) and set(call) == {'tool','arguments'} and call.get('tool') == 'lookup' and isinstance(call.get('arguments'), dict) and set(call['arguments']) == {'id'} and isinstance(call['arguments']['id'], str) and bool(call['arguments']['id']))\n    return 'authorized' if valid else 'denied'\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The application uses an exact allowlist and typed argument schema; model-produced JSON has no authority by itself."
+      }
+    }
+  ]
+}

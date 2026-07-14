@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.search.heuristics.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.heuristics",
+  "title": "Heuristics, greedy search and A*",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Heuristics, greedy search and A*; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Fundamental Issues and Basic Search Strategies: state spaces, uninformed/informed, and adversarial search; atomic topic: Heuristics, greedy search and A*",
+      "claim": "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost. Your goal is to implement A* and compare path cost and nodes expanded under two heuristics. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Agent, goal and utility models; dsa graphs bfs dfs; Uninformed search; dsa graphs shortest path. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible. The learner must reject this overclaim: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Design heuristic estimates and relate admissibility or consistency to optimality guarantees.",
+      "Implement A* and compare path cost and nodes expanded under two heuristics."
+    ],
+    "excludes": [
+      "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible."
+    ]
+  },
+  "outcomes": [
+    "Implement A* and compare path cost and nodes expanded under two heuristics."
+  ],
+  "examples": [
+    {
+      "id": "ai.search.heuristics.example.direct",
+      "title": "Heuristics, greedy search and A*: bounded direct case",
+      "situation": "Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      ],
+      "result": "This example supports only the atomic outcome because Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+    },
+    {
+      "id": "ai.search.heuristics.example.stress",
+      "title": "Heuristics, greedy search and A*: stress and transfer case",
+      "situation": "Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly.",
+        "Step 2 — Keep the non-claim visible: An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible.",
+        "Step 3 — Reject the tempting overclaim: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement A* and compare path cost and nodes expanded under two heuristics."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.search.heuristics.misconception",
+      "mistakenBelief": "A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling.",
+      "correction": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a route planner that tracks states, legal moves, accumulated cost, estimates, and an ordered frontier can introduce Heuristics, greedy search and A* only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "state-space representation, frontier policies, heuristics, and adversarial backup"
+    ],
+    "limitations": [
+      "real environments can be continuous, stochastic, changing, partially observed, or too large for the simplified route model",
+      "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
+      "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
+      "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+      }
+    ],
+    "textAlternative": "Starting artifact: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost. Step 1, Observe. State: boundedEvidence: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.. State what the evidence does not establish and reject the misconception: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Heuristics, greedy search and A*: bounded direct case”: state its starting evidence, apply the Heuristics, greedy search and A* rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Heuristics, greedy search and A*: bounded direct case.",
+        "Starting evidence: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
+        "Core rule: A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
+        "Observable result: This example supports only the atomic outcome because Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
+        "Boundary check: Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
+        "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Heuristics, greedy search and A* and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Implement A* and compare path cost and nodes expanded under two heuristics.",
+        "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.search.heuristics.misconception",
+      "explanation": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement A* and compare path cost and nodes expanded under two heuristics. Keep this boundary in view: An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible.",
+    "retrievalPrompts": [
+      "Explain Heuristics, greedy search and A* with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling.",
+      "Apply the boundary to: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly."
+    ],
+    "nextReviewPrompt": "Next: continue to “Minimax and alpha-beta”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

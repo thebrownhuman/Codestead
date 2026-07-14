@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.problem.io.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.problem-solving",
+  "skillId": "pf.problem.io",
+  "title": "Inputs, outputs and constraints",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Inputs, outputs and constraints; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Inputs, outputs and constraints",
+      "claim": "A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance. Your goal is to write an unambiguous input-output-constraint statement for a small problem. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Program, code and algorithm. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Examples illustrate a contract but do not replace it, and hidden assumptions such as units, valid ranges, ordering, duplicates, or empty input must be made explicit. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A feature request such as make a calculator is precise enough because the programmer can guess inputs and expected behavior later."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "State what a problem receives, produces and must respect.",
+      "Write an unambiguous input-output-constraint statement for a small problem."
+    ],
+    "excludes": [
+      "Examples illustrate a contract but do not replace it, and hidden assumptions such as units, valid ranges, ordering, duplicates, or empty input must be made explicit."
+    ]
+  },
+  "outcomes": [
+    "Write an unambiguous input-output-constraint statement for a small problem."
+  ],
+  "examples": [
+    {
+      "id": "pf.problem.io.example-a",
+      "title": "Inputs, outputs and constraints: direct case",
+      "situation": "A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent."
+      ],
+      "result": "The case supports the declared outcome because Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent."
+    },
+    {
+      "id": "pf.problem.io.example-b",
+      "title": "Inputs, outputs and constraints: boundary case",
+      "situation": "A username checker receives text, returns valid or invalid, and declares allowed characters, length limits, and case rules.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A username checker receives text, returns valid or invalid, and declares allowed characters, length limits, and case rules.",
+        "Step 2 — Keep this boundary explicit: Examples illustrate a contract but do not replace it, and hidden assumptions such as units, valid ranges, ordering, duplicates, or empty input must be made explicit.",
+        "Step 3 — Reject the documented misconception: A feature request such as make a calculator is precise enough because the programmer can guess inputs and expected behavior later."
+      ],
+      "result": "This case demonstrates the declared outcome: Write an unambiguous input-output-constraint statement for a small problem."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.problem.io.misconception",
+      "mistakenBelief": "A feature request such as make a calculator is precise enough because the programmer can guess inputs and expected behavior later.",
+      "correction": "Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A feature request such as make a calculator is precise enough because the programmer can guess inputs and expected behavior later."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "Planning a trip can model Inputs, outputs and constraints: name the destination, inputs and constraints, divide the journey, and check routes before traveling.",
+    "usefulFor": [
+      "Making requirements, ordered decisions, decomposition, and edge conditions concrete"
+    ],
+    "limitations": [
+      "Programs require unambiguous executable rules, while a traveler can improvise from incomplete directions.",
+      "Examples illustrate a contract but do not replace it, and hidden assumptions such as units, valid ranges, ordering, duplicates, or empty input must be made explicit."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance.",
+      "A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect.",
+      "Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect."
+        },
+        "explanation": "Apply the declared Inputs, outputs and constraints model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A feature request such as make a calculator is precise enough because the programmer can guess inputs and expected behavior later."
+      }
+    ],
+    "textAlternative": "Starting artifact: A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance. Step 1, Observe. State: evidence: A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect.. Apply the declared Inputs, outputs and constraints model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent.. Compare the observation with the correction and reject the misconception: A feature request such as make a calculator is precise enough because the programmer can guess inputs and expected behavior later."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Inputs, outputs and constraints: direct case”: state its starting evidence, apply the Inputs, outputs and constraints rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Inputs, outputs and constraints: direct case.",
+        "Starting evidence: A fare calculator receives distance in whole kilometers and passenger category, returns rupees, and must reject negative distance.",
+        "Core rule: A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect.",
+        "Observable result: The case supports the declared outcome because Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent.",
+        "Boundary check: Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A username checker receives text, returns valid or invalid, and declares allowed characters, length limits, and case rules.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A solvable programming problem states the data received, the observable result required, and the constraints that every acceptable result must respect.",
+        "Examples illustrate a contract but do not replace it, and hidden assumptions such as units, valid ranges, ordering, duplicates, or empty input must be made explicit."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Inputs, outputs and constraints, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Write an unambiguous input-output-constraint statement for a small problem.",
+        "Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.problem.io.misconception",
+      "explanation": "Implementation should begin only after inputs, outputs, constraints, units, and invalid cases are explicit enough to test without guessing intent.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A username checker receives text, returns valid or invalid, and declares allowed characters, length limits, and case rules."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write an unambiguous input-output-constraint statement for a small problem. Keep this boundary in view: Examples illustrate a contract but do not replace it, and hidden assumptions such as units, valid ranges, ordering, duplicates, or empty input must be made explicit.",
+    "retrievalPrompts": [
+      "Explain Inputs, outputs and constraints without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A feature request such as make a calculator is precise enough because the programmer can guess inputs and expected behavior later.",
+      "Apply the model to this case from memory: A username checker receives text, returns valid or invalid, and declares allowed characters, length limits, and case rules."
+    ],
+    "nextReviewPrompt": "Next: continue to “Decomposition”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

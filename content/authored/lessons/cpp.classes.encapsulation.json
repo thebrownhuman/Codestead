@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.classes.encapsulation.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.classes",
+  "skillId": "cpp.classes.encapsulation",
+  "title": "Class interface and invariants",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Class interface and invariants; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Class interface and invariants",
+      "claim": "A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly."
+    },
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to Class interface and invariants",
+      "claim": "A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant. Your goal is to design a class whose constructor and methods maintain stated invariants. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Value, reference and const-reference parameters; pf data records; Function contracts and return values. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Access control is compile-time, friends and references can expose state, getters can leak mutable internals, and serialization may couple to representation. Therefore the draft explicitly rejects this beginner failure model: Encapsulation means adding getters and setters for every private field, regardless of invariants."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Hide representation and expose operations that preserve valid state.",
+      "Design a class whose constructor and methods maintain stated invariants."
+    ],
+    "excludes": [
+      "Access control is compile-time, friends and references can expose state, getters can leak mutable internals, and serialization may couple to representation."
+    ]
+  },
+  "outcomes": [
+    "Design a class whose constructor and methods maintain stated invariants."
+  ],
+  "examples": [
+    {
+      "id": "cpp.classes.encapsulation.example-a",
+      "title": "Class interface and invariants: defined case",
+      "situation": "A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation."
+      ],
+      "result": "The defined result follows because Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation."
+    },
+    {
+      "id": "cpp.classes.encapsulation.example-b",
+      "title": "Class interface and invariants: boundary case",
+      "situation": "A collection returns a read-only view instead of a mutable reference that could bypass validation.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A collection returns a read-only view instead of a mutable reference that could bypass validation.",
+        "Step 2 — Keep this standard boundary visible: Access control is compile-time, friends and references can expose state, getters can leak mutable internals, and serialization may couple to representation.",
+        "Step 3 — Reject the tempting rule: Encapsulation means adding getters and setters for every private field, regardless of invariants."
+      ],
+      "result": "This case demonstrates the declared outcome: Design a class whose constructor and methods maintain stated invariants."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.classes.encapsulation.misconception",
+      "mistakenBelief": "Encapsulation means adding getters and setters for every private field, regardless of invariants.",
+      "correction": "Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Encapsulation means adding getters and setters for every private field, regardless of invariants."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Class interface and invariants: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "Access control is compile-time, friends and references can expose state, getters can leak mutable internals, and serialization may couple to representation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant.",
+      "A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly.",
+      "Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Encapsulation means adding getters and setters for every private field, regardless of invariants."
+      }
+    ],
+    "textAlternative": "Starting artifact: A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant. Step 1, Source and state. State: evidence: A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation.. Check the conclusion against the boundary and reject this misconception: Encapsulation means adding getters and setters for every private field, regardless of invariants."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Class interface and invariants: defined case”: state its starting evidence, apply the Class interface and invariants rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Class interface and invariants: defined case.",
+        "Starting evidence: A BankAccount keeps balance private and allows deposit only for positive amounts, preserving its documented invariant.",
+        "Core rule: A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly.",
+        "Observable result: The defined result follows because Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation.",
+        "Boundary check: Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A collection returns a read-only view instead of a mutable reference that could bypass validation.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A class protects invariants by exposing operations that keep state valid and hiding representation details that callers should not coordinate directly.",
+        "Access control is compile-time, friends and references can expose state, getters can leak mutable internals, and serialization may couple to representation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Class interface and invariants, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Design a class whose constructor and methods maintain stated invariants.",
+        "Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.classes.encapsulation.misconception",
+      "explanation": "Expose domain operations, not automatic field access; each public operation should preserve the class invariant and hide replaceable representation.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'class invariant' and state the decisive evidence: A collection returns a read-only view instead of a mutable reference that could bypass validation."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design a class whose constructor and methods maintain stated invariants. Keep this boundary in view: Access control is compile-time, friends and references can expose state, getters can leak mutable internals, and serialization may couple to representation.",
+    "retrievalPrompts": [
+      "Explain Class interface and invariants using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: Encapsulation means adding getters and setters for every private field, regardless of invariants.",
+      "Apply the checkpoint 'class invariant' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Constructors and initialization”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

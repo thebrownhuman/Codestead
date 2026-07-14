@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.runtime.modules.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.runtime",
+  "skillId": "javascript.runtime.modules",
+  "title": "Module loading baseline",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Module loading baseline; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Module loading baseline",
+      "claim": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Module loading baseline",
+      "claim": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A named export is imported by exact name and remains linked to the exporting module binding. Your goal is to create and load a minimal two-module browser program. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; html document skeleton; Scripts and console; html navigation urls. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs. This draft therefore rejects: Importing a value copies it permanently and each import re-executes the module."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Load a module with deferred execution, strict semantics and explicit imports.",
+      "Create and load a minimal two-module browser program."
+    ],
+    "excludes": [
+      "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs."
+    ]
+  },
+  "outcomes": [
+    "Create and load a minimal two-module browser program."
+  ],
+  "examples": [
+    {
+      "id": "javascript.runtime.modules.example-a",
+      "title": "Module loading baseline: concrete case",
+      "situation": "A named export is imported by exact name and remains linked to the exporting module binding.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A named export is imported by exact name and remains linked to the exporting module binding.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+      ],
+      "result": "The result follows because Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+    },
+    {
+      "id": "javascript.runtime.modules.example-b",
+      "title": "Module loading baseline: boundary case",
+      "situation": "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Importing a value copies it permanently and each import re-executes the module."
+      ],
+      "result": "The boundary requires this correction: Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.runtime.modules.misconception",
+      "mistakenBelief": "Importing a value copies it permanently and each import re-executes the module.",
+      "correction": "Module imports are live bindings and a module is evaluated once per realm after dependency linking.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Importing a value copies it permanently and each import re-executes the module."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Module loading baseline, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Module loading baseline before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A named export is imported by exact name and remains linked to the exporting module binding.",
+      "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
+      "Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A named export is imported by exact name and remains linked to the exporting module binding."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Importing a value copies it permanently and each import re-executes the module."
+      }
+    ],
+    "textAlternative": "Starting artifact: A named export is imported by exact name and remains linked to the exporting module binding. Step 1, Artifact. State: evidence: A named export is imported by exact name and remains linked to the exporting module binding.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Module imports are live bindings and a module is evaluated once per realm after dependency linking.. Check the result against the boundary and reject this misconception: Importing a value copies it permanently and each import re-executes the module."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Module loading baseline: concrete case”: state its starting evidence, apply the Module loading baseline rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Module loading baseline: concrete case.",
+        "Starting evidence: A named export is imported by exact name and remains linked to the exporting module binding.",
+        "Core rule: ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
+        "Observable result: The result follows because Module imports are live bindings and a module is evaluated once per realm after dependency linking.",
+        "Boundary check: Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
+        "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Module loading baseline and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Create and load a minimal two-module browser program.",
+        "Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.runtime.modules.misconception",
+      "explanation": "Module imports are live bindings and a module is evaluated once per realm after dependency linking.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'live bindings' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and load a minimal two-module browser program. Keep this boundary in view: Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
+    "retrievalPrompts": [
+      "Explain Module loading baseline using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Importing a value copies it permanently and each import re-executes the module.",
+      "Apply checkpoint 'live bindings' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Sources, console and debugger”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

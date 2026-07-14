@@ -1,0 +1,174 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "javascript",
+  "title": "JavaScript: Language and Browser Applications",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A modern JavaScript course covering the ECMAScript value and object models, functions, modules, DOM events, asynchronous work, HTTP, browser state, security, testing and application structure.",
+  "audience": {
+    "level": "beginner to intermediate",
+    "assumed_knowledge": ["Programming Foundations", "HTML foundations", "Basic CSS recommended"],
+    "target_capability": "Independently design, implement, test and debug a modular browser application that manipulates semantic DOM, handles asynchronous data and respects security and accessibility boundaries."
+  },
+  "scope": {
+    "includes": ["Current ECMAScript core language", "Browser execution and developer tools", "Values, coercion and control flow", "Functions, scope, closures and modules", "Arrays, objects, maps and sets", "Prototypes, classes and composition", "DOM, events, forms and accessibility", "Promises, async/await, fetch and cancellation", "Storage, URL and browser security basics", "Automated tests and a modular browser project"],
+    "non_goals": ["Node.js backend development", "TypeScript", "React or another UI framework", "Build-tool internals", "Advanced metaprogramming or engine optimization", "Every browser API"]
+  },
+  "authoritative_sources": [
+    { "id": "ecma262", "title": "ECMAScript Language Specification", "url": "https://tc39.es/ecma262/", "type": "standard", "version_or_date": "living specification accessed 2026-07" },
+    { "id": "mdn-js", "title": "MDN JavaScript Guide", "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "whatwg-dom", "title": "DOM Standard", "url": "https://dom.spec.whatwg.org/", "type": "standard", "version_or_date": "living standard accessed 2026-07" },
+    { "id": "whatwg-fetch", "title": "Fetch Standard", "url": "https://fetch.spec.whatwg.org/", "type": "standard", "version_or_date": "living standard accessed 2026-07" },
+    { "id": "owasp-xss", "title": "OWASP Cross Site Scripting Prevention Cheat Sheet", "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html", "type": "security-guidance", "version_or_date": "accessed 2026-07" },
+    { "id": "wcag22", "title": "Web Content Accessibility Guidelines 2.2", "url": "https://www.w3.org/TR/WCAG22/", "type": "accessibility-standard", "version_or_date": "W3C Recommendation 2023" }
+  ],
+  "runtime": {
+    "kind": "programming-language",
+    "language": "JavaScript",
+    "standard": "Current ECMAScript implemented by the declared evergreen browser matrix",
+    "toolchain": ["Standards-mode browser", "Browser developer tools", "Native ES modules", "Standards-based test runner"],
+    "execution_environment": "Sandboxed browser origin with mocked network services and deterministic fixtures",
+    "file_extensions": [".js", ".mjs"],
+    "notes": ["Browser and ECMAScript behavior are identified separately.", "Experimental proposals are excluded until standardized and supported by the target matrix."]
+  },
+  "modules": [
+    {
+      "id": "javascript.runtime",
+      "title": "JavaScript execution and tools",
+      "description": "Run scripts and modules while understanding the browser execution environment.",
+      "required": true,
+      "prerequisites": ["pf.computing.execution", "html.document.skeleton"],
+      "skills": [
+        { "id": "javascript.runtime.script", "title": "Scripts and console", "description": "Load scripts intentionally and use the console for bounded experiments rather than application output.", "outcomes": ["Attach and run a script, then explain source order and observable output."], "prerequisites": ["html.document.skeleton", "pf.computing.execution"], "evidence_types": ["code", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["mdn-js", "ecma262"] },
+        { "id": "javascript.runtime.modules", "title": "Module loading baseline", "description": "Load a module with deferred execution, strict semantics and explicit imports.", "outcomes": ["Create and load a minimal two-module browser program."], "prerequisites": ["javascript.runtime.script", "html.navigation.urls"], "evidence_types": ["code", "artifact", "trace"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.runtime.devtools", "title": "Sources, console and debugger", "description": "Set breakpoints, inspect scope and distinguish logged values from live object views.", "outcomes": ["Use developer tools to locate and explain a state-transition defect."], "prerequisites": ["javascript.runtime.script", "pf.tools.debug-test"], "evidence_types": ["debug", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["mdn-js"] },
+        { "id": "javascript.runtime.event-loop", "title": "Call stack and event loop model", "description": "Distinguish synchronous stack execution, tasks and microtasks at an introductory level.", "outcomes": ["Predict logged output order for synchronous calls, promises and timer tasks."], "prerequisites": ["javascript.runtime.devtools", "pf.abstraction.calls"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] }
+      ]
+    },
+    {
+      "id": "javascript.values",
+      "title": "Values, types and expressions",
+      "description": "Use JavaScript's value model while controlling coercion and numeric edge cases.",
+      "required": true,
+      "prerequisites": ["javascript.runtime.script", "pf.state.expressions"],
+      "skills": [
+        { "id": "javascript.values.primitives", "title": "Primitive values and typeof", "description": "Use undefined, null, Boolean, number, bigint, string and symbol with accurate type expectations.", "outcomes": ["Classify primitive and object values and explain null and undefined use cases."], "prerequisites": ["javascript.runtime.script"], "evidence_types": ["concept-check", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.values.variables", "title": "let, const and binding", "description": "Use block-scoped declarations and distinguish binding reassignment from object mutation.", "outcomes": ["Trace bindings through blocks and choose const unless reassignment is intended."], "prerequisites": ["javascript.values.primitives", "pf.state.variables"], "evidence_types": ["trace", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.values.coercion", "title": "Equality, truthiness and coercion", "description": "Prefer explicit conversion and strict equality while understanding common coercion rules.", "outcomes": ["Predict and repair equality, concatenation and truthiness defects."], "prerequisites": ["javascript.values.primitives", "pf.state.expressions"], "evidence_types": ["trace", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.values.numbers", "title": "Numbers, NaN and precision", "description": "Handle finite checks, safe integers, floating approximation and bigint boundaries.", "outcomes": ["Implement and test numeric validation without relying on misleading NaN comparisons."], "prerequisites": ["javascript.values.coercion"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] }
+      ]
+    },
+    {
+      "id": "javascript.control-functions",
+      "title": "Control flow and functions",
+      "description": "Design clear decisions, loops and callable interfaces with correct scope.",
+      "required": true,
+      "prerequisites": ["javascript.values", "pf.abstraction.calls"],
+      "skills": [
+        { "id": "javascript.control.selection", "title": "Conditions and switch", "description": "Write complete branches with deliberate truth tests and lexical scoping.", "outcomes": ["Implement and test boundary-complete conditional logic."], "prerequisites": ["javascript.values.coercion"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.control.iteration", "title": "Loops and iterable traversal", "description": "Choose for, while, for-of and collection methods while avoiding inappropriate for-in array traversal.", "outcomes": ["Implement and debug counted, sentinel and iterable loops."], "prerequisites": ["javascript.control.selection"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.functions.forms", "title": "Function declarations, expressions and arrows", "description": "Choose callable forms while understanding hoisting, lexical this and expression returns.", "outcomes": ["Implement equivalent callable behavior and explain where arrow semantics differ."], "prerequisites": ["javascript.control.iteration", "pf.abstraction.functions"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.functions.parameters", "title": "Parameters, rest and return contracts", "description": "Use defaults, destructuring, rest parameters and explicit return behavior without shared mutable defaults.", "outcomes": ["Design and test a function with a clear parameter and failure contract."], "prerequisites": ["javascript.functions.forms", "javascript.values.variables"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] }
+      ]
+    },
+    {
+      "id": "javascript.collections",
+      "title": "Arrays, objects, maps and sets",
+      "description": "Select and transform common mutable and immutable-shaped data structures.",
+      "required": true,
+      "prerequisites": ["javascript.control-functions", "pf.data.selection"],
+      "skills": [
+        { "id": "javascript.collections.arrays", "title": "Arrays and indexed data", "description": "Create, index, copy and mutate arrays with explicit bounds and sparse-array awareness.", "outcomes": ["Implement and test array traversal, update and copy operations."], "prerequisites": ["javascript.control.iteration"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.collections.methods", "title": "Array transformation methods", "description": "Use map, filter, find, some, every and reduce with callbacks whose effects are clear.", "outcomes": ["Construct and explain a transformation pipeline and compare it with an explicit loop."], "prerequisites": ["javascript.collections.arrays", "javascript.functions.forms"], "evidence_types": ["code", "trace", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.collections.objects", "title": "Object records and property access", "description": "Create record-like objects, use computed properties and distinguish missing from undefined values.", "outcomes": ["Model and validate a small domain record with property shorthand and safe access."], "prerequisites": ["javascript.values.variables", "pf.data.records"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.collections.map-set", "title": "Map, Set and structured copying", "description": "Choose keyed or unique-value collections and understand spread as a shallow operation.", "outcomes": ["Select and use Array, Object, Map or Set and identify aliasing in a nested copy."], "prerequisites": ["javascript.collections.arrays", "javascript.collections.objects", "pf.state.mutation"], "evidence_types": ["design", "trace", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] }
+      ]
+    },
+    {
+      "id": "javascript.object-model",
+      "title": "Objects, prototypes and classes",
+      "description": "Reason about property lookup and create maintainable object abstractions.",
+      "required": true,
+      "prerequisites": ["javascript.collections.objects", "javascript.functions.forms"],
+      "skills": [
+        { "id": "javascript.objects.this", "title": "Method calls and this", "description": "Determine this from call form and avoid detached-method and arrow-method surprises.", "outcomes": ["Trace and repair this binding across direct, method and callback calls."], "prerequisites": ["javascript.functions.forms", "javascript.collections.objects"], "evidence_types": ["trace", "debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.objects.prototype", "title": "Prototype delegation", "description": "Trace own and inherited property lookup without treating prototypes as class copies.", "outcomes": ["Inspect and explain a short prototype chain and a shadowed property."], "prerequisites": ["javascript.objects.this"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.objects.classes", "title": "Classes and private state", "description": "Use class syntax, constructors, methods and private fields for justified stateful abstractions.", "outcomes": ["Implement and test a class that preserves an invariant."], "prerequisites": ["javascript.objects.prototype", "javascript.functions.parameters"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.objects.composition", "title": "Composition and inheritance", "description": "Prefer composed functions or collaborators and use extends only for substitutable behavior.", "outcomes": ["Review and refactor an object design using justified composition or inheritance."], "prerequisites": ["javascript.objects.classes", "javascript.collections.objects"], "evidence_types": ["design", "review", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] }
+      ]
+    },
+    {
+      "id": "javascript.scope-modules",
+      "title": "Scope, closures and modules",
+      "description": "Control lifetime and dependency boundaries across functions and files.",
+      "required": true,
+      "prerequisites": ["javascript.control-functions", "javascript.runtime.modules"],
+      "skills": [
+        { "id": "javascript.scope.lexical", "title": "Lexical scope and temporal dead zone", "description": "Resolve names through nested blocks and functions without relying on var hoisting.", "outcomes": ["Trace name resolution and repair shadowing or use-before-initialization defects."], "prerequisites": ["javascript.values.variables", "javascript.functions.forms"], "evidence_types": ["trace", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.scope.closures", "title": "Closures and lifetime", "description": "Use retained lexical state for factories and callbacks while avoiding accidental stale or shared state.", "outcomes": ["Implement and trace a closure-based abstraction with independent instances."], "prerequisites": ["javascript.scope.lexical", "javascript.functions.parameters"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.modules.import-export", "title": "Imports, exports and module graph", "description": "Create explicit named or default exports and understand live bindings and cycles conceptually.", "outcomes": ["Organize a feature into modules and diagnose an import or cycle problem."], "prerequisites": ["javascript.runtime.modules", "javascript.scope.lexical"], "evidence_types": ["code", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.modules.architecture", "title": "Dependency boundaries", "description": "Separate domain logic, browser adapters and presentation so core behavior is directly testable.", "outcomes": ["Design and implement a module graph without circular feature dependencies or hidden globals."], "prerequisites": ["javascript.modules.import-export", "javascript.objects.composition"], "evidence_types": ["design", "artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["mdn-js"] }
+      ]
+    },
+    {
+      "id": "javascript.dom-events",
+      "title": "DOM, events and forms",
+      "description": "Update semantic documents through safe, accessible event-driven behavior.",
+      "required": true,
+      "prerequisites": ["javascript.scope-modules", "html.project.site"],
+      "skills": [
+        { "id": "javascript.dom.query-update", "title": "Query and update DOM", "description": "Select elements and update text, attributes, classes and properties with correct distinctions.", "outcomes": ["Implement a DOM update without unsafe HTML parsing or unnecessary tree replacement."], "prerequisites": ["html.document.dom", "javascript.modules.architecture"], "evidence_types": ["code", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-dom", "owasp-xss"] },
+        { "id": "javascript.dom.create", "title": "Create and remove nodes", "description": "Build document fragments and preserve semantics, ownership and focus during updates.", "outcomes": ["Render a data collection with safe node creation and stable semantic structure."], "prerequisites": ["javascript.dom.query-update", "javascript.collections.methods"], "evidence_types": ["code", "artifact", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-dom", "wcag22"] },
+        { "id": "javascript.events.model", "title": "Event propagation and delegation", "description": "Handle capture, target and bubble phases and delegate stable ancestor events when appropriate.", "outcomes": ["Trace propagation and implement a delegated interaction without duplicate handlers."], "prerequisites": ["javascript.dom.create", "javascript.objects.this"], "evidence_types": ["trace", "code", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-dom", "mdn-js"] },
+        { "id": "javascript.events.forms", "title": "Forms, validation and accessible state", "description": "Use form events and constraint APIs while preserving labels, native submission and perceivable errors.", "outcomes": ["Implement client validation as enhancement and verify keyboard focus and error announcement behavior."], "prerequisites": ["javascript.events.model", "html.forms.validation"], "evidence_types": ["code", "performance", "review", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-dom", "wcag22"] }
+      ]
+    },
+    {
+      "id": "javascript.async-network",
+      "title": "Promises, async work and HTTP",
+      "description": "Coordinate asynchronous work and communicate with remote resources robustly.",
+      "required": true,
+      "prerequisites": ["javascript.runtime.event-loop", "javascript.scope.closures"],
+      "skills": [
+        { "id": "javascript.async.promises", "title": "Promises and chains", "description": "Represent eventual completion and compose fulfillment, rejection and cleanup without floating promises.", "outcomes": ["Trace and implement a promise chain with correctly propagated failures."], "prerequisites": ["javascript.runtime.event-loop", "javascript.scope.closures"], "evidence_types": ["trace", "code", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.async.await", "title": "async and await", "description": "Write structured asynchronous functions and distinguish sequential from intentional concurrent waits.", "outcomes": ["Refactor a promise workflow using async/await and justify its concurrency behavior."], "prerequisites": ["javascript.async.promises", "javascript.functions.parameters"], "evidence_types": ["code", "trace", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.network.fetch", "title": "Fetch and HTTP responses", "description": "Construct requests and handle status, headers, body parsing, network failures and cross-origin constraints.", "outcomes": ["Implement and test a JSON request that distinguishes HTTP failure from network rejection."], "prerequisites": ["javascript.async.await", "javascript.collections.objects"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-fetch", "mdn-js"] },
+        { "id": "javascript.async.cancellation", "title": "Cancellation, timeout and stale results", "description": "Abort obsolete work and prevent older responses from overwriting current interface state.", "outcomes": ["Implement and test cancellation or latest-request-wins behavior for an interactive fetch."], "prerequisites": ["javascript.network.fetch", "javascript.events.model"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-fetch", "mdn-js"] }
+      ]
+    },
+    {
+      "id": "javascript.browser-security",
+      "title": "Browser state and security",
+      "description": "Use browser persistence and URLs without creating injection or privacy failures.",
+      "required": true,
+      "prerequisites": ["javascript.dom-events", "javascript.async-network"],
+      "skills": [
+        { "id": "javascript.browser.url", "title": "URL and history state", "description": "Parse and update URL search and history state without manual unsafe string construction.", "outcomes": ["Implement shareable filter state and handle back-forward navigation."], "prerequisites": ["javascript.events.model", "html.navigation.urls"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["mdn-js"] },
+        { "id": "javascript.browser.storage", "title": "Web storage and serialization", "description": "Persist small non-sensitive preferences with versioned parsing and quota or corruption handling.", "outcomes": ["Implement resilient local preference storage without treating it as trusted input."], "prerequisites": ["javascript.collections.objects", "javascript.errors.exceptions"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["mdn-js"] },
+        { "id": "javascript.security.dom-xss", "title": "DOM injection prevention", "description": "Keep untrusted text out of executable HTML, URL and event-handler contexts.", "outcomes": ["Identify and repair DOM XSS sinks using safe text or constrained APIs."], "prerequisites": ["javascript.dom.query-update", "javascript.network.fetch"], "evidence_types": ["debug", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["owasp-xss", "whatwg-dom"] },
+        { "id": "javascript.security.secrets-privacy", "title": "Client secrets and privacy", "description": "Recognize that browser-delivered values are observable and minimize third-party data disclosure.", "outcomes": ["Review a client design and remove embedded secrets or unnecessary personal-data persistence."], "prerequisites": ["javascript.browser.storage", "javascript.network.fetch"], "evidence_types": ["review", "design", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["owasp-xss"] }
+      ]
+    },
+    {
+      "id": "javascript.quality-project",
+      "title": "Errors, tests and application project",
+      "description": "Verify modular browser behavior and deliver an accessible asynchronous application.",
+      "required": true,
+      "prerequisites": ["javascript.browser-security", "javascript.modules.architecture"],
+      "skills": [
+        { "id": "javascript.errors.exceptions", "title": "Errors, throw and recovery boundaries", "description": "Create meaningful errors, preserve causes and recover only where a user or caller can act.", "outcomes": ["Design and test error behavior across domain, network and presentation modules."], "prerequisites": ["javascript.runtime.devtools", "javascript.async.promises"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "mdn-js"] },
+        { "id": "javascript.quality.unit-tests", "title": "Pure and module tests", "description": "Test deterministic domain behavior and module contracts with isolated fixtures.", "outcomes": ["Create tests covering normal, boundary and failure behavior for non-DOM modules."], "prerequisites": ["javascript.modules.architecture", "javascript.errors.exceptions"], "evidence_types": ["test", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["mdn-js"] },
+        { "id": "javascript.quality.dom-tests", "title": "DOM and asynchronous integration tests", "description": "Test user-observable state, events, loading, failure and cancellation rather than implementation details.", "outcomes": ["Create deterministic tests for an accessible event and fetch workflow."], "prerequisites": ["javascript.quality.unit-tests", "javascript.async.cancellation", "javascript.events.forms"], "evidence_types": ["test", "code", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-dom", "whatwg-fetch", "wcag22"] },
+        { "id": "javascript.project.browser-app", "title": "Modular browser application", "description": "Integrate semantic HTML, modules, state, DOM, forms, fetch, errors, security and tests.", "outcomes": ["Deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states."], "prerequisites": ["javascript.quality.dom-tests", "javascript.security.dom-xss", "css.project.system"], "evidence_types": ["project", "artifact", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["ecma262", "whatwg-dom", "whatwg-fetch", "wcag22"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Explain and debug JavaScript values, coercion, functions, closures, prototypes, modules and asynchronous ordering.",
+    "Build a modular browser interface using semantic DOM, accessible events and enhanced native forms.",
+    "Fetch and validate remote data with explicit loading, failure, cancellation and stale-result behavior.",
+    "Prevent client-side injection and secret exposure and verify behavior through unit and browser integration tests."
+  ],
+  "coverage_summary": { "required_skills": 40, "elective_skills": 0, "total_skills": 40, "covered": 40, "partial": 0, "planned": 0 }
+}

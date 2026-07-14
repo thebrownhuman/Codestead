@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "session_one_active_user_unique" ON "session" USING btree ("user_id") WHERE "session"."revoked_at" IS NULL;

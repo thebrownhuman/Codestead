@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.control.nested.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.control",
+  "skillId": "pf.control.nested",
+  "title": "Nested control and tables",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Nested control and tables; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Nested control and tables",
+      "claim": "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero. Your goal is to trace nested loops over a small two-dimensional table and count executions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Expressions and evaluation; Iteration. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Reason about decisions and loops nested inside one another, including grid traversal.",
+      "Trace nested loops over a small two-dimensional table and count executions."
+    ],
+    "excludes": [
+      "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count."
+    ]
+  },
+  "outcomes": [
+    "Trace nested loops over a small two-dimensional table and count executions."
+  ],
+  "examples": [
+    {
+      "id": "pf.control.nested.example-a",
+      "title": "Nested control and tables: direct case",
+      "situation": "A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+      ],
+      "result": "The case supports the declared outcome because Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+    },
+    {
+      "id": "pf.control.nested.example-b",
+      "title": "Nested control and tables: boundary case",
+      "situation": "A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches.",
+        "Step 2 — Keep this boundary explicit: Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count.",
+        "Step 3 — Reject the documented misconception: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace nested loops over a small two-dimensional table and count executions."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.control.nested.misconception",
+      "mistakenBelief": "Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions.",
+      "correction": "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A route with ordered checkpoints, forks, and repeated laps can model Nested control and tables while each decision uses the current conditions.",
+    "usefulFor": [
+      "Visualizing order, branching, repetition, progress, and nested routes"
+    ],
+    "limitations": [
+      "Real control flow can include calls, exceptions, concurrency, and evaluation rules absent from a physical route.",
+      "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
+      "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
+      "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds."
+        },
+        "explanation": "Apply the declared Nested control and tables model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+      }
+    ],
+    "textAlternative": "Starting artifact: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero. Step 1, Observe. State: evidence: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.. Apply the declared Nested control and tables model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.. Compare the observation with the correction and reject the misconception: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Nested control and tables: direct case”: state its starting evidence, apply the Nested control and tables rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Nested control and tables: direct case.",
+        "Starting evidence: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
+        "Core rule: With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
+        "Observable result: The case supports the declared outcome because Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.",
+        "Boundary check: Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
+        "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Nested control and tables, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Trace nested loops over a small two-dimensional table and count executions.",
+        "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.control.nested.misconception",
+      "explanation": "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace nested loops over a small two-dimensional table and count executions. Keep this boundary in view: Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count.",
+    "retrievalPrompts": [
+      "Explain Nested control and tables without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions.",
+      "Apply the model to this case from memory: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches."
+    ],
+    "nextReviewPrompt": "Next: continue to “Functions as contracts”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

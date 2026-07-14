@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.hashing.patterns.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.hashing",
+  "skillId": "dsa.hashing.patterns",
+  "title": "Frequency and lookup patterns",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Frequency and lookup patterns; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Frequency and lookup patterns",
+      "claim": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; material applicable to Frequency and lookup patterns",
+      "claim": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A frequency map finds the first repeated value while preserving a separate traversal for order. Your goal is to recognize and solve lookup and frequency problems with justified expected complexity. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Resizing and expected complexity. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures. The draft therefore rejects: A hash map is always better than an array for counting values."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use sets and maps for membership, counting, indexing and complements without unnecessary nested scans.",
+      "Recognize and solve lookup and frequency problems with justified expected complexity.",
+      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+    ],
+    "excludes": [
+      "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+    ]
+  },
+  "outcomes": [
+    "Recognize and solve lookup and frequency problems with justified expected complexity."
+  ],
+  "examples": [
+    {
+      "id": "dsa.hashing.patterns.example-a",
+      "title": "Frequency and lookup patterns: language-neutral trace",
+      "situation": "A frequency map finds the first repeated value while preserving a separate traversal for order.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A frequency map finds the first repeated value while preserving a separate traversal for order.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+      ],
+      "result": "The conceptual result follows because Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+    },
+    {
+      "id": "dsa.hashing.patterns.example-b",
+      "title": "Frequency and lookup patterns: implementation transfer",
+      "situation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+        "Step 3 — Retest this boundary in the selected implementation: Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.hashing.patterns.misconception",
+      "mistakenBelief": "A hash map is always better than an array for counting values.",
+      "correction": "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A hash map is always better than an array for counting values."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Frequency and lookup patterns, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A frequency map finds the first repeated value while preserving a separate traversal for order.",
+      "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
+      "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
+      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A frequency map finds the first repeated value while preserving a separate traversal for order."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+        },
+        "explanation": "Verify the result and reject this misconception: A hash map is always better than an array for counting values."
+      }
+    ],
+    "textAlternative": "Starting artifact: A frequency map finds the first repeated value while preserving a separate traversal for order. Step 1, Specification. State: scenario: A frequency map finds the first repeated value while preserving a separate traversal for order.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__. Step 4, Conclusion. State: correction: Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.. Verify the result and reject this misconception: A hash map is always better than an array for counting values."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Frequency and lookup patterns: language-neutral trace”: state its starting evidence, apply the Frequency and lookup patterns rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Frequency and lookup patterns: language-neutral trace.",
+        "Starting evidence: A frequency map finds the first repeated value while preserving a separate traversal for order.",
+        "Core rule: Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
+        "Observable result: The conceptual result follows because Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
+        "Boundary check: Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+        "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Frequency and lookup patterns case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Recognize and solve lookup and frequency problems with justified expected complexity.",
+        "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.hashing.patterns.misconception",
+      "explanation": "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'bounded dense keys', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to recognize and solve lookup and frequency problems with justified expected complexity. Keep this boundary in view: Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures.",
+    "retrievalPrompts": [
+      "State the Frequency and lookup patterns invariant and complexity without code.",
+      "Why is this claim false: A hash map is always better than an array for counting values.",
+      "Map checkpoint 'bounded dense keys' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Linear and binary search”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

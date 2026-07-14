@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.control.selection.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.values-control",
+  "skillId": "python.control.selection",
+  "title": "if and match deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for if and match; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "py-reference"
+  ],
+  "items": [
+    {
+      "id": "python.control.selection.mcq.misconception",
+      "skillId": "python.control.selection",
+      "title": "if and match: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Every bare name in a match case compares against an existing variable or constant value.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary.",
+        "incorrect": "That choice preserves the misconception. Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+        },
+        {
+          "id": "misconception",
+          "text": "Every bare name in a match case compares against an existing variable or constant value."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+      }
+    },
+    {
+      "id": "python.control.selection.fill.checkpoint",
+      "skillId": "python.control.selection",
+      "title": "if and match: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'bare names in patterns'. Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary.",
+        "incorrect": "The phrase must preserve the exact language rule. Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Treat [[checkpoint]] as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "bare names in patterns"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+      }
+    },
+    {
+      "id": "python.control.selection.code.core",
+      "skillId": "python.control.selection",
+      "title": "if and match: runnable core task",
+      "kind": "code",
+      "prompt": "Read a score and return invalid, fail, pass, or distinction using valid range 0..100 and boundaries 50 and 80.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.control.selection.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "50\n",
+          "expectedStdout": "pass",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.control.selection.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "101\n",
+          "expectedStdout": "invalid",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    score = int(data.strip())\n    if not 0 <= score <= 100:\n        return \"invalid\"\n    if score < 50:\n        return \"fail\"\n    if score < 80:\n        return \"pass\"\n    return \"distinction\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "Ordered conditions cover invalid input and every valid boundary exactly once."
+      }
+    }
+  ]
+}

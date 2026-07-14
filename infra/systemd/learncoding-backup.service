@@ -1,0 +1,20 @@
+[Unit]
+Description=LearnCoding nightly encrypted backup
+Documentation=/opt/learncoding/docs/runbooks/backup-and-restore.md
+After=learncoding-compose.service
+Wants=learncoding-compose.service
+OnFailure=learncoding-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/bash /opt/learncoding/scripts/backup/backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+UMask=0077
+TimeoutStartSec=4h

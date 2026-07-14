@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.sort.elementary.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.search-sort",
+  "skillId": "dsa.sort.elementary",
+  "title": "Selection and insertion sort",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Selection and insertion sort; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Selection and insertion sort",
+      "claim": "Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position. Your goal is to implement, trace and compare selection and insertion sort on representative inputs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Time, space and asymptotic growth; Array representation and operations. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Small or nearly sorted inputs can favor simple algorithms, but asymptotic and write costs still differ. The draft therefore rejects: All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use elementary sorts to practice invariants, stability and quadratic growth.",
+      "Implement, trace and compare selection and insertion sort on representative inputs.",
+      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+    ],
+    "excludes": [
+      "Small or nearly sorted inputs can favor simple algorithms, but asymptotic and write costs still differ."
+    ]
+  },
+  "outcomes": [
+    "Implement, trace and compare selection and insertion sort on representative inputs."
+  ],
+  "examples": [
+    {
+      "id": "dsa.sort.elementary.example-a",
+      "title": "Selection and insertion sort: language-neutral trace",
+      "situation": "Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+      ],
+      "result": "The conceptual result follows because Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+    },
+    {
+      "id": "dsa.sort.elementary.example-b",
+      "title": "Selection and insertion sort: implementation transfer",
+      "situation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+        "Step 3 — Retest this boundary in the selected implementation: Small or nearly sorted inputs can favor simple algorithms, but asymptotic and write costs still differ."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.sort.elementary.misconception",
+      "mistakenBelief": "All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order.",
+      "correction": "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Selection and insertion sort, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Small or nearly sorted inputs can favor simple algorithms, but asymptotic and write costs still differ."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position.",
+      "Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior.",
+      "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable.",
+      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+        },
+        "explanation": "Verify the result and reject this misconception: All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order."
+      }
+    ],
+    "textAlternative": "Starting artifact: Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position. Step 1, Specification. State: scenario: Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics. Step 4, Conclusion. State: correction: Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable.. Verify the result and reject this misconception: All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Selection and insertion sort: language-neutral trace”: state its starting evidence, apply the Selection and insertion sort rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Selection and insertion sort: language-neutral trace.",
+        "Starting evidence: Insertion sort keeps a sorted prefix and inserts the next value into its correct prefix position.",
+        "Core rule: Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior.",
+        "Observable result: The conceptual result follows because Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable.",
+        "Boundary check: Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Insertion, selection, and bubble sort expose different invariants, stability, adaptiveness, and quadratic movement or comparison behavior.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+        "Small or nearly sorted inputs can favor simple algorithms, but asymptotic and write costs still differ."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Selection and insertion sort case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement, trace and compare selection and insertion sort on representative inputs.",
+        "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.sort.elementary.misconception",
+      "explanation": "Compare invariants and properties: insertion can be stable and adaptive, while selection minimizes swaps but is typically unstable.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'insertion can be stable and adaptive', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement, trace and compare selection and insertion sort on representative inputs. Keep this boundary in view: Small or nearly sorted inputs can favor simple algorithms, but asymptotic and write costs still differ.",
+    "retrievalPrompts": [
+      "State the Selection and insertion sort invariant and complexity without code.",
+      "Why is this claim false: All quadratic sorting algorithms perform exactly the same comparisons and preserve equal-item order.",
+      "Map checkpoint 'insertion can be stable and adaptive' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Merge sort and quicksort”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

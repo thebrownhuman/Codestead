@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.data.features.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.data-workflow",
+  "skillId": "ai.data.features",
+  "title": "Features and preprocessing",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Features and preprocessing; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "sklearn",
+      "locator": "scikit-learn User Guide; 1.9.x target, accessed 2026-07; User Guide sections 3 and 7: model selection, pipelines, preprocessing, imputation, and leakage-safe evaluation; atomic topic: Features and preprocessing",
+      "claim": "Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds. Your goal is to build and explain a preprocessing pipeline that handles numeric and categorical inputs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: python quality project; Problem and environment characteristics; Sampling, labels and data quality; python collections dict set. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Scaling needs vary by model, categories can be unseen, timestamps can leak future information, high-cardinality encoding can memorize, and a pipeline prevents procedural leakage but not a conceptually leaked feature. The learner must reject this overclaim: It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Encode, scale or transform only using training-derived information and meaningful representations.",
+      "Build and explain a preprocessing pipeline that handles numeric and categorical inputs."
+    ],
+    "excludes": [
+      "Scaling needs vary by model, categories can be unseen, timestamps can leak future information, high-cardinality encoding can memorize, and a pipeline prevents procedural leakage but not a conceptually leaked feature."
+    ]
+  },
+  "outcomes": [
+    "Build and explain a preprocessing pipeline that handles numeric and categorical inputs."
+  ],
+  "examples": [
+    {
+      "id": "ai.data.features.example.direct",
+      "title": "Features and preprocessing: bounded direct case",
+      "situation": "A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+      ],
+      "result": "This example supports only the atomic outcome because Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+    },
+    {
+      "id": "ai.data.features.example.stress",
+      "title": "Features and preprocessing: stress and transfer case",
+      "situation": "A feature containing final resolution time is removed because no pipeline can make information unavailable at prediction time legitimate.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A feature containing final resolution time is removed because no pipeline can make information unavailable at prediction time legitimate.",
+        "Step 2 — Keep the non-claim visible: Scaling needs vary by model, categories can be unseen, timestamps can leak future information, high-cardinality encoding can memorize, and a pipeline prevents procedural leakage but not a conceptually leaked feature.",
+        "Step 3 — Reject the tempting overclaim: It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly."
+      ],
+      "result": "This case demonstrates the declared outcome: Build and explain a preprocessing pipeline that handles numeric and categorical inputs."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.data.features.misconception",
+      "mistakenBelief": "It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly.",
+      "correction": "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a provenance-controlled laboratory that defines the decision, inspects samples and labels, derives transformations, and seals evaluation partitions can introduce Features and preprocessing only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "problem framing, data quality, preprocessing, and leakage control"
+    ],
+    "limitations": [
+      "clean procedures cannot recover absent populations, authorize data, or make a harmful target appropriate",
+      "Scaling needs vary by model, categories can be unseen, timestamps can leak future information, high-cardinality encoding can memorize, and a pipeline prevents procedural leakage but not a conceptually leaked feature."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds.",
+      "Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data.",
+      "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly."
+      }
+    ],
+    "textAlternative": "Starting artifact: A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds. Step 1, Observe. State: boundedEvidence: A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time.. State what the evidence does not establish and reject the misconception: It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Features and preprocessing: bounded direct case”: state its starting evidence, apply the Features and preprocessing rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Features and preprocessing: bounded direct case.",
+        "Starting evidence: A ColumnTransformer imputes/scales numeric columns and one-hot encodes categories inside a pipeline fitted during cross-validation folds.",
+        "Core rule: Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data.",
+        "Observable result: This example supports only the atomic outcome because Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time.",
+        "Boundary check: Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A feature containing final resolution time is removed because no pipeline can make information unavailable at prediction time legitimate.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Feature preprocessing converts raw fields into meaningful numeric representations, with learned imputation, scaling, encoding, and selection fitted only on training data and replayed unchanged on later data.",
+        "Scaling needs vary by model, categories can be unseen, timestamps can leak future information, high-cardinality encoding can memorize, and a pipeline prevents procedural leakage but not a conceptually leaked feature."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Features and preprocessing and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Build and explain a preprocessing pipeline that handles numeric and categorical inputs.",
+        "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.data.features.misconception",
+      "explanation": "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A feature containing final resolution time is removed because no pipeline can make information unavailable at prediction time legitimate."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to build and explain a preprocessing pipeline that handles numeric and categorical inputs. Keep this boundary in view: Scaling needs vary by model, categories can be unseen, timestamps can leak future information, high-cardinality encoding can memorize, and a pipeline prevents procedural leakage but not a conceptually leaked feature.",
+    "retrievalPrompts": [
+      "Explain Features and preprocessing with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly.",
+      "Apply the boundary to: A feature containing final resolution time is removed because no pipeline can make information unavailable at prediction time legitimate."
+    ],
+    "nextReviewPrompt": "Next: continue to “Train, validation, test and leakage”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

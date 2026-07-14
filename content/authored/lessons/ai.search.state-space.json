@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.search.state-space.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.state-space",
+  "title": "States, actions, goals and costs",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for States, actions, goals and costs; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Fundamental Issues and Basic Search Strategies: state spaces, uninformed/informed, and adversarial search; atomic topic: States, actions, goals and costs",
+      "claim": "A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost. Your goal is to design a state-space representation for a puzzle or grid task. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Agent, goal and utility models; dsa graphs bfs dfs; Problem and environment characteristics; dsa graphs model. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Omitted state can make successors invalid, duplicate states create cycles, action cost may not equal step count, the representation changes search complexity, and a found path still needs domain validation. The learner must reject this overclaim: A search state only needs the agent's current position; history, resources, or permissions never affect future legal actions."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Encode a problem as an implicit graph with successors, goal test and path cost.",
+      "Design a state-space representation for a puzzle or grid task."
+    ],
+    "excludes": [
+      "Omitted state can make successors invalid, duplicate states create cycles, action cost may not equal step count, the representation changes search complexity, and a found path still needs domain validation."
+    ]
+  },
+  "outcomes": [
+    "Design a state-space representation for a puzzle or grid task."
+  ],
+  "examples": [
+    {
+      "id": "ai.search.state-space.example.direct",
+      "title": "States, actions, goals and costs: bounded direct case",
+      "situation": "A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent."
+      ],
+      "result": "This example supports only the atomic outcome because Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent."
+    },
+    {
+      "id": "ai.search.state-space.example.stress",
+      "title": "States, actions, goals and costs: stress and transfer case",
+      "situation": "A key-and-door puzzle adds held keys to the state because location alone cannot determine which moves are legal.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A key-and-door puzzle adds held keys to the state because location alone cannot determine which moves are legal.",
+        "Step 2 — Keep the non-claim visible: Omitted state can make successors invalid, duplicate states create cycles, action cost may not equal step count, the representation changes search complexity, and a found path still needs domain validation.",
+        "Step 3 — Reject the tempting overclaim: A search state only needs the agent's current position; history, resources, or permissions never affect future legal actions."
+      ],
+      "result": "This case demonstrates the declared outcome: Design a state-space representation for a puzzle or grid task."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.search.state-space.misconception",
+      "mistakenBelief": "A search state only needs the agent's current position; history, resources, or permissions never affect future legal actions.",
+      "correction": "Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A search state only needs the agent's current position; history, resources, or permissions never affect future legal actions."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a route planner that tracks states, legal moves, accumulated cost, estimates, and an ordered frontier can introduce States, actions, goals and costs only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "state-space representation, frontier policies, heuristics, and adversarial backup"
+    ],
+    "limitations": [
+      "real environments can be continuous, stochastic, changing, partially observed, or too large for the simplified route model",
+      "Omitted state can make successors invalid, duplicate states create cycles, action cost may not equal step count, the representation changes search complexity, and a found path still needs domain validation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost.",
+      "A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph.",
+      "Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A search state only needs the agent's current position; history, resources, or permissions never affect future legal actions."
+      }
+    ],
+    "textAlternative": "Starting artifact: A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost. Step 1, Observe. State: boundedEvidence: A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent.. State what the evidence does not establish and reject the misconception: A search state only needs the agent's current position; history, resources, or permissions never affect future legal actions."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “States, actions, goals and costs: bounded direct case”: state its starting evidence, apply the States, actions, goals and costs rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: States, actions, goals and costs: bounded direct case.",
+        "Starting evidence: A grid state includes current cell, obstacles remain fixed, successors are legal adjacent moves, the goal tests one cell, and every move has unit cost.",
+        "Core rule: A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph.",
+        "Observable result: This example supports only the atomic outcome because Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent.",
+        "Boundary check: Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A key-and-door puzzle adds held keys to the state because location alone cannot determine which moves are legal.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A state-space problem defines sufficient states, legal successor actions, a start state, a goal test, and path costs so solutions correspond to valid paths in an implicit graph.",
+        "Omitted state can make successors invalid, duplicate states create cycles, action cost may not equal step count, the representation changes search complexity, and a found path still needs domain validation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for States, actions, goals and costs and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Design a state-space representation for a puzzle or grid task.",
+        "Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.search.state-space.misconception",
+      "explanation": "Encode every fact needed to determine successors, goal status, and future cost while merging histories only when they are behaviorally equivalent.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A key-and-door puzzle adds held keys to the state because location alone cannot determine which moves are legal."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design a state-space representation for a puzzle or grid task. Keep this boundary in view: Omitted state can make successors invalid, duplicate states create cycles, action cost may not equal step count, the representation changes search complexity, and a found path still needs domain validation.",
+    "retrievalPrompts": [
+      "Explain States, actions, goals and costs with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A search state only needs the agent's current position; history, resources, or permissions never affect future legal actions.",
+      "Apply the boundary to: A key-and-door puzzle adds held keys to the state because location alone cannot determine which moves are legal."
+    ],
+    "nextReviewPrompt": "Next: continue to “Uninformed search”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

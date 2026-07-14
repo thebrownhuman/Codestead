@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.aggregates.union.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.aggregates",
+  "skillId": "c.aggregates.union",
+  "title": "Unions and tagged values",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Unions and tagged values; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to Unions and tagged values",
+      "claim": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Unions and tagged values",
+      "claim": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Unions and tagged values",
+      "claim": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member. Your goal is to implement and safely inspect a simple tagged union. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: One-dimensional arrays; Addresses and dereference; Structures; Enumerations. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant. Therefore the draft explicitly rejects this beginner failure model: A union remembers which member was last written and prevents code from reading the wrong alternative."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Understand shared storage and pair a union with a valid discriminant.",
+      "Implement and safely inspect a simple tagged union."
+    ],
+    "excludes": [
+      "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant."
+    ]
+  },
+  "outcomes": [
+    "Implement and safely inspect a simple tagged union."
+  ],
+  "examples": [
+    {
+      "id": "c.aggregates.union.example-a",
+      "title": "Unions and tagged values: defined case",
+      "situation": "A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+      ],
+      "result": "The defined result follows because A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+    },
+    {
+      "id": "c.aggregates.union.example-b",
+      "title": "Unions and tagged values: boundary case",
+      "situation": "Writing the double member and then assuming the int member contains a portable bit conversion is rejected.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: Writing the double member and then assuming the int member contains a portable bit conversion is rejected.",
+        "Step 2 — Keep this standard boundary visible: Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant.",
+        "Step 3 — Reject the tempting rule: A union remembers which member was last written and prevents code from reading the wrong alternative."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and safely inspect a simple tagged union."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.aggregates.union.misconception",
+      "mistakenBelief": "A union remembers which member was last written and prevents code from reading the wrong alternative.",
+      "correction": "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A union remembers which member was last written and prevents code from reading the wrong alternative."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Unions and tagged values: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
+      "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
+      "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A union remembers which member was last written and prevents code from reading the wrong alternative."
+      }
+    ],
+    "textAlternative": "Starting artifact: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member. Step 1, Source and state. State: evidence: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.. Check the conclusion against the boundary and reject this misconception: A union remembers which member was last written and prevents code from reading the wrong alternative."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Unions and tagged values: defined case”: state its starting evidence, apply the Unions and tagged values rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Unions and tagged values: defined case.",
+        "Starting evidence: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
+        "Core rule: A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
+        "Observable result: The defined result follows because A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.",
+        "Boundary check: A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: Writing the double member and then assuming the int member contains a portable bit conversion is rejected.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
+        "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Unions and tagged values, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and safely inspect a simple tagged union.",
+        "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.aggregates.union.misconception",
+      "explanation": "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'separate discriminator' and state the decisive evidence: Writing the double member and then assuming the int member contains a portable bit conversion is rejected."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and safely inspect a simple tagged union. Keep this boundary in view: Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant.",
+    "retrievalPrompts": [
+      "Explain Unions and tagged values using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: A union remembers which member was last written and prevents code from reading the wrong alternative.",
+      "Apply the checkpoint 'separate discriminator' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Type aliases and API clarity”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

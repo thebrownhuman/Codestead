@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.unsupervised.clustering.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.unsupervised",
+  "skillId": "ai.unsupervised.clustering",
+  "title": "Clustering",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Clustering; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "sklearn",
+      "locator": "scikit-learn User Guide; 1.9.x target, accessed 2026-07; User Guide sections 2, 3.4.7, and 7.5: clustering, novelty/outlier detection, decomposition, and evaluation; atomic topic: Clustering",
+      "claim": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default."
+    },
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning: unsupervised methods, clustering, dimensionality, and recommendation concepts; atomic topic: Clustering",
+      "claim": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories. Your goal is to apply and critique a clustering result under at least two parameter or representation choices. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Data and experimental workflow; Bias, variance and regularization; Features and preprocessing. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless. The learner must reject this overclaim: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Compare centroid, density and hierarchical concepts and the role of scaling and distance.",
+      "Apply and critique a clustering result under at least two parameter or representation choices."
+    ],
+    "excludes": [
+      "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless."
+    ]
+  },
+  "outcomes": [
+    "Apply and critique a clustering result under at least two parameter or representation choices."
+  ],
+  "examples": [
+    {
+      "id": "ai.unsupervised.clustering.example.direct",
+      "title": "Clustering: bounded direct case",
+      "situation": "Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      ],
+      "result": "This example supports only the atomic outcome because Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+    },
+    {
+      "id": "ai.unsupervised.clustering.example.stress",
+      "title": "Clustering: stress and transfer case",
+      "situation": "A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported.",
+        "Step 2 — Keep the non-claim visible: Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless.",
+        "Step 3 — Reject the tempting overclaim: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+      ],
+      "result": "This case demonstrates the declared outcome: Apply and critique a clustering result under at least two parameter or representation choices."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.unsupervised.clustering.misconception",
+      "mistakenBelief": "A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real.",
+      "correction": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an exploratory sorting table whose representation, distance, projection, reference population, and exposure policy determine visible patterns can introduce Clustering only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "clustering, dimensionality reduction, anomaly scoring, and recommendation"
+    ],
+    "limitations": [
+      "algorithmic groups and outliers are parameter-dependent summaries rather than discovered human categories or harms",
+      "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
+      "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
+      "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+      }
+    ],
+    "textAlternative": "Starting artifact: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories. Step 1, Observe. State: boundedEvidence: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.. State what the evidence does not establish and reject the misconception: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Clustering: bounded direct case”: state its starting evidence, apply the Clustering rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Clustering: bounded direct case.",
+        "Starting evidence: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
+        "Core rule: Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
+        "Observable result: This example supports only the atomic outcome because Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
+        "Boundary check: Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
+        "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Clustering and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Apply and critique a clustering result under at least two parameter or representation choices.",
+        "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.unsupervised.clustering.misconception",
+      "explanation": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to apply and critique a clustering result under at least two parameter or representation choices. Keep this boundary in view: Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless.",
+    "retrievalPrompts": [
+      "Explain Clustering with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real.",
+      "Apply the boundary to: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported."
+    ],
+    "nextReviewPrompt": "Next: continue to “Dimensionality reduction”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

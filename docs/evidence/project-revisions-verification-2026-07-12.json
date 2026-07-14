@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T17:45:30+05:30",
+  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "scope": "Launch 1 learner-owned project revision workspace; local source, UI, and disposable PostgreSQL evidence only",
+  "status": "verified",
+  "claims": {
+    "ownerBound": "Create, paginated list, and detail read pass the authenticated learner id into SQL predicates that join through the owned project; foreign targets are indistinguishable not-found responses.",
+    "appendOnly": "Migration 0022 creates project_revision/project_revision_object and database update guards. Integration tests prove revision and snapshot rewrites fail with SQLSTATE 55000 while account/project deletion and object-reference nulling remain possible.",
+    "idempotentConcurrentCreate": "A per-project row lock serializes sequence allocation. Expected latest sequence rejects stale writers, exact request/hash retries replay once, and changed request-id reuse is rejected.",
+    "safeFileAssociation": "At most 20 unique files must be owned, undeleted, user_upload, and scanStatus=safe. Only metadata plus a nullable reference is recorded; no bytes or quota_ledger row are added.",
+    "reviewIsolation": "Revision creation creates no model_call, runner_job, or project_review record and the UI states that no implicit AI, execution, or review occurs.",
+    "lifecycle": "Export schema 4 includes revisions and metadata snapshots without bytes. Retention policy 2026-07-12.v3 retains history until administrator deletion, whose transaction explicitly removes link/revision rows.",
+    "meaningfulActivity": "A new checkpoint atomically advances last_meaningful_activity_at, closes an older open inactivity episode, and appends one project_milestone to an active learning session. Exact replay does not advance or duplicate those effects.",
+    "accessibleResponsiveUi": "The semantic modal has labelled controls/fieldset, status and alert regions, Escape/close handling, safe-file selection, history and unavailable-file states, pagination, and a single-column mobile layout."
+  },
+  "verification": [
+    {
+      "command": "npm.cmd exec -- vitest run <12 project/lifecycle/security focused files>",
+      "result": "12 files passed; 60 tests passed"
+    },
+    {
+      "command": "npm.cmd test -- --run",
+      "result": "171 files passed; 1195 passed; 1 intentionally skipped"
+    },
+    {
+      "command": "npm.cmd run test:integration -- integration/project-revisions.integration.test.ts",
+      "result": "All migrations through 0024 applied successfully and the second migration pass was a no-op; all 4 project cases passed, including active-session milestone, immediate inactivity close, meaningful timestamp advancement, and exact-replay non-duplication."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "passed after final project service changes"
+    },
+    {
+      "command": "npm.cmd exec -- eslint <17 project/lifecycle/security changed TypeScript files>",
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run lint",
+      "result": "repository-wide ESLint passed after concurrent work settled"
+    },
+    {
+      "command": "npm.cmd run security:secrets",
+      "result": "passed; no recognized plaintext credential canaries found"
+    },
+    {
+      "command": "npm.cmd run test:auth-boundary",
+      "result": "1 file passed; 3 endpoint-wide denial tests passed"
+    },
+    {
+      "command": "npm.cmd run security:api-surface -- --output=docs/evidence/api-authorization-matrix-2026-07-12.json",
+      "result": "93 route files; 113 operations; 26 identifier contracts; 7 supporting ownership contracts; 0 errors"
+    },
+    {
+      "command": "npm.cmd run db:generate",
+      "result": "No schema changes after generated migration 0022"
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "Next.js production build passed; 72 pages; both project revision routes emitted"
+    },
+    {
+      "command": "repository UTF-8 code-point scan",
+      "result": "No U+00C2, U+00E2, or U+00C3 mojibake lead characters in src or docs"
+    }
+  ],
+  "artifacts": {
+    "migration": {
+      "path": "drizzle/0022_oval_kinsey_walden.sql",
+      "sha256": "58cce0b052f42b2ebe90e46c24e7693362fc582700b8a78e9dd75e7665387350"
+    },
+    "service": {
+      "path": "src/lib/projects/revision-service.ts",
+      "sha256": "de8da8181f80f05785c8faef6e311b026010cc6b7cfe45a398312b0aba1936e8"
+    },
+    "collectionRoute": {
+      "path": "src/app/api/projects/[id]/revisions/route.ts",
+      "sha256": "e5b52440867447a76bd0dc074f336e751acb1f1a1e67306a36a093fb61ffc4b4"
+    },
+    "learnerUi": {
+      "path": "src/components/product/project-revision-dialog.tsx",
+      "sha256": "e86365156af8122b54020fe0439e27ecbde671132f492ee9cd2e72334ca960ef"
+    },
+    "postgresTest": {
+      "path": "integration/project-revisions.integration.test.ts",
+      "sha256": "03d08a34d7c3569ddba4a63530ca5a3709a934703d85ebe540e8bbe6a4b00dec"
+    }
+  },
+  "supersededDigests": [
+    {
+      "artifact": "src/components/product/project-revision-dialog.tsx",
+      "priorDigest": "a3a5589503a67666b92ac2724f5c5bc0121d90aa260e4ea584e89fe6e9937174",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    }
+  ],
+  "notProven": [
+    "Live production NUC/PostgreSQL deployment, physical-device accessibility, and Cloudflare/browser session testing are outside this local evidence.",
+    "Private GitHub App installation/token lifecycle and live GitHub API/repository outage/rate-limit/force-push drills are not implemented.",
+    "Revision metadata is not automatically reconciled to commits, branches, pull requests, or releases.",
+    "Project-review appeal overturns still require manual administrator handling and do not automatically run a corrected repository analysis."
+  ]
+}

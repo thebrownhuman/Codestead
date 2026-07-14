@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.objects.protocols.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.objects",
+  "skillId": "python.objects.protocols",
+  "title": "Representation, equality and container protocols deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Representation, equality and container protocols; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-reference",
+    "py-stdlib"
+  ],
+  "items": [
+    {
+      "id": "python.objects.protocols.mcq.misconception",
+      "skillId": "python.objects.protocols",
+      "title": "Representation, equality and container protocols: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable.",
+        "incorrect": "That choice preserves the misconception. Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+        },
+        {
+          "id": "misconception",
+          "text": "Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+      }
+    },
+    {
+      "id": "python.objects.protocols.fill.checkpoint",
+      "skillId": "python.objects.protocols",
+      "title": "Representation, equality and container protocols: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'return NotImplemented'. Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable.",
+        "incorrect": "The phrase must preserve the exact language rule. Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Honor each data-model protocol: [[checkpoint]] for unsupported equality, align equality with hashing, and keep representation and iteration predictable.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "return NotImplemented"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+      }
+    },
+    {
+      "id": "python.objects.protocols.code.core",
+      "skillId": "python.objects.protocols",
+      "title": "Representation, equality and container protocols: runnable core task",
+      "kind": "code",
+      "prompt": "Read integers into a Bag that implements repr, len, and iteration. Print its representation, length, and sum.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.objects.protocols.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "1 2 3\n",
+          "expectedStdout": "Bag([1, 2, 3])\n3 6",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.objects.protocols.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "\n",
+          "expectedStdout": "Bag([])\n0 0",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\nclass Bag:\n    def __init__(self, values) -> None:\n        self._values = list(values)\n    def __repr__(self) -> str:\n        return f\"Bag({self._values!r})\"\n    def __len__(self) -> int:\n        return len(self._values)\n    def __iter__(self):\n        return iter(self._values)\n\ndef solve(data: str) -> str:\n    bag = Bag(int(token) for token in data.split())\n    return f\"{bag!r}\\n{len(bag)} {sum(bag)}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The object participates predictably in representation, sized-container, and iterable protocols without side effects."
+      }
+    }
+  ]
+}

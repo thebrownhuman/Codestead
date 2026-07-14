@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.supervised.models.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.supervised",
+  "skillId": "ai.supervised.models",
+  "title": "Linear, neighbor and tree models",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Linear, neighbor and tree models; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "sklearn",
+      "locator": "scikit-learn User Guide; 1.9.x target, accessed 2026-07; User Guide sections 1 and 3: supervised estimators, validation, thresholding, metrics, and learning curves; atomic topic: Linear, neighbor and tree models",
+      "claim": "Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported. Your goal is to select and compare at least three model families using the same split and metric plan. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Data and experimental workflow; Conditional probability and Bayes rule; Regression; Classification and probabilities. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "No family is universally best, preprocessing changes comparisons, hyperparameter searches add selection bias, tree importance can mislead, and a more complex model must beat relevant baselines with uncertainty. The learner must reject this overclaim: A tree is always interpretable, nearest neighbors needs no training choices, and the model with the best validation score is objectively superior."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Compare assumptions, scaling needs, nonlinear boundaries and interpretability of common model families.",
+      "Select and compare at least three model families using the same split and metric plan."
+    ],
+    "excludes": [
+      "No family is universally best, preprocessing changes comparisons, hyperparameter searches add selection bias, tree importance can mislead, and a more complex model must beat relevant baselines with uncertainty."
+    ]
+  },
+  "outcomes": [
+    "Select and compare at least three model families using the same split and metric plan."
+  ],
+  "examples": [
+    {
+      "id": "ai.supervised.models.example.direct",
+      "title": "Linear, neighbor and tree models: bounded direct case",
+      "situation": "Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns."
+      ],
+      "result": "This example supports only the atomic outcome because Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns."
+    },
+    {
+      "id": "ai.supervised.models.example.stress",
+      "title": "Linear, neighbor and tree models: stress and transfer case",
+      "situation": "K-nearest neighbors degrades when irrelevant unscaled dimensions dominate distance, while a tree overfits small leaves unless complexity is controlled.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: K-nearest neighbors degrades when irrelevant unscaled dimensions dominate distance, while a tree overfits small leaves unless complexity is controlled.",
+        "Step 2 — Keep the non-claim visible: No family is universally best, preprocessing changes comparisons, hyperparameter searches add selection bias, tree importance can mislead, and a more complex model must beat relevant baselines with uncertainty.",
+        "Step 3 — Reject the tempting overclaim: A tree is always interpretable, nearest neighbors needs no training choices, and the model with the best validation score is objectively superior."
+      ],
+      "result": "This case demonstrates the declared outcome: Select and compare at least three model families using the same split and metric plan."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.supervised.models.misconception",
+      "mistakenBelief": "A tree is always interpretable, nearest neighbors needs no training choices, and the model with the best validation score is objectively superior.",
+      "correction": "Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A tree is always interpretable, nearest neighbors needs no training choices, and the model with the best validation score is objectively superior."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a measured prediction workshop that compares a simple baseline with several fitted rules on held-out outcomes can introduce Linear, neighbor and tree models only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "regression, classification, model assumptions, and generalization"
+    ],
+    "limitations": [
+      "prediction evidence does not establish causation, fairness, or unchanged performance after deployment",
+      "No family is universally best, preprocessing changes comparisons, hyperparameter searches add selection bias, tree importance can mislead, and a more complex model must beat relevant baselines with uncertainty."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported.",
+      "Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant.",
+      "Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A tree is always interpretable, nearest neighbors needs no training choices, and the model with the best validation score is objectively superior."
+      }
+    ],
+    "textAlternative": "Starting artifact: Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported. Step 1, Observe. State: boundedEvidence: Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns.. State what the evidence does not establish and reject the misconception: A tree is always interpretable, nearest neighbors needs no training choices, and the model with the best validation score is objectively superior."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Linear, neighbor and tree models: bounded direct case”: state its starting evidence, apply the Linear, neighbor and tree models rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Linear, neighbor and tree models: bounded direct case.",
+        "Starting evidence: Logistic regression, scaled k-nearest neighbors, and a depth-bounded tree use the same grouped folds and primary metric, with latency and slice errors reported.",
+        "Core rule: Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant.",
+        "Observable result: This example supports only the atomic outcome because Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns.",
+        "Boundary check: Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: K-nearest neighbors degrades when irrelevant unscaled dimensions dominate distance, while a tree overfits small leaves unless complexity is controlled.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Linear, nearest-neighbor, and tree models encode different assumptions about boundaries, scaling, locality, interactions, sample size, interpretability, and prediction cost; comparison holds data and metrics constant.",
+        "No family is universally best, preprocessing changes comparisons, hyperparameter searches add selection bias, tree importance can mislead, and a more complex model must beat relevant baselines with uncertainty."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Linear, neighbor and tree models and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Select and compare at least three model families using the same split and metric plan.",
+        "Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.supervised.models.misconception",
+      "explanation": "Compare model families under one split, preprocessing, metric, uncertainty, and operational-cost plan, then justify assumptions and remaining failure patterns.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: K-nearest neighbors degrades when irrelevant unscaled dimensions dominate distance, while a tree overfits small leaves unless complexity is controlled."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to select and compare at least three model families using the same split and metric plan. Keep this boundary in view: No family is universally best, preprocessing changes comparisons, hyperparameter searches add selection bias, tree importance can mislead, and a more complex model must beat relevant baselines with uncertainty.",
+    "retrievalPrompts": [
+      "Explain Linear, neighbor and tree models with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A tree is always interpretable, nearest neighbors needs no training choices, and the model with the best validation score is objectively superior.",
+      "Apply the boundary to: K-nearest neighbors degrades when irrelevant unscaled dimensions dominate distance, while a tree overfits small leaves unless complexity is controlled."
+    ],
+    "nextReviewPrompt": "Next: continue to “Bias, variance and regularization”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

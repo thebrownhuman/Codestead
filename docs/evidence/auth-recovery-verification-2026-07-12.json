@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T22:29:00.000+05:30",
+  "scope": "Invite-only access decisions, password activation/reset, MFA recovery-code boundaries, one-device security history, and secure out-of-band lost-device session revocation",
+  "status": "passed-local",
+  "implementation": {
+    "migration": "0026_auth_recovery_ceremony",
+    "publicCeremony": {
+      "entry": "/lost-device",
+      "requestResponse": "Eligible, unknown and ineligible syntactically valid email addresses receive the same 202 body. An internal issuance/outbox/audit failure reached after eligibility is also logged with a constant code and returns the exact same status, body and headers, preventing an operational enumeration oracle. Invalid syntax is rejected without an account lookup result.",
+      "eligibility": "Only an active learner with a verified email and one unexpired active database session receives a proof email.",
+      "rateLimits": [
+        "lost_device_request_ip",
+        "lost_device_request_email",
+        "lost_device_verify_ip",
+        "lost_device_verify_proof"
+      ]
+    },
+    "proof": {
+      "ttlMinutes": 15,
+      "rawDerivation": "HMAC-SHA-256 over a random request UUID under a dedicated production-required LOST_DEVICE_PROOF_KEY. Development/tests may fall back to the Better Auth secret, but production rejects that fallback; Compose mounts the independent key only into the app and mail worker.",
+      "storedVerifier": "SHA-256 of the raw proof only; lowercase 64-hex database constraint",
+      "singleUse": "One conditional PostgreSQL UPDATE sets consumed_at only while it is null and expires_at is strictly later than the verification time.",
+      "ownerBinding": "The proof row carries user_id and session_id. Verification accepts no caller-supplied target and rechecks the active session belongs to that learner.",
+      "delivery": "email_outbox stores only learner name and recoveryRequestId. The worker derives the bearer in memory, verifies its stored hash, suppresses expired/tampered delivery, and never writes expanded variables back.",
+      "browserTransport": "The bearer is placed after # in the email URL so it is absent from HTTP requests and Referer headers. The client captures it before React Strict Mode effect replay and immediately clears browser history."
+    },
+    "administratorDecision": {
+      "queueAdmission": "A session_revocation_request is created only after atomic proof consumption and records request_channel=email_proof plus identity_verified_at and proof_request_id.",
+      "identityBoundary": "Mailbox control is explicitly insufficient. UI and operator guidance require a separate identity confirmation; approval/rejection retains the existing fresh administrator MFA and recorded-reason gate.",
+      "effects": "Approval revokes only the proof-bound active session, archives token-free history as lost_device_approved, audits the decision, and sends durable learner/admin notifications. Rejection also audits and notifies without revocation."
+    },
+    "lifecycle": "Account deletion explicitly removes proof-backed revocation requests before RESTRICT-bound lost_device_proof rows, then removes token-free history. Separate PostgreSQL tests cover pending and approved/revoked states and prove no orphan.",
+    "passwordRecovery": "Better Auth reset remains a one-time link, returns the same request result for known and unknown addresses, rejects replay, revokes the database session, and now archives it with password_reset rather than a generic logout reason. No password is present in outbox or history evidence."
+  },
+  "securityInvariants": [
+    "No password is generated or emailed during invitation, activation, lost-device, or reset journeys.",
+    "No lost-device bearer proof is stored plaintext in lost_device_proof, email_outbox, audit_event, session_revocation_request, notification, or auth_session_history.",
+    "No raw proof appears in an HTTP URL, response, audit metadata, or worker log.",
+    "An eligible-account issuance failure cannot change the neutral public response or log the email; malformed input and rate-policy responses remain intentionally distinct.",
+    "A proof cannot select another learner or session, and corrupted cross-owner binding is consumed without creating a request.",
+    "Concurrent issue calls reuse one proof/outbox row; concurrent verify calls produce exactly one consumer and one review request.",
+    "Expiry is strict at the exact 15-minute boundary and replay never creates another request.",
+    "A stale administrator MFA assertion cannot decide or revoke; a fresh one plus a reason is required.",
+    "One-device uniqueness and production fail-closed authentication were not weakened."
+  ],
+  "verification": {
+    "postgres": {
+      "command": "npm.cmd run test:integration -- integration/auth-recovery.integration.test.ts",
+      "result": "1 file passed; 9 tests passed; 0 failed; migrations 0026 through 0028 applied successfully twice",
+      "coverage": [
+        "12-way issuance deduplication and no plaintext proof/proof URL in persisted rows",
+        "12-way atomic consume race, replay rejection, owner/session binding and admin notification",
+        "exact expiry and corrupted cross-owner binding rejection",
+        "stale then fresh administrator MFA, reasoned approval, owner-only revocation, notification, audit and token-free history",
+        "pending proof/request account deletion ordering",
+        "approved proof/request/history account deletion ordering and orphan check",
+        "neutral pending access request, approval, invitation activation, direct-signup bypass and activation replay",
+        "reasoned rejection with no invitation/account",
+        "known/unknown password-recovery parity, one-time reset, replay rejection, session revocation and password_reset history"
+      ]
+    },
+    "focusedUnitComponentSecurity": {
+      "command": "npx.cmd vitest run src/app/api/lost-device/__tests__/routes.test.ts src/components/auth/__tests__/lost-device-recovery-form.test.tsx src/lib/security/__tests__/lost-device-proof.test.ts src/lib/notifications/__tests__/delivery-variables.test.ts src/lib/security/__tests__/api-surface.test.ts src/lib/security/__tests__/api-authorization-matrix.test.ts src/lib/security/__tests__/rate-limit-boundaries.test.ts src/lib/notifications/__tests__/template-contracts.test.ts",
+      "result": "8 files passed; 81 tests passed"
+    },
+    "dataLifecycleUnit": {
+      "command": "npx.cmd vitest run src/lib/data-lifecycle/__tests__",
+      "result": "7 files passed; 51 tests passed"
+    },
+    "browser": {
+      "command": "npx.cmd playwright test e2e/access.spec.ts --project=chromium --grep lost-device --workers=1",
+      "result": "2 passed in 3.2 seconds; 0 skipped; 0 unexpected; 0 flaky",
+      "artifact": "docs/evidence/playwright-lost-device-chromium-2026-07-12.json"
+    },
+    "authBoundary": "1 file passed; 3 tests passed",
+    "typecheck": "passed",
+    "focusedLint": "passed with 0 errors and 0 warnings",
+    "secretScan": "passed",
+    "encodingScan": "passed",
+    "apiAuthorizationMatrix": {
+      "files": 101,
+      "operations": 122,
+      "public": 5,
+      "authHandler": 2,
+      "authenticated": 65,
+      "administrator": 50,
+      "errors": 0
+    },
+    "releaseAudit": "verified: 115 requirements and 61 local links resolved",
+    "schemaRegeneration": "89 tables and no schema drift after the final coordinated migrations through 0030"
+  },
+  "auditImpact": {
+    "materiallyImproved": [
+      "AUTH-001",
+      "AUTH-002",
+      "AUTH-003",
+      "AUTH-006",
+      "AUTH-009"
+    ],
+    "additionalCoverage": [
+      "AUTH-004",
+      "AUTH-007"
+    ],
+    "statusPromotions": [],
+    "reasonNoStatusPromotion": "Live Google/OAuth/linking, access-request mailbox verification before review, lost-authenticator administrator recovery, deployed real-cookie breadth, external mail delivery, and production retention/log/backup evidence remain open."
+  },
+  "remainingGaps": [
+    "The access-request endpoint still does not complete mailbox verification before exposing a pending request to the administrator.",
+    "No live Google OAuth call, approved Google-link activation, verified-email linking, callback, or OAuth-to-TOTP bypass journey was executed.",
+    "Lost-device recovery revokes the inaccessible session but deliberately does not reset TOTP or reveal/regenerate recovery codes; a separately approved lost-authenticator ceremony remains open.",
+    "The full sensitive-command matrix has not been exercised with deployed real learner/admin cookies.",
+    "No Gmail/OAuth delivery, bounce/suppression, SPF/DKIM/DMARC, or external mailbox receipt was tested.",
+    "No production 90-day retention run or live dump/log/export/backup secret-canary inspection was performed."
+  ],
+  "sourceSha256": {
+    "drizzle/0026_auth_recovery_ceremony.sql": "4df759b335e759fed3883d99b03a79b22122ae154fde5270290acc0c5fb5512e",
+    "src/lib/security/lost-device-recovery.ts": "1d0dfa4ec0ff3a160d187364214e68c934f513484a8a0dfaa07f8547e7132652",
+    "src/app/api/lost-device/request/route.ts": "78a66f915ab4979567a0da92603b7432314367feb4bd08efb5a76915ef8a3de5",
+    "src/app/api/lost-device/verify/route.ts": "4c79bec6743f3af0eccbb67ff262fd281b17ee6b62f91243e7f41a37e0166e75",
+    "src/components/auth/lost-device-recovery-form.tsx": "76c5b8c621faa382878bcdd69a839ccf3759790a5edc496d08b4143fe71b7a88",
+    "src/lib/notifications/delivery-variables.ts": "724ee03bbdba671091d749a5105f41689a376f800a9f2a72b4b9a1996defd697",
+    "scripts/process-outbox.ts": "c4c28640d14c64c01c116d789cc14589aa51143b8cd72e78cf27d9b5bfbcd5e5",
+    "src/app/api/admin/session-revocation-requests/[id]/decision/route.ts": "d9feded1e1fc726c030297bc464ebf68849f0cfc6ec834c57da5fbd51395bbd9",
+    "src/lib/session-controls.ts": "93277961c05935cb917f4f4bd47da646a46aa49c9cdf42e20e7561143cb4b7d3",
+    "src/lib/auth.ts": "5d96b843e40c2baf5a34a0d270a36569d2defd3c9155a80e9822c3e19d498e6b",
+    "src/lib/data-lifecycle/deletion.ts": "763666bc92341003f9df01c8ff609b307cfd376606fb05c322149266b7ac8ce4",
+    "integration/auth-recovery.integration.test.ts": "e4ef1d82c29006cb6aede29e2e55da988daa14c8ae083a63f8b4fe50cee647b0",
+    "e2e/access.spec.ts": "d7026f69cb0faf066b39e89b8184434b4c58e521b21a2b9fd6861f1444cb5c75",
+    "docs/evidence/playwright-lost-device-chromium-2026-07-12.json": "c01f45ef241b7f09f4b1d821dbdb440561ea6186eb55dfc8e2e507d3f3745535",
+    "compose.yaml": "ee617457bede7070aa04614900503011ccf5eae19ded835d3d8ab167032e0068",
+    "infra/docker/entrypoint.sh": "705abd1df2b7d3fbeede6d48719fca64d6ca086a5de2da0ee7f1398c5a1a5c7e"
+  }
+}

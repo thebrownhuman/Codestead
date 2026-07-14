@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.components.lists.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.components-jsx",
+  "skillId": "react.components.lists",
+  "title": "Lists and stable keys",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Lists and stable keys; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Lists and stable keys",
+      "claim": "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state. Your goal is to render and update a reorderable list while explaining key-based reconciliation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Declarative UI and re-rendering; html semantics; JSX expressions and attributes; javascript collections methods. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props. This draft therefore rejects: Array index is always the best key because it is unique during one render."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Render collections with stable identity keys rather than positions that change with data.",
+      "Render and update a reorderable list while explaining key-based reconciliation."
+    ],
+    "excludes": [
+      "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props."
+    ]
+  },
+  "outcomes": [
+    "Render and update a reorderable list while explaining key-based reconciliation."
+  ],
+  "examples": [
+    {
+      "id": "react.components.lists.example-a",
+      "title": "Lists and stable keys: concrete case",
+      "situation": "A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+      ],
+      "result": "The result follows because Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+    },
+    {
+      "id": "react.components.lists.example-b",
+      "title": "Lists and stable keys: boundary case",
+      "situation": "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Array index is always the best key because it is unique during one render."
+      ],
+      "result": "The boundary requires this correction: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.components.lists.misconception",
+      "mistakenBelief": "Array index is always the best key because it is unique during one render.",
+      "correction": "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Array index is always the best key because it is unique during one render."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Lists and stable keys, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Lists and stable keys before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
+      "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
+      "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Array index is always the best key because it is unique during one render."
+      }
+    ],
+    "textAlternative": "Starting artifact: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state. Step 1, Artifact. State: evidence: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.. Check the result against the boundary and reject this misconception: Array index is always the best key because it is unique during one render."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Lists and stable keys: concrete case”: state its starting evidence, apply the Lists and stable keys rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Lists and stable keys: concrete case.",
+        "Starting evidence: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
+        "Core rule: React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
+        "Observable result: The result follows because Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.",
+        "Boundary check: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
+        "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Lists and stable keys and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Render and update a reorderable list while explaining key-based reconciliation.",
+        "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.components.lists.misconception",
+      "explanation": "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'stable data identity' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to render and update a reorderable list while explaining key-based reconciliation. Keep this boundary in view: Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
+    "retrievalPrompts": [
+      "Explain Lists and stable keys using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Array index is always the best key because it is unique during one render.",
+      "Apply checkpoint 'stable data identity' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Props and one-way data flow”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,1 @@
+CREATE INDEX "runner_practice_recovery_due_idx" ON "runner_job" USING btree ("recovery_state","recovery_next_attempt_at");

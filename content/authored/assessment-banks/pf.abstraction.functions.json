@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.abstraction.functions.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.abstraction",
+  "skillId": "pf.abstraction.functions",
+  "title": "Functions as contracts deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Functions as contracts; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.abstraction.functions.mcq.misconception",
+      "skillId": "pf.abstraction.functions",
+      "title": "Functions as contracts: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Knowing a function's name and parameter count is enough to use it safely without understanding its contract.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.",
+        "incorrect": "The selected statement preserves the documented misconception. Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Functions as contracts instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+      }
+    }
+  ]
+}

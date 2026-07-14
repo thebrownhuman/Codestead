@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.neural.architectures.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.neural",
+  "skillId": "ai.neural.architectures",
+  "title": "Convolution, sequence and attention roles deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap for Convolution, sequence and attention roles; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai",
+    "transformers"
+  ],
+  "items": [
+    {
+      "id": "ai.neural.architectures.mcq.misconception",
+      "skillId": "ai.neural.architectures",
+      "title": "Convolution, sequence and attention roles: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations.",
+        "incorrect": "That option preserves the overclaim. Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+        },
+        {
+          "id": "overclaim",
+          "text": "Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+      }
+    },
+    {
+      "id": "ai.neural.architectures.fill.checkpoint",
+      "skillId": "ai.neural.architectures",
+      "title": "Convolution, sequence and attention roles: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'finite context'. Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Match structural inductive bias and compute to the task, compare baselines, and state [[checkpoint]], data, latency, and transfer limitations.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "finite context"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+      }
+    }
+  ]
+}

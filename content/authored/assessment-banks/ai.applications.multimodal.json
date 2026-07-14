@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.applications.multimodal.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.applications",
+  "skillId": "ai.applications.multimodal",
+  "title": "Multimodal systems deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap for Multimodal systems; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai",
+    "nist-genai"
+  ],
+  "items": [
+    {
+      "id": "ai.applications.multimodal.mcq.misconception",
+      "skillId": "ai.applications.multimodal",
+      "title": "Multimodal systems: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification.",
+        "incorrect": "That option preserves the overclaim. Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+        },
+        {
+          "id": "overclaim",
+          "text": "Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+      }
+    },
+    {
+      "id": "ai.applications.multimodal.fill.checkpoint",
+      "skillId": "ai.applications.multimodal",
+      "title": "Multimodal systems: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'missing-modality'. Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Track alignment and provenance per modality, test modality-specific, [[checkpoint]], and joint failures, and never treat cross-modal agreement as automatic verification.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "missing-modality"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+      }
+    }
+  ]
+}

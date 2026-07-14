@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.values.expressions.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.values-control",
+  "skillId": "python.values.expressions",
+  "title": "Operators and comparisons",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Operators and comparisons; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 3-5: values, control flow, and data structures; atomic topic: Operators and comparisons",
+      "claim": "Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Language Reference chapters 6 and 8: expressions and compound statements including match; atomic topic: Operators and comparisons",
+      "claim": "Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity. Your goal is to trace expressions and repair identity-versus-equality and precedence defects. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scripts, indentation and main guard; pf state expressions; Numbers, booleans, None and text. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "is tests identity rather than value, and/or return an operand rather than a forced bool, user-defined comparisons can return special values, and precedence does not replace clarity. The learner must reject this documented misconception: is is a faster spelling of == and and/or always return True or False."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Evaluate arithmetic, Boolean, membership, identity and chained comparisons correctly.",
+      "Trace expressions and repair identity-versus-equality and precedence defects."
+    ],
+    "excludes": [
+      "is tests identity rather than value, and/or return an operand rather than a forced bool, user-defined comparisons can return special values, and precedence does not replace clarity."
+    ]
+  },
+  "outcomes": [
+    "Trace expressions and repair identity-versus-equality and precedence defects."
+  ],
+  "examples": [
+    {
+      "id": "python.values.expressions.example.direct",
+      "title": "Operators and comparisons: direct language case",
+      "situation": "A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands."
+      ],
+      "result": "The example meets the atomic outcome because Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands."
+    },
+    {
+      "id": "python.values.expressions.example.boundary",
+      "title": "Operators and comparisons: boundary and transfer case",
+      "situation": "A fallback expression uses name or 'guest' only when every falsey name should trigger the fallback; otherwise an explicit None test preserves empty text.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A fallback expression uses name or 'guest' only when every falsey name should trigger the fallback; otherwise an explicit None test preserves empty text.",
+        "Step 2 — Keep the language boundary explicit: is tests identity rather than value, and/or return an operand rather than a forced bool, user-defined comparisons can return special values, and precedence does not replace clarity.",
+        "Step 3 — Reject the tempting but incorrect rule: is is a faster spelling of == and and/or always return True or False."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace expressions and repair identity-versus-equality and precedence defects."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.values.expressions.misconception",
+      "mistakenBelief": "is is a faster spelling of == and and/or always return True or False.",
+      "correction": "Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: is is a faster spelling of == and and/or always return True or False."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a labeled decision board whose current objects feed expressions, branches, patterns, and repeatable progress rules can introduce Operators and comparisons, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "scalar semantics, comparisons, selection, and iteration"
+    ],
+    "limitations": [
+      "identity, truthiness, protocol dispatch, chained comparisons, and iterator behavior do not follow ordinary board-game rules",
+      "is tests identity rather than value, and/or return an operand rather than a forced bool, user-defined comparisons can return special values, and precedence does not replace clarity."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity.",
+      "Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once.",
+      "Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: is is a faster spelling of == and and/or always return True or False."
+      }
+    ],
+    "textAlternative": "Starting artifact: A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity. Step 1, Observe. State: evidence: A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands.. Compare the observation with the correction and explain why the misconception fails: is is a faster spelling of == and and/or always return True or False."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Operators and comparisons: direct language case”: state its starting evidence, apply the Operators and comparisons rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Operators and comparisons: direct language case.",
+        "Starting evidence: A range check uses 0 <= index < len(values), while two equal strings are compared with == rather than relying on interning identity.",
+        "Core rule: Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once.",
+        "Observable result: The example meets the atomic outcome because Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands.",
+        "Boundary check: Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A fallback expression uses name or 'guest' only when every falsey name should trigger the fallback; otherwise an explicit None test preserves empty text.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python expressions follow documented precedence, short-circuit Boolean evaluation, rich comparison protocols, membership rules, and chained comparisons that evaluate a middle operand once.",
+        "is tests identity rather than value, and/or return an operand rather than a forced bool, user-defined comparisons can return special values, and precedence does not replace clarity."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Operators and comparisons, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace expressions and repair identity-versus-equality and precedence defects.",
+        "Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.values.expressions.misconception",
+      "explanation": "Use == for value equality and is for singleton identity such as None; trace short-circuit expressions because and and or return selected operands.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A fallback expression uses name or 'guest' only when every falsey name should trigger the fallback; otherwise an explicit None test preserves empty text."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace expressions and repair identity-versus-equality and precedence defects. Keep this boundary in view: is tests identity rather than value, and/or return an operand rather than a forced bool, user-defined comparisons can return special values, and precedence does not replace clarity.",
+    "retrievalPrompts": [
+      "Explain Operators and comparisons using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: is is a faster spelling of == and and/or always return True or False.",
+      "Predict this case from memory: A fallback expression uses name or 'guest' only when every falsey name should trigger the fallback; otherwise an explicit None test preserves empty text."
+    ],
+    "nextReviewPrompt": "Next: continue to “if and match”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

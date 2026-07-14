@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.planning.constraints.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.planning-decision",
+  "skillId": "ai.planning.constraints",
+  "title": "Constraint-satisfaction problems",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Constraint-satisfaction problems; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Planning Systems, Constraint Satisfaction, Decision Making, and Reinforcement Learning foundations; atomic topic: Constraint-satisfaction problems",
+      "claim": "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment. Your goal is to implement and instrument a small CSP solver with a variable or value heuristic. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: State-space and adversarial search; Knowledge representation and uncertainty; dsa backtracking search; Logical inference and consistency. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence. The learner must reject this overclaim: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Model variables, domains and constraints and use propagation plus backtracking.",
+      "Implement and instrument a small CSP solver with a variable or value heuristic."
+    ],
+    "excludes": [
+      "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence."
+    ]
+  },
+  "outcomes": [
+    "Implement and instrument a small CSP solver with a variable or value heuristic."
+  ],
+  "examples": [
+    {
+      "id": "ai.planning.constraints.example.direct",
+      "title": "Constraint-satisfaction problems: bounded direct case",
+      "situation": "A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+      ],
+      "result": "This example supports only the atomic outcome because Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+    },
+    {
+      "id": "ai.planning.constraints.example.stress",
+      "title": "Constraint-satisfaction problems: stress and transfer case",
+      "situation": "Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement.",
+        "Step 2 — Keep the non-claim visible: Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence.",
+        "Step 3 — Reject the tempting overclaim: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and instrument a small CSP solver with a variable or value heuristic."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.planning.constraints.misconception",
+      "mistakenBelief": "If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed.",
+      "correction": "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a bounded operations desk that checks action preconditions, resource constraints, uncertain outcomes, and proxy rewards before acting can introduce Constraint-satisfaction problems only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "planning, constraints, expected utility, and sequential decisions"
+    ],
+    "limitations": [
+      "real preferences, uncertainty, stakeholders, safety constraints, and dynamics exceed one plan or reward score",
+      "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
+      "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
+      "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+      }
+    ],
+    "textAlternative": "Starting artifact: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment. Step 1, Observe. State: boundedEvidence: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.. State what the evidence does not establish and reject the misconception: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Constraint-satisfaction problems: bounded direct case”: state its starting evidence, apply the Constraint-satisfaction problems rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Constraint-satisfaction problems: bounded direct case.",
+        "Starting evidence: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
+        "Core rule: A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
+        "Observable result: This example supports only the atomic outcome because Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.",
+        "Boundary check: Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
+        "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Constraint-satisfaction problems and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Implement and instrument a small CSP solver with a variable or value heuristic.",
+        "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.planning.constraints.misconception",
+      "explanation": "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and instrument a small CSP solver with a variable or value heuristic. Keep this boundary in view: Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence.",
+    "retrievalPrompts": [
+      "Explain Constraint-satisfaction problems with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed.",
+      "Apply the boundary to: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement."
+    ],
+    "nextReviewPrompt": "Next: continue to “Utility and expected decisions”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

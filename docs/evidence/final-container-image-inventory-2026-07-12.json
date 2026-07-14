@@ -1,0 +1,469 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-13T15:30:34.1707123+05:30",
+  "evidenceKind": "exact-local-final-application-container-inventory",
+  "scope": {
+    "platform": "linux/amd64",
+    "applicationImageCount": 6,
+    "applicationSbomCount": 6,
+    "externalDeploymentPerformed": false,
+    "liveServicesModified": false,
+    "runnerImagesModified": false,
+    "realCredentialsUsed": false,
+    "buildContextExcludes": [
+      "docs",
+      "test-artifacts",
+      "test-results"
+    ]
+  },
+  "reviewedBase": {
+    "reference": "node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+    "nodeVersion": "v22.23.1",
+    "trivyDetectedOs": "alpine 3.23.5",
+    "apkDatabaseMetadataPath": "/lib/apk/db/installed",
+    "apkDatabaseMetadataRetainedAndNonEmpty": true,
+    "executablesAbsent": [
+      "apk",
+      "npm",
+      "npx",
+      "corepack",
+      "yarn",
+      "yarnpkg"
+    ]
+  },
+  "trivyPolicy": {
+    "version": "0.69.2",
+    "mode": "cached-offline",
+    "databaseUpdatedAt": "2026-07-13T01:03:44.512825529Z",
+    "databaseDownloadedAt": "2026-07-13T05:58:14.7696586Z",
+    "skipDatabaseUpdate": true,
+    "skipJavaDatabaseUpdate": true,
+    "skipVersionCheck": true,
+    "offlineScan": true,
+    "telemetryDisabled": true,
+    "severityFilter": [
+      "HIGH",
+      "CRITICAL"
+    ],
+    "suppressions": []
+  },
+  "images": [
+    {
+      "role": "application-runtime",
+      "target": "runtime",
+      "tag": "learncoding/app:local",
+      "localImageId": "sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df",
+      "sizeBytes": 80167913,
+      "platform": "linux/amd64",
+      "configuredUser": "node",
+      "entrypoint": [
+        "/usr/local/bin/learncoding-entrypoint"
+      ],
+      "command": [
+        "node",
+        "server.js"
+      ],
+      "identityAssertions": {
+        "nodeVersion": "v22.23.1",
+        "executablesAbsent": [
+          "apk",
+          "npm",
+          "npx",
+          "corepack",
+          "yarn",
+          "yarnpkg"
+        ],
+        "apkDatabaseMetadataRetainedAndNonEmpty": true,
+        "passed": true
+      },
+      "trivy": {
+        "reportPath": "docs/evidence/container-security/app/trivy-runtime-5df2dd02e136-20260713.json",
+        "reportSha256": "f2a7c5adb1ce5e4adf41c55eb8c881e8721f2f660934c38252778f58a22fb0c3",
+        "artifactNameMatchesLocalImageId": true,
+        "high": 0,
+        "critical": 0,
+        "passed": true
+      },
+      "sbom": {
+        "path": "docs/evidence/container-security/app/sbom-runtime-5df2dd02e136-20260713.spdx.json",
+        "sha256": "ce864dd7ba270994d0c29f6a1304dd67417044913b4cde9843b54734ea7705e8",
+        "imageIdMatchesLocalImageId": true,
+        "spdxVersion": "SPDX-2.3",
+        "packages": 55,
+        "relationships": 70,
+        "bindingOccurrences": 6,
+        "apkPackageMetadataRetained": true,
+        "signed": false
+      }
+    },
+    {
+      "role": "migration-tooling",
+      "target": "tooling",
+      "tag": "learncoding/app-tooling:local",
+      "localImageId": "sha256:9b427ac18170715ca7141bbae3d66ea32cc6c5bcc19bbe102b31498c17e7f6e0",
+      "sizeBytes": 248948183,
+      "platform": "linux/amd64",
+      "configuredUser": "node",
+      "entrypoint": [
+        "/usr/local/bin/learncoding-entrypoint"
+      ],
+      "command": [
+        "node",
+        "--input-type=module",
+        "--eval",
+        "import pg from 'pg'; import { drizzle } from 'drizzle-orm/node-postgres'; import { migrate } from 'drizzle-orm/node-postgres/migrator'; const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 }); try { await migrate(drizzle(pool), { migrationsFolder: '/app/drizzle' }); } finally { await pool.end(); }"
+      ],
+      "contents": {
+        "included": [
+          "/app/node_modules (production dependencies)",
+          "/app/drizzle",
+          "/usr/local/bin/learncoding-entrypoint"
+        ],
+        "verifiedAbsent": [
+          "/app/package.json",
+          "/app/tsconfig.json",
+          "/app/content",
+          "/app/src",
+          "/app/scripts"
+        ],
+        "directMigratorModulesPresent": [
+          "drizzle-orm",
+          "pg"
+        ]
+      },
+      "identityAssertions": {
+        "nodeVersion": "v22.23.1",
+        "executablesAbsent": [
+          "apk",
+          "npm",
+          "npx",
+          "corepack",
+          "yarn",
+          "yarnpkg"
+        ],
+        "apkDatabaseMetadataRetainedAndNonEmpty": true,
+        "passed": true
+      },
+      "trivy": {
+        "reportPath": "docs/evidence/container-security/app/trivy-tooling-9b427ac18170-20260713.json",
+        "reportSha256": "b371970d3bed06b0bdf53716e101b7bec6c3427417353dcfd79ab1075b511b13",
+        "artifactNameMatchesLocalImageId": true,
+        "high": 0,
+        "critical": 0,
+        "passed": true
+      },
+      "sbom": {
+        "path": "docs/evidence/container-security/app/sbom-tooling-9b427ac18170-20260713.spdx.json",
+        "sha256": "702c2c50ef0a64ce211ee917e6587ea4eee51bd20e98c0a5e1a056f4e2eca170",
+        "imageIdMatchesLocalImageId": true,
+        "spdxVersion": "SPDX-2.3",
+        "packages": 334,
+        "relationships": 349,
+        "bindingOccurrences": 6,
+        "apkPackageMetadataRetained": true,
+        "signed": false
+      }
+    },
+    {
+      "role": "mail-and-lifecycle-worker",
+      "target": "worker",
+      "tag": "learncoding/app-worker:local",
+      "localImageId": "sha256:736dbf79ee7a905ee8581799baf20dfa63687df51ed357e7c9c00debe8b3ec26",
+      "sizeBytes": 249020183,
+      "platform": "linux/amd64",
+      "configuredUser": "node",
+      "entrypoint": [
+        "/usr/local/bin/learncoding-entrypoint"
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "/app/scripts/process-outbox.ts"
+      ],
+      "lifecycleOperationsScript": "/app/scripts/data-lifecycle.ts",
+      "identityAssertions": {
+        "nodeVersion": "v22.23.1",
+        "executablesAbsent": [
+          "apk",
+          "npm",
+          "npx",
+          "corepack",
+          "yarn",
+          "yarnpkg"
+        ],
+        "apkDatabaseMetadataRetainedAndNonEmpty": true,
+        "passed": true
+      },
+      "trivy": {
+        "reportPath": "docs/evidence/container-security/app/trivy-worker-736dbf79ee7a-20260713.json",
+        "reportSha256": "ff6e7717ba575356000fc21165c7ab4f0692e1a2c998b120632e3e7e7fef1bfa",
+        "artifactNameMatchesLocalImageId": true,
+        "high": 0,
+        "critical": 0,
+        "passed": true
+      },
+      "sbom": {
+        "path": "docs/evidence/container-security/app/sbom-worker-736dbf79ee7a-20260713.spdx.json",
+        "sha256": "61a9fbe464e7c632416fff884b825fcc268a8f5e29f5e5431c1c4aa975773107",
+        "imageIdMatchesLocalImageId": true,
+        "spdxVersion": "SPDX-2.3",
+        "packages": 334,
+        "relationships": 349,
+        "bindingOccurrences": 6,
+        "apkPackageMetadataRetained": true,
+        "signed": false
+      }
+    },
+    {
+      "role": "assessment-regrade-worker",
+      "target": "regrade-worker",
+      "tag": "learncoding/app-regrade-worker:local",
+      "localImageId": "sha256:1fb0a3ce1809260a12969320ccd80301b0aaf21669e8b4ce17100daab58f3851",
+      "sizeBytes": 249024486,
+      "platform": "linux/amd64",
+      "configuredUser": "node",
+      "entrypoint": [
+        "/usr/local/bin/learncoding-entrypoint"
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "/app/scripts/process-assessment-regrades.ts"
+      ],
+      "identityAssertions": {
+        "nodeVersion": "v22.23.1",
+        "executablesAbsent": [
+          "apk",
+          "npm",
+          "npx",
+          "corepack",
+          "yarn",
+          "yarnpkg"
+        ],
+        "apkDatabaseMetadataRetainedAndNonEmpty": true,
+        "passed": true
+      },
+      "trivy": {
+        "reportPath": "docs/evidence/container-security/app/trivy-regrade-1fb0a3ce1809-20260713.json",
+        "reportSha256": "7eee5c37164c6da1eaeb07c921901a12dd59794ca4ae4891ee96e1dcb126514e",
+        "artifactNameMatchesLocalImageId": true,
+        "high": 0,
+        "critical": 0,
+        "passed": true
+      },
+      "sbom": {
+        "path": "docs/evidence/container-security/app/sbom-regrade-1fb0a3ce1809-20260713.spdx.json",
+        "sha256": "548728b6b91091e384451172addc608e4b02aa88174315388af781cfd2e42792",
+        "imageIdMatchesLocalImageId": true,
+        "spdxVersion": "SPDX-2.3",
+        "packages": 334,
+        "relationships": 349,
+        "bindingOccurrences": 6,
+        "apkPackageMetadataRetained": true,
+        "signed": false
+      }
+    },
+    {
+      "role": "project-review-correction-worker",
+      "target": "project-review-correction-worker",
+      "tag": "learncoding/app-project-review-correction-worker:local",
+      "localImageId": "sha256:4681f62730dda8ccfa3791b978c10c1f90bc6266ccbeef5979fb7e3f5162f8b9",
+      "sizeBytes": 249021859,
+      "platform": "linux/amd64",
+      "configuredUser": "node",
+      "entrypoint": [
+        "/usr/local/bin/learncoding-entrypoint"
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "/app/scripts/process-project-review-corrections.ts"
+      ],
+      "identityAssertions": {
+        "nodeVersion": "v22.23.1",
+        "executablesAbsent": [
+          "apk",
+          "npm",
+          "npx",
+          "corepack",
+          "yarn",
+          "yarnpkg"
+        ],
+        "apkDatabaseMetadataRetainedAndNonEmpty": true,
+        "passed": true
+      },
+      "trivy": {
+        "reportPath": "docs/evidence/container-security/app/trivy-project-review-4681f62730dd-20260713.json",
+        "reportSha256": "4fa3aa5c3d72c329e8072e98e4437a7a2dcf6311649459b7b07894d6e6a502c4",
+        "artifactNameMatchesLocalImageId": true,
+        "high": 0,
+        "critical": 0,
+        "passed": true
+      },
+      "sbom": {
+        "path": "docs/evidence/container-security/app/sbom-project-review-4681f62730dd-20260713.spdx.json",
+        "sha256": "0356d1ec52abe45e9880302256f9b85237fadd73dedcdec97e8c2192b8d0da25",
+        "imageIdMatchesLocalImageId": true,
+        "spdxVersion": "SPDX-2.3",
+        "packages": 334,
+        "relationships": 349,
+        "bindingOccurrences": 6,
+        "apkPackageMetadataRetained": true,
+        "signed": false
+      }
+    },
+    {
+      "role": "upload-scanner-worker",
+      "target": "scanner-worker",
+      "tag": "learncoding/app-scanner-worker:local",
+      "localImageId": "sha256:b4881646a3f9db5a367c4b9b96a04dfc4590efbc6496950140a69cfd4f8167e5",
+      "sizeBytes": 249022290,
+      "platform": "linux/amd64",
+      "configuredUser": "node",
+      "entrypoint": [
+        "/usr/local/bin/learncoding-entrypoint"
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "/app/scripts/scan-uploads.ts"
+      ],
+      "identityAssertions": {
+        "nodeVersion": "v22.23.1",
+        "executablesAbsent": [
+          "apk",
+          "npm",
+          "npx",
+          "corepack",
+          "yarn",
+          "yarnpkg"
+        ],
+        "apkDatabaseMetadataRetainedAndNonEmpty": true,
+        "passed": true
+      },
+      "trivy": {
+        "reportPath": "docs/evidence/container-security/app/trivy-scanner-b4881646a3f9-20260713.json",
+        "reportSha256": "01f6e459a9cf1079a2ff2143fa4b2b3b3adbf51310cc6a474cb63c6c9e1b725d",
+        "artifactNameMatchesLocalImageId": true,
+        "high": 0,
+        "critical": 0,
+        "passed": true
+      },
+      "sbom": {
+        "path": "docs/evidence/container-security/app/sbom-scanner-b4881646a3f9-20260713.spdx.json",
+        "sha256": "e7db4a6bf04bbf52895eee5c8376a2b81a4319474a43e993799cc2713f64e875",
+        "imageIdMatchesLocalImageId": true,
+        "spdxVersion": "SPDX-2.3",
+        "packages": 334,
+        "relationships": 349,
+        "bindingOccurrences": 6,
+        "apkPackageMetadataRetained": true,
+        "signed": false
+      }
+    }
+  ],
+  "runtimeLoadProof": {
+    "reportPath": "docs/evidence/load-smoke-final-app-5df2dd02e136-20260713.json",
+    "reportSha256": "40246c9a216ef8228215a9bcd1586c21dee5f1d26363e725ecb7c6ea75f90361",
+    "reportBytes": 2598,
+    "boundRuntimeImageId": "sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df",
+    "bindingMethod": "This inventory cryptographically joins the immutable load-report SHA-256 to the exact inspected image ID and the disposable launch identity below.",
+    "disposableLaunch": {
+      "containerId": "14d3baa6991c7a233f39cab71aef90fffd14f9a638a00f82b3e7a239bc4a8f2e",
+      "imageIdVerifiedBeforeLoad": true,
+      "configuredUser": "node",
+      "platform": "linux/amd64",
+      "hostBinding": "127.0.0.1:3020",
+      "httpReadinessStatus": 200,
+      "readOnlyRoot": true,
+      "capabilitiesDropped": [
+        "ALL"
+      ],
+      "noNewPrivileges": true,
+      "pidsLimit": 256,
+      "memoryBytes": 2147483648,
+      "nanoCpus": 2000000000,
+      "writableTmpfs": [
+        "/tmp",
+        "/app/.next/cache",
+        "/var/lib/learncoding"
+      ],
+      "removedAfterTest": true
+    },
+    "config": {
+      "scenarios": 5,
+      "concurrency": 10,
+      "requestsPerScenario": 50,
+      "measuredRequests": 250,
+      "succeeded": 250,
+      "failed": 0,
+      "p95LimitMs": 1500
+    },
+    "scenarioP95Ms": {
+      "landing": 35.76,
+      "catalog": 211.89,
+      "learn": 84.59,
+      "roadmap": 75.13,
+      "review": 80.39
+    },
+    "passed": true
+  },
+  "toolingMigrationProof": {
+    "reportPath": "docs/evidence/tooling-migration-proof-9b427ac18170-20260713.json",
+    "reportSha256": "45e5f239ceb949cb77f7d3af2f69c18aff41f75b890c5a5017b6caaf782cc1c2",
+    "reportBytes": 1586,
+    "boundToolingImageId": "sha256:9b427ac18170715ca7141bbae3d66ea32cc6c5bcc19bbe102b31498c17e7f6e0",
+    "databaseImageId": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+    "imageDefaultCommandUsedWithoutOverride": true,
+    "runs": 2,
+    "drizzleMigrationRows": 41,
+    "publicTables": 89,
+    "idempotentSecondRunPassed": true,
+    "internalOnlyNetwork": true,
+    "hostPortBindings": 0,
+    "databaseDataStorage": "tmpfs",
+    "persistentVolumes": 0,
+    "ownedResourcesRemaining": 0,
+    "passed": true
+  },
+  "runtimeSbom": {
+    "path": "docs/evidence/app-image-sbom-2026-07-12.spdx.json",
+    "exactCopyOf": "docs/evidence/container-security/app/sbom-runtime-5df2dd02e136-20260713.spdx.json",
+    "sha256": "ce864dd7ba270994d0c29f6a1304dd67417044913b4cde9843b54734ea7705e8",
+    "bytes": 103328,
+    "boundRuntimeImageId": "sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df",
+    "spdxVersion": "SPDX-2.3",
+    "creator": "Tool: trivy-0.69.2",
+    "documentNameMatchesRuntimeImageId": true,
+    "runtimeImageIdBindingOccurrences": 6,
+    "packages": 55,
+    "relationships": 70,
+    "apkPackageMetadataRetained": true,
+    "signed": false
+  },
+  "cleanup": {
+    "ownershipLabel": "io.learncoding.test-owner=codex-infra-local-gates",
+    "ownedContainersRemaining": 0,
+    "ownedNetworksRemaining": 0,
+    "imagesRemoved": false,
+    "volumesCreated": 0
+  },
+  "runnerScope": {
+    "excludedFromThisInventory": true,
+    "imagesRebuilt": false,
+    "imagesScanned": false,
+    "liveRunnerServicesModified": false,
+    "reason": "This evidence set covers the six final application image targets only; runner images and live services were explicitly out of scope."
+  },
+  "limitations": [
+    "These are exact local Docker image IDs, not registry-pushed, signed, or production-deployed KVM/NUC digests.",
+    "Trivy results use the retained database snapshot updated 2026-07-13T01:03:44.512825529Z; they are not continuous production scanning.",
+    "The load proof is a five-route read-only projection smoke and does not prove authenticated mutation flows, runner workloads, NUC thermals, or sustained multi-hour capacity.",
+    "The migration proof used a disposable internal-only PostgreSQL database and does not modify or certify any live production database.",
+    "Runner images, runner CVE evidence, and live runner services were not changed or re-certified by this application-image follow-up."
+  ]
+}

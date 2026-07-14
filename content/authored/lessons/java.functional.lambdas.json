@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.functional.lambdas.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.functional",
+  "skillId": "java.functional.lambdas",
+  "title": "Functional interfaces and lambdas",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Functional interfaces and lambdas; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Lambda Expressions and Stream API learning paths; atomic topic: Functional interfaces and lambdas",
+      "claim": "A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§9.8, 15.13, and 15.27: functional interfaces, method references, and lambdas; atomic topic: Functional interfaces and lambdas",
+      "claim": "A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear. Your goal is to write and trace lambdas while avoiding mutable captured-state surprises. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration, mutation and immutability; Interfaces. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Captured object state can still mutate, this refers to the enclosing instance, overloads can make target typing ambiguous, and side effects complicate reuse or parallel execution. The learner must reject this documented misconception: Effectively final capture makes every referenced object immutable and gives each lambda a private copy of its state."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Implement single-abstract-method behavior with method references and captured values.",
+      "Write and trace lambdas while avoiding mutable captured-state surprises."
+    ],
+    "excludes": [
+      "Captured object state can still mutate, this refers to the enclosing instance, overloads can make target typing ambiguous, and side effects complicate reuse or parallel execution."
+    ]
+  },
+  "outcomes": [
+    "Write and trace lambdas while avoiding mutable captured-state surprises."
+  ],
+  "examples": [
+    {
+      "id": "java.functional.lambdas.example.direct",
+      "title": "Functional interfaces and lambdas: direct language case",
+      "situation": "A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them."
+      ],
+      "result": "The example meets the atomic outcome because Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them."
+    },
+    {
+      "id": "java.functional.lambdas.example.boundary",
+      "title": "Functional interfaces and lambdas: boundary and transfer case",
+      "situation": "A lambda captures an effectively final threshold but accumulates results through an explicit collector instead of mutating an external list.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A lambda captures an effectively final threshold but accumulates results through an explicit collector instead of mutating an external list.",
+        "Step 2 — Keep the language boundary explicit: Captured object state can still mutate, this refers to the enclosing instance, overloads can make target typing ambiguous, and side effects complicate reuse or parallel execution.",
+        "Step 3 — Reject the tempting but incorrect rule: Effectively final capture makes every referenced object immutable and gives each lambda a private copy of its state."
+      ],
+      "result": "This case demonstrates the declared outcome: Write and trace lambdas while avoiding mutable captured-state surprises."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.functional.lambdas.misconception",
+      "mistakenBelief": "Effectively final capture makes every referenced object immutable and gives each lambda a private copy of its state.",
+      "correction": "Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Effectively final capture makes every referenced object immutable and gives each lambda a private copy of its state."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass processing line that transforms, filters, combines, or explicitly reports a missing result can introduce Functional interfaces and lambdas, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "lambdas, stream stages, reduction, and Optional"
+    ],
+    "limitations": [
+      "laziness, target typing, associativity, parallel regrouping, and single-use traversal have no complete conveyor analogy",
+      "Captured object state can still mutate, this refers to the enclosing instance, overloads can make target typing ambiguous, and side effects complicate reuse or parallel execution."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear.",
+      "A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings.",
+      "Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Effectively final capture makes every referenced object immutable and gives each lambda a private copy of its state."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear. Step 1, Observe. State: evidence: A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them.. Compare the observation with the correction and explain why the misconception fails: Effectively final capture makes every referenced object immutable and gives each lambda a private copy of its state."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Functional interfaces and lambdas: direct language case”: state its starting evidence, apply the Functional interfaces and lambdas rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Functional interfaces and lambdas: direct language case.",
+        "Starting evidence: A Comparator<String> lambda compares length then text, and a method reference replaces it only when the same contract remains clear.",
+        "Core rule: A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings.",
+        "Observable result: The example meets the atomic outcome because Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them.",
+        "Boundary check: Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A lambda captures an effectively final threshold but accumulates results through an explicit collector instead of mutating an external list.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A lambda supplies behavior for a functional interface, receives target typing from context, and may capture only final or effectively final local bindings.",
+        "Captured object state can still mutate, this refers to the enclosing instance, overloads can make target typing ambiguous, and side effects complicate reuse or parallel execution."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Functional interfaces and lambdas, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Write and trace lambdas while avoiding mutable captured-state surprises.",
+        "Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.functional.lambdas.misconception",
+      "explanation": "Capture copies of local binding values under effectively final rules; referenced mutable objects remain shared, so make side effects explicit or avoid them.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A lambda captures an effectively final threshold but accumulates results through an explicit collector instead of mutating an external list."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write and trace lambdas while avoiding mutable captured-state surprises. Keep this boundary in view: Captured object state can still mutate, this refers to the enclosing instance, overloads can make target typing ambiguous, and side effects complicate reuse or parallel execution.",
+    "retrievalPrompts": [
+      "Explain Functional interfaces and lambdas using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Effectively final capture makes every referenced object immutable and gives each lambda a private copy of its state.",
+      "Predict this case from memory: A lambda captures an effectively final threshold but accumulates results through an explicit collector instead of mutating an external list."
+    ],
+    "nextReviewPrompt": "Next: continue to “Stream pipelines”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

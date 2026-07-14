@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.heaps.heapsort.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.heaps",
+  "skillId": "dsa.heaps.heapsort",
+  "title": "Heapsort and selection",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Heapsort and selection; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Heapsort and selection",
+      "claim": "Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: After each root swap, sift-down restores heap order only in the unsorted prefix. Your goal is to implement or trace heapsort and compare it with merge sort and quicksort. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Tree terminology and representation; Heapify, insert and extract; Merge sort and quicksort. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "It is typically unstable and can have poorer locality than quicksort or library hybrids. The draft therefore rejects: Heapsort is stable because equal values keep heap insertion order."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use heap structure for in-place comparison sorting and repeated extreme selection.",
+      "Implement or trace heapsort and compare it with merge sort and quicksort.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "excludes": [
+      "It is typically unstable and can have poorer locality than quicksort or library hybrids."
+    ]
+  },
+  "outcomes": [
+    "Implement or trace heapsort and compare it with merge sort and quicksort."
+  ],
+  "examples": [
+    {
+      "id": "dsa.heaps.heapsort.example-a",
+      "title": "Heapsort and selection: language-neutral trace",
+      "situation": "After each root swap, sift-down restores heap order only in the unsorted prefix.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: After each root swap, sift-down restores heap order only in the unsorted prefix.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Standard in-place heapsort is not stable; heap swaps can reverse equal elements."
+      ],
+      "result": "The conceptual result follows because Standard in-place heapsort is not stable; heap swaps can reverse equal elements."
+    },
+    {
+      "id": "dsa.heaps.heapsort.example-b",
+      "title": "Heapsort and selection: implementation transfer",
+      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Step 3 — Retest this boundary in the selected implementation: It is typically unstable and can have poorer locality than quicksort or library hybrids."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.heaps.heapsort.misconception",
+      "mistakenBelief": "Heapsort is stable because equal values keep heap insertion order.",
+      "correction": "Standard in-place heapsort is not stable; heap swaps can reverse equal elements.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Heapsort is stable because equal values keep heap insertion order."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Heapsort and selection, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "It is typically unstable and can have poorer locality than quicksort or library hybrids."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "After each root swap, sift-down restores heap order only in the unsorted prefix.",
+      "Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space.",
+      "Standard in-place heapsort is not stable; heap swaps can reverse equal elements.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "After each root swap, sift-down restores heap order only in the unsorted prefix."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Standard in-place heapsort is not stable; heap swaps can reverse equal elements."
+        },
+        "explanation": "Verify the result and reject this misconception: Heapsort is stable because equal values keep heap insertion order."
+      }
+    ],
+    "textAlternative": "Starting artifact: After each root swap, sift-down restores heap order only in the unsorted prefix. Step 1, Specification. State: scenario: After each root swap, sift-down restores heap order only in the unsorted prefix.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Standard in-place heapsort is not stable; heap swaps can reverse equal elements.. Verify the result and reject this misconception: Heapsort is stable because equal values keep heap insertion order."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Heapsort and selection: language-neutral trace”: state its starting evidence, apply the Heapsort and selection rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Heapsort and selection: language-neutral trace.",
+        "Starting evidence: After each root swap, sift-down restores heap order only in the unsorted prefix.",
+        "Core rule: Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space.",
+        "Observable result: The conceptual result follows because Standard in-place heapsort is not stable; heap swaps can reverse equal elements.",
+        "Boundary check: Standard in-place heapsort is not stable; heap swaps can reverse equal elements."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Heapsort builds a max heap and repeatedly moves the root to the shrinking sorted suffix in O(n log n) time and O(1) auxiliary array space.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "It is typically unstable and can have poorer locality than quicksort or library hybrids."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Heapsort and selection case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement or trace heapsort and compare it with merge sort and quicksort.",
+        "Standard in-place heapsort is not stable; heap swaps can reverse equal elements."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.heaps.heapsort.misconception",
+      "explanation": "Standard in-place heapsort is not stable; heap swaps can reverse equal elements.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'not stable', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement or trace heapsort and compare it with merge sort and quicksort. Keep this boundary in view: It is typically unstable and can have poorer locality than quicksort or library hybrids.",
+    "retrievalPrompts": [
+      "State the Heapsort and selection invariant and complexity without code.",
+      "Why is this claim false: Heapsort is stable because equal values keep heap insertion order.",
+      "Map checkpoint 'not stable' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Graph terminology and models”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

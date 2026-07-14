@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-13T09:41:49.416Z",
+  "scope": {
+    "release": "local",
+    "host": "Docker Desktop Linux containers on the development workstation",
+    "statement": "Immutable local runner images were inspected, scanned, and exercised with the retained reports below. Production Ubuntu/KVM deployment evidence is intentionally not claimed by this inventory."
+  },
+  "summary": {
+    "images": 5,
+    "vulnerabilities": {
+      "high": 0,
+      "critical": 0
+    },
+    "runtimeContracts": {
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "report": {
+        "path": "docs/evidence/container-security/runner/runtime-contract-report.json",
+        "sha256": "19263138a3235bd622eb8f5b7be1481c3dafd3c9ce13b450c04d6366c84e3df1"
+      }
+    },
+    "executorChecks": {
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "report": {
+        "path": "docs/evidence/container-security/runner/runtime-executor-report.json",
+        "sha256": "cd517f1fd02d1232d3793990107f2aaf45b9caf0d4b8b0ea5c36cc59457dbcd1"
+      }
+    }
+  },
+  "runtimeArtifacts": {
+    "immutableReferences": {
+      "path": "docs/evidence/container-security/runner/runtime-images.json",
+      "sha256": "a48625268f7fe237938ac804d56cbbacc9644fd987d3e0af87e84a747bf13ae0"
+    },
+    "environment": {
+      "path": "docs/evidence/container-security/runner/runtime-images.env",
+      "sha256": "e8555da7ba74fe9112eade5e60a6c0113f9af2cc4b2eceb70aff7acf4d03df8e"
+    },
+    "inspection": {
+      "path": "docs/evidence/container-security/runner/runtime-inspection.json",
+      "sha256": "fa159b3ad086f29f458723edae7f00aaa15a2eb5dba6021660a3d5c4d8b80bf7"
+    }
+  },
+  "images": [
+    {
+      "language": "c",
+      "tag": "learncoding/runtime-c:local",
+      "reference": "learncoding/runtime-c@sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "imageId": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "base": "alpine:3.22@sha256:7c8cb692ae09657cbc4a3f3cbd0e8d5a2690ba38386aaaf252dbb060bf5eb2e6",
+      "version": "gcc (Alpine 14.2.0) 14.2.0",
+      "scan": {
+        "scanner": "Trivy",
+        "createdAt": "2026-07-13T13:25:41.3669017+05:30",
+        "high": 0,
+        "critical": 0,
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/c.trivy.json",
+          "sha256": "8950fdb1a638a4584842c4c1da3c04f3e0f0057399e37a4ac775b275b35b7062"
+        }
+      },
+      "sbom": {
+        "format": "SPDX-2.3",
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/c.spdx.json",
+          "sha256": "5f1c0f262d960b913c83504608b1ec72461302b3d4bd041e8a6c0d654067f7bd"
+        }
+      }
+    },
+    {
+      "language": "cpp",
+      "tag": "learncoding/runtime-cpp:local",
+      "reference": "learncoding/runtime-cpp@sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "imageId": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "base": "alpine:3.22@sha256:7c8cb692ae09657cbc4a3f3cbd0e8d5a2690ba38386aaaf252dbb060bf5eb2e6",
+      "version": "g++ (Alpine 14.2.0) 14.2.0",
+      "scan": {
+        "scanner": "Trivy",
+        "createdAt": "2026-07-13T13:25:44.3570342+05:30",
+        "high": 0,
+        "critical": 0,
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/cpp.trivy.json",
+          "sha256": "f0d24e44bd38a190934edb079449bb6e465924793d8442246f394a4c82fb3d81"
+        }
+      },
+      "sbom": {
+        "format": "SPDX-2.3",
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/cpp.spdx.json",
+          "sha256": "afc95b38e7e5b2ee2fd14a5199c564c1751391e2edcc973dddd856c7d742df09"
+        }
+      }
+    },
+    {
+      "language": "java",
+      "tag": "learncoding/runtime-java:local",
+      "reference": "learncoding/runtime-java@sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "imageId": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "base": "alpine:3.23@sha256:1beb0dc0a51de7ff38e3b5274078a2e0b81113ba5c7535e1a03d5913a5edbda3",
+      "version": "openjdk version \"21.0.11\" 2026-04-21",
+      "scan": {
+        "scanner": "Trivy",
+        "createdAt": "2026-07-13T13:25:48.8934885+05:30",
+        "high": 0,
+        "critical": 0,
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/java.trivy.json",
+          "sha256": "fe9bcf0e4f16ce4ae4e514238e6e4a39ed161e092366fa8ef732f303cb2aa458"
+        }
+      },
+      "sbom": {
+        "format": "SPDX-2.3",
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/java.spdx.json",
+          "sha256": "e0c83ae02732f58ab5680b130f26fda073bf0ad7008d88c4ff8b81c0fe48f21f"
+        }
+      }
+    },
+    {
+      "language": "python",
+      "tag": "learncoding/runtime-python:local",
+      "reference": "learncoding/runtime-python@sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+      "imageId": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+      "base": "python:3.14-alpine3.23@sha256:e10f6e0f219a81c65c518e339e7e9bf2f8c63b6ba1bf112e1bb2d1e395ed0c17",
+      "version": "Python 3.14.6",
+      "scan": {
+        "scanner": "Trivy",
+        "createdAt": "2026-07-13T13:25:49.4784009+05:30",
+        "high": 0,
+        "critical": 0,
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/python.trivy.json",
+          "sha256": "d9c33b4599646131b011459d56326a9755db77076cf85bc7b3cba8b90b556d97"
+        }
+      },
+      "sbom": {
+        "format": "SPDX-2.3",
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/python.spdx.json",
+          "sha256": "ce76bb6d16d880530ec727029d6d881cc264784e5b3e6f20cc547c7df6257b53"
+        }
+      }
+    },
+    {
+      "language": "javascript",
+      "tag": "learncoding/runtime-javascript:local",
+      "reference": "learncoding/runtime-javascript@sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931",
+      "imageId": "sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931",
+      "base": "node:22-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+      "version": "v22.23.1",
+      "scan": {
+        "scanner": "Trivy",
+        "createdAt": "2026-07-13T13:25:50.9139763+05:30",
+        "high": 0,
+        "critical": 0,
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/javascript.trivy.json",
+          "sha256": "9ea77024c209474e14ae65a6566d786d82ab98710ca0df25e36a1da1a462ce1e"
+        }
+      },
+      "sbom": {
+        "format": "SPDX-2.3",
+        "report": {
+          "path": "docs/evidence/container-security/runner/runtime-security/javascript.spdx.json",
+          "sha256": "8b817c84108e8c7caca0cd9bced36574b3e19dbc3f25f9344c3d4738d184d017"
+        }
+      }
+    }
+  ]
+}

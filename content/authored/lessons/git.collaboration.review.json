@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.collaboration.review.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.collaboration",
+  "skillId": "git.collaboration.review",
+  "title": "Code review",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Code review; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "github-docs",
+      "locator": "GitHub Documentation; accessed 2026-07; section applicable to Code review",
+      "claim": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Code review",
+      "claim": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question."
+    },
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Code review",
+      "claim": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback. Your goal is to submit prioritized review feedback and distinguish blocker, suggestion and question. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Remotes and synchronization; Pull request narrative; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Review correctness, tests, security, readability and scope with specific respectful comments.",
+      "Submit prioritized review feedback and distinguish blocker, suggestion and question."
+    ],
+    "excludes": [
+      "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state."
+    ]
+  },
+  "outcomes": [
+    "Submit prioritized review feedback and distinguish blocker, suggestion and question."
+  ],
+  "examples": [
+    {
+      "id": "git.collaboration.review.example-a",
+      "title": "Code review: direct case",
+      "situation": "A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+      ],
+      "result": "The case supports the declared outcome because Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+    },
+    {
+      "id": "git.collaboration.review.example-b",
+      "title": "Code review: boundary case",
+      "situation": "After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed.",
+        "Step 2 — Keep this boundary explicit: Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state.",
+        "Step 3 — Reject the documented misconception: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+      ],
+      "result": "This case demonstrates the declared outcome: Submit prioritized review feedback and distinguish blocker, suggestion and question."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.collaboration.review.misconception",
+      "mistakenBelief": "Review quality is measured by the number of comments, and personal style differences should block a correct change.",
+      "correction": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "An editorial desk can model Code review: a request defines the change, a draft presents evidence, reviewers comment, and approved work enters the edition.",
+    "usefulFor": [
+      "Connecting issues, bounded changes, actionable review, checks, and controlled integration"
+    ],
+    "limitations": [
+      "Repository permissions, automated checks, security disclosure, and commit identity require explicit technical controls.",
+      "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
+      "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
+      "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question."
+        },
+        "explanation": "Apply the declared Code review model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+      }
+    ],
+    "textAlternative": "Starting artifact: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback. Step 1, Observe. State: evidence: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.. Apply the declared Code review model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.. Compare the observation with the correction and reject the misconception: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Code review: direct case”: state its starting evidence, apply the Code review rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Code review: direct case.",
+        "Starting evidence: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
+        "Core rule: Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
+        "Observable result: The case supports the declared outcome because Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.",
+        "Boundary check: Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
+        "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Code review, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Submit prioritized review feedback and distinguish blocker, suggestion and question.",
+        "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.collaboration.review.misconception",
+      "explanation": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to submit prioritized review feedback and distinguish blocker, suggestion and question. Keep this boundary in view: Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state.",
+    "retrievalPrompts": [
+      "Explain Code review without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Review quality is measured by the number of comments, and personal style differences should block a correct change.",
+      "Apply the model to this case from memory: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed."
+    ],
+    "nextReviewPrompt": "Next: continue to “Review updates and integration”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

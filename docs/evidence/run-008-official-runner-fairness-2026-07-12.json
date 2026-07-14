@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "requirement": "RUN-008",
+  "generatedAt": "2026-07-12T18:28:00.000Z",
+  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "status": "locally-verified-partial",
+  "scope": "Atomic one-active-official-job admission per learner for exam final tests and assessment correction regrades; practice execution remains outside the official slot.",
+  "databaseContract": {
+    "migration": "0035_official_runner_fairness",
+    "uniqueUserRequest": true,
+    "uniqueRunnerJobPerSubmission": true,
+    "partialUniqueActiveOfficialPerLearner": true,
+    "submissionAndJobAdmittedInOneTransactionBeforeRemoteCall": true,
+    "terminalSettlementUsesLearnerLockAndCompareAndSet": true,
+    "stalePreDispatchThresholdMs": 120000,
+    "signedHttpRequestTimeoutMs": 15000
+  },
+  "behaviorVerified": [
+    "two concurrent official admission types for one learner produce exactly one admission and one retryable busy result",
+    "a practice job for that learner and an official job for a different learner remain admissible",
+    "an exact user/request replay returns the original submission and runner job",
+    "changed payload under the same request ID is rejected",
+    "terminal settlement releases the official slot and a replay cannot overwrite terminal truth",
+    "a crashed pre-dispatch official admission is failed without attempt or mastery evidence after the stale threshold",
+    "dispatch and settlement arriving after stale reconciliation or cancellation observe terminal replay and cannot restore trusted evidence",
+    "exam finalization maps busy, request timeout, and terminal-replay states to worker retry before grading",
+    "assessment correction capacity is requeued with a fresh attempt generation and no interim official result/mastery adjustment",
+    "practice route commits local admission before configuring or calling the remote runner"
+  ],
+  "verification": [
+    {
+      "command": "npm run test:integration -- integration/runner-admission.integration.test.ts",
+      "result": "passed",
+      "migrations": "applied successfully twice in a fresh disposable PostgreSQL 17 container",
+      "tests": "3/3"
+    },
+    {
+      "command": "npm run test:integration -- integration/assessment-correction.integration.test.ts",
+      "result": "passed",
+      "migrations": "applied successfully twice in a fresh disposable PostgreSQL 17 container",
+      "tests": "10/10"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "npx vitest run src/lib/runner/__tests__/admission.test.ts src/lib/runner/__tests__/client.test.ts src/app/api/code/run/__tests__/route.test.ts --maxWorkers=1",
+      "result": "passed",
+      "tests": "31/31"
+    },
+    {
+      "command": "npx vitest run src/app/api/exams/_lib/finalization-worker-concurrency.test.ts src/lib/data-lifecycle/__tests__/export.test.ts src/lib/data-lifecycle/__tests__/deletion-runtime.test.ts --maxWorkers=1",
+      "result": "passed",
+      "tests": "25/25"
+    }
+  ],
+  "sha256": {
+    "drizzle/0035_official_runner_fairness.sql": "5248e2c78a8152a4994f9e286d16c1577820ef8dda40db1b8df7058eff7abbe6",
+    "drizzle/meta/0035_snapshot.json": "4d0e919e4cc302bc0390dc2552d27a15abe4eedd16e2d3e0107c696166e155d2",
+    "src/lib/db/schema.ts": "49410735fd4c22f76eaf7091f52106e8a0a05767a8cd2703bcf6b6a49486b10f",
+    "src/lib/runner/admission.ts": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
+    "src/lib/runner/client.ts": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
+    "src/app/api/code/run/route.ts": "391f604e956cbb4429a53702edb60fff86cde8e5f36b8595677540c18d4b9356",
+    "src/app/api/exams/_lib/service.ts": "48949237a92277536e61488dc6bca1bede40c6214bebd45169433cd6f3c7cd62",
+    "src/app/api/exams/_lib/finalization-worker.ts": "5a56bce1b838855df3fd489e98de213bd5fa84eeae9b5736fa1a594d712c5c5a",
+    "src/lib/assessment-corrections/worker.ts": "5e4c27115fd1c02d74eafd161c5dbf4ed067e90d53a75b5db0d2a53e60197c68",
+    "integration/runner-admission.integration.test.ts": "7f09ed1d4ced3b10ddcdd7bf84c96300c84e66275101c3d6dbcc4fb1462e13f9",
+    "integration/assessment-correction.integration.test.ts": "0467f13f359e05d121cc62a408956e68b41e9d5e8342c9885bfb165bd5779978",
+    "src/lib/data-lifecycle/export.ts": "41a26e6be621af2b84eea6d4c7477c512e6bb1095d690a115461b72c25a5bbe4"
+  },
+  "supersededDigests": [
+    {
+      "artifact": "src/lib/db/schema.ts",
+      "priorDigest": "509fc5330a347db453a04ae874c762a845f70c0bba1b777856c3b5f96527202d",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/runner/client.ts",
+      "priorDigest": "ab1fb85f16a1848c6edd61e0bbcb326ae8defb0cd08ae45cd91b001726de851a",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/assessment-corrections/worker.ts",
+      "priorDigest": "dd6601fe3ef90149e02989d3b83ba326f8b3a161ded21734e2f4684f362df57e",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "integration/assessment-correction.integration.test.ts",
+      "priorDigest": "bd69abe88868dc63d6b12749b21bf462f9247e290401ca291569598415bcaa54",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/data-lifecycle/export.ts",
+      "priorDigest": "85a45ad34b79f36ea821880312f8f73e9cce9c0076a9dc6f25344fe9a9686301",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    }
+  ],
+  "notProved": [
+    "ten-user/two-run NUC load, thermal, latency, and backpressure targets",
+    "deployed KVM runner isolation or capacity measurement",
+    "remote runner queue survival across process or machine restart",
+    "a production power-loss or network-partition recovery drill",
+    "browser cancellation; no cancellation UI was added"
+  ]
+}

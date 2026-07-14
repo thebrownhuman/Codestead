@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.objects.inheritance.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.objects",
+  "skillId": "python.objects.inheritance",
+  "title": "Composition, inheritance and super deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Composition, inheritance and super; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "py-reference"
+  ],
+  "items": [
+    {
+      "id": "python.objects.inheritance.mcq.misconception",
+      "skillId": "python.objects.inheritance",
+      "title": "Composition, inheritance and super: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype.",
+        "incorrect": "That choice preserves the misconception. Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+        },
+        {
+          "id": "misconception",
+          "text": "super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+      }
+    },
+    {
+      "id": "python.objects.inheritance.fill.checkpoint",
+      "skillId": "python.objects.inheritance",
+      "title": "Composition, inheritance and super: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'method resolution order'. Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype.",
+        "incorrect": "The phrase must preserve the exact language rule. Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Use inheritance only for substitutable behavior and follow the [[checkpoint]] cooperatively; prefer composition when reuse does not require a subtype.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "method resolution order"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+      }
+    },
+    {
+      "id": "python.objects.inheritance.code.core",
+      "skillId": "python.objects.inheritance",
+      "title": "Composition, inheritance and super: runnable core task",
+      "kind": "code",
+      "prompt": "Read square or rectangle and dimensions. Use substitutable Shape subclasses with cooperative initialization and print area.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.objects.inheritance.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "rectangle 3 4\n",
+          "expectedStdout": "12",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.objects.inheritance.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "square 0\n",
+          "expectedStdout": "0",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\nclass Shape:\n    def __init__(self, name: str) -> None:\n        self.name = name\n    def area(self) -> int:\n        raise NotImplementedError\n\nclass Square(Shape):\n    def __init__(self, side: int) -> None:\n        super().__init__('square')\n        self.side = side\n    def area(self) -> int:\n        return self.side * self.side\n\nclass Rectangle(Shape):\n    def __init__(self, width: int, height: int) -> None:\n        super().__init__('rectangle')\n        self.width = width\n        self.height = height\n    def area(self) -> int:\n        return self.width * self.height\n\ndef solve(data: str) -> str:\n    tokens = data.split()\n    if tokens[0] == 'square':\n        shape: Shape = Square(int(tokens[1]))\n    else:\n        shape = Rectangle(int(tokens[1]), int(tokens[2]))\n    return str(shape.area())\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "Both subtypes initialize base state with super and honor the complete area contract through one Shape reference."
+      }
+    }
+  ]
+}

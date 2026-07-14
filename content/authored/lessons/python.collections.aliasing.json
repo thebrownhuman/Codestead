@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.collections.aliasing.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.collections",
+  "skillId": "python.collections.aliasing",
+  "title": "Mutability, aliases and copying",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Mutability, aliases and copying; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapter 5: lists, tuples, sets, dictionaries, looping, and sequence comparison; atomic topic: Mutability, aliases and copying",
+      "claim": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Data Model plus expression sections for containers, subscriptions, slicing, membership, and comparisons; atomic topic: Mutability, aliases and copying",
+      "claim": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries. Your goal is to trace and repair accidental shared mutation in nested collections. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: for, while and loop control; pf data selection; Lists, tuples and slicing; pf state mutation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding. The learner must reject this documented misconception: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish shared references, shallow copies and independent nested values.",
+      "Trace and repair accidental shared mutation in nested collections."
+    ],
+    "excludes": [
+      "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding."
+    ]
+  },
+  "outcomes": [
+    "Trace and repair accidental shared mutation in nested collections."
+  ],
+  "examples": [
+    {
+      "id": "python.collections.aliasing.example.direct",
+      "title": "Mutability, aliases and copying: direct language case",
+      "situation": "After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+      ],
+      "result": "The example meets the atomic outcome because Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+    },
+    {
+      "id": "python.collections.aliasing.example.boundary",
+      "title": "Mutability, aliases and copying: boundary and transfer case",
+      "situation": "A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly.",
+        "Step 2 — Keep the language boundary explicit: Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding.",
+        "Step 3 — Reject the tempting but incorrect rule: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace and repair accidental shared mutation in nested collections."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.collections.aliasing.misconception",
+      "mistakenBelief": "Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values.",
+      "correction": "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a flexible storeroom with ordered shelves, fixed labels, unique membership, lookup indexes, and shared nested containers can introduce Mutability, aliases and copying, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "lists, tuples, dictionaries, sets, aliasing, and text processing"
+    ],
+    "limitations": [
+      "hashability, shallow copying, Unicode normalization, and object identity require Python's exact data model",
+      "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
+      "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
+      "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+      }
+    ],
+    "textAlternative": "Starting artifact: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries. Step 1, Observe. State: evidence: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.. Compare the observation with the correction and explain why the misconception fails: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Mutability, aliases and copying: direct language case”: state its starting evidence, apply the Mutability, aliases and copying rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Mutability, aliases and copying: direct language case.",
+        "Starting evidence: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
+        "Core rule: Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
+        "Observable result: The example meets the atomic outcome because Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.",
+        "Boundary check: Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
+        "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Mutability, aliases and copying, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace and repair accidental shared mutation in nested collections.",
+        "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.collections.aliasing.misconception",
+      "explanation": "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace and repair accidental shared mutation in nested collections. Keep this boundary in view: Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding.",
+    "retrievalPrompts": [
+      "Explain Mutability, aliases and copying using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values.",
+      "Predict this case from memory: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly."
+    ],
+    "nextReviewPrompt": "Next: continue to “Unicode text and formatting”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

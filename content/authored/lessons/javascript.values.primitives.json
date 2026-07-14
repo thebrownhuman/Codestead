@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.values.primitives.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.values",
+  "skillId": "javascript.values.primitives",
+  "title": "Primitive values and typeof",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Primitive values and typeof; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Primitive values and typeof",
+      "claim": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Primitive values and typeof",
+      "claim": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Changing one character creates a new string value rather than mutating the existing primitive. Your goal is to classify primitive and object values and explain null and undefined use cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scripts and console; pf state expressions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic. This draft therefore rejects: Strings are mutable arrays because bracket access returns characters."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use undefined, null, Boolean, number, bigint, string and symbol with accurate type expectations.",
+      "Classify primitive and object values and explain null and undefined use cases."
+    ],
+    "excludes": [
+      "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic."
+    ]
+  },
+  "outcomes": [
+    "Classify primitive and object values and explain null and undefined use cases."
+  ],
+  "examples": [
+    {
+      "id": "javascript.values.primitives.example-a",
+      "title": "Primitive values and typeof: concrete case",
+      "situation": "Changing one character creates a new string value rather than mutating the existing primitive.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Changing one character creates a new string value rather than mutating the existing primitive.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: String primitives are immutable; operations return new values rather than changing characters in place."
+      ],
+      "result": "The result follows because String primitives are immutable; operations return new values rather than changing characters in place."
+    },
+    {
+      "id": "javascript.values.primitives.example-b",
+      "title": "Primitive values and typeof: boundary case",
+      "situation": "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Strings are mutable arrays because bracket access returns characters."
+      ],
+      "result": "The boundary requires this correction: String primitives are immutable; operations return new values rather than changing characters in place."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.values.primitives.misconception",
+      "mistakenBelief": "Strings are mutable arrays because bracket access returns characters.",
+      "correction": "String primitives are immutable; operations return new values rather than changing characters in place.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Strings are mutable arrays because bracket access returns characters."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Primitive values and typeof, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Primitive values and typeof before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Changing one character creates a new string value rather than mutating the existing primitive.",
+      "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
+      "String primitives are immutable; operations return new values rather than changing characters in place."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Changing one character creates a new string value rather than mutating the existing primitive."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "String primitives are immutable; operations return new values rather than changing characters in place."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Strings are mutable arrays because bracket access returns characters."
+      }
+    ],
+    "textAlternative": "Starting artifact: Changing one character creates a new string value rather than mutating the existing primitive. Step 1, Artifact. State: evidence: Changing one character creates a new string value rather than mutating the existing primitive.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: String primitives are immutable; operations return new values rather than changing characters in place.. Check the result against the boundary and reject this misconception: Strings are mutable arrays because bracket access returns characters."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Primitive values and typeof: concrete case”: state its starting evidence, apply the Primitive values and typeof rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Primitive values and typeof: concrete case.",
+        "Starting evidence: Changing one character creates a new string value rather than mutating the existing primitive.",
+        "Core rule: JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
+        "Observable result: The result follows because String primitives are immutable; operations return new values rather than changing characters in place.",
+        "Boundary check: String primitives are immutable; operations return new values rather than changing characters in place."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
+        "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Primitive values and typeof and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Classify primitive and object values and explain null and undefined use cases.",
+        "String primitives are immutable; operations return new values rather than changing characters in place."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.values.primitives.misconception",
+      "explanation": "String primitives are immutable; operations return new values rather than changing characters in place.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'immutable' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to classify primitive and object values and explain null and undefined use cases. Keep this boundary in view: Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
+    "retrievalPrompts": [
+      "Explain Primitive values and typeof using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Strings are mutable arrays because bracket access returns characters.",
+      "Apply checkpoint 'immutable' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “let, const and binding”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

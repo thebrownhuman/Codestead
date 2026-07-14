@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.quality.compatibility.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.quality-project",
+  "skillId": "css.quality.compatibility",
+  "title": "Compatibility and progressive enhancement",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Compatibility and progressive enhancement; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Compatibility and progressive enhancement",
+      "claim": "Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Compatibility and progressive enhancement",
+      "claim": "Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A new layout feature is guarded with @supports and the normal-flow fallback remains usable. Your goal is to implement and test a fallback for a feature whose support is not universal in the target matrix. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Responsive design and motion; Stylesheet organization; Computed styles and layout inspectors; Container queries. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior. This draft therefore rejects: Adding every vendor prefix found online guarantees modern cross-browser compatibility."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Check support and supply a usable baseline before optional newer features.",
+      "Implement and test a fallback for a feature whose support is not universal in the target matrix."
+    ],
+    "excludes": [
+      "Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior."
+    ]
+  },
+  "outcomes": [
+    "Implement and test a fallback for a feature whose support is not universal in the target matrix."
+  ],
+  "examples": [
+    {
+      "id": "css.quality.compatibility.example-a",
+      "title": "Compatibility and progressive enhancement: concrete case",
+      "situation": "A new layout feature is guarded with @supports and the normal-flow fallback remains usable.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A new layout feature is guarded with @supports and the normal-flow fallback remains usable.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes."
+      ],
+      "result": "The result follows because Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes."
+    },
+    {
+      "id": "css.quality.compatibility.example-b",
+      "title": "Compatibility and progressive enhancement: boundary case",
+      "situation": "Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Adding every vendor prefix found online guarantees modern cross-browser compatibility."
+      ],
+      "result": "The boundary requires this correction: Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.quality.compatibility.misconception",
+      "mistakenBelief": "Adding every vendor prefix found online guarantees modern cross-browser compatibility.",
+      "correction": "Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Adding every vendor prefix found online guarantees modern cross-browser compatibility."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Compatibility and progressive enhancement, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Compatibility and progressive enhancement before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A new layout feature is guarded with @supports and the normal-flow fallback remains usable.",
+      "Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore.",
+      "Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A new layout feature is guarded with @supports and the normal-flow fallback remains usable."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Adding every vendor prefix found online guarantees modern cross-browser compatibility."
+      }
+    ],
+    "textAlternative": "Starting artifact: A new layout feature is guarded with @supports and the normal-flow fallback remains usable. Step 1, Artifact. State: evidence: A new layout feature is guarded with @supports and the normal-flow fallback remains usable.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes.. Check the result against the boundary and reject this misconception: Adding every vendor prefix found online guarantees modern cross-browser compatibility."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Compatibility and progressive enhancement: concrete case”: state its starting evidence, apply the Compatibility and progressive enhancement rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Compatibility and progressive enhancement: concrete case.",
+        "Starting evidence: A new layout feature is guarded with @supports and the normal-flow fallback remains usable.",
+        "Core rule: Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore.",
+        "Observable result: The result follows because Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes.",
+        "Boundary check: Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Compatibility decisions use the declared browser matrix, current feature support, progressive enhancement, and tested fallbacks rather than folklore.",
+        "Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Compatibility and progressive enhancement and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test a fallback for a feature whose support is not universal in the target matrix.",
+        "Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.quality.compatibility.misconception",
+      "explanation": "Use current support data and real matrix testing, add targeted fallbacks, and avoid obsolete cargo-cult prefixes.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'real matrix testing' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test a fallback for a feature whose support is not universal in the target matrix. Keep this boundary in view: Support data can vary by subfeature, prefixes may be obsolete, and transpilation cannot emulate every layout or platform behavior.",
+    "retrievalPrompts": [
+      "Explain Compatibility and progressive enhancement using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Adding every vendor prefix found online guarantees modern cross-browser compatibility.",
+      "Apply checkpoint 'real matrix testing' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Visual accessibility audit”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

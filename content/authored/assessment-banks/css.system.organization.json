@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.css.system.organization.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.selectors-system",
+  "skillId": "css.system.organization",
+  "title": "Stylesheet organization deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because Stylesheet architecture across reset, base, layout, component, and utility files requires multi-file maintainability review."
+  },
+  "sourceRefs": [
+    "css-cascade",
+    "mdn-css"
+  ],
+  "items": [
+    {
+      "skillId": "css.system.organization",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "css.system.organization.mcq.misconception",
+      "title": "Stylesheet organization: reject the invalid model",
+      "prompt": "Which statement correctly resolves this CSS: Responsive and Accessible Styling misconception? Adding !important wherever a conflict appears is a scalable organization strategy.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
+        "incorrect": "That preserves the misconception. Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked CSS: Responsive and Accessible Styling correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+        },
+        {
+          "id": "misconception",
+          "text": "Adding !important wherever a conflict appears is a scalable organization strategy."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      }
+    },
+    {
+      "skillId": "css.system.organization",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "css.system.organization.fill.checkpoint",
+      "title": "Stylesheet organization: complete the rule",
+      "prompt": "Complete the missing CSS: Responsive and Accessible Styling checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: cascade layers.",
+        "incorrect": "Recheck the exact rule. Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Define ownership and {{key-rule}}, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "cascade layers"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      }
+    }
+  ]
+}

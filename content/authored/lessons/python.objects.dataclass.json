@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.objects.dataclass.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.objects",
+  "skillId": "python.objects.dataclass",
+  "title": "Data classes and value modeling",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Data classes and value modeling; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; dataclasses, collections.abc, and data-model-supporting library documentation; atomic topic: Data classes and value modeling",
+      "claim": "A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality. Your goal is to choose and implement an appropriate data class or regular class for a domain model. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scope and closures; Modules and imports; Classes, instances and attributes; Mutability, aliases and copying. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Data classes are not runtime type validators, mutable defaults need default_factory, frozen is not deep immutability, ordering needs coherent fields, and identity-rich behavior may suit a regular class. The learner must reject this documented misconception: @dataclass validates annotations and creates a fresh copy of any default list for every instance."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use data classes for transparent values and custom classes when invariants or behavior require them.",
+      "Choose and implement an appropriate data class or regular class for a domain model."
+    ],
+    "excludes": [
+      "Data classes are not runtime type validators, mutable defaults need default_factory, frozen is not deep immutability, ordering needs coherent fields, and identity-rich behavior may suit a regular class."
+    ]
+  },
+  "outcomes": [
+    "Choose and implement an appropriate data class or regular class for a domain model."
+  ],
+  "examples": [
+    {
+      "id": "python.objects.dataclass.example.direct",
+      "title": "Data classes and value modeling: direct language case",
+      "situation": "A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+      ],
+      "result": "The example meets the atomic outcome because Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+    },
+    {
+      "id": "python.objects.dataclass.example.boundary",
+      "title": "Data classes and value modeling: boundary and transfer case",
+      "situation": "A list field uses field(default_factory=list) so each instance owns a distinct collection.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A list field uses field(default_factory=list) so each instance owns a distinct collection.",
+        "Step 2 — Keep the language boundary explicit: Data classes are not runtime type validators, mutable defaults need default_factory, frozen is not deep immutability, ordering needs coherent fields, and identity-rich behavior may suit a regular class.",
+        "Step 3 — Reject the tempting but incorrect rule: @dataclass validates annotations and creates a fresh copy of any default list for every instance."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose and implement an appropriate data class or regular class for a domain model."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.objects.dataclass.misconception",
+      "mistakenBelief": "@dataclass validates annotations and creates a fresh copy of any default list for every instance.",
+      "correction": "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: @dataclass validates annotations and creates a fresh copy of any default list for every instance."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a family of service records whose instance state, generated value methods, inheritance order, and protocols define observable behavior can introduce Data classes and value modeling, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "classes, data classes, composition, inheritance, and special methods"
+    ],
+    "limitations": [
+      "descriptor lookup, MRO, hashing, NotImplemented, and shallow frozen state do not map cleanly to physical records",
+      "Data classes are not runtime type validators, mutable defaults need default_factory, frozen is not deep immutability, ordering needs coherent fields, and identity-rich behavior may suit a regular class."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality.",
+      "A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit.",
+      "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: @dataclass validates annotations and creates a fresh copy of any default list for every instance."
+      }
+    ],
+    "textAlternative": "Starting artifact: A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality. Step 1, Observe. State: evidence: A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly.. Compare the observation with the correction and explain why the misconception fails: @dataclass validates annotations and creates a fresh copy of any default list for every instance."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Data classes and value modeling: direct language case”: state its starting evidence, apply the Data classes and value modeling rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Data classes and value modeling: direct language case.",
+        "Starting evidence: A frozen Point dataclass stores two floats and validates finiteness in __post_init__, providing transparent field-based equality.",
+        "Core rule: A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit.",
+        "Observable result: The example meets the atomic outcome because Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly.",
+        "Boundary check: Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A list field uses field(default_factory=list) so each instance owns a distinct collection.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Python data class generates selected initialization, representation, and comparison methods from annotated fields, making transparent value models concise while leaving validation and mutability policy explicit.",
+        "Data classes are not runtime type validators, mutable defaults need default_factory, frozen is not deep immutability, ordering needs coherent fields, and identity-rich behavior may suit a regular class."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Data classes and value modeling, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Choose and implement an appropriate data class or regular class for a domain model.",
+        "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.objects.dataclass.misconception",
+      "explanation": "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A list field uses field(default_factory=list) so each instance owns a distinct collection."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and implement an appropriate data class or regular class for a domain model. Keep this boundary in view: Data classes are not runtime type validators, mutable defaults need default_factory, frozen is not deep immutability, ordering needs coherent fields, and identity-rich behavior may suit a regular class.",
+    "retrievalPrompts": [
+      "Explain Data classes and value modeling using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: @dataclass validates annotations and creates a fresh copy of any default list for every instance.",
+      "Predict this case from memory: A list field uses field(default_factory=list) so each instance owns a distinct collection."
+    ],
+    "nextReviewPrompt": "Next: continue to “Composition, inheritance and super”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

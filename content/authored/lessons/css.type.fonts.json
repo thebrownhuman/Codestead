@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.type.fonts.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.type-color",
+  "skillId": "css.type.fonts",
+  "title": "Font families and loading",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Font families and loading; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Font families and loading",
+      "claim": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Font families and loading",
+      "claim": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A system fallback renders immediately while the chosen web font loads with compatible metrics. Your goal is to configure a font stack and explain fallback, loading and privacy trade-offs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Lengths, percentages and viewport units; html semantics text. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text. This draft therefore rejects: Declaring one custom font guarantees it loads before any text is displayed."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Define resilient font stacks and load web fonts without unreadable fallback assumptions.",
+      "Configure a font stack and explain fallback, loading and privacy trade-offs."
+    ],
+    "excludes": [
+      "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text."
+    ]
+  },
+  "outcomes": [
+    "Configure a font stack and explain fallback, loading and privacy trade-offs."
+  ],
+  "examples": [
+    {
+      "id": "css.type.fonts.example-a",
+      "title": "Font families and loading: concrete case",
+      "situation": "A system fallback renders immediately while the chosen web font loads with compatible metrics.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A system fallback renders immediately while the chosen web font loads with compatible metrics.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+      ],
+      "result": "The result follows because Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+    },
+    {
+      "id": "css.type.fonts.example-b",
+      "title": "Font families and loading: boundary case",
+      "situation": "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Declaring one custom font guarantees it loads before any text is displayed."
+      ],
+      "result": "The boundary requires this correction: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.type.fonts.misconception",
+      "mistakenBelief": "Declaring one custom font guarantees it loads before any text is displayed.",
+      "correction": "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Declaring one custom font guarantees it loads before any text is displayed."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Font families and loading, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Font families and loading before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A system fallback renders immediately while the chosen web font loads with compatible metrics.",
+      "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
+      "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A system fallback renders immediately while the chosen web font loads with compatible metrics."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Declaring one custom font guarantees it loads before any text is displayed."
+      }
+    ],
+    "textAlternative": "Starting artifact: A system fallback renders immediately while the chosen web font loads with compatible metrics. Step 1, Artifact. State: evidence: A system fallback renders immediately while the chosen web font loads with compatible metrics.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.. Check the result against the boundary and reject this misconception: Declaring one custom font guarantees it loads before any text is displayed."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Font families and loading: concrete case”: state its starting evidence, apply the Font families and loading rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Font families and loading: concrete case.",
+        "Starting evidence: A system fallback renders immediately while the chosen web font loads with compatible metrics.",
+        "Core rule: Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
+        "Observable result: The result follows because Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.",
+        "Boundary check: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
+        "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Font families and loading and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Configure a font stack and explain fallback, loading and privacy trade-offs.",
+        "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.type.fonts.misconception",
+      "explanation": "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'fallback fonts' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to configure a font stack and explain fallback, loading and privacy trade-offs. Keep this boundary in view: A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
+    "retrievalPrompts": [
+      "Explain Font families and loading using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Declaring one custom font guarantees it loads before any text is displayed.",
+      "Apply checkpoint 'fallback fonts' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Readable text metrics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

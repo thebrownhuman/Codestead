@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.props.data.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.props-composition",
+  "skillId": "react.props.data",
+  "title": "Props and one-way data flow",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Props and one-way data flow; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Props and one-way data flow",
+      "claim": "Props carry read-only data from parent to child and changes cause a new render description."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Props carry read-only data from parent to child and changes cause a new render description.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A CourseCard receives title and progress and requests changes through a callback rather than editing props. Your goal is to trace data and event flow across a parent-child component pair. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Components and JSX; Function components; javascript functions parameters. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Props carry read-only data from parent to child and changes cause a new render description. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems. This draft therefore rejects: A child may assign to props because they are ordinary JavaScript function parameters."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Treat props as read-only inputs and send changes upward through callbacks.",
+      "Trace data and event flow across a parent-child component pair."
+    ],
+    "excludes": [
+      "Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems."
+    ]
+  },
+  "outcomes": [
+    "Trace data and event flow across a parent-child component pair."
+  ],
+  "examples": [
+    {
+      "id": "react.props.data.example-a",
+      "title": "Props and one-way data flow: concrete case",
+      "situation": "A CourseCard receives title and progress and requests changes through a callback rather than editing props.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A CourseCard receives title and progress and requests changes through a callback rather than editing props.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Treat props as read-only inputs and ask the owning component to update state through an explicit callback."
+      ],
+      "result": "The result follows because Treat props as read-only inputs and ask the owning component to update state through an explicit callback."
+    },
+    {
+      "id": "react.props.data.example-b",
+      "title": "Props and one-way data flow: boundary case",
+      "situation": "Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A child may assign to props because they are ordinary JavaScript function parameters."
+      ],
+      "result": "The boundary requires this correction: Treat props as read-only inputs and ask the owning component to update state through an explicit callback."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.props.data.misconception",
+      "mistakenBelief": "A child may assign to props because they are ordinary JavaScript function parameters.",
+      "correction": "Treat props as read-only inputs and ask the owning component to update state through an explicit callback.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A child may assign to props because they are ordinary JavaScript function parameters."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Props and one-way data flow, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Props and one-way data flow before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A CourseCard receives title and progress and requests changes through a callback rather than editing props.",
+      "Props carry read-only data from parent to child and changes cause a new render description.",
+      "Treat props as read-only inputs and ask the owning component to update state through an explicit callback."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A CourseCard receives title and progress and requests changes through a callback rather than editing props."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Props carry read-only data from parent to child and changes cause a new render description."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Treat props as read-only inputs and ask the owning component to update state through an explicit callback."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A child may assign to props because they are ordinary JavaScript function parameters."
+      }
+    ],
+    "textAlternative": "Starting artifact: A CourseCard receives title and progress and requests changes through a callback rather than editing props. Step 1, Artifact. State: evidence: A CourseCard receives title and progress and requests changes through a callback rather than editing props.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Props carry read-only data from parent to child and changes cause a new render description.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat props as read-only inputs and ask the owning component to update state through an explicit callback.. Check the result against the boundary and reject this misconception: A child may assign to props because they are ordinary JavaScript function parameters."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Props and one-way data flow: concrete case”: state its starting evidence, apply the Props and one-way data flow rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Props and one-way data flow: concrete case.",
+        "Starting evidence: A CourseCard receives title and progress and requests changes through a callback rather than editing props.",
+        "Core rule: Props carry read-only data from parent to child and changes cause a new render description.",
+        "Observable result: The result follows because Treat props as read-only inputs and ask the owning component to update state through an explicit callback.",
+        "Boundary check: Treat props as read-only inputs and ask the owning component to update state through an explicit callback."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Props carry read-only data from parent to child and changes cause a new render description.",
+        "Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Props and one-way data flow and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace data and event flow across a parent-child component pair.",
+        "Treat props as read-only inputs and ask the owning component to update state through an explicit callback."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.props.data.misconception",
+      "explanation": "Treat props as read-only inputs and ask the owning component to update state through an explicit callback.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'read-only inputs' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace data and event flow across a parent-child component pair. Keep this boundary in view: Objects can still be mutated outside React, destructuring does not clone, and excessive prop drilling can signal boundary problems.",
+    "retrievalPrompts": [
+      "Explain Props and one-way data flow using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: A child may assign to props because they are ordinary JavaScript function parameters.",
+      "Apply checkpoint 'read-only inputs' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Children and composition”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

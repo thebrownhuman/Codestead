@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.cpp.quality.sanitizers.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.quality",
+  "skillId": "cpp.quality.sanitizers",
+  "title": "Debugger, sanitizers and final project deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific deterministic MCQ and fill-gap evidence for Debugger, sanitizers and final project; human review required."
+  },
+  "sourceRefs": [
+    "cpp-core",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "skillId": "cpp.quality.sanitizers",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.quality.sanitizers.mcq.misconception",
+      "title": "Debugger, sanitizers and final project: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this CPP misconception? Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
+        "incorrect": "That option preserves the documented misconception. Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned CPP correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      }
+    },
+    {
+      "skillId": "cpp.quality.sanitizers",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.quality.sanitizers.fill.checkpoint",
+      "title": "Debugger, sanitizers and final project: complete the language rule",
+      "prompt": "Complete the missing CPP checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'path-limited evidence'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact CPP token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Sanitizer results are {{key-rule}}; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "path-limited evidence"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      }
+    }
+  ]
+}

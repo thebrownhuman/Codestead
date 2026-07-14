@@ -1,0 +1,324 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learncoding.local/schema/assessment-bank.schema.json",
+  "title": "Codestead deterministic assessment bank",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "format", "schemaVersion", "id", "courseId", "courseVersion", "moduleId", "skillId", "title", "publication", "sourceRefs", "items"],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "format": { "const": "assessment-bank" },
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "$ref": "#/$defs/id" },
+    "courseId": { "$ref": "#/$defs/id" },
+    "courseVersion": { "$ref": "#/$defs/semver" },
+    "moduleId": { "$ref": "#/$defs/id" },
+    "skillId": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 3 },
+    "publication": { "$ref": "#/$defs/publication" },
+    "sourceRefs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+    "items": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/mcq" },
+          { "$ref": "#/$defs/trace" },
+          { "$ref": "#/$defs/fillGap" },
+          { "$ref": "#/$defs/code" }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)*$" },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "meaningful": { "type": "string", "minLength": 12 },
+    "publication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["stage", "author", "authoredAt", "aiAssisted", "reviewer", "changeSummary"],
+      "properties": {
+        "stage": { "enum": ["draft", "in-review", "approved", "published", "retired"] },
+        "author": {
+          "type": "object", "additionalProperties": false,
+          "required": ["id", "displayName", "kind"],
+          "properties": {
+            "id": { "$ref": "#/$defs/id" },
+            "displayName": { "type": "string", "minLength": 1 },
+            "kind": { "enum": ["human", "ai-assisted"] }
+          }
+        },
+        "authoredAt": { "type": "string", "format": "date-time" },
+        "aiAssisted": { "type": "boolean" },
+        "reviewer": {
+          "oneOf": [
+            {
+              "type": "object", "additionalProperties": false,
+              "required": ["id", "displayName", "kind", "reviewedAt", "reviewVersion"],
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "displayName": { "type": "string", "minLength": 1 },
+                "kind": { "const": "human" },
+                "reviewedAt": { "type": "string", "format": "date-time" },
+                "reviewVersion": { "$ref": "#/$defs/semver" }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "changeSummary": { "$ref": "#/$defs/meaningful" }
+      }
+    },
+    "eligibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["eligible", "rationale"],
+      "properties": {
+        "eligible": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/meaningful" }
+      }
+    },
+    "feedback": {
+      "type": "object", "additionalProperties": false,
+      "required": ["correct", "incorrect"],
+      "properties": {
+        "correct": { "$ref": "#/$defs/meaningful" },
+        "incorrect": { "$ref": "#/$defs/meaningful" }
+      }
+    },
+    "rubric": {
+      "type": "object", "additionalProperties": false,
+      "required": ["passPoints", "criteria"],
+      "properties": {
+        "passPoints": { "type": "integer", "minimum": 1 },
+        "criteria": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "description", "points", "critical"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "description": { "$ref": "#/$defs/meaningful" },
+              "points": { "type": "integer", "minimum": 1 },
+              "critical": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "base": {
+      "type": "object",
+      "required": ["id", "skillId", "title", "kind", "prompt", "points", "evidenceLevel", "examEligibility", "hints", "feedback", "rubric", "privateAuthorNotes"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "skillId": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 3 },
+        "kind": { "enum": ["mcq", "trace", "fill-gap", "code"] },
+        "prompt": { "$ref": "#/$defs/meaningful" },
+        "points": { "type": "integer", "minimum": 1 },
+        "evidenceLevel": { "enum": ["recall", "interpret", "apply", "transfer"] },
+        "examEligibility": { "$ref": "#/$defs/eligibility" },
+        "hints": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/meaningful" } },
+        "feedback": { "$ref": "#/$defs/feedback" },
+        "rubric": { "$ref": "#/$defs/rubric" },
+        "privateAuthorNotes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "misconceptionMappings": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["tag", "answers"],
+            "properties": {
+              "tag": { "$ref": "#/$defs/id" },
+              "answers": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+            }
+          }
+        }
+      }
+    },
+    "mcq": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["options", "answer"],
+          "properties": {
+            "kind": { "const": "mcq" },
+            "options": {
+              "type": "array", "minItems": 2,
+              "items": {
+                "type": "object", "additionalProperties": false,
+                "required": ["id", "text"],
+                "properties": { "id": { "$ref": "#/$defs/id" }, "text": { "type": "string", "minLength": 1 } }
+              }
+            },
+            "answer": {
+              "type": "object", "additionalProperties": false,
+              "required": ["correctOptionIds", "explanation"],
+              "properties": {
+                "correctOptionIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+                "explanation": { "$ref": "#/$defs/meaningful" }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "trace": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["artifact", "answer"],
+          "properties": {
+            "kind": { "const": "trace" },
+            "artifact": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "answer": {
+              "type": "object", "additionalProperties": false,
+              "required": ["acceptedTraces", "caseSensitive", "explanation"],
+              "properties": {
+                "acceptedTraces": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+                "caseSensitive": { "type": "boolean" },
+                "explanation": { "$ref": "#/$defs/meaningful" }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "fillGap": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["template", "gaps", "answer"],
+          "properties": {
+            "kind": { "const": "fill-gap" },
+            "template": { "$ref": "#/$defs/meaningful" },
+            "gaps": {
+              "type": "array", "minItems": 1,
+              "items": {
+                "type": "object", "additionalProperties": false,
+                "required": ["id", "label"],
+                "properties": { "id": { "$ref": "#/$defs/id" }, "label": { "type": "string", "minLength": 1 } }
+              }
+            },
+            "answer": {
+              "type": "object", "additionalProperties": false,
+              "required": ["acceptedByGap", "caseSensitive", "explanation"],
+              "properties": {
+                "acceptedByGap": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } } },
+                "caseSensitive": { "type": "boolean" },
+                "explanation": { "$ref": "#/$defs/meaningful" }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "runnerTest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "visibility", "category", "stdin", "expectedStdout", "comparison", "critical"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "visibility": { "enum": ["visible", "hidden"] },
+        "category": { "enum": ["normal", "boundary", "invalid", "performance"] },
+        "stdin": { "type": "string" },
+        "expectedStdout": { "type": "string" },
+        "comparison": { "enum": ["exact", "trimmed"] },
+        "critical": { "type": "boolean" }
+      }
+    },
+    "code": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["starterCode", "runtime", "tests", "answer"],
+          "properties": {
+            "kind": { "const": "code" },
+            "starterCode": { "type": "string", "minLength": 1 },
+            "runtime": {
+              "oneOf": [
+                {
+                  "type": "object", "additionalProperties": false,
+                  "required": ["engine", "language", "version", "entrypoint", "timeLimitMs", "memoryLimitMb"],
+                  "properties": {
+                    "engine": { "const": "isolated-runner" },
+                    "language": { "enum": ["c", "cpp", "java", "python", "javascript"] },
+                    "version": { "type": "string", "minLength": 1 },
+                    "imageDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+                    "entrypoint": { "type": "string", "minLength": 1 },
+                    "timeLimitMs": { "type": "integer", "minimum": 100, "maximum": 30000 },
+                    "memoryLimitMb": { "type": "integer", "minimum": 16, "maximum": 1024 }
+                  }
+                },
+                {
+                  "type": "object", "additionalProperties": false,
+                  "required": ["engine", "language", "version", "entrypoint", "timeLimitMs", "memoryLimitMb", "browser"],
+                  "properties": {
+                    "engine": { "const": "browser-verifier" },
+                    "language": { "enum": ["html", "css", "javascript", "react"] },
+                    "version": { "type": "string", "minLength": 1 },
+                    "entrypoint": { "type": "string", "minLength": 1 },
+                    "timeLimitMs": { "type": "integer", "minimum": 100, "maximum": 30000 },
+                    "memoryLimitMb": { "type": "integer", "minimum": 16, "maximum": 1024 },
+                    "browser": {
+                      "type": "object", "additionalProperties": false,
+                      "required": ["name", "revision", "version", "playwrightVersion"],
+                      "properties": {
+                        "name": { "const": "chromium" },
+                        "revision": { "type": "string", "minLength": 1 },
+                        "version": { "type": "string", "minLength": 1 },
+                        "playwrightVersion": { "$ref": "#/$defs/semver" }
+                      }
+                    },
+                    "bundler": {
+                      "type": "object", "additionalProperties": false,
+                      "required": ["name", "version"],
+                      "properties": {
+                        "name": { "const": "esbuild" },
+                        "version": { "$ref": "#/$defs/semver" }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "parity": {
+              "type": "object", "additionalProperties": false,
+              "required": ["parityId", "contractVersion", "language", "equivalentLanguages", "testContractHash", "facet"],
+              "properties": {
+                "parityId": { "$ref": "#/$defs/id" },
+                "contractVersion": { "$ref": "#/$defs/semver" },
+                "language": { "enum": ["c", "cpp", "java", "python"] },
+                "equivalentLanguages": {
+                  "type": "array",
+                  "prefixItems": [{ "const": "c" }, { "const": "cpp" }, { "const": "java" }, { "const": "python" }],
+                  "minItems": 4,
+                  "maxItems": 4
+                },
+                "testContractHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+                "facet": { "const": "executable-contract" }
+              }
+            },
+            "tests": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/runnerTest" } },
+            "answer": {
+              "type": "object", "additionalProperties": false,
+              "required": ["referenceSolution", "explanation"],
+              "properties": {
+                "referenceSolution": { "type": "string", "minLength": 1 },
+                "explanation": { "$ref": "#/$defs/meaningful" }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

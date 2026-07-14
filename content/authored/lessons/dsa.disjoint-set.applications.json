@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.disjoint-set.applications.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.disjoint-set",
+  "skillId": "dsa.disjoint-set.applications",
+  "title": "Connectivity applications",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Connectivity applications; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Connectivity applications",
+      "claim": "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative. Your goal is to solve and test a connectivity problem using the disjoint-set API. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Tree terminology and representation; Array representation and operations; Path compression; Graph terminology and models. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "It does not support arbitrary deletions or directed reachability without additional algorithms. The draft therefore rejects: Disjoint-set can answer the actual path between two connected vertices."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use disjoint sets for incremental connectivity, cycle checks and spanning-tree construction.",
+      "Solve and test a connectivity problem using the disjoint-set API.",
+      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+    ],
+    "excludes": [
+      "It does not support arbitrary deletions or directed reachability without additional algorithms."
+    ]
+  },
+  "outcomes": [
+    "Solve and test a connectivity problem using the disjoint-set API."
+  ],
+  "examples": [
+    {
+      "id": "dsa.disjoint-set.applications.example-a",
+      "title": "Connectivity applications: language-neutral trace",
+      "situation": "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Disjoint-set answers whether sets are connected, not which path connects their members."
+      ],
+      "result": "The conceptual result follows because Disjoint-set answers whether sets are connected, not which path connects their members."
+    },
+    {
+      "id": "dsa.disjoint-set.applications.example-b",
+      "title": "Connectivity applications: implementation transfer",
+      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+        "Step 3 — Retest this boundary in the selected implementation: It does not support arbitrary deletions or directed reachability without additional algorithms."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.disjoint-set.applications.misconception",
+      "mistakenBelief": "Disjoint-set can answer the actual path between two connected vertices.",
+      "correction": "Disjoint-set answers whether sets are connected, not which path connects their members.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Disjoint-set can answer the actual path between two connected vertices."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Connectivity applications, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "It does not support arbitrary deletions or directed reachability without additional algorithms."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
+      "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
+      "Disjoint-set answers whether sets are connected, not which path connects their members.",
+      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Disjoint-set answers whether sets are connected, not which path connects their members."
+        },
+        "explanation": "Verify the result and reject this misconception: Disjoint-set can answer the actual path between two connected vertices."
+      }
+    ],
+    "textAlternative": "Starting artifact: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative. Step 1, Specification. State: scenario: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Disjoint-set answers whether sets are connected, not which path connects their members.. Verify the result and reject this misconception: Disjoint-set can answer the actual path between two connected vertices."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Connectivity applications: language-neutral trace”: state its starting evidence, apply the Connectivity applications rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Connectivity applications: language-neutral trace.",
+        "Starting evidence: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
+        "Core rule: Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
+        "Observable result: The conceptual result follows because Disjoint-set answers whether sets are connected, not which path connects their members.",
+        "Boundary check: Disjoint-set answers whether sets are connected, not which path connects their members."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+        "It does not support arbitrary deletions or directed reachability without additional algorithms."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Connectivity applications case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Solve and test a connectivity problem using the disjoint-set API.",
+        "Disjoint-set answers whether sets are connected, not which path connects their members."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.disjoint-set.applications.misconception",
+      "explanation": "Disjoint-set answers whether sets are connected, not which path connects their members.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'whether sets are connected', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to solve and test a connectivity problem using the disjoint-set API. Keep this boundary in view: It does not support arbitrary deletions or directed reachability without additional algorithms.",
+    "retrievalPrompts": [
+      "State the Connectivity applications invariant and complexity without code.",
+      "Why is this claim false: Disjoint-set can answer the actual path between two connected vertices.",
+      "Map checkpoint 'whether sets are connected' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Greedy choice and counterexamples”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.model.repository.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.model",
+  "skillId": "git.model.repository",
+  "title": "Repository and working tree deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Repository and working tree; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.model.repository.mcq.misconception",
+      "skillId": "git.model.repository",
+      "title": "Repository and working tree: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? The repository is just the visible project folder, so every file in it is automatically versioned.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked.",
+        "incorrect": "The selected statement preserves the documented misconception. Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Repository and working tree instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "The repository is just the visible project folder, so every file in it is automatically versioned."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+      }
+    }
+  ]
+}

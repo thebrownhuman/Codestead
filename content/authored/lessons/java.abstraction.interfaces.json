@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.abstraction.interfaces.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.abstraction",
+  "skillId": "java.abstraction.interfaces",
+  "title": "Interfaces",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Interfaces; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Interfaces, Inheritance, Polymorphism, and composition guidance; atomic topic: Interfaces",
+      "claim": "A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS chapters 8-9 and §§15.12.2, 15.12.4: inheritance, interfaces, overload selection, and dispatch; atomic topic: Interfaces",
+      "claim": "A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types. Your goal is to design and use a focused interface with at least two conforming implementations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and invariants; Classes, fields and methods. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Default methods can create conflicts, interface constants are public static final, contracts include semantics beyond method signatures, and a broad interface can still couple clients tightly. The learner must reject this documented misconception: Any classes with matching method names already satisfy a Java interface without declaring implements or honoring semantic behavior."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Define behavioral contracts and implement them with unrelated classes.",
+      "Design and use a focused interface with at least two conforming implementations."
+    ],
+    "excludes": [
+      "Default methods can create conflicts, interface constants are public static final, contracts include semantics beyond method signatures, and a broad interface can still couple clients tightly."
+    ]
+  },
+  "outcomes": [
+    "Design and use a focused interface with at least two conforming implementations."
+  ],
+  "examples": [
+    {
+      "id": "java.abstraction.interfaces.example.direct",
+      "title": "Interfaces: direct language case",
+      "situation": "FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface."
+      ],
+      "result": "The example meets the atomic outcome because Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface."
+    },
+    {
+      "id": "java.abstraction.interfaces.example.boundary",
+      "title": "Interfaces: boundary and transfer case",
+      "situation": "A default method collision from two parent interfaces is resolved explicitly in the implementing class rather than relying on declaration order.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A default method collision from two parent interfaces is resolved explicitly in the implementing class rather than relying on declaration order.",
+        "Step 2 — Keep the language boundary explicit: Default methods can create conflicts, interface constants are public static final, contracts include semantics beyond method signatures, and a broad interface can still couple clients tightly.",
+        "Step 3 — Reject the tempting but incorrect rule: Any classes with matching method names already satisfy a Java interface without declaring implements or honoring semantic behavior."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and use a focused interface with at least two conforming implementations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.abstraction.interfaces.misconception",
+      "mistakenBelief": "Any classes with matching method names already satisfy a Java interface without declaring implements or honoring semantic behavior.",
+      "correction": "Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Any classes with matching method names already satisfy a Java interface without declaring implements or honoring semantic behavior."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a plug-and-socket system in which contracts describe compatible behavior while components hide their implementation can introduce Interfaces, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "interfaces, substitution, dispatch, and composition"
+    ],
+    "limitations": [
+      "overload resolution, method hiding, constructor order, and multiple interface defaults require Java-specific rules",
+      "Default methods can create conflicts, interface constants are public static final, contracts include semantics beyond method signatures, and a broad interface can still couple clients tightly."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types.",
+      "A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation.",
+      "Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Any classes with matching method names already satisfy a Java interface without declaring implements or honoring semantic behavior."
+      }
+    ],
+    "textAlternative": "Starting artifact: FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types. Step 1, Observe. State: evidence: FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface.. Compare the observation with the correction and explain why the misconception fails: Any classes with matching method names already satisfy a Java interface without declaring implements or honoring semantic behavior."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Interfaces: direct language case”: state its starting evidence, apply the Interfaces rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Interfaces: direct language case.",
+        "Starting evidence: FileNotifier and MemoryNotifier implement one Notifier interface, letting a service test against the memory implementation without branching on concrete types.",
+        "Core rule: A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation.",
+        "Observable result: The example meets the atomic outcome because Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface.",
+        "Boundary check: Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A default method collision from two parent interfaces is resolved explicitly in the implementing class rather than relying on declaration order.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Java interface defines a focused behavioral contract that unrelated classes can implement and clients can depend on without knowing concrete representation.",
+        "Default methods can create conflicts, interface constants are public static final, contracts include semantics beyond method signatures, and a broad interface can still couple clients tightly."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Interfaces, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Design and use a focused interface with at least two conforming implementations.",
+        "Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.abstraction.interfaces.misconception",
+      "explanation": "Declare implements and satisfy both the interface signatures and documented behavioral contract; clients should depend on the smallest coherent interface.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A default method collision from two parent interfaces is resolved explicitly in the implementing class rather than relying on declaration order."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and use a focused interface with at least two conforming implementations. Keep this boundary in view: Default methods can create conflicts, interface constants are public static final, contracts include semantics beyond method signatures, and a broad interface can still couple clients tightly.",
+    "retrievalPrompts": [
+      "Explain Interfaces using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Any classes with matching method names already satisfy a Java interface without declaring implements or honoring semantic behavior.",
+      "Predict this case from memory: A default method collision from two parent interfaces is resolved explicitly in the implementing class rather than relying on declaration order."
+    ],
+    "nextReviewPrompt": "Next: continue to “Class inheritance”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

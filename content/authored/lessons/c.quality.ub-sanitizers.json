@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.quality.ub-sanitizers.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.modular-quality",
+  "skillId": "c.quality.ub-sanitizers",
+  "title": "Undefined behavior, tests and sanitizers",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Undefined behavior, tests and sanitizers; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to Undefined behavior, tests and sanitizers",
+      "claim": "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Undefined behavior, tests and sanitizers",
+      "claim": "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; provisions applicable to Undefined behavior, tests and sanitizers",
+      "claim": "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool. Your goal is to find and repair bounds, lifetime, overflow and uninitialized-state defects using tests and sanitizers. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Failure-safe cleanup; Scope, linkage and storage duration; Multi-file builds. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Sanitizers are not the language specification, miss unexecuted paths, can change timing or layout, and different tools cover different undefined or memory behaviors. Therefore the draft explicitly rejects this beginner failure model: If sanitizer tests pass, the C program contains no undefined behavior on any input."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish defined, implementation-defined and undefined behavior and combine tests with dynamic diagnostics.",
+      "Find and repair bounds, lifetime, overflow and uninitialized-state defects using tests and sanitizers."
+    ],
+    "excludes": [
+      "Sanitizers are not the language specification, miss unexecuted paths, can change timing or layout, and different tools cover different undefined or memory behaviors."
+    ]
+  },
+  "outcomes": [
+    "Find and repair bounds, lifetime, overflow and uninitialized-state defects using tests and sanitizers."
+  ],
+  "examples": [
+    {
+      "id": "c.quality.ub-sanitizers.example-a",
+      "title": "Undefined behavior, tests and sanitizers: defined case",
+      "situation": "AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+      ],
+      "result": "The defined result follows because Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+    },
+    {
+      "id": "c.quality.ub-sanitizers.example-b",
+      "title": "Undefined behavior, tests and sanitizers: boundary case",
+      "situation": "UndefinedBehaviorSanitizer reports signed overflow in a test, prompting a range check or unsigned design before the operation.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: UndefinedBehaviorSanitizer reports signed overflow in a test, prompting a range check or unsigned design before the operation.",
+        "Step 2 — Keep this standard boundary visible: Sanitizers are not the language specification, miss unexecuted paths, can change timing or layout, and different tools cover different undefined or memory behaviors.",
+        "Step 3 — Reject the tempting rule: If sanitizer tests pass, the C program contains no undefined behavior on any input."
+      ],
+      "result": "This case demonstrates the declared outcome: Find and repair bounds, lifetime, overflow and uninitialized-state defects using tests and sanitizers."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.quality.ub-sanitizers.misconception",
+      "mistakenBelief": "If sanitizer tests pass, the C program contains no undefined behavior on any input.",
+      "correction": "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: If sanitizer tests pass, the C program contains no undefined behavior on any input."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Undefined behavior, tests and sanitizers: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Sanitizers are not the language specification, miss unexecuted paths, can change timing or layout, and different tools cover different undefined or memory behaviors."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool.",
+      "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument.",
+      "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: If sanitizer tests pass, the C program contains no undefined behavior on any input."
+      }
+    ],
+    "textAlternative": "Starting artifact: AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool. Step 1, Source and state. State: evidence: AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests.. Check the conclusion against the boundary and reject this misconception: If sanitizer tests pass, the C program contains no undefined behavior on any input."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Undefined behavior, tests and sanitizers: defined case”: state its starting evidence, apply the Undefined behavior, tests and sanitizers rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Undefined behavior, tests and sanitizers: defined case.",
+        "Starting evidence: AddressSanitizer catches an exercised out-of-bounds write, and the fix is justified by array bounds rather than by merely silencing the tool.",
+        "Core rule: Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument.",
+        "Observable result: The defined result follows because Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests.",
+        "Boundary check: Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: UndefinedBehaviorSanitizer reports signed overflow in a test, prompting a range check or unsigned design before the operation.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Undefined behavior has no required result, so prevention uses standard reasoning, strict diagnostics, targeted tests, and sanitizers that detect only the paths and classes they instrument.",
+        "Sanitizers are not the language specification, miss unexecuted paths, can change timing or layout, and different tools cover different undefined or memory behaviors."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Undefined behavior, tests and sanitizers, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Find and repair bounds, lifetime, overflow and uninitialized-state defects using tests and sanitizers.",
+        "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.quality.ub-sanitizers.misconception",
+      "explanation": "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'path-limited evidence' and state the decisive evidence: UndefinedBehaviorSanitizer reports signed overflow in a test, prompting a range check or unsigned design before the operation."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to find and repair bounds, lifetime, overflow and uninitialized-state defects using tests and sanitizers. Keep this boundary in view: Sanitizers are not the language specification, miss unexecuted paths, can change timing or layout, and different tools cover different undefined or memory behaviors.",
+    "retrievalPrompts": [
+      "Explain Undefined behavior, tests and sanitizers using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: If sanitizer tests pass, the C program contains no undefined behavior on any input.",
+      "Apply the checkpoint 'path-limited evidence' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

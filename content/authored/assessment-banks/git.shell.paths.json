@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.shell.paths.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.shell-files",
+  "skillId": "git.shell.paths",
+  "title": "Paths and project trees deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Paths and project trees; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.shell.paths.mcq.misconception",
+      "skillId": "git.shell.paths",
+      "title": "Paths and project trees: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Every relative path starts from the repository root, regardless of the terminal's current working directory.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules.",
+        "incorrect": "The selected statement preserves the documented misconception. Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Paths and project trees instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Every relative path starts from the repository root, regardless of the terminal's current working directory."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+      }
+    }
+  ]
+}

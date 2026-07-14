@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-14T07:56:10.224Z",
+  "scope": "TypeScript architectural import boundaries",
+  "filesChecked": 725,
+  "importsChecked": 2972,
+  "violations": [],
+  "documentedExceptions": [
+    {
+      "file": "src/app/api/admin/access-requests/route.ts",
+      "import": "@/components/admin/types",
+      "reason": "Existing admin API DTO contract awaits extraction to src/lib/admin."
+    },
+    {
+      "file": "src/app/api/admin/dashboard/data.ts",
+      "import": "@/components/admin/admin-utils",
+      "reason": "Existing pure dashboard formatter awaits extraction to src/lib/admin."
+    },
+    {
+      "file": "src/app/api/admin/dashboard/data.ts",
+      "import": "@/components/admin/types",
+      "reason": "Existing admin dashboard DTO contract awaits extraction to src/lib/admin."
+    },
+    {
+      "file": "src/components/exams/timed-exam-client.tsx",
+      "import": "@/app/api/exams/_lib/policy",
+      "reason": "Existing deterministic browser-safe exam policy awaits extraction to src/lib/exams."
+    },
+    {
+      "file": "src/lib/assessment-corrections/worker.ts",
+      "import": "@/app/api/exams/_lib/policy",
+      "reason": "Existing deterministic exam policy awaits extraction to src/lib/exams."
+    },
+    {
+      "file": "src/lib/content/__tests__/authored-c-cpp.test.ts",
+      "import": "@/app/api/exams/_lib/blueprint",
+      "reason": "Content gate currently exercises the shared deterministic form builder pending extraction."
+    },
+    {
+      "file": "src/lib/content/__tests__/authored-dsa.test.ts",
+      "import": "@/app/api/exams/_lib/blueprint",
+      "reason": "Content gate currently exercises the shared deterministic form builder pending extraction."
+    },
+    {
+      "file": "src/lib/content/__tests__/authored-tranche.test.ts",
+      "import": "@/app/api/exams/_lib/blueprint",
+      "reason": "Content gate currently exercises the shared deterministic form builder pending extraction."
+    },
+    {
+      "file": "src/lib/content/__tests__/authored-web.test.ts",
+      "import": "@/app/api/exams/_lib/blueprint",
+      "reason": "Content gate currently exercises the shared deterministic form builder pending extraction."
+    },
+    {
+      "file": "src/lib/content/__tests__/web-executable-tranche.test.ts",
+      "import": "@/app/api/exams/_lib/blueprint",
+      "reason": "Content gate currently exercises the shared deterministic form builder pending extraction."
+    }
+  ],
+  "staleExceptions": [],
+  "passed": true
+}

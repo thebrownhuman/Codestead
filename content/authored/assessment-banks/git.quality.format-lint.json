@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.quality.format-lint.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.quality-debug",
+  "skillId": "git.quality.format-lint",
+  "title": "Formatter and linter deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Formatter and linter; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-se",
+    "nist-ssdf"
+  ],
+  "items": [
+    {
+      "id": "git.quality.format-lint.mcq.misconception",
+      "skillId": "git.quality.format-lint",
+      "title": "Formatter and linter: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.",
+        "incorrect": "The selected statement preserves the documented misconception. Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Formatter and linter instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+      }
+    }
+  ]
+}

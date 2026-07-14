@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.stack.adt.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.linear-adts",
+  "skillId": "dsa.stack.adt",
+  "title": "Stack ADT",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Stack ADT; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Stack ADT",
+      "claim": "A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; material applicable to Stack ADT",
+      "claim": "A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Nested delimiters push opening symbols and require each closing symbol to match the current top. Your goal is to implement and test a stack and explain each operation's complexity. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Singly linked representation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Pop on empty needs defined failure behavior, and array versus linked implementation changes capacity and allocation details. The draft therefore rejects: A stack permits removing any chosen middle element while preserving the ADT."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Specify and implement push, pop, peek and empty behavior using an appropriate backing store.",
+      "Implement and test a stack and explain each operation's complexity.",
+      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+    ],
+    "excludes": [
+      "Pop on empty needs defined failure behavior, and array versus linked implementation changes capacity and allocation details."
+    ]
+  },
+  "outcomes": [
+    "Implement and test a stack and explain each operation's complexity."
+  ],
+  "examples": [
+    {
+      "id": "dsa.stack.adt.example-a",
+      "title": "Stack ADT: language-neutral trace",
+      "situation": "Nested delimiters push opening symbols and require each closing symbol to match the current top.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Nested delimiters push opening symbols and require each closing symbol to match the current top.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Stack removal occurs only at the top under last-in-first-out order."
+      ],
+      "result": "The conceptual result follows because Stack removal occurs only at the top under last-in-first-out order."
+    },
+    {
+      "id": "dsa.stack.adt.example-b",
+      "title": "Stack ADT: implementation transfer",
+      "situation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+        "Step 3 — Retest this boundary in the selected implementation: Pop on empty needs defined failure behavior, and array versus linked implementation changes capacity and allocation details."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.stack.adt.misconception",
+      "mistakenBelief": "A stack permits removing any chosen middle element while preserving the ADT.",
+      "correction": "Stack removal occurs only at the top under last-in-first-out order.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A stack permits removing any chosen middle element while preserving the ADT."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Stack ADT, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Pop on empty needs defined failure behavior, and array versus linked implementation changes capacity and allocation details."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Nested delimiters push opening symbols and require each closing symbol to match the current top.",
+      "A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts.",
+      "Stack removal occurs only at the top under last-in-first-out order.",
+      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Nested delimiters push opening symbols and require each closing symbol to match the current top."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Stack removal occurs only at the top under last-in-first-out order."
+        },
+        "explanation": "Verify the result and reject this misconception: A stack permits removing any chosen middle element while preserving the ADT."
+      }
+    ],
+    "textAlternative": "Starting artifact: Nested delimiters push opening symbols and require each closing symbol to match the current top. Step 1, Specification. State: scenario: Nested delimiters push opening symbols and require each closing symbol to match the current top.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends. Step 4, Conclusion. State: correction: Stack removal occurs only at the top under last-in-first-out order.. Verify the result and reject this misconception: A stack permits removing any chosen middle element while preserving the ADT."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Stack ADT: language-neutral trace”: state its starting evidence, apply the Stack ADT rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Stack ADT: language-neutral trace.",
+        "Starting evidence: Nested delimiters push opening symbols and require each closing symbol to match the current top.",
+        "Core rule: A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts.",
+        "Observable result: The conceptual result follows because Stack removal occurs only at the top under last-in-first-out order.",
+        "Boundary check: Stack removal occurs only at the top under last-in-first-out order."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A stack is a last-in-first-out abstract data type with push, pop, top, and emptiness contracts.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+        "Pop on empty needs defined failure behavior, and array versus linked implementation changes capacity and allocation details."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Stack ADT case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement and test a stack and explain each operation's complexity.",
+        "Stack removal occurs only at the top under last-in-first-out order."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.stack.adt.misconception",
+      "explanation": "Stack removal occurs only at the top under last-in-first-out order.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'last-in-first-out', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test a stack and explain each operation's complexity. Keep this boundary in view: Pop on empty needs defined failure behavior, and array versus linked implementation changes capacity and allocation details.",
+    "retrievalPrompts": [
+      "State the Stack ADT invariant and complexity without code.",
+      "Why is this claim false: A stack permits removing any chosen middle element while preserving the ADT.",
+      "Map checkpoint 'last-in-first-out' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Queue and circular buffer”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

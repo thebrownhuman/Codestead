@@ -1,0 +1,211 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.project.browser-app.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.quality-project",
+  "skillId": "javascript.project.browser-app",
+  "title": "Modular browser application",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Modular browser application; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Modular browser application",
+      "claim": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow."
+    },
+    {
+      "sourceRef": "whatwg-dom",
+      "locator": "DOM Standard; living standard accessed 2026-07; provisions applicable to Modular browser application",
+      "claim": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow."
+    },
+    {
+      "sourceRef": "whatwg-fetch",
+      "locator": "Fetch Standard; living standard accessed 2026-07; provisions applicable to Modular browser application",
+      "claim": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Modular browser application",
+      "claim": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states. Your goal is to deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Browser state and security; Dependency boundaries; DOM and asynchronous integration tests; DOM injection prevention; css project system. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures. This draft therefore rejects: Completing the primary success screen means a browser project is production-ready."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Integrate semantic HTML, modules, state, DOM, forms, fetch, errors, security and tests.",
+      "Deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states."
+    ],
+    "excludes": [
+      "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures."
+    ]
+  },
+  "outcomes": [
+    "Deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states."
+  ],
+  "examples": [
+    {
+      "id": "javascript.project.browser-app.example-a",
+      "title": "Modular browser application: concrete case",
+      "situation": "A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+      ],
+      "result": "The result follows because Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+    },
+    {
+      "id": "javascript.project.browser-app.example-b",
+      "title": "Modular browser application: boundary case",
+      "situation": "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Completing the primary success screen means a browser project is production-ready."
+      ],
+      "result": "The boundary requires this correction: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.project.browser-app.misconception",
+      "mistakenBelief": "Completing the primary success screen means a browser project is production-ready.",
+      "correction": "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Completing the primary success screen means a browser project is production-ready."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Modular browser application, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Modular browser application before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
+      "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
+      "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Completing the primary success screen means a browser project is production-ready."
+      }
+    ],
+    "textAlternative": "Starting artifact: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states. Step 1, Artifact. State: evidence: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.. Check the result against the boundary and reject this misconception: Completing the primary success screen means a browser project is production-ready."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Modular browser application: concrete case”: state its starting evidence, apply the Modular browser application rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Modular browser application: concrete case.",
+        "Starting evidence: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
+        "Core rule: A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
+        "Observable result: The result follows because Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.",
+        "Boundary check: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
+        "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Modular browser application and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states.",
+        "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.project.browser-app.misconception",
+      "explanation": "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'complete state model' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states. Keep this boundary in view: A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
+    "retrievalPrompts": [
+      "Explain Modular browser application using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Completing the primary success screen means a browser project is production-ready.",
+      "Apply checkpoint 'complete state model' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

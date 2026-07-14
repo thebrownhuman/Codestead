@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.layout.flow.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.layout",
+  "skillId": "css.layout.flow",
+  "title": "Normal flow and display",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Normal flow and display; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Normal flow and display",
+      "claim": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Normal flow and display",
+      "claim": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A document remains readable in source order before grid enhances the card arrangement. Your goal is to predict and repair layout using normal flow and appropriate display behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Box model, sizing and overflow; html semantics landmarks; Content, padding, border and margin; html document dom. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow. This draft therefore rejects: Modern layouts should remove every element from normal flow for precise control."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Reason about block, inline and flow-root participation before choosing a layout system.",
+      "Predict and repair layout using normal flow and appropriate display behavior."
+    ],
+    "excludes": [
+      "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow."
+    ]
+  },
+  "outcomes": [
+    "Predict and repair layout using normal flow and appropriate display behavior."
+  ],
+  "examples": [
+    {
+      "id": "css.layout.flow.example-a",
+      "title": "Normal flow and display: concrete case",
+      "situation": "A document remains readable in source order before grid enhances the card arrangement.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A document remains readable in source order before grid enhances the card arrangement.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+      ],
+      "result": "The result follows because Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+    },
+    {
+      "id": "css.layout.flow.example-b",
+      "title": "Normal flow and display: boundary case",
+      "situation": "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Modern layouts should remove every element from normal flow for precise control."
+      ],
+      "result": "The boundary requires this correction: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.layout.flow.misconception",
+      "mistakenBelief": "Modern layouts should remove every element from normal flow for precise control.",
+      "correction": "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Modern layouts should remove every element from normal flow for precise control."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Normal flow and display, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Normal flow and display before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A document remains readable in source order before grid enhances the card arrangement.",
+      "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
+      "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A document remains readable in source order before grid enhances the card arrangement."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Modern layouts should remove every element from normal flow for precise control."
+      }
+    ],
+    "textAlternative": "Starting artifact: A document remains readable in source order before grid enhances the card arrangement. Step 1, Artifact. State: evidence: A document remains readable in source order before grid enhances the card arrangement.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.. Check the result against the boundary and reject this misconception: Modern layouts should remove every element from normal flow for precise control."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Normal flow and display: concrete case”: state its starting evidence, apply the Normal flow and display rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Normal flow and display: concrete case.",
+        "Starting evidence: A document remains readable in source order before grid enhances the card arrangement.",
+        "Core rule: Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
+        "Observable result: The result follows because Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.",
+        "Boundary check: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
+        "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Normal flow and display and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Predict and repair layout using normal flow and appropriate display behavior.",
+        "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.layout.flow.misconception",
+      "explanation": "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'normal flow' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to predict and repair layout using normal flow and appropriate display behavior. Keep this boundary in view: Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
+    "retrievalPrompts": [
+      "Explain Normal flow and display using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Modern layouts should remove every element from normal flow for precise control.",
+      "Apply checkpoint 'normal flow' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Relative, absolute, fixed and sticky positioning”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

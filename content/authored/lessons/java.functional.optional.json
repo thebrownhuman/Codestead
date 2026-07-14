@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.functional.optional.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.functional",
+  "skillId": "java.functional.optional",
+  "title": "Optional and explicit absence",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Optional and explicit absence; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Lambda Expressions and Stream API learning paths; atomic topic: Optional and explicit absence",
+      "claim": "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly. Your goal is to refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration, mutation and immutability; Interfaces; Functional interfaces and lambdas; References, identity and equality. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result. The learner must reject this documented misconception: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use Optional for return-value absence without replacing every nullable field or parameter.",
+      "Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract."
+    ],
+    "excludes": [
+      "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result."
+    ]
+  },
+  "outcomes": [
+    "Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract."
+  ],
+  "examples": [
+    {
+      "id": "java.functional.optional.example.direct",
+      "title": "Optional and explicit absence: direct language case",
+      "situation": "A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+      ],
+      "result": "The example meets the atomic outcome because Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+    },
+    {
+      "id": "java.functional.optional.example.boundary",
+      "title": "Optional and explicit absence: boundary and transfer case",
+      "situation": "A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable.",
+        "Step 2 — Keep the language boundary explicit: Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result.",
+        "Step 3 — Reject the tempting but incorrect rule: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+      ],
+      "result": "This case demonstrates the declared outcome: Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.functional.optional.misconception",
+      "mistakenBelief": "Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API.",
+      "correction": "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass processing line that transforms, filters, combines, or explicitly reports a missing result can introduce Optional and explicit absence, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "lambdas, stream stages, reduction, and Optional"
+    ],
+    "limitations": [
+      "laziness, target typing, associativity, parallel regrouping, and single-use traversal have no complete conveyor analogy",
+      "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
+      "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
+      "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+      }
+    ],
+    "textAlternative": "Starting artifact: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly. Step 1, Observe. State: evidence: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.. Compare the observation with the correction and explain why the misconception fails: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Optional and explicit absence: direct language case”: state its starting evidence, apply the Optional and explicit absence rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Optional and explicit absence: direct language case.",
+        "Starting evidence: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
+        "Core rule: Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
+        "Observable result: The example meets the atomic outcome because Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.",
+        "Boundary check: Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
+        "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Optional and explicit absence, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract.",
+        "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.functional.optional.misconception",
+      "explanation": "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract. Keep this boundary in view: Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result.",
+    "retrievalPrompts": [
+      "Explain Optional and explicit absence using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API.",
+      "Predict this case from memory: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable."
+    ],
+    "nextReviewPrompt": "Next: continue to “Packages and access control”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

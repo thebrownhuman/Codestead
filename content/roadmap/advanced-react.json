@@ -1,0 +1,15 @@
+{
+  "$schema": "../schema/roadmap-track.schema.json",
+  "format": "roadmap-track",
+  "schema_version": "1.0.0",
+  "id": "advanced-react",
+  "title": "Advanced React",
+  "status": "coming-soon",
+  "release": "launch-2",
+  "prerequisites": ["react"],
+  "scope_brief": "A separately reviewed advanced React track beyond the accessible intermediate single-page application delivered by Launch 1.",
+  "planned_scope": ["Large-application state and component architecture", "Performance measurement and rendering diagnostics", "Advanced testing, resilience and accessibility maintenance"],
+  "non_goals": ["No framework-specific server stack is promised by this roadmap brief."],
+  "approval": { "state": "approved-for-roadmap-only", "required_role": "admin", "decision_ref": "owner-scope-2026-07-12" },
+  "publication": { "learner_content_available": false, "authored_lessons": 0, "assessment_banks": 0, "exam_eligible_items": 0, "requires_separate_verified_release": true }
+}

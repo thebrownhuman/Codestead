@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.objects.classes.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.object-model",
+  "skillId": "javascript.objects.classes",
+  "title": "Classes and private state",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Classes and private state; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Classes and private state",
+      "claim": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Classes and private state",
+      "claim": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Counter private field changes only through methods that preserve its nonnegative invariant. Your goal is to implement and test a class that preserves an invariant. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows; Prototype delegation; Parameters, rest and return contracts. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first. This draft therefore rejects: Class methods automatically retain their instance this when passed as callbacks."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use class syntax, constructors, methods and private fields for justified stateful abstractions.",
+      "Implement and test a class that preserves an invariant."
+    ],
+    "excludes": [
+      "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first."
+    ]
+  },
+  "outcomes": [
+    "Implement and test a class that preserves an invariant."
+  ],
+  "examples": [
+    {
+      "id": "javascript.objects.classes.example-a",
+      "title": "Classes and private state: concrete case",
+      "situation": "A Counter private field changes only through methods that preserve its nonnegative invariant.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A Counter private field changes only through methods that preserve its nonnegative invariant.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+      ],
+      "result": "The result follows because Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+    },
+    {
+      "id": "javascript.objects.classes.example-b",
+      "title": "Classes and private state: boundary case",
+      "situation": "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Class methods automatically retain their instance this when passed as callbacks."
+      ],
+      "result": "The boundary requires this correction: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.objects.classes.misconception",
+      "mistakenBelief": "Class methods automatically retain their instance this when passed as callbacks.",
+      "correction": "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Class methods automatically retain their instance this when passed as callbacks."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Classes and private state, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Classes and private state before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Counter private field changes only through methods that preserve its nonnegative invariant.",
+      "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
+      "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A Counter private field changes only through methods that preserve its nonnegative invariant."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Class methods automatically retain their instance this when passed as callbacks."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Counter private field changes only through methods that preserve its nonnegative invariant. Step 1, Artifact. State: evidence: A Counter private field changes only through methods that preserve its nonnegative invariant.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.. Check the result against the boundary and reject this misconception: Class methods automatically retain their instance this when passed as callbacks."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Classes and private state: concrete case”: state its starting evidence, apply the Classes and private state rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Classes and private state: concrete case.",
+        "Starting evidence: A Counter private field changes only through methods that preserve its nonnegative invariant.",
+        "Core rule: JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
+        "Observable result: The result follows because Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.",
+        "Boundary check: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
+        "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Classes and private state and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test a class that preserves an invariant.",
+        "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.objects.classes.misconception",
+      "explanation": "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not auto-bound' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test a class that preserves an invariant. Keep this boundary in view: Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
+    "retrievalPrompts": [
+      "Explain Classes and private state using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Class methods automatically retain their instance this when passed as callbacks.",
+      "Apply checkpoint 'not auto-bound' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Composition and inheritance”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

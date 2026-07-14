@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-07-12T17:51:00+05:30",
+  "scope": "ADM-001 mentor evidence oversized-item pagination hardening",
+  "status": "passed",
+  "contracts": {
+    "perItemByteLimit": 49152,
+    "responseByteLimit": 131072,
+    "maximumTopLevelRecords": 10,
+    "itemLimitAppliedAfterAllowlistAndRedaction": true,
+    "itemLimitAppliedBeforeResponsePagination": true,
+    "hasMoreRequiresNonNullCursor": true,
+    "truncationMetadataReturned": true,
+    "uiTruncationNoticeReturned": true,
+    "freshMfaPurposeReasonOwnerAndAuditControlsPreserved": true
+  },
+  "regressionScenario": {
+    "description": "An oversized newest exam containing 25 large code answers is read with limit 1 before an older small exam.",
+    "firstPage": "one safely bounded/truncated item, hasMore true, non-null cursor",
+    "secondPage": "older small exam is returned without duplication",
+    "secretAndHiddenEvidenceProjection": "preserved and verified"
+  },
+  "verification": [
+    {
+      "command": "npx vitest run src/lib/admin-mentor/__tests__/evidence-reader.test.ts src/app/api/admin/learners/[learnerId]/mentor-evidence/__tests__/route.test.ts src/components/admin/__tests__/admin-mentor-evidence-reader.test.tsx --maxWorkers=1",
+      "result": "passed",
+      "files": 3,
+      "tests": 19
+    },
+    {
+      "command": "npx eslint <mentor evidence implementation and test files>",
+      "result": "passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "npm run test:integration -- integration/mentor-evidence.integration.test.ts",
+      "result": "passed",
+      "files": 1,
+      "tests": 5,
+      "database": "disposable PostgreSQL 17 container",
+      "migrationsAppliedTwice": true
+    }
+  ]
+}

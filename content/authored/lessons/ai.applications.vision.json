@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.applications.vision.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.applications",
+  "skillId": "ai.applications.vision",
+  "title": "Computer vision and perception",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Computer vision and perception; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Perception and application areas: language, vision, robotics, and integrated systems; atomic topic: Computer vision and perception",
+      "claim": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Map/Measure/Manage outcomes for sociotechnical context, testing conditions, safety, and fallback; atomic topic: Computer vision and perception",
+      "claim": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy. Your goal is to design an evaluation plan that includes lighting, viewpoint and subgroup conditions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Neural networks and learned representations; Knowledge representation and uncertainty; Convolution, sequence and attention roles; Sampling, labels and data quality. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding. The learner must reject this overclaim: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Relate pixels, features, detection, classification and segmentation to sensing conditions and label policy.",
+      "Design an evaluation plan that includes lighting, viewpoint and subgroup conditions."
+    ],
+    "excludes": [
+      "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding."
+    ]
+  },
+  "outcomes": [
+    "Design an evaluation plan that includes lighting, viewpoint and subgroup conditions."
+  ],
+  "examples": [
+    {
+      "id": "ai.applications.vision.example.direct",
+      "title": "Computer vision and perception: bounded direct case",
+      "situation": "A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      ],
+      "result": "This example supports only the atomic outcome because Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+    },
+    {
+      "id": "ai.applications.vision.example.stress",
+      "title": "Computer vision and perception: stress and transfer case",
+      "situation": "A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning.",
+        "Step 2 — Keep the non-claim visible: Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding.",
+        "Step 3 — Reject the tempting overclaim: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+      ],
+      "result": "This case demonstrates the declared outcome: Design an evaluation plan that includes lighting, viewpoint and subgroup conditions."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.applications.vision.misconception",
+      "mistakenBelief": "High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes.",
+      "correction": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a sensing-and-decision pipeline that names modality inputs, task outputs, affected populations, operating conditions, and fallback paths can introduce Computer vision and perception only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "NLP, vision, robotics, and multimodal evaluation"
+    ],
+    "limitations": [
+      "more modalities or fluent outputs do not establish understanding, truth, physical safety, or universal coverage",
+      "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
+      "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
+      "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+      }
+    ],
+    "textAlternative": "Starting artifact: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy. Step 1, Observe. State: boundedEvidence: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.. State what the evidence does not establish and reject the misconception: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Computer vision and perception: bounded direct case”: state its starting evidence, apply the Computer vision and perception rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Computer vision and perception: bounded direct case.",
+        "Starting evidence: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
+        "Core rule: Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
+        "Observable result: This example supports only the atomic outcome because Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
+        "Boundary check: Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
+        "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Computer vision and perception and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Design an evaluation plan that includes lighting, viewpoint and subgroup conditions.",
+        "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.applications.vision.misconception",
+      "explanation": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design an evaluation plan that includes lighting, viewpoint and subgroup conditions. Keep this boundary in view: Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding.",
+    "retrievalPrompts": [
+      "Explain Computer vision and perception with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes.",
+      "Apply the boundary to: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning."
+    ],
+    "nextReviewPrompt": "Next: continue to “Robotics and embodied agents”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

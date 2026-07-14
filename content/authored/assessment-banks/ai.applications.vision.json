@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.applications.vision.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.applications",
+  "skillId": "ai.applications.vision",
+  "title": "Computer vision and perception deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap for Computer vision and perception; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai",
+    "nist-ai-rmf"
+  ],
+  "items": [
+    {
+      "id": "ai.applications.vision.mcq.misconception",
+      "skillId": "ai.applications.vision",
+      "title": "Computer vision and perception: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
+        "incorrect": "That option preserves the overclaim. Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+        },
+        {
+          "id": "overclaim",
+          "text": "High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      }
+    },
+    {
+      "id": "ai.applications.vision.fill.checkpoint",
+      "skillId": "ai.applications.vision",
+      "title": "Computer vision and perception: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'sensing conditions'. Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Evaluate [[checkpoint]], shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "sensing conditions"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      }
+    }
+  ]
+}

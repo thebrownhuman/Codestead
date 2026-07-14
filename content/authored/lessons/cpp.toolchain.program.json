@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.toolchain.program.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.toolchain",
+  "skillId": "cpp.toolchain.program",
+  "title": "Program structure and main",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Program structure and main; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "isocpp-status",
+      "locator": "Current ISO C++ Status; C++23 published; C++26 in progress, accessed 2026-07; provisions applicable to Program structure and main",
+      "claim": "A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status."
+    },
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to Program structure and main",
+      "claim": "A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed. Your goal is to write and explain a minimal standard C++ program using standard I/O. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Freestanding environments differ, initialization and destruction order across translation units needs care, and exceptions escaping main terminate the program. Therefore the draft explicitly rejects this beginner failure model: C++ permits void main as a portable alternative whenever the operating system ignores exit status."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Identify declarations, definitions, statements, headers and program entry.",
+      "Write and explain a minimal standard C++ program using standard I/O."
+    ],
+    "excludes": [
+      "Freestanding environments differ, initialization and destruction order across translation units needs care, and exceptions escaping main terminate the program."
+    ]
+  },
+  "outcomes": [
+    "Write and explain a minimal standard C++ program using standard I/O."
+  ],
+  "examples": [
+    {
+      "id": "cpp.toolchain.program.example-a",
+      "title": "Program structure and main: defined case",
+      "situation": "A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status."
+      ],
+      "result": "The defined result follows because A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status."
+    },
+    {
+      "id": "cpp.toolchain.program.example-b",
+      "title": "Program structure and main: boundary case",
+      "situation": "Command-line code checks argc before constructing a string_view from argv[1] and reports invalid usage with a nonzero status.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: Command-line code checks argc before constructing a string_view from argv[1] and reports invalid usage with a nonzero status.",
+        "Step 2 — Keep this standard boundary visible: Freestanding environments differ, initialization and destruction order across translation units needs care, and exceptions escaping main terminate the program.",
+        "Step 3 — Reject the tempting rule: C++ permits void main as a portable alternative whenever the operating system ignores exit status."
+      ],
+      "result": "This case demonstrates the declared outcome: Write and explain a minimal standard C++ program using standard I/O."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.toolchain.program.misconception",
+      "mistakenBelief": "C++ permits void main as a portable alternative whenever the operating system ignores exit status.",
+      "correction": "A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: C++ permits void main as a portable alternative whenever the operating system ignores exit status."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Program structure and main: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "Freestanding environments differ, initialization and destruction order across translation units needs care, and exceptions escaping main terminate the program."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed.",
+      "A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status.",
+      "A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: C++ permits void main as a portable alternative whenever the operating system ignores exit status."
+      }
+    ],
+    "textAlternative": "Starting artifact: A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed. Step 1, Source and state. State: evidence: A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status.. Check the conclusion against the boundary and reject this misconception: C++ permits void main as a portable alternative whenever the operating system ignores exit status."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Program structure and main: defined case”: state its starting evidence, apply the Program structure and main rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Program structure and main: defined case.",
+        "Starting evidence: A minimal program defines int main(), writes through std::cout, and returns zero after all automatic objects in main are destroyed.",
+        "Core rule: A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status.",
+        "Observable result: The defined result follows because A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status.",
+        "Boundary check: A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: Command-line code checks argc before constructing a string_view from argv[1] and reports invalid usage with a nonzero status.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A hosted C++ program defines a valid global main returning int, initializes static state before main as specified, and maps normal return or fallthrough to a success status.",
+        "Freestanding environments differ, initialization and destruction order across translation units needs care, and exceptions escaping main terminate the program."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Program structure and main, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Write and explain a minimal standard C++ program using standard I/O.",
+        "A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.toolchain.program.misconception",
+      "explanation": "A portable hosted C++ entry point returns int; use int main() or a supported argument signature and communicate failure with a nonzero status.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'returns int' and state the decisive evidence: Command-line code checks argc before constructing a string_view from argv[1] and reports invalid usage with a nonzero status."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write and explain a minimal standard C++ program using standard I/O. Keep this boundary in view: Freestanding environments differ, initialization and destruction order across translation units needs care, and exceptions escaping main terminate the program.",
+    "retrievalPrompts": [
+      "Explain Program structure and main using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: C++ permits void main as a portable alternative whenever the operating system ignores exit status.",
+      "Apply the checkpoint 'returns int' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Compile and link model”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

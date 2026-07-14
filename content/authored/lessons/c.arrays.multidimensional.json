@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.arrays.multidimensional.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.arrays-strings",
+  "skillId": "c.arrays.multidimensional",
+  "title": "Multidimensional arrays",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Multidimensional arrays; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Multidimensional arrays",
+      "claim": "A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column. Your goal is to implement a bounded two-dimensional grid traversal and explain its layout. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: while, do and for; Parameters and return values; One-dimensional arrays. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Variable-length arrays are optional in some later implementations, dynamically allocated flat buffers use a different type, and irregular rows require pointer-based structures. Therefore the draft explicitly rejects this beginner failure model: A pointer to int can always be used as an int two-dimensional array without carrying or computing row stride."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use row-major nested arrays and pass dimensions correctly to functions.",
+      "Implement a bounded two-dimensional grid traversal and explain its layout."
+    ],
+    "excludes": [
+      "Variable-length arrays are optional in some later implementations, dynamically allocated flat buffers use a different type, and irregular rows require pointer-based structures."
+    ]
+  },
+  "outcomes": [
+    "Implement a bounded two-dimensional grid traversal and explain its layout."
+  ],
+  "examples": [
+    {
+      "id": "c.arrays.multidimensional.example-a",
+      "title": "Multidimensional arrays: defined case",
+      "situation": "An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation."
+      ],
+      "result": "The defined result follows because Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation."
+    },
+    {
+      "id": "c.arrays.multidimensional.example-b",
+      "title": "Multidimensional arrays: boundary case",
+      "situation": "A function receiving a 2D array declares the column bound so advancing one row skips exactly that many elements.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A function receiving a 2D array declares the column bound so advancing one row skips exactly that many elements.",
+        "Step 2 — Keep this standard boundary visible: Variable-length arrays are optional in some later implementations, dynamically allocated flat buffers use a different type, and irregular rows require pointer-based structures.",
+        "Step 3 — Reject the tempting rule: A pointer to int can always be used as an int two-dimensional array without carrying or computing row stride."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement a bounded two-dimensional grid traversal and explain its layout."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.arrays.multidimensional.misconception",
+      "mistakenBelief": "A pointer to int can always be used as an int two-dimensional array without carrying or computing row stride.",
+      "correction": "Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A pointer to int can always be used as an int two-dimensional array without carrying or computing row stride."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Multidimensional arrays: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Variable-length arrays are optional in some later implementations, dynamically allocated flat buffers use a different type, and irregular rows require pointer-based structures."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column.",
+      "A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride.",
+      "Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A pointer to int can always be used as an int two-dimensional array without carrying or computing row stride."
+      }
+    ],
+    "textAlternative": "Starting artifact: An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column. Step 1, Source and state. State: evidence: An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation.. Check the conclusion against the boundary and reject this misconception: A pointer to int can always be used as an int two-dimensional array without carrying or computing row stride."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Multidimensional arrays: defined case”: state its starting evidence, apply the Multidimensional arrays rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Multidimensional arrays: defined case.",
+        "Starting evidence: An int grid[2][3] stores three contiguous int elements in each of two contiguous rows, and grid[r][c] selects row then column.",
+        "Core rule: A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride.",
+        "Observable result: The defined result follows because Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation.",
+        "Boundary check: Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A function receiving a 2D array declares the column bound so advancing one row skips exactly that many elements.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A multidimensional C array is an array of arrays stored in row-major order, and pointer arithmetic requires the inner dimensions to determine each row's stride.",
+        "Variable-length arrays are optional in some later implementations, dynamically allocated flat buffers use a different type, and irregular rows require pointer-based structures."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Multidimensional arrays, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement a bounded two-dimensional grid traversal and explain its layout.",
+        "Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.arrays.multidimensional.misconception",
+      "explanation": "Preserve the inner dimension in the pointer type or flatten deliberately with an explicit row-stride calculation.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'row-stride' and state the decisive evidence: A function receiving a 2D array declares the column bound so advancing one row skips exactly that many elements."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement a bounded two-dimensional grid traversal and explain its layout. Keep this boundary in view: Variable-length arrays are optional in some later implementations, dynamically allocated flat buffers use a different type, and irregular rows require pointer-based structures.",
+    "retrievalPrompts": [
+      "Explain Multidimensional arrays using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: A pointer to int can always be used as an int two-dimensional array without carrying or computing row stride.",
+      "Apply the checkpoint 'row-stride' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “C string representation”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.branches.workflow.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.branches",
+  "skillId": "git.branches.workflow",
+  "title": "Short-lived feature branches deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Short-lived feature branches; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "pro-git",
+    "cs2023-se"
+  ],
+  "items": [
+    {
+      "id": "git.branches.workflow.mcq.misconception",
+      "skillId": "git.branches.workflow",
+      "title": "Short-lived feature branches: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process.",
+        "incorrect": "The selected statement preserves the documented misconception. Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Short-lived feature branches instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+      }
+    }
+  ]
+}

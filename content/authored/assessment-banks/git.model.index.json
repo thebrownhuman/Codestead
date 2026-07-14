@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.model.index.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.model",
+  "skillId": "git.model.index",
+  "title": "Working tree, index and HEAD deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Working tree, index and HEAD; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.model.index.mcq.misconception",
+      "skillId": "git.model.index",
+      "title": "Working tree, index and HEAD: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.",
+        "incorrect": "The selected statement preserves the documented misconception. Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Working tree, index and HEAD instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+      }
+    }
+  ]
+}

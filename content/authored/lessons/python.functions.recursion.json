@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.functions.recursion.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.functions",
+  "skillId": "python.functions.recursion",
+  "title": "Recursive functions",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Recursive functions; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial §4.9 and chapter 8: function definitions, parameter rules, and errors; atomic topic: Recursive functions",
+      "claim": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; CS2023 Software Development Fundamentals: programming practices, testing, debugging, abstraction, data, and concurrency outcomes as applicable; atomic topic: Recursive functions",
+      "claim": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case. Your goal is to write, trace and test a recursive routine with explicit base and progress cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; pf abstraction calls; Function contracts and returns; pf abstraction recursion. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer. The learner must reject this documented misconception: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Implement terminating recursion and compare it with iterative alternatives under Python's call limits.",
+      "Write, trace and test a recursive routine with explicit base and progress cases."
+    ],
+    "excludes": [
+      "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer."
+    ]
+  },
+  "outcomes": [
+    "Write, trace and test a recursive routine with explicit base and progress cases."
+  ],
+  "examples": [
+    {
+      "id": "python.functions.recursion.example.direct",
+      "title": "Recursive functions: direct language case",
+      "situation": "A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+      ],
+      "result": "The example meets the atomic outcome because State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+    },
+    {
+      "id": "python.functions.recursion.example.boundary",
+      "title": "Recursive functions: boundary and transfer case",
+      "situation": "A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition.",
+        "Step 2 — Keep the language boundary explicit: Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer.",
+        "Step 3 — Reject the tempting but incorrect rule: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+      ],
+      "result": "This case demonstrates the declared outcome: Write, trace and test a recursive routine with explicit base and progress cases."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.functions.recursion.misconception",
+      "mistakenBelief": "Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python.",
+      "correction": "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a callable service counter with a published request form, binding rules, retained enclosing notes, and a recursive delegation limit can introduce Recursive functions, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "contracts, parameters, closures, and recursion"
+    ],
+    "limitations": [
+      "definition-time defaults, LEGB lookup, late binding, exceptions, and stack limits have no exact service-counter counterpart",
+      "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
+      "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
+      "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+      }
+    ],
+    "textAlternative": "Starting artifact: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case. Step 1, Observe. State: evidence: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.. Compare the observation with the correction and explain why the misconception fails: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Recursive functions: direct language case”: state its starting evidence, apply the Recursive functions rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Recursive functions: direct language case.",
+        "Starting evidence: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
+        "Core rule: A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
+        "Observable result: The example meets the atomic outcome because State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.",
+        "Boundary check: State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
+        "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Recursive functions, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Write, trace and test a recursive routine with explicit base and progress cases.",
+        "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.functions.recursion.misconception",
+      "explanation": "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write, trace and test a recursive routine with explicit base and progress cases. Keep this boundary in view: Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer.",
+    "retrievalPrompts": [
+      "Explain Recursive functions using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python.",
+      "Predict this case from memory: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition."
+    ],
+    "nextReviewPrompt": "Next: continue to “Modules and imports”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

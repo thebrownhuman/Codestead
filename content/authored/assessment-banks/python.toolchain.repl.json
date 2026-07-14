@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.toolchain.repl.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.toolchain",
+  "skillId": "python.toolchain.repl",
+  "title": "Interactive interpreter deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Interactive interpreter; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial"
+  ],
+  "items": [
+    {
+      "id": "python.toolchain.repl.mcq.misconception",
+      "skillId": "python.toolchain.repl",
+      "title": "Interactive interpreter: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code.",
+        "incorrect": "That choice preserves the misconception. Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+        },
+        {
+          "id": "misconception",
+          "text": "REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+      }
+    },
+    {
+      "id": "python.toolchain.repl.fill.checkpoint",
+      "skillId": "python.toolchain.repl",
+      "title": "Interactive interpreter: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'bounded observation'. Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code.",
+        "incorrect": "The phrase must preserve the exact language rule. Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Use the REPL for a [[checkpoint]], distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "bounded observation"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+      }
+    }
+  ]
+}

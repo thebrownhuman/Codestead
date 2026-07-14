@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.greedy.strategy.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.strategies",
+  "skillId": "dsa.greedy.strategy",
+  "title": "Greedy choice and counterexamples",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Greedy choice and counterexamples; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Greedy choice and counterexamples",
+      "claim": "A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution. Your goal is to design a greedy solution, state its ordering and produce a counterexample when the property fails. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Recursion and divide-and-conquer; Hash tables, sets and maps; Correctness and counterexamples; Sorting properties and selection. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Greedy-looking choices fail when future interactions violate the required property. The draft therefore rejects: Choosing the largest immediate reward is always globally optimal."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Make locally optimal choices only when exchange or structural reasoning supports global correctness.",
+      "Design a greedy solution, state its ordering and produce a counterexample when the property fails.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "excludes": [
+      "Greedy-looking choices fail when future interactions violate the required property."
+    ]
+  },
+  "outcomes": [
+    "Design a greedy solution, state its ordering and produce a counterexample when the property fails."
+  ],
+  "examples": [
+    {
+      "id": "dsa.greedy.strategy.example-a",
+      "title": "Greedy choice and counterexamples: language-neutral trace",
+      "situation": "Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution."
+      ],
+      "result": "The conceptual result follows because A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution."
+    },
+    {
+      "id": "dsa.greedy.strategy.example-b",
+      "title": "Greedy choice and counterexamples: implementation transfer",
+      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "Step 3 — Retest this boundary in the selected implementation: Greedy-looking choices fail when future interactions violate the required property."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.greedy.strategy.misconception",
+      "mistakenBelief": "Choosing the largest immediate reward is always globally optimal.",
+      "correction": "A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Choosing the largest immediate reward is always globally optimal."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Greedy choice and counterexamples, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Greedy-looking choices fail when future interactions violate the required property."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution.",
+      "A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness.",
+      "A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution."
+        },
+        "explanation": "Verify the result and reject this misconception: Choosing the largest immediate reward is always globally optimal."
+      }
+    ],
+    "textAlternative": "Starting artifact: Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution. Step 1, Specification. State: scenario: Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution.. Verify the result and reject this misconception: Choosing the largest immediate reward is always globally optimal."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Greedy choice and counterexamples: language-neutral trace”: state its starting evidence, apply the Greedy choice and counterexamples rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Greedy choice and counterexamples: language-neutral trace.",
+        "Starting evidence: Interval scheduling selects the compatible interval with earliest finish and proves an exchange with an optimal solution.",
+        "Core rule: A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness.",
+        "Observable result: The conceptual result follows because A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution.",
+        "Boundary check: A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A greedy algorithm makes a locally optimal safe choice and needs an exchange, cut, or staying-ahead argument for global correctness.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "Greedy-looking choices fail when future interactions violate the required property."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Greedy choice and counterexamples case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Design a greedy solution, state its ordering and produce a counterexample when the property fails.",
+        "A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.greedy.strategy.misconception",
+      "explanation": "A greedy rule is valid only with a correctness argument showing each local choice can belong to an optimal solution.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'correctness argument', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design a greedy solution, state its ordering and produce a counterexample when the property fails. Keep this boundary in view: Greedy-looking choices fail when future interactions violate the required property.",
+    "retrievalPrompts": [
+      "State the Greedy choice and counterexamples invariant and complexity without code.",
+      "Why is this claim false: Choosing the largest immediate reward is always globally optimal.",
+      "Map checkpoint 'correctness argument' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Backtracking search”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

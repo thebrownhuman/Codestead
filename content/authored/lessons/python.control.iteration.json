@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.control.iteration.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.values-control",
+  "skillId": "python.control.iteration",
+  "title": "for, while and loop control",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for for, while and loop control; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 3-5: values, control flow, and data structures; atomic topic: for, while and loop control",
+      "claim": "Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output. Your goal is to implement and debug collection, counted and sentinel loops without needless index manipulation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scripts, indentation and main guard; pf state expressions; if and match. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "range excludes its stop, mutating a container during iteration can skip or duplicate work, loop else has no-break semantics, and an exhausted iterator cannot restart itself. The learner must reject this documented misconception: Python for always increments an integer index and range includes both endpoints."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Iterate over values directly and use condition-controlled loops with explicit progress.",
+      "Implement and debug collection, counted and sentinel loops without needless index manipulation."
+    ],
+    "excludes": [
+      "range excludes its stop, mutating a container during iteration can skip or duplicate work, loop else has no-break semantics, and an exhausted iterator cannot restart itself."
+    ]
+  },
+  "outcomes": [
+    "Implement and debug collection, counted and sentinel loops without needless index manipulation."
+  ],
+  "examples": [
+    {
+      "id": "python.control.iteration.example.direct",
+      "title": "for, while and loop control: direct language case",
+      "situation": "A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination."
+      ],
+      "result": "The example meets the atomic outcome because A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination."
+    },
+    {
+      "id": "python.control.iteration.example.boundary",
+      "title": "for, while and loop control: boundary and transfer case",
+      "situation": "A while loop reads until a sentinel or end of input and updates state on every error path so invalid data cannot trap execution.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A while loop reads until a sentinel or end of input and updates state on every error path so invalid data cannot trap execution.",
+        "Step 2 — Keep the language boundary explicit: range excludes its stop, mutating a container during iteration can skip or duplicate work, loop else has no-break semantics, and an exhausted iterator cannot restart itself.",
+        "Step 3 — Reject the tempting but incorrect rule: Python for always increments an integer index and range includes both endpoints."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and debug collection, counted and sentinel loops without needless index manipulation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.control.iteration.misconception",
+      "mistakenBelief": "Python for always increments an integer index and range includes both endpoints.",
+      "correction": "A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Python for always increments an integer index and range includes both endpoints."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a labeled decision board whose current objects feed expressions, branches, patterns, and repeatable progress rules can introduce for, while and loop control, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "scalar semantics, comparisons, selection, and iteration"
+    ],
+    "limitations": [
+      "identity, truthiness, protocol dispatch, chained comparisons, and iterator behavior do not follow ordinary board-game rules",
+      "range excludes its stop, mutating a container during iteration can skip or duplicate work, loop else has no-break semantics, and an exhausted iterator cannot restart itself."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output.",
+      "Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing.",
+      "A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Python for always increments an integer index and range includes both endpoints."
+      }
+    ],
+    "textAlternative": "Starting artifact: A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output. Step 1, Observe. State: evidence: A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination.. Compare the observation with the correction and explain why the misconception fails: Python for always increments an integer index and range includes both endpoints."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “for, while and loop control: direct language case”: state its starting evidence, apply the for, while and loop control rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: for, while and loop control: direct language case.",
+        "Starting evidence: A for loop sums values directly and enumerate supplies indices only when both position and value are part of the output.",
+        "Core rule: Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing.",
+        "Observable result: The example meets the atomic outcome because A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination.",
+        "Boundary check: A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A while loop reads until a sentinel or end of input and updates state on every error path so invalid data cannot trap execution.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python for loops request values from an iterable, while loops repeat from a condition; correct loops define progress, termination, and behavior for empty input without needless manual indexing.",
+        "range excludes its stop, mutating a container during iteration can skip or duplicate work, loop else has no-break semantics, and an exhausted iterator cannot restart itself."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of for, while and loop control, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement and debug collection, counted and sentinel loops without needless index manipulation.",
+        "A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.control.iteration.misconception",
+      "explanation": "A for loop consumes an iterable, and range excludes its stop; select direct iteration first and prove while-loop progress toward termination.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A while loop reads until a sentinel or end of input and updates state on every error path so invalid data cannot trap execution."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and debug collection, counted and sentinel loops without needless index manipulation. Keep this boundary in view: range excludes its stop, mutating a container during iteration can skip or duplicate work, loop else has no-break semantics, and an exhausted iterator cannot restart itself.",
+    "retrievalPrompts": [
+      "Explain for, while and loop control using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Python for always increments an integer index and range includes both endpoints.",
+      "Predict this case from memory: A while loop reads until a sentinel or end of input and updates state on every error path so invalid data cannot trap execution."
+    ],
+    "nextReviewPrompt": "Next: continue to “Lists, tuples and slicing”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

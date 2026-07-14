@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.quality.bisect.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.quality-debug",
+  "skillId": "git.quality.bisect",
+  "title": "History-based regression isolation deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for History-based regression isolation; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.quality.bisect.mcq.misconception",
+      "skillId": "git.quality.bisect",
+      "title": "History-based regression isolation: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame.",
+        "incorrect": "The selected statement preserves the documented misconception. Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for History-based regression isolation instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+      }
+    }
+  ]
+}

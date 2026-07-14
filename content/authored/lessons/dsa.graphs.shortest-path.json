@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.graphs.shortest-path.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.graphs-advanced",
+  "skillId": "dsa.graphs.shortest-path",
+  "title": "Unweighted and Dijkstra shortest paths",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Unweighted and Dijkstra shortest paths; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Unweighted and Dijkstra shortest paths",
+      "claim": "Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights. Your goal is to select, implement and test a shortest-path algorithm while stating invalid weight assumptions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Graph representation and traversal; Priority queue applications; Breadth-first and depth-first search. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Negative cycles can make distances undefined, overflow needs care, and heuristics change guarantees. The draft therefore rejects: Dijkstra remains correct with negative edges as long as there is no negative cycle."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use BFS for unit edges and Dijkstra for nonnegative weights with priority updates and predecessor reconstruction.",
+      "Select, implement and test a shortest-path algorithm while stating invalid weight assumptions.",
+      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+    ],
+    "excludes": [
+      "Negative cycles can make distances undefined, overflow needs care, and heuristics change guarantees."
+    ]
+  },
+  "outcomes": [
+    "Select, implement and test a shortest-path algorithm while stating invalid weight assumptions."
+  ],
+  "examples": [
+    {
+      "id": "dsa.graphs.shortest-path.example-a",
+      "title": "Unweighted and Dijkstra shortest paths: language-neutral trace",
+      "situation": "Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise."
+      ],
+      "result": "The conceptual result follows because Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise."
+    },
+    {
+      "id": "dsa.graphs.shortest-path.example-b",
+      "title": "Unweighted and Dijkstra shortest paths: implementation transfer",
+      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+        "Step 3 — Retest this boundary in the selected implementation: Negative cycles can make distances undefined, overflow needs care, and heuristics change guarantees."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.graphs.shortest-path.misconception",
+      "mistakenBelief": "Dijkstra remains correct with negative edges as long as there is no negative cycle.",
+      "correction": "Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Dijkstra remains correct with negative edges as long as there is no negative cycle."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Unweighted and Dijkstra shortest paths, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Negative cycles can make distances undefined, overflow needs care, and heuristics change guarantees."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights.",
+      "Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur.",
+      "Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise.",
+      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise."
+        },
+        "explanation": "Verify the result and reject this misconception: Dijkstra remains correct with negative edges as long as there is no negative cycle."
+      }
+    ],
+    "textAlternative": "Starting artifact: Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights. Step 1, Specification. State: scenario: Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise.. Verify the result and reject this misconception: Dijkstra remains correct with negative edges as long as there is no negative cycle."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Unweighted and Dijkstra shortest paths: language-neutral trace”: state its starting evidence, apply the Unweighted and Dijkstra shortest paths rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Unweighted and Dijkstra shortest paths: language-neutral trace.",
+        "Starting evidence: Dijkstra finalizes the smallest tentative distance only under nonnegative edge weights.",
+        "Core rule: Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur.",
+        "Observable result: The conceptual result follows because Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise.",
+        "Boundary check: Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Shortest-path algorithm choice depends on edge weights: BFS for unweighted, Dijkstra for nonnegative weights, and Bellman-Ford when negative edges may occur.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+        "Negative cycles can make distances undefined, overflow needs care, and heuristics change guarantees."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Unweighted and Dijkstra shortest paths case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Select, implement and test a shortest-path algorithm while stating invalid weight assumptions.",
+        "Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.graphs.shortest-path.misconception",
+      "explanation": "Dijkstra requires nonnegative edge weights; use an algorithm designed for negative edges otherwise.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'nonnegative edge weights', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to select, implement and test a shortest-path algorithm while stating invalid weight assumptions. Keep this boundary in view: Negative cycles can make distances undefined, overflow needs care, and heuristics change guarantees.",
+    "retrievalPrompts": [
+      "State the Unweighted and Dijkstra shortest paths invariant and complexity without code.",
+      "Why is this claim false: Dijkstra remains correct with negative edges as long as there is no negative cycle.",
+      "Map checkpoint 'nonnegative edge weights' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Minimum spanning trees”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.values.scalars.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.values-control",
+  "skillId": "python.values.scalars",
+  "title": "Numbers, booleans, None and text deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Numbers, booleans, None and text; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "py-reference"
+  ],
+  "items": [
+    {
+      "id": "python.values.scalars.mcq.misconception",
+      "skillId": "python.values.scalars",
+      "title": "Numbers, booleans, None and text: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Python floats store decimal values exactly and any falsey value is equivalent to None.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
+        "incorrect": "That choice preserves the misconception. Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+        },
+        {
+          "id": "misconception",
+          "text": "Python floats store decimal values exactly and any falsey value is equivalent to None."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      }
+    },
+    {
+      "id": "python.values.scalars.fill.checkpoint",
+      "skillId": "python.values.scalars",
+      "title": "Numbers, booleans, None and text: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'is None'. Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
+        "incorrect": "The phrase must preserve the exact language rule. Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Choose the scalar whose semantics match the domain, use [[checkpoint]] for absence, and treat floating precision and truthiness as explicit contract decisions.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "is None"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      }
+    },
+    {
+      "id": "python.values.scalars.code.core",
+      "skillId": "python.values.scalars",
+      "title": "Numbers, booleans, None and text: runnable core task",
+      "kind": "code",
+      "prompt": "Read one token. Print missing when it is exactly none; otherwise parse an integer and print int:<value>, preserving zero as a valid value.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.values.scalars.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "7\n",
+          "expectedStdout": "int:7",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.values.scalars.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "none\n",
+          "expectedStdout": "missing",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    token = data.strip()\n    value = None if token == \"none\" else int(token)\n    return \"missing\" if value is None else f\"int:{value}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The solution uses None as the explicit absence singleton and does not confuse the falsey integer zero with absence."
+      }
+    }
+  ]
+}

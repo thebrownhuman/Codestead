@@ -1,0 +1,220 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.state.variables.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.state",
+  "skillId": "pf.state.variables",
+  "title": "Variables and assignment",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted pilot draft",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T05:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific variable-state pilot awaiting human technical and instructional review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "Software Development Fundamentals, fundamental programming concepts",
+      "claim": "Introductory learners need a state-based model of variables, values, expressions, and assignment."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A variable is a name used to access part of program state. Assignment evaluates the right-hand expression first, then makes the target name refer to the resulting value for the next program state.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A program starts with balance 500, records a 120 purchase, and then receives a 50 refund. Your goal is to produce an accurate state table for sequential assignments and explain why assignment differs from algebraic equality. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Pseudocode; Values and types. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "State changes over time",
+        "body": "Trace a variable at a particular execution step, not as one timeless fact. After total is assigned 4, the current state contains total = 4. A later assignment can produce a new state in which total = 7 without making the earlier observation false."
+      },
+      {
+        "heading": "Assignment is not algebraic equality",
+        "body": "In assignment notation, total = total + 3 means read the current value of total, add 3, and store the result back under total. It is an ordered state update; it is not the impossible algebraic statement that one fixed number equals itself plus three."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Tracing named values across sequential assignments",
+      "Evaluating the right-hand side before updating the left-hand target"
+    ],
+    "excludes": [
+      "Language-specific memory layout and pointer arithmetic",
+      "Shared-reference mutation, which is taught as a separate skill"
+    ]
+  },
+  "outcomes": [
+    "Produce an accurate state table for sequential assignments and explain why assignment differs from algebraic equality."
+  ],
+  "examples": [
+    {
+      "id": "variables-example-wallet",
+      "title": "Wallet balance update",
+      "situation": "A program starts with balance 500, records a 120 purchase, and then receives a 50 refund.",
+      "walkthrough": [
+        "Step 1 — Set balance to 500 in the first state.",
+        "Step 2 — Evaluate balance - 120 using the current 500, then assign 380 to balance.",
+        "Step 3 — Evaluate balance + 50 using the current 380, then assign 430 to balance."
+      ],
+      "result": "The successive balance values are 500, 380, and 430; only the current state's value is used by the next expression."
+    },
+    {
+      "id": "variables-example-score",
+      "title": "Game score and bonus",
+      "situation": "A player begins with score 10, doubles the score, and then adds a fixed five-point bonus.",
+      "walkthrough": [
+        "Step 1 — The initial assignment creates score = 10.",
+        "Step 2 — The expression score * 2 reads 10 and assignment stores 20.",
+        "Step 3 — The expression score + 5 reads 20 and assignment stores 25."
+      ],
+      "result": "The final score is 25, and a trace retains the intermediate states 10 and 20 rather than replacing history."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "variables-misconception-equality",
+      "mistakenBelief": "The statement count = count + 1 claims a number is equal to itself plus one.",
+      "correction": "Assignment uses the old count to calculate a new value and then updates the named state for later steps.",
+      "diagnosticPrompt": "If count is 4 before count = count + 1, which value is read and which value exists after the statement?"
+    },
+    {
+      "id": "variables-misconception-history",
+      "mistakenBelief": "Reassigning a variable retroactively changes every earlier state in the execution trace.",
+      "correction": "A trace records observations at successive times; assignment changes the next state but does not rewrite prior steps.",
+      "diagnosticPrompt": "After x changes from 2 to 9, what should a three-row state table show in the row recorded before that update?"
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled scoreboard can display one current score; an update reads the current display, calculates a new score, and replaces what the label shows.",
+    "usefulFor": [
+      "Understanding a stable name with a value that changes between execution steps"
+    ],
+    "limitations": [
+      "Real variables have language-specific scope, type, lifetime, and representation rules",
+      "A label-and-box analogy does not accurately explain shared references or mutation of compound values"
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "tickets = 3",
+      "tickets = tickets + 2",
+      "used = 1",
+      "tickets = tickets - used"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Initialize tickets",
+        "state": {
+          "tickets": "3",
+          "used": "not assigned"
+        },
+        "explanation": "The first assignment creates a current tickets value of three while used has no value yet."
+      },
+      {
+        "step": 2,
+        "focus": "Add tickets",
+        "state": {
+          "tickets": "5",
+          "used": "not assigned"
+        },
+        "explanation": "The expression reads the old tickets value three, adds two, and stores the result five."
+      },
+      {
+        "step": 3,
+        "focus": "Initialize used",
+        "state": {
+          "tickets": "5",
+          "used": "1"
+        },
+        "explanation": "Assigning used changes that name while leaving the current tickets value unchanged."
+      },
+      {
+        "step": 4,
+        "focus": "Subtract used",
+        "state": {
+          "tickets": "4",
+          "used": "1"
+        },
+        "explanation": "The right-hand expression reads tickets as five and used as one before storing four under tickets."
+      }
+    ],
+    "textAlternative": "Starting artifact: tickets = 3 Step 1, Initialize tickets. State: tickets: 3; used: not assigned. The first assignment creates a current tickets value of three while used has no value yet. Step 2, Add tickets. State: tickets: 5; used: not assigned. The expression reads the old tickets value three, adds two, and stores the result five. Step 3, Initialize used. State: tickets: 5; used: 1. Assigning used changes that name while leaving the current tickets value unchanged. Step 4, Subtract used. State: tickets: 4; used: 1. The right-hand expression reads tickets as five and used as one before storing four under tickets."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Wallet balance update”: state its starting evidence, apply the Variables and assignment rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Wallet balance update.",
+        "Starting evidence: A program starts with balance 500, records a 120 purchase, and then receives a 50 refund.",
+        "Core rule: A variable is a name used to access part of program state. Assignment evaluates the right-hand expression first, then makes the target name refer to the resulting value for the next program state.",
+        "Observable result: The successive balance values are 500, 380, and 430; only the current state's value is used by the next expression.",
+        "Boundary check: Assignment uses the old count to calculate a new value and then updates the named state for later steps."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Trace fuel = 8, fuel = fuel - 3, reserve = 2, and fuel = fuel + reserve using one row per statement.",
+      "scaffold": [
+        "Record both names after each statement"
+      ],
+      "expectedEvidence": [
+        "The final state shows fuel 7 and reserve 2",
+        "The explanation names the old values read by each expression"
+      ]
+    },
+    "farTransfer": {
+      "prompt": "A shopping cart UI shows itemCount. Describe the state transitions caused by adding two items and removing one, without relying on assignment symbols.",
+      "scaffold": [
+        "Name the observable value before and after each event",
+        "Describe calculation before update"
+      ],
+      "expectedEvidence": [
+        "The event description preserves ordered before-and-after states",
+        "The reasoning transfers beyond a code-looking trace"
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "variables-misconception-equality",
+      "explanation": "Read assignment from right to left in time: calculate with the current state, then update the named target for the next state.",
+      "retryPrompt": "Starting from points = 6, narrate points = points + 4 as a read, calculation, and update."
+    },
+    {
+      "misconceptionId": "variables-misconception-history",
+      "explanation": "Keep one state-table row per completed statement so later assignments create new rows instead of editing old observations.",
+      "retryPrompt": "Draw separate before-and-after rows for level = 2 followed by level = 3, and explain why both rows remain valid."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to produce an accurate state table for sequential assignments and explain why assignment differs from algebraic equality. Keep this boundary in view: Language-specific memory layout and pointer arithmetic",
+    "retrievalPrompts": [
+      "Explain count = count + 1 without using the word equals.",
+      "Which side of an assignment is evaluated first and why does that ordering matter?",
+      "Trace a variable through two updates while preserving every historical row."
+    ],
+    "nextReviewPrompt": "Next: continue to “Expressions and evaluation”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

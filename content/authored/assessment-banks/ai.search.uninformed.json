@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.search.uninformed.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.uninformed",
+  "title": "Uninformed search deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Uninformed search; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.search.uninformed.mcq.misconception",
+      "skillId": "ai.search.uninformed",
+      "title": "Uninformed search: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost.",
+        "incorrect": "That option preserves the overclaim. Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+        },
+        {
+          "id": "overclaim",
+          "text": "BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+      }
+    },
+    {
+      "id": "ai.search.uninformed.fill.checkpoint",
+      "skillId": "ai.search.uninformed",
+      "title": "Uninformed search: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'minimizes steps'. Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS [[checkpoint]] under equal costs, while uniform-cost search minimizes nonnegative accumulated cost.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "minimizes steps"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+      }
+    },
+    {
+      "id": "ai.search.uninformed.code.offline",
+      "skillId": "ai.search.uninformed",
+      "title": "Uninformed search: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read n, m, m undirected edges, start, and goal. Use BFS with duplicate suppression and return minimum edge count or unreachable.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.search.uninformed.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "5 5 0 1 1 2 0 3 3 4 4 2 0 2\n",
+          "expectedStdout": "2",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.search.uninformed.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "3 1 0 1 0 2\n",
+          "expectedStdout": "unreachable",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\nfrom collections import deque\n\ndef solve(data: str) -> str:\n    tokens = iter(map(int, data.split()))\n    n, m = next(tokens), next(tokens)\n    graph = [[] for _ in range(n)]\n    for _ in range(m):\n        left, right = next(tokens), next(tokens)\n        graph[left].append(right); graph[right].append(left)\n    start, goal = next(tokens), next(tokens)\n    frontier = deque([(start, 0)])\n    seen = {start}\n    while frontier:\n        node, distance = frontier.popleft()\n        if node == goal:\n            return str(distance)\n        for neighbor in graph[node]:\n            if neighbor not in seen:\n                seen.add(neighbor); frontier.append((neighbor, distance + 1))\n    return 'unreachable'\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The queue frontier and enqueue-time visited set make the first goal distance minimum for this finite unweighted graph."
+      }
+    }
+  ]
+}

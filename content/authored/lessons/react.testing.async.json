@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.testing.async.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.testing-project",
+  "skillId": "react.testing.async",
+  "title": "Asynchronous component tests",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Asynchronous component tests; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-testing",
+      "locator": "React Testing Library; accessed 2026-07; provisions applicable to Asynchronous component tests",
+      "claim": "Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A test clicks Load and awaits the course heading after a mocked response while also covering an error state. Your goal is to test loading, success, empty, error, retry and stale-request behavior deterministically. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Accessibility, errors and performance; Routing and application context; Accessible queries and interactions; Client fetch lifecycle. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior. This draft therefore rejects: Adding a one-second timeout is the most reliable way to wait for React updates."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Wait for observable state transitions and mock the network boundary rather than internal hooks.",
+      "Test loading, success, empty, error, retry and stale-request behavior deterministically."
+    ],
+    "excludes": [
+      "Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior."
+    ]
+  },
+  "outcomes": [
+    "Test loading, success, empty, error, retry and stale-request behavior deterministically."
+  ],
+  "examples": [
+    {
+      "id": "react.testing.async.example-a",
+      "title": "Asynchronous component tests: concrete case",
+      "situation": "A test clicks Load and awaits the course heading after a mocked response while also covering an error state.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A test clicks Load and awaits the course heading after a mocked response while also covering an error state.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+      ],
+      "result": "The result follows because Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+    },
+    {
+      "id": "react.testing.async.example-b",
+      "title": "Asynchronous component tests: boundary case",
+      "situation": "Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Adding a one-second timeout is the most reliable way to wait for React updates."
+      ],
+      "result": "The boundary requires this correction: Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.testing.async.misconception",
+      "mistakenBelief": "Adding a one-second timeout is the most reliable way to wait for React updates.",
+      "correction": "Await the observable condition rather than elapsed time, and control promises or timers deterministically.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Adding a one-second timeout is the most reliable way to wait for React updates."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Asynchronous component tests, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Asynchronous component tests before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A test clicks Load and awaits the course heading after a mocked response while also covering an error state.",
+      "Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps.",
+      "Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A test clicks Load and awaits the course heading after a mocked response while also covering an error state."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Adding a one-second timeout is the most reliable way to wait for React updates."
+      }
+    ],
+    "textAlternative": "Starting artifact: A test clicks Load and awaits the course heading after a mocked response while also covering an error state. Step 1, Artifact. State: evidence: A test clicks Load and awaits the course heading after a mocked response while also covering an error state.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Await the observable condition rather than elapsed time, and control promises or timers deterministically.. Check the result against the boundary and reject this misconception: Adding a one-second timeout is the most reliable way to wait for React updates."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Asynchronous component tests: concrete case”: state its starting evidence, apply the Asynchronous component tests rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Asynchronous component tests: concrete case.",
+        "Starting evidence: A test clicks Load and awaits the course heading after a mocked response while also covering an error state.",
+        "Core rule: Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps.",
+        "Observable result: The result follows because Await the observable condition rather than elapsed time, and control promises or timers deterministically.",
+        "Boundary check: Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Async React tests trigger realistic actions and await observable state with find or wait utilities instead of fixed sleeps.",
+        "Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Asynchronous component tests and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Test loading, success, empty, error, retry and stale-request behavior deterministically.",
+        "Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.testing.async.misconception",
+      "explanation": "Await the observable condition rather than elapsed time, and control promises or timers deterministically.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'observable condition' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to test loading, success, empty, error, retry and stale-request behavior deterministically. Keep this boundary in view: Fake timers need controlled flushing, unresolved promises leak, and waiting for implementation calls can miss user behavior.",
+    "retrievalPrompts": [
+      "Explain Asynchronous component tests using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Adding a one-second timeout is the most reliable way to wait for React updates.",
+      "Apply checkpoint 'observable condition' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Routing and integration tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.quality.accessibility.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.quality-project",
+  "skillId": "css.quality.accessibility",
+  "title": "Visual accessibility audit",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Visual accessibility audit; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Visual accessibility audit",
+      "claim": "Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible. Your goal is to record and repair findings from a WCAG-informed visual and interaction audit. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Responsive design and motion; Stylesheet organization; Color and contrast; Reduced motion and input preferences; Overflow and containment. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation. This draft therefore rejects: Accessibility is handled entirely by semantic HTML, so CSS cannot create barriers."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Review contrast, focus visibility, reflow, zoom, text spacing, target size and motion preferences.",
+      "Record and repair findings from a WCAG-informed visual and interaction audit."
+    ],
+    "excludes": [
+      "Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation."
+    ]
+  },
+  "outcomes": [
+    "Record and repair findings from a WCAG-informed visual and interaction audit."
+  ],
+  "examples": [
+    {
+      "id": "css.quality.accessibility.example-a",
+      "title": "Visual accessibility audit: concrete case",
+      "situation": "At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers."
+      ],
+      "result": "The result follows because Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers."
+    },
+    {
+      "id": "css.quality.accessibility.example-b",
+      "title": "Visual accessibility audit: boundary case",
+      "situation": "Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Accessibility is handled entirely by semantic HTML, so CSS cannot create barriers."
+      ],
+      "result": "The boundary requires this correction: Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.quality.accessibility.misconception",
+      "mistakenBelief": "Accessibility is handled entirely by semantic HTML, so CSS cannot create barriers.",
+      "correction": "Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Accessibility is handled entirely by semantic HTML, so CSS cannot create barriers."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Visual accessibility audit, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Visual accessibility audit before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible.",
+      "Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility.",
+      "Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Accessibility is handled entirely by semantic HTML, so CSS cannot create barriers."
+      }
+    ],
+    "textAlternative": "Starting artifact: At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible. Step 1, Artifact. State: evidence: At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers.. Check the result against the boundary and reject this misconception: Accessibility is handled entirely by semantic HTML, so CSS cannot create barriers."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Visual accessibility audit: concrete case”: state its starting evidence, apply the Visual accessibility audit rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Visual accessibility audit: concrete case.",
+        "Starting evidence: At 200 percent zoom a form reflows without two-dimensional scrolling and focus remains visible.",
+        "Core rule: Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility.",
+        "Observable result: The result follows because Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers.",
+        "Boundary check: Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Accessible CSS preserves visible focus, zoom and reflow, contrast, target size, reading order, user preferences, and content visibility.",
+        "Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Visual accessibility audit and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Record and repair findings from a WCAG-informed visual and interaction audit.",
+        "Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.quality.accessibility.misconception",
+      "explanation": "Test CSS-driven focus, contrast, reflow, order, motion, and visibility because presentation can create or remove access barriers.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'presentation can create or remove access barriers' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to record and repair findings from a WCAG-informed visual and interaction audit. Keep this boundary in view: Visual hiding methods differ, generated content may be unavailable, and reordering can separate visual from DOM navigation.",
+    "retrievalPrompts": [
+      "Explain Visual accessibility audit using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Accessibility is handled entirely by semantic HTML, so CSS cannot create barriers.",
+      "Apply checkpoint 'presentation can create or remove access barriers' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Responsive site design system”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

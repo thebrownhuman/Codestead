@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.applications.multimodal.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.applications",
+  "skillId": "ai.applications.multimodal",
+  "title": "Multimodal systems",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Multimodal systems; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Perception and application areas: language, vision, robotics, and integrated systems; atomic topic: Multimodal systems",
+      "claim": "A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation."
+    },
+    {
+      "sourceRef": "nist-genai",
+      "locator": "NIST AI 600-1 Generative AI Profile; July 2024; NIST AI 600-1 Generative AI Profile: multimodal, provenance, confabulation, and human-AI configuration risks; atomic topic: Multimodal systems",
+      "claim": "A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately. Your goal is to review a multimodal application and specify modality-specific and joint evaluations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Neural networks and learned representations; Knowledge representation and uncertainty; Natural-language processing; Computer vision and perception. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "One modality can dominate, timestamps or identities can misalign, generated cross-modal claims can be unsupported, missing channels change behavior, accessibility differs, and more modalities do not guarantee truth. The learner must reject this overclaim: Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Combine modalities while recognizing alignment, missing-modality, provenance and cross-modal error risks.",
+      "Review a multimodal application and specify modality-specific and joint evaluations."
+    ],
+    "excludes": [
+      "One modality can dominate, timestamps or identities can misalign, generated cross-modal claims can be unsupported, missing channels change behavior, accessibility differs, and more modalities do not guarantee truth."
+    ]
+  },
+  "outcomes": [
+    "Review a multimodal application and specify modality-specific and joint evaluations."
+  ],
+  "examples": [
+    {
+      "id": "ai.applications.multimodal.example.direct",
+      "title": "Multimodal systems: bounded direct case",
+      "situation": "A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+      ],
+      "result": "This example supports only the atomic outcome because Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+    },
+    {
+      "id": "ai.applications.multimodal.example.stress",
+      "title": "Multimodal systems: stress and transfer case",
+      "situation": "Audio is missing for one population, so the fallback is evaluated as its own system rather than silently substituting a lower-quality path.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Audio is missing for one population, so the fallback is evaluated as its own system rather than silently substituting a lower-quality path.",
+        "Step 2 — Keep the non-claim visible: One modality can dominate, timestamps or identities can misalign, generated cross-modal claims can be unsupported, missing channels change behavior, accessibility differs, and more modalities do not guarantee truth.",
+        "Step 3 — Reject the tempting overclaim: Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important."
+      ],
+      "result": "This case demonstrates the declared outcome: Review a multimodal application and specify modality-specific and joint evaluations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.applications.multimodal.misconception",
+      "mistakenBelief": "Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important.",
+      "correction": "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a sensing-and-decision pipeline that names modality inputs, task outputs, affected populations, operating conditions, and fallback paths can introduce Multimodal systems only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "NLP, vision, robotics, and multimodal evaluation"
+    ],
+    "limitations": [
+      "more modalities or fluent outputs do not establish understanding, truth, physical safety, or universal coverage",
+      "One modality can dominate, timestamps or identities can misalign, generated cross-modal claims can be unsupported, missing channels change behavior, accessibility differs, and more modalities do not guarantee truth."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately.",
+      "A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation.",
+      "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important."
+      }
+    ],
+    "textAlternative": "Starting artifact: A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately. Step 1, Observe. State: boundedEvidence: A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification.. State what the evidence does not establish and reject the misconception: Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Multimodal systems: bounded direct case”: state its starting evidence, apply the Multimodal systems rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Multimodal systems: bounded direct case.",
+        "Starting evidence: A document assistant links each extracted claim to both page image region and recognized text, then tests OCR, layout, and joint-answer errors separately.",
+        "Core rule: A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation.",
+        "Observable result: This example supports only the atomic outcome because Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification.",
+        "Boundary check: Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Audio is missing for one population, so the fallback is evaluated as its own system rather than silently substituting a lower-quality path.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A multimodal system aligns and combines information from text, image, audio, or other channels, while each modality and their joint interaction require separate provenance, missingness, quality, and error evaluation.",
+        "One modality can dominate, timestamps or identities can misalign, generated cross-modal claims can be unsupported, missing channels change behavior, accessibility differs, and more modalities do not guarantee truth."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Multimodal systems and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Review a multimodal application and specify modality-specific and joint evaluations.",
+        "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.applications.multimodal.misconception",
+      "explanation": "Track alignment and provenance per modality, test modality-specific, missing-modality, and joint failures, and never treat cross-modal agreement as automatic verification.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Audio is missing for one population, so the fallback is evaluated as its own system rather than silently substituting a lower-quality path."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to review a multimodal application and specify modality-specific and joint evaluations. Keep this boundary in view: One modality can dominate, timestamps or identities can misalign, generated cross-modal claims can be unsupported, missing channels change behavior, accessibility differs, and more modalities do not guarantee truth.",
+    "retrievalPrompts": [
+      "Explain Multimodal systems with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Combining text and images lets each modality verify the other automatically, making hallucination and provenance less important.",
+      "Apply the boundary to: Audio is missing for one population, so the fallback is evaluated as its own system rather than silently substituting a lower-quality path."
+    ],
+    "nextReviewPrompt": "Next: continue to “Tokens, next-token modeling and context”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

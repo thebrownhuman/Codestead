@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.resources.smart-pointers.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.resources",
+  "skillId": "cpp.resources.smart-pointers",
+  "title": "unique_ptr, shared_ptr and non-owning access",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for unique_ptr, shared_ptr and non-owning access; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to unique_ptr, shared_ptr and non-owning access",
+      "claim": "unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime."
+    },
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to unique_ptr, shared_ptr and non-owning access",
+      "claim": "unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete. Your goal is to choose and justify an ownership representation without unnecessary shared ownership. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and initialization; Value, reference and const-reference parameters; RAII and deterministic cleanup. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "shared ownership cycles leak, aliasing constructors and custom deleters complicate behavior, and raw pointers or references can remain valid non-owning observers. Therefore the draft explicitly rejects this beginner failure model: shared_ptr is the safest default for every pointer because more owners always prevent lifetime bugs."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Prefer unique ownership and use shared ownership only when the lifetime model requires it.",
+      "Choose and justify an ownership representation without unnecessary shared ownership."
+    ],
+    "excludes": [
+      "shared ownership cycles leak, aliasing constructors and custom deleters complicate behavior, and raw pointers or references can remain valid non-owning observers."
+    ]
+  },
+  "outcomes": [
+    "Choose and justify an ownership representation without unnecessary shared ownership."
+  ],
+  "examples": [
+    {
+      "id": "cpp.resources.smart-pointers.example-a",
+      "title": "unique_ptr, shared_ptr and non-owning access: defined case",
+      "situation": "A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr."
+      ],
+      "result": "The defined result follows because Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr."
+    },
+    {
+      "id": "cpp.resources.smart-pointers.example-b",
+      "title": "unique_ptr, shared_ptr and non-owning access: boundary case",
+      "situation": "A parent owns children strongly while each child uses weak_ptr for an optional parent link, avoiding a reference cycle.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A parent owns children strongly while each child uses weak_ptr for an optional parent link, avoiding a reference cycle.",
+        "Step 2 — Keep this standard boundary visible: shared ownership cycles leak, aliasing constructors and custom deleters complicate behavior, and raw pointers or references can remain valid non-owning observers.",
+        "Step 3 — Reject the tempting rule: shared_ptr is the safest default for every pointer because more owners always prevent lifetime bugs."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose and justify an ownership representation without unnecessary shared ownership."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.resources.smart-pointers.misconception",
+      "mistakenBelief": "shared_ptr is the safest default for every pointer because more owners always prevent lifetime bugs.",
+      "correction": "Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: shared_ptr is the safest default for every pointer because more owners always prevent lifetime bugs."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model unique_ptr, shared_ptr and non-owning access: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "shared ownership cycles leak, aliasing constructors and custom deleters complicate behavior, and raw pointers or references can remain valid non-owning observers."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete.",
+      "unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime.",
+      "Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: shared_ptr is the safest default for every pointer because more owners always prevent lifetime bugs."
+      }
+    ],
+    "textAlternative": "Starting artifact: A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete. Step 1, Source and state. State: evidence: A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr.. Check the conclusion against the boundary and reject this misconception: shared_ptr is the safest default for every pointer because more owners always prevent lifetime bugs."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “unique_ptr, shared_ptr and non-owning access: defined case”: state its starting evidence, apply the unique_ptr, shared_ptr and non-owning access rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: unique_ptr, shared_ptr and non-owning access: defined case.",
+        "Starting evidence: A factory returns unique_ptr<Widget>, transferring exclusive ownership to the caller without an explicit delete.",
+        "Core rule: unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime.",
+        "Observable result: The defined result follows because Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr.",
+        "Boundary check: Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A parent owns children strongly while each child uses weak_ptr for an optional parent link, avoiding a reference cycle.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "unique_ptr expresses exclusive ownership, shared_ptr expresses reference-counted shared ownership, and weak_ptr observes a shared object without extending its lifetime.",
+        "shared ownership cycles leak, aliasing constructors and custom deleters complicate behavior, and raw pointers or references can remain valid non-owning observers."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for unique_ptr, shared_ptr and non-owning access, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Choose and justify an ownership representation without unnecessary shared ownership.",
+        "Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.resources.smart-pointers.misconception",
+      "explanation": "Prefer unique_ptr for exclusive ownership, use shared_ptr only for genuine shared lifetime, and break observer cycles with weak_ptr.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'unique_ptr' and state the decisive evidence: A parent owns children strongly while each child uses weak_ptr for an optional parent link, avoiding a reference cycle."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and justify an ownership representation without unnecessary shared ownership. Keep this boundary in view: shared ownership cycles leak, aliasing constructors and custom deleters complicate behavior, and raw pointers or references can remain valid non-owning observers.",
+    "retrievalPrompts": [
+      "Explain unique_ptr, shared_ptr and non-owning access using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: shared_ptr is the safest default for every pointer because more owners always prevent lifetime bugs.",
+      "Apply the checkpoint 'unique_ptr' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Exceptions and guarantees”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

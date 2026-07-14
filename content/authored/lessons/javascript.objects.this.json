@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.objects.this.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.object-model",
+  "skillId": "javascript.objects.this",
+  "title": "Method calls and this",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Method calls and this; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Method calls and this",
+      "claim": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Method calls and this",
+      "claim": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver. Your goal is to trace and repair this binding across direct, method and callback calls. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value. This draft therefore rejects: this is permanently defined where a normal function is written."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Determine this from call form and avoid detached-method and arrow-method surprises.",
+      "Trace and repair this binding across direct, method and callback calls."
+    ],
+    "excludes": [
+      "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value."
+    ]
+  },
+  "outcomes": [
+    "Trace and repair this binding across direct, method and callback calls."
+  ],
+  "examples": [
+    {
+      "id": "javascript.objects.this.example-a",
+      "title": "Method calls and this: concrete case",
+      "situation": "Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+      ],
+      "result": "The result follows because For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+    },
+    {
+      "id": "javascript.objects.this.example-b",
+      "title": "Method calls and this: boundary case",
+      "situation": "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: this is permanently defined where a normal function is written."
+      ],
+      "result": "The boundary requires this correction: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.objects.this.misconception",
+      "mistakenBelief": "this is permanently defined where a normal function is written.",
+      "correction": "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: this is permanently defined where a normal function is written."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Method calls and this, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Method calls and this before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
+      "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
+      "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: this is permanently defined where a normal function is written."
+      }
+    ],
+    "textAlternative": "Starting artifact: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver. Step 1, Artifact. State: evidence: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.. Check the result against the boundary and reject this misconception: this is permanently defined where a normal function is written."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Method calls and this: concrete case”: state its starting evidence, apply the Method calls and this rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Method calls and this: concrete case.",
+        "Starting evidence: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
+        "Core rule: JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
+        "Observable result: The result follows because For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.",
+        "Boundary check: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
+        "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Method calls and this and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace and repair this binding across direct, method and callback calls.",
+        "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.objects.this.misconception",
+      "explanation": "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'call site' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace and repair this binding across direct, method and callback calls. Keep this boundary in view: Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
+    "retrievalPrompts": [
+      "Explain Method calls and this using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: this is permanently defined where a normal function is written.",
+      "Apply checkpoint 'call site' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Prototype delegation”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

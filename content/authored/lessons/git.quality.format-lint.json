@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.quality.format-lint.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.quality-debug",
+  "skillId": "git.quality.format-lint",
+  "title": "Formatter and linter",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Formatter and linter; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Formatter and linter",
+      "claim": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration."
+    },
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Formatter and linter",
+      "claim": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version. Your goal is to configure and apply formatter and linter checks to changed files. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Dependencies and reproducible builds; Commits and history; Build and task commands; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Automate style and static checks through one documented command with minimal unrelated churn.",
+      "Configure and apply formatter and linter checks to changed files."
+    ],
+    "excludes": [
+      "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools."
+    ]
+  },
+  "outcomes": [
+    "Configure and apply formatter and linter checks to changed files."
+  ],
+  "examples": [
+    {
+      "id": "git.quality.format-lint.example-a",
+      "title": "Formatter and linter: direct case",
+      "situation": "Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+      ],
+      "result": "The case supports the declared outcome because Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+    },
+    {
+      "id": "git.quality.format-lint.example-b",
+      "title": "Formatter and linter: boundary case",
+      "situation": "A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally.",
+        "Step 2 — Keep this boundary explicit: A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools.",
+        "Step 3 — Reject the documented misconception: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+      ],
+      "result": "This case demonstrates the declared outcome: Configure and apply formatter and linter checks to changed files."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.quality.format-lint.misconception",
+      "mistakenBelief": "Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws.",
+      "correction": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A controlled investigation can model Formatter and linter: preserve evidence, state a hypothesis, inspect one clue, automate repeatable checks, and narrow the change point.",
+    "usefulFor": [
+      "Linking debugging, static checks, history search, and automated local gates"
+    ],
+    "limitations": [
+      "Debuggers and hooks can alter timing or execute code, and tool findings remain bounded evidence rather than proof.",
+      "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
+      "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
+      "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration."
+        },
+        "explanation": "Apply the declared Formatter and linter model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+      }
+    ],
+    "textAlternative": "Starting artifact: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version. Step 1, Observe. State: evidence: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.. Apply the declared Formatter and linter model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.. Compare the observation with the correction and reject the misconception: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Formatter and linter: direct case”: state its starting evidence, apply the Formatter and linter rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Formatter and linter: direct case.",
+        "Starting evidence: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
+        "Core rule: A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
+        "Observable result: The case supports the declared outcome because Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.",
+        "Boundary check: Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
+        "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Formatter and linter, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Configure and apply formatter and linter checks to changed files.",
+        "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.quality.format-lint.misconception",
+      "explanation": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to configure and apply formatter and linter checks to changed files. Keep this boundary in view: A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools.",
+    "retrievalPrompts": [
+      "Explain Formatter and linter without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws.",
+      "Apply the model to this case from memory: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally."
+    ],
+    "nextReviewPrompt": "Next: continue to “History-based regression isolation”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

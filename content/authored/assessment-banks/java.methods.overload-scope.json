@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.java.methods.overload-scope.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.methods-data",
+  "skillId": "java.methods.overload-scope",
+  "title": "Overloading and local scope deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Overloading and local scope; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "dev-java",
+    "jls21"
+  ],
+  "items": [
+    {
+      "id": "java.methods.overload-scope.mcq.misconception",
+      "skillId": "java.methods.overload-scope",
+      "title": "Overloading and local scope: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Java: Beginner to Intermediate and corrects this misconception? Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
+        "incorrect": "That choice preserves the misconception. Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+        },
+        {
+          "id": "misconception",
+          "text": "Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      }
+    },
+    {
+      "id": "java.methods.overload-scope.fill.checkpoint",
+      "skillId": "java.methods.overload-scope",
+      "title": "Overloading and local scope: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Java: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'compile-time argument types'. Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
+        "incorrect": "The phrase must preserve the exact language rule. Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Resolve overloads from [[checkpoint]] and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "compile-time argument types"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      }
+    },
+    {
+      "id": "java.methods.overload-scope.code.core",
+      "skillId": "java.methods.overload-scope",
+      "title": "Overloading and local scope: runnable core task",
+      "kind": "code",
+      "prompt": "Read an integer n. Call overloaded twice(int) and twice(double), then print both results with one decimal place for the double.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Java: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        // TODO: implement the stated input/output contract.\n    }\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "java",
+        "version": "Java SE 21",
+        "imageDigest": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+        "entrypoint": "Main.java",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 256
+      },
+      "tests": [
+        {
+          "id": "java.methods.overload-scope.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "4\n",
+          "expectedStdout": "8 9.0",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "java.methods.overload-scope.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0\n",
+          "expectedStdout": "0 1.0",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import java.util.*;\nimport java.util.stream.*;\n\npublic class Main {\n    static int twice(int value) { return value * 2; }\n    static double twice(double value) { return value * 2.0; }\n\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        int n = input.nextInt();\n        System.out.printf(\"%d %.1f%n\", twice(n), twice(n + 0.5));\n    }\n}\n",
+        "explanation": "Compile-time argument types select the two overloads; the local n remains distinct from each method parameter."
+      }
+    }
+  ]
+}

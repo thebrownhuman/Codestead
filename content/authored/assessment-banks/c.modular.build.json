@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.c.modular.build.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.modular-quality",
+  "skillId": "c.modular.build",
+  "title": "Multi-file builds deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific deterministic MCQ and fill-gap evidence for Multi-file builds; human review required."
+  },
+  "sourceRefs": [
+    "gnu-c",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "skillId": "c.modular.build",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.modular.build.mcq.misconception",
+      "title": "Multi-file builds: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this C misconception? Only the .c file directly edited needs recompilation, even when a shared header changed its declarations.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Track header dependencies and rebuild every affected translation unit before linking a coherent program.",
+        "incorrect": "That option preserves the documented misconception. Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned C correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Only the .c file directly edited needs recompilation, even when a shared header changed its declarations."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+      }
+    },
+    {
+      "skillId": "c.modular.build",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.modular.build.fill.checkpoint",
+      "title": "Multi-file builds: complete the language rule",
+      "prompt": "Complete the missing C checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: Only the .c file directly edited needs recompilation, even when a shared header changed its declarations."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'header dependencies'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact C token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Track {{key-rule}} and rebuild every affected translation unit before linking a coherent program.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "header dependencies"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+      }
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.java.packages.access.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.packaging-quality",
+  "skillId": "java.packages.access",
+  "title": "Packages and access control deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Packages and access control; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "dev-java",
+    "jls21"
+  ],
+  "items": [
+    {
+      "id": "java.packages.access.mcq.misconception",
+      "skillId": "java.packages.access",
+      "title": "Packages and access control: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Java: Beginner to Intermediate and corrects this misconception? Package-private members are private to one source file, and protected means accessible only by subclasses everywhere.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface.",
+        "incorrect": "That choice preserves the misconception. Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+        },
+        {
+          "id": "misconception",
+          "text": "Package-private members are private to one source file, and protected means accessible only by subclasses everywhere."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+      }
+    },
+    {
+      "id": "java.packages.access.fill.checkpoint",
+      "skillId": "java.packages.access",
+      "title": "Packages and access control: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Java: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'minimum stable surface'. Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface.",
+        "incorrect": "The phrase must preserve the exact language rule. Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the [[checkpoint]].",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "minimum stable surface"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+      }
+    }
+  ]
+}

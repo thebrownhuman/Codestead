@@ -1,0 +1,4376 @@
+{
+  "generatedAt": "2026-07-13T15:14:10.121Z",
+  "structure": {
+    "skillCount": 60,
+    "itemCount": 240,
+    "visibleTestCount": 240,
+    "hiddenTestCount": 240,
+    "examEligibleItemCount": 0,
+    "imageDigests": {
+      "c": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "cpp": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "java": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "python": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657"
+    }
+  },
+  "selectedItems": 240,
+  "declaredItems": 240,
+  "executedCases": 480,
+  "passedCases": 480,
+  "failedCases": 0,
+  "fullRuntimeRun": true,
+  "externalProviderCalls": 0,
+  "imageEvidence": {
+    "c": {
+      "tag": "learncoding/runtime-c:local",
+      "expected": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "actual": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "matches": true
+    },
+    "cpp": {
+      "tag": "learncoding/runtime-cpp:local",
+      "expected": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "actual": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "matches": true
+    },
+    "java": {
+      "tag": "learncoding/runtime-java:local",
+      "expected": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "actual": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "matches": true
+    },
+    "python": {
+      "tag": "learncoding/runtime-python:local",
+      "expected": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+      "actual": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+      "matches": true
+    }
+  },
+  "results": [
+    {
+      "itemId": "dsa.analysis.asymptotic.code.c.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 759,
+      "sourceHash": "sha256:fd045c73333029fe00e5d63b887faf8fdb7d60bf4aacc55a7ca62a905ae32031"
+    },
+    {
+      "itemId": "dsa.analysis.asymptotic.code.c.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 853,
+      "sourceHash": "sha256:fd045c73333029fe00e5d63b887faf8fdb7d60bf4aacc55a7ca62a905ae32031"
+    },
+    {
+      "itemId": "dsa.analysis.asymptotic.code.cpp.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 598,
+      "sourceHash": "sha256:e96e4cbdf4ee6d7856b14f03773942ed9e820d5ee3a1e8adcb19bdafaf79122f"
+    },
+    {
+      "itemId": "dsa.analysis.asymptotic.code.cpp.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 754,
+      "sourceHash": "sha256:e96e4cbdf4ee6d7856b14f03773942ed9e820d5ee3a1e8adcb19bdafaf79122f"
+    },
+    {
+      "itemId": "dsa.analysis.asymptotic.code.java.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2760,
+      "sourceHash": "sha256:b74f09931cc37ab15f5e3b6e2aa5b5eb5806da1aed4f6116280beadc16bbbf3e"
+    },
+    {
+      "itemId": "dsa.analysis.asymptotic.code.java.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2928,
+      "sourceHash": "sha256:b74f09931cc37ab15f5e3b6e2aa5b5eb5806da1aed4f6116280beadc16bbbf3e"
+    },
+    {
+      "itemId": "dsa.analysis.asymptotic.code.python.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 787,
+      "sourceHash": "sha256:1c7b05bb8db32a8c06d65d76f0c2e79cc0db1a6d556dda970ab9ebd0294cb19e"
+    },
+    {
+      "itemId": "dsa.analysis.asymptotic.code.python.parity-v1",
+      "skillId": "dsa.analysis.asymptotic",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 810,
+      "sourceHash": "sha256:1c7b05bb8db32a8c06d65d76f0c2e79cc0db1a6d556dda970ab9ebd0294cb19e"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.c.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 502,
+      "sourceHash": "sha256:d6def777f9241a1383d8e2b8cd5abcb99d27f96fd3b681ae1a9f02f7dcf1fca9"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.c.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 535,
+      "sourceHash": "sha256:d6def777f9241a1383d8e2b8cd5abcb99d27f96fd3b681ae1a9f02f7dcf1fca9"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.cpp.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 528,
+      "sourceHash": "sha256:3eb1d3daea1acd20db0f05ec25e683a0fca0067c38a01d446aeb0107d67a34e0"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.cpp.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 581,
+      "sourceHash": "sha256:3eb1d3daea1acd20db0f05ec25e683a0fca0067c38a01d446aeb0107d67a34e0"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.java.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2864,
+      "sourceHash": "sha256:ea20f300723d261af3ef795fdefd502850d4695aa361532b8a09d5a8a6efefec"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.java.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2737,
+      "sourceHash": "sha256:ea20f300723d261af3ef795fdefd502850d4695aa361532b8a09d5a8a6efefec"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.python.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 791,
+      "sourceHash": "sha256:38ef856e052bd334b81866388aa840d834933336c0449cabe9e1f8461923011d"
+    },
+    {
+      "itemId": "dsa.analysis.correctness.code.python.parity-v1",
+      "skillId": "dsa.analysis.correctness",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 789,
+      "sourceHash": "sha256:38ef856e052bd334b81866388aa840d834933336c0449cabe9e1f8461923011d"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.c.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 501,
+      "sourceHash": "sha256:b02ba745c362f705f8b823fefc53db8674573f2582cca509047fca92082b18ab"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.c.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 494,
+      "sourceHash": "sha256:b02ba745c362f705f8b823fefc53db8674573f2582cca509047fca92082b18ab"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.cpp.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 530,
+      "sourceHash": "sha256:fbee5a0e59fdad58ae17d2ea841daaca862217365aa34c419b29545348cfdbd1"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.cpp.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 539,
+      "sourceHash": "sha256:fbee5a0e59fdad58ae17d2ea841daaca862217365aa34c419b29545348cfdbd1"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.java.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2691,
+      "sourceHash": "sha256:1e1d8de6c6886d9a2330f7e33c033cbff851067548ca2e34916279af668f8b25"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.java.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2741,
+      "sourceHash": "sha256:1e1d8de6c6886d9a2330f7e33c033cbff851067548ca2e34916279af668f8b25"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.python.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 856,
+      "sourceHash": "sha256:e9bd8c8882b47bb77a12b3d9c6c21effdfdaaae77a1d11a1e4a693d429cf360a"
+    },
+    {
+      "itemId": "dsa.analysis.specification.code.python.parity-v1",
+      "skillId": "dsa.analysis.specification",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 805,
+      "sourceHash": "sha256:e9bd8c8882b47bb77a12b3d9c6c21effdfdaaae77a1d11a1e4a693d429cf360a"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.c.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 512,
+      "sourceHash": "sha256:cbc8a1c6e4308a1b3626aaa81dc12b7791367f895d48d417f0f9c705553e1561"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.c.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 507,
+      "sourceHash": "sha256:cbc8a1c6e4308a1b3626aaa81dc12b7791367f895d48d417f0f9c705553e1561"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.cpp.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 524,
+      "sourceHash": "sha256:52204e70c247b421bd841f81eb96402c6700bd883918ab06a9b455c608ae1540"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.cpp.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 614,
+      "sourceHash": "sha256:52204e70c247b421bd841f81eb96402c6700bd883918ab06a9b455c608ae1540"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.java.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2742,
+      "sourceHash": "sha256:6798aa41e7a3afcb50143cee2b0db68fec42497ed5552d44756bc374982aef1e"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.java.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2827,
+      "sourceHash": "sha256:6798aa41e7a3afcb50143cee2b0db68fec42497ed5552d44756bc374982aef1e"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.python.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 871,
+      "sourceHash": "sha256:4459e069411a3759d8caef6f2461980a4b358c072d24f34393e7895521577b2a"
+    },
+    {
+      "itemId": "dsa.arrays.operations.code.python.parity-v1",
+      "skillId": "dsa.arrays.operations",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 745,
+      "sourceHash": "sha256:4459e069411a3759d8caef6f2461980a4b358c072d24f34393e7895521577b2a"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.c.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 523,
+      "sourceHash": "sha256:78327e5f0e4542f648a6906108c1f4dbc55f33e49327c795122225f0ebe093a6"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.c.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 589,
+      "sourceHash": "sha256:78327e5f0e4542f648a6906108c1f4dbc55f33e49327c795122225f0ebe093a6"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.cpp.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 556,
+      "sourceHash": "sha256:3e644b8c0ddeb2812dc528060f64796eb85b41387b79d61e97a619efa46db01e"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.cpp.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 571,
+      "sourceHash": "sha256:3e644b8c0ddeb2812dc528060f64796eb85b41387b79d61e97a619efa46db01e"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.java.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2587,
+      "sourceHash": "sha256:c3d6a1c96856fcd61445643a71813227f48b6e012dde1e52cf1837f243bf95dc"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.java.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2649,
+      "sourceHash": "sha256:c3d6a1c96856fcd61445643a71813227f48b6e012dde1e52cf1837f243bf95dc"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.python.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 746,
+      "sourceHash": "sha256:25a2fafcc628e8d31a1e948c36630a39a290b3501c5e5c91e63db9811ec74d38"
+    },
+    {
+      "itemId": "dsa.arrays.prefix-difference.code.python.parity-v1",
+      "skillId": "dsa.arrays.prefix-difference",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 727,
+      "sourceHash": "sha256:25a2fafcc628e8d31a1e948c36630a39a290b3501c5e5c91e63db9811ec74d38"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.c.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 563,
+      "sourceHash": "sha256:ef4a97d0a2295c80ec150135f2710a60457e5eff78b85bc8e9d5eedfe7180ee9"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.c.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 609,
+      "sourceHash": "sha256:ef4a97d0a2295c80ec150135f2710a60457e5eff78b85bc8e9d5eedfe7180ee9"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.cpp.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 520,
+      "sourceHash": "sha256:46149c9c53ff096df30f1135894f78ec99747eba7f80b4cbaa10aecae7d17f24"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.cpp.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 535,
+      "sourceHash": "sha256:46149c9c53ff096df30f1135894f78ec99747eba7f80b4cbaa10aecae7d17f24"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.java.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2813,
+      "sourceHash": "sha256:46cfe147eb23564e8c497471f0b343356739c5378ac7dfc09e4b3d276feca669"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.java.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2982,
+      "sourceHash": "sha256:46cfe147eb23564e8c497471f0b343356739c5378ac7dfc09e4b3d276feca669"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.python.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 953,
+      "sourceHash": "sha256:a0519835319a08f4dde837d4162e0cd49a7704292b2b73abee8483f8a0189deb"
+    },
+    {
+      "itemId": "dsa.arrays.two-dimensional.code.python.parity-v1",
+      "skillId": "dsa.arrays.two-dimensional",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 750,
+      "sourceHash": "sha256:a0519835319a08f4dde837d4162e0cd49a7704292b2b73abee8483f8a0189deb"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.c.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 554,
+      "sourceHash": "sha256:8553d1045a16c726e675d60e9f328cbb9384e96d163fb33c16fc998751518a73"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.c.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 559,
+      "sourceHash": "sha256:8553d1045a16c726e675d60e9f328cbb9384e96d163fb33c16fc998751518a73"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.cpp.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 511,
+      "sourceHash": "sha256:7d321d63e355fa7b43a1e0c3820781d8ac564dbd46cd37183026f1970dbc7e37"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.cpp.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 485,
+      "sourceHash": "sha256:7d321d63e355fa7b43a1e0c3820781d8ac564dbd46cd37183026f1970dbc7e37"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.java.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2672,
+      "sourceHash": "sha256:d52f2569e04b2f2e3f913e3009a99f207fbe83195278fdfcb6dcec8d596989be"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.java.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2682,
+      "sourceHash": "sha256:d52f2569e04b2f2e3f913e3009a99f207fbe83195278fdfcb6dcec8d596989be"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.python.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 836,
+      "sourceHash": "sha256:30628f01ea9c4952557042b12faa638be007535fd00024de378398ef31e29af4"
+    },
+    {
+      "itemId": "dsa.backtracking.search.code.python.parity-v1",
+      "skillId": "dsa.backtracking.search",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 689,
+      "sourceHash": "sha256:30628f01ea9c4952557042b12faa638be007535fd00024de378398ef31e29af4"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.c.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 554,
+      "sourceHash": "sha256:1ebae7ab114920d416cd2b875070b3b08044b559aa259db351e46dcc9fe16a9a"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.c.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 515,
+      "sourceHash": "sha256:1ebae7ab114920d416cd2b875070b3b08044b559aa259db351e46dcc9fe16a9a"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.cpp.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 542,
+      "sourceHash": "sha256:02fe8d3509615d8afcf5d9f64303d6c43da79faf2b9e21ac32206720d0f1b0e9"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.cpp.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 545,
+      "sourceHash": "sha256:02fe8d3509615d8afcf5d9f64303d6c43da79faf2b9e21ac32206720d0f1b0e9"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.java.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2686,
+      "sourceHash": "sha256:a8fe6e7acc05a3710649e54b7d26f94e015c7a9bb8addb3b943c43444585b4a5"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.java.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2860,
+      "sourceHash": "sha256:a8fe6e7acc05a3710649e54b7d26f94e015c7a9bb8addb3b943c43444585b4a5"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.python.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 793,
+      "sourceHash": "sha256:6ebda2a3534fc6a9e8c536463516f006587a6bdce938ec428b0ba839c2d2f9b6"
+    },
+    {
+      "itemId": "dsa.deque.adt.code.python.parity-v1",
+      "skillId": "dsa.deque.adt",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 815,
+      "sourceHash": "sha256:6ebda2a3534fc6a9e8c536463516f006587a6bdce938ec428b0ba839c2d2f9b6"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 542,
+      "sourceHash": "sha256:d39a989d8c24ffa5b5cc4ee20c63151513235d7176b6c289357cb984d1810079"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 521,
+      "sourceHash": "sha256:d39a989d8c24ffa5b5cc4ee20c63151513235d7176b6c289357cb984d1810079"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 504,
+      "sourceHash": "sha256:a5517781aa28136b40dead9f8ec10e40cf5bdbc01fc4d25fd3a0a3aec34302e1"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 526,
+      "sourceHash": "sha256:a5517781aa28136b40dead9f8ec10e40cf5bdbc01fc4d25fd3a0a3aec34302e1"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2647,
+      "sourceHash": "sha256:e9af985b9cf8ad0b12b12d2c8feebf5e9dea79520fefc7b25e6ba6e583cd6a19"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2618,
+      "sourceHash": "sha256:e9af985b9cf8ad0b12b12d2c8feebf5e9dea79520fefc7b25e6ba6e583cd6a19"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 731,
+      "sourceHash": "sha256:23ce7acc332468ff2ee7b87817518d67c837fb3675ac7b3d28a4ed6f94c068a5"
+    },
+    {
+      "itemId": "dsa.disjoint-set.adt.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.adt",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 765,
+      "sourceHash": "sha256:23ce7acc332468ff2ee7b87817518d67c837fb3675ac7b3d28a4ed6f94c068a5"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 487,
+      "sourceHash": "sha256:f9f27de85835bd2436aa00c4088b9387753e527cb2fa9d700b459153c431169d"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 584,
+      "sourceHash": "sha256:f9f27de85835bd2436aa00c4088b9387753e527cb2fa9d700b459153c431169d"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 573,
+      "sourceHash": "sha256:601be796b353b8720642b29f0d74b47098f21e7e69c40c040aa561d1f213a94f"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 491,
+      "sourceHash": "sha256:601be796b353b8720642b29f0d74b47098f21e7e69c40c040aa561d1f213a94f"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2622,
+      "sourceHash": "sha256:e1266ccd7467635c22ba3c4bf983a7b0da0963b9ff10dbffb17b8a9eeade1676"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2640,
+      "sourceHash": "sha256:e1266ccd7467635c22ba3c4bf983a7b0da0963b9ff10dbffb17b8a9eeade1676"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 950,
+      "sourceHash": "sha256:5a8835a09b89458a5af4b925cc60f86da3fe1099ffd23230ef4bde6e8dad74f1"
+    },
+    {
+      "itemId": "dsa.disjoint-set.applications.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.applications",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 872,
+      "sourceHash": "sha256:5a8835a09b89458a5af4b925cc60f86da3fe1099ffd23230ef4bde6e8dad74f1"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 645,
+      "sourceHash": "sha256:5eaad1362c541487513ab51337b63d5fc5964cdad52454daf509051ec4668be8"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 656,
+      "sourceHash": "sha256:5eaad1362c541487513ab51337b63d5fc5964cdad52454daf509051ec4668be8"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 565,
+      "sourceHash": "sha256:7832e31a2bd076c2ea75c2b9d03b703b501e660bb09ce92fd8d19131da9fd4d2"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 576,
+      "sourceHash": "sha256:7832e31a2bd076c2ea75c2b9d03b703b501e660bb09ce92fd8d19131da9fd4d2"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2725,
+      "sourceHash": "sha256:6ace51de17cb863ec4adc9430b55cb978cadf8e7f3963818eafe8aed15cc03c9"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2728,
+      "sourceHash": "sha256:6ace51de17cb863ec4adc9430b55cb978cadf8e7f3963818eafe8aed15cc03c9"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 773,
+      "sourceHash": "sha256:093ffaad14936191b00704ad3b62e4e615562cc3dc04e17f8b9982136c332def"
+    },
+    {
+      "itemId": "dsa.disjoint-set.compression.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.compression",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 805,
+      "sourceHash": "sha256:093ffaad14936191b00704ad3b62e4e615562cc3dc04e17f8b9982136c332def"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 539,
+      "sourceHash": "sha256:3e352025300d70b32c282bf8beb08083c247f0b471ecbda7a59d5b2ee1e39d68"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.c.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 561,
+      "sourceHash": "sha256:3e352025300d70b32c282bf8beb08083c247f0b471ecbda7a59d5b2ee1e39d68"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 548,
+      "sourceHash": "sha256:0a2d15b1893b84a8ef12ad7a9163cd513876f34461750d47932857eafa0a98e8"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.cpp.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 490,
+      "sourceHash": "sha256:0a2d15b1893b84a8ef12ad7a9163cd513876f34461750d47932857eafa0a98e8"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2805,
+      "sourceHash": "sha256:48c50e05d24bfe8712e223656219184976c908a291c88f920324f720b4703d71"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.java.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2919,
+      "sourceHash": "sha256:48c50e05d24bfe8712e223656219184976c908a291c88f920324f720b4703d71"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 826,
+      "sourceHash": "sha256:69191b1df3aa608df4f900263ccc11463804ff0ae7ccce49b0b2543dbe59f273"
+    },
+    {
+      "itemId": "dsa.disjoint-set.rank.code.python.parity-v1",
+      "skillId": "dsa.disjoint-set.rank",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 717,
+      "sourceHash": "sha256:69191b1df3aa608df4f900263ccc11463804ff0ae7ccce49b0b2543dbe59f273"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.c.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 564,
+      "sourceHash": "sha256:b2ffcc57d0a8cb47b6ac9b42a5882c63098965d0d83bc7f62807b199ff8771b9"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.c.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 562,
+      "sourceHash": "sha256:b2ffcc57d0a8cb47b6ac9b42a5882c63098965d0d83bc7f62807b199ff8771b9"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.cpp.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 590,
+      "sourceHash": "sha256:1fbe9395035b09e1d7e8c29b3de6347593f7b701a8af8c2ef058b76ecfb84f84"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.cpp.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 621,
+      "sourceHash": "sha256:1fbe9395035b09e1d7e8c29b3de6347593f7b701a8af8c2ef058b76ecfb84f84"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.java.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3187,
+      "sourceHash": "sha256:01bfa881a8519bb621898edd54e8b85e257e606ed636303fcc184ab8b9db28a3"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.java.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3328,
+      "sourceHash": "sha256:01bfa881a8519bb621898edd54e8b85e257e606ed636303fcc184ab8b9db28a3"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.python.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 895,
+      "sourceHash": "sha256:66f6d4d7255b4a4225f734943a360d13d67615f89eab04eb8988ebff3f6c7886"
+    },
+    {
+      "itemId": "dsa.dp.memoization.code.python.parity-v1",
+      "skillId": "dsa.dp.memoization",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 874,
+      "sourceHash": "sha256:66f6d4d7255b4a4225f734943a360d13d67615f89eab04eb8988ebff3f6c7886"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.c.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 580,
+      "sourceHash": "sha256:54d7c792cb711216acc1a879d8e84984c9318984ee4a48fb19d64ee8ddcebb56"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.c.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 634,
+      "sourceHash": "sha256:54d7c792cb711216acc1a879d8e84984c9318984ee4a48fb19d64ee8ddcebb56"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.cpp.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 709,
+      "sourceHash": "sha256:e22e8f2263aff2778850e6b107b30d23686bf9d9477152be8cf43d5d2fa7aca7"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.cpp.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 614,
+      "sourceHash": "sha256:e22e8f2263aff2778850e6b107b30d23686bf9d9477152be8cf43d5d2fa7aca7"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.java.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2872,
+      "sourceHash": "sha256:5bf3aa76fc6b6dda7c23da56ff105c1a536052cecce5f5a3584f733a50a8ad13"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.java.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2983,
+      "sourceHash": "sha256:5bf3aa76fc6b6dda7c23da56ff105c1a536052cecce5f5a3584f733a50a8ad13"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.python.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 783,
+      "sourceHash": "sha256:7339e92f4539e6f99df3ba90537bf47daae78d088be0cc6d586ffde297a5817f"
+    },
+    {
+      "itemId": "dsa.dp.tabulation.code.python.parity-v1",
+      "skillId": "dsa.dp.tabulation",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 751,
+      "sourceHash": "sha256:7339e92f4539e6f99df3ba90537bf47daae78d088be0cc6d586ffde297a5817f"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.c.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 623,
+      "sourceHash": "sha256:6e7aa3aca39fee3fd1988b18c38e97784af97c54467dbf70c49aa7906a00e7d3"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.c.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 819,
+      "sourceHash": "sha256:6e7aa3aca39fee3fd1988b18c38e97784af97c54467dbf70c49aa7906a00e7d3"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.cpp.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 705,
+      "sourceHash": "sha256:732be2e9853be4e3133a057679acb45f44aa4b567c3288f1308a5c0fa6b5a8a0"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.cpp.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 659,
+      "sourceHash": "sha256:732be2e9853be4e3133a057679acb45f44aa4b567c3288f1308a5c0fa6b5a8a0"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.java.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2947,
+      "sourceHash": "sha256:6c04f3b0f53cfd742939e8233675dc0ce2c35fb1520197ec1a6733407fd4d9c9"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.java.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2854,
+      "sourceHash": "sha256:6c04f3b0f53cfd742939e8233675dc0ce2c35fb1520197ec1a6733407fd4d9c9"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.python.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 822,
+      "sourceHash": "sha256:8e27f5b6e7d1990b6048a2f5786008e79908ba0ef11ccfe75c20c334a118be1b"
+    },
+    {
+      "itemId": "dsa.entry.language-readiness.code.python.parity-v1",
+      "skillId": "dsa.entry.language-readiness",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 750,
+      "sourceHash": "sha256:8e27f5b6e7d1990b6048a2f5786008e79908ba0ef11ccfe75c20c334a118be1b"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.c.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 589,
+      "sourceHash": "sha256:0a9ace03e8f5ad69cdcbc55b35c6f5747f25b511e133f1b6375800b3ebea8df2"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.c.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 614,
+      "sourceHash": "sha256:0a9ace03e8f5ad69cdcbc55b35c6f5747f25b511e133f1b6375800b3ebea8df2"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 555,
+      "sourceHash": "sha256:cc30e2239d4bb52c57f8031e483bbdccf47d1fd48e62c3a52927cce5ef0b20f5"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 598,
+      "sourceHash": "sha256:cc30e2239d4bb52c57f8031e483bbdccf47d1fd48e62c3a52927cce5ef0b20f5"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.java.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3068,
+      "sourceHash": "sha256:f19c27df72265de4b5a216bff109e360e04cd0bcd59131cfca4b0d87295f2f75"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.java.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2989,
+      "sourceHash": "sha256:f19c27df72265de4b5a216bff109e360e04cd0bcd59131cfca4b0d87295f2f75"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.python.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 854,
+      "sourceHash": "sha256:6d1ae592a4b9a7fd14ecfbce786d9863cc88062c1096d3579018ac0d4e2993a2"
+    },
+    {
+      "itemId": "dsa.graphs.all-pairs.code.python.parity-v1",
+      "skillId": "dsa.graphs.all-pairs",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 747,
+      "sourceHash": "sha256:6d1ae592a4b9a7fd14ecfbce786d9863cc88062c1096d3579018ac0d4e2993a2"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.c.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 665,
+      "sourceHash": "sha256:9b2e502aca99b3f8a9775d771c3e52385a6ead86ed691445815e6f6032bcde19"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.c.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 732,
+      "sourceHash": "sha256:9b2e502aca99b3f8a9775d771c3e52385a6ead86ed691445815e6f6032bcde19"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 636,
+      "sourceHash": "sha256:560163648faa183240688e4199a41452f0319f0ce23db38827b1a78cb6471e60"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 620,
+      "sourceHash": "sha256:560163648faa183240688e4199a41452f0319f0ce23db38827b1a78cb6471e60"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.java.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3418,
+      "sourceHash": "sha256:a997c0fc8702886cb7dc1540f27dcfb9d044a8bb890699ea92f1322e79b1aa93"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.java.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3444,
+      "sourceHash": "sha256:a997c0fc8702886cb7dc1540f27dcfb9d044a8bb890699ea92f1322e79b1aa93"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.python.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 929,
+      "sourceHash": "sha256:fe874a001317ccbeead36ac1472c8a006c2bb0045e5f3a80d417c0bede7cd471"
+    },
+    {
+      "itemId": "dsa.graphs.bfs-dfs.code.python.parity-v1",
+      "skillId": "dsa.graphs.bfs-dfs",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 909,
+      "sourceHash": "sha256:fe874a001317ccbeead36ac1472c8a006c2bb0045e5f3a80d417c0bede7cd471"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.c.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 691,
+      "sourceHash": "sha256:6351f01c2e731a80ed016981ead3f8fdecf602f932291fd492e250b732da82c0"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.c.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 1400,
+      "sourceHash": "sha256:6351f01c2e731a80ed016981ead3f8fdecf602f932291fd492e250b732da82c0"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1287,
+      "sourceHash": "sha256:4a9677192dd6329611a81a076bb54ec47a9fdf6b49b8a064f3897ce46855eb29"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 787,
+      "sourceHash": "sha256:4a9677192dd6329611a81a076bb54ec47a9fdf6b49b8a064f3897ce46855eb29"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.java.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3655,
+      "sourceHash": "sha256:2093996a8ad7569b5a6085469c4a3c903f6cfb23e25597407f911a550a691556"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.java.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3507,
+      "sourceHash": "sha256:2093996a8ad7569b5a6085469c4a3c903f6cfb23e25597407f911a550a691556"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.python.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1135,
+      "sourceHash": "sha256:1b80e626aec7889fa501ff7da122fdb3de49b1e63a92dd22ca074d91c0ed735c"
+    },
+    {
+      "itemId": "dsa.graphs.components-cycles.code.python.parity-v1",
+      "skillId": "dsa.graphs.components-cycles",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 970,
+      "sourceHash": "sha256:1b80e626aec7889fa501ff7da122fdb3de49b1e63a92dd22ca074d91c0ed735c"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.c.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 673,
+      "sourceHash": "sha256:75124254e8977a26eca3c761d965d021cdf80063aaab8c591b06c0bd71c7aad3"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.c.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 710,
+      "sourceHash": "sha256:75124254e8977a26eca3c761d965d021cdf80063aaab8c591b06c0bd71c7aad3"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 666,
+      "sourceHash": "sha256:509f3978e28a82fdb575ceec9d3af30fb4bb42d9766a46e7a69cfceddfdbb859"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 736,
+      "sourceHash": "sha256:509f3978e28a82fdb575ceec9d3af30fb4bb42d9766a46e7a69cfceddfdbb859"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.java.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3230,
+      "sourceHash": "sha256:d92bb50c9933e6e9071bcdb3c1ea711f1049154ed56dc42dda8a53dde16e8343"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.java.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3323,
+      "sourceHash": "sha256:d92bb50c9933e6e9071bcdb3c1ea711f1049154ed56dc42dda8a53dde16e8343"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.python.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1473,
+      "sourceHash": "sha256:433f49d72051d5b88ac982936e5766f2bd72afea5ad1d2a42211f093cd56d9e5"
+    },
+    {
+      "itemId": "dsa.graphs.model.code.python.parity-v1",
+      "skillId": "dsa.graphs.model",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 1632,
+      "sourceHash": "sha256:433f49d72051d5b88ac982936e5766f2bd72afea5ad1d2a42211f093cd56d9e5"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.c.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 582,
+      "sourceHash": "sha256:25135a00d1f60aea18861d46d905935671c736db4542b457fdfb0431ee892a1d"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.c.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 677,
+      "sourceHash": "sha256:25135a00d1f60aea18861d46d905935671c736db4542b457fdfb0431ee892a1d"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 705,
+      "sourceHash": "sha256:9ab0e45335994fc820975d2de4779490c9d39cde6b35dcafce79d670bc79ce96"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 569,
+      "sourceHash": "sha256:9ab0e45335994fc820975d2de4779490c9d39cde6b35dcafce79d670bc79ce96"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.java.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3278,
+      "sourceHash": "sha256:b2ed9630384952a6bc50ab87c91e95ca589d82492461ad75f7254e50f5a5fd5d"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.java.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3247,
+      "sourceHash": "sha256:b2ed9630384952a6bc50ab87c91e95ca589d82492461ad75f7254e50f5a5fd5d"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.python.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 965,
+      "sourceHash": "sha256:5ef4e63f0a44a8c4f1b79dd42323356d5bdc60c2a6b0d24ff8f65d85e09bafbc"
+    },
+    {
+      "itemId": "dsa.graphs.mst.code.python.parity-v1",
+      "skillId": "dsa.graphs.mst",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 929,
+      "sourceHash": "sha256:5ef4e63f0a44a8c4f1b79dd42323356d5bdc60c2a6b0d24ff8f65d85e09bafbc"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.c.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 783,
+      "sourceHash": "sha256:33a6c50e878717459c469da1659628c9961f1ec1590220f764a18a480cd92a6a"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.c.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 705,
+      "sourceHash": "sha256:33a6c50e878717459c469da1659628c9961f1ec1590220f764a18a480cd92a6a"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 732,
+      "sourceHash": "sha256:1613ede95bd7731fcc5c977f7a6feacd0d7ad70eca82637d57e011d44332be7b"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 753,
+      "sourceHash": "sha256:1613ede95bd7731fcc5c977f7a6feacd0d7ad70eca82637d57e011d44332be7b"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.java.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3208,
+      "sourceHash": "sha256:f573ee7a4354424c1aaae1265be579cc0624322e662ac1fa99c2d1f160f34f07"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.java.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3008,
+      "sourceHash": "sha256:f573ee7a4354424c1aaae1265be579cc0624322e662ac1fa99c2d1f160f34f07"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.python.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 1276,
+      "sourceHash": "sha256:07f5733ba6fba843fae9679972e3bf407ec3c3b29591f1ed3c2464c48cd86202"
+    },
+    {
+      "itemId": "dsa.graphs.representation.code.python.parity-v1",
+      "skillId": "dsa.graphs.representation",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1507,
+      "sourceHash": "sha256:07f5733ba6fba843fae9679972e3bf407ec3c3b29591f1ed3c2464c48cd86202"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.c.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 752,
+      "sourceHash": "sha256:c183589214c05f97ac699fe218224f117c373b8764a27f5182f8479c26f84e7c"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.c.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 713,
+      "sourceHash": "sha256:c183589214c05f97ac699fe218224f117c373b8764a27f5182f8479c26f84e7c"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 643,
+      "sourceHash": "sha256:54fcf8be92c9a38224b7b28373373536ec7f04a2ba53d374f1a9bc2d03cf2d6f"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 899,
+      "sourceHash": "sha256:54fcf8be92c9a38224b7b28373373536ec7f04a2ba53d374f1a9bc2d03cf2d6f"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.java.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3289,
+      "sourceHash": "sha256:cf71439448e8ab70f0b1aeeaf32636fe81b2cef472caa2265bc91079a378693d"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.java.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3039,
+      "sourceHash": "sha256:cf71439448e8ab70f0b1aeeaf32636fe81b2cef472caa2265bc91079a378693d"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.python.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 878,
+      "sourceHash": "sha256:7899ca39e2c5dc00b005715e6a7aec82a439917dbb6d33a0e91675e27e8c45ac"
+    },
+    {
+      "itemId": "dsa.graphs.shortest-path.code.python.parity-v1",
+      "skillId": "dsa.graphs.shortest-path",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 925,
+      "sourceHash": "sha256:7899ca39e2c5dc00b005715e6a7aec82a439917dbb6d33a0e91675e27e8c45ac"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.c.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 671,
+      "sourceHash": "sha256:53ab7103b0cfcfa04dba960c5890ae4e4068ac4bea81574d4dfa20cd59ea0ed2"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.c.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 687,
+      "sourceHash": "sha256:53ab7103b0cfcfa04dba960c5890ae4e4068ac4bea81574d4dfa20cd59ea0ed2"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 599,
+      "sourceHash": "sha256:f4646c31b09112bdb56273e58e45e325ec59ae01d9a69ec2d17505756f3fb358"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.cpp.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 663,
+      "sourceHash": "sha256:f4646c31b09112bdb56273e58e45e325ec59ae01d9a69ec2d17505756f3fb358"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.java.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3324,
+      "sourceHash": "sha256:aed1d0871887e63b3aaba6c5a06def1b8f5d187ab099d48fdafd95a6f3376385"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.java.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3268,
+      "sourceHash": "sha256:aed1d0871887e63b3aaba6c5a06def1b8f5d187ab099d48fdafd95a6f3376385"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.python.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 821,
+      "sourceHash": "sha256:8b725b2e83a61864b8052cfad24204d63f9bbb171495fac38a780d10520aa862"
+    },
+    {
+      "itemId": "dsa.graphs.topological.code.python.parity-v1",
+      "skillId": "dsa.graphs.topological",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 822,
+      "sourceHash": "sha256:8b725b2e83a61864b8052cfad24204d63f9bbb171495fac38a780d10520aa862"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.c.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 704,
+      "sourceHash": "sha256:2c83d6634071fc992c30a2fd554f7b219428af09942d02caed08946420cf44c0"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.c.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 674,
+      "sourceHash": "sha256:2c83d6634071fc992c30a2fd554f7b219428af09942d02caed08946420cf44c0"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.cpp.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 585,
+      "sourceHash": "sha256:89acf8abf87094d7f5f5e807553189661654e36a54132f612b6c9f06cb2106f8"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.cpp.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 617,
+      "sourceHash": "sha256:89acf8abf87094d7f5f5e807553189661654e36a54132f612b6c9f06cb2106f8"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.java.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3686,
+      "sourceHash": "sha256:2f8c4c5333ab59d51f90348f5d81ceb4907edef6296329f4b575d070ad0c487a"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.java.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3603,
+      "sourceHash": "sha256:2f8c4c5333ab59d51f90348f5d81ceb4907edef6296329f4b575d070ad0c487a"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.python.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 835,
+      "sourceHash": "sha256:0f119f4dd4bfb340ee3d4c3240cd84468edb8d66e9daf5df7f9ca5269623f301"
+    },
+    {
+      "itemId": "dsa.greedy.strategy.code.python.parity-v1",
+      "skillId": "dsa.greedy.strategy",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 842,
+      "sourceHash": "sha256:0f119f4dd4bfb340ee3d4c3240cd84468edb8d66e9daf5df7f9ca5269623f301"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.c.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 815,
+      "sourceHash": "sha256:214b1dfeb61bc2412e05d9594943489ddc4b2f88c79cef3cac38e3d46c4af131"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.c.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1043,
+      "sourceHash": "sha256:214b1dfeb61bc2412e05d9594943489ddc4b2f88c79cef3cac38e3d46c4af131"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 694,
+      "sourceHash": "sha256:dc85d5b5ebec14b0f7a66c5bf659312b767dcb49fa24ea3a9643801cfb880dd6"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 653,
+      "sourceHash": "sha256:dc85d5b5ebec14b0f7a66c5bf659312b767dcb49fa24ea3a9643801cfb880dd6"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.java.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3356,
+      "sourceHash": "sha256:76182c2c2d1b9afc722982d339a3731e7878098ef7e0a7a518a550bb5b75acde"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.java.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3486,
+      "sourceHash": "sha256:76182c2c2d1b9afc722982d339a3731e7878098ef7e0a7a518a550bb5b75acde"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.python.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 896,
+      "sourceHash": "sha256:5e98a145b691fc0002c610076fd938761e00aecfb7225a723ffd2b5aa47d653e"
+    },
+    {
+      "itemId": "dsa.hashing.collisions.code.python.parity-v1",
+      "skillId": "dsa.hashing.collisions",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 912,
+      "sourceHash": "sha256:5e98a145b691fc0002c610076fd938761e00aecfb7225a723ffd2b5aa47d653e"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.c.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 828,
+      "sourceHash": "sha256:a86bf88be5cf1041532200b0e756e63d075c0a8a161a8fb5b4926fade314861b"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.c.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 841,
+      "sourceHash": "sha256:a86bf88be5cf1041532200b0e756e63d075c0a8a161a8fb5b4926fade314861b"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 585,
+      "sourceHash": "sha256:f65ee506f914f55440c36ae54accd484971bd65223a049a635aa0d4d066f0342"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 584,
+      "sourceHash": "sha256:f65ee506f914f55440c36ae54accd484971bd65223a049a635aa0d4d066f0342"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.java.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3174,
+      "sourceHash": "sha256:ac41ef924c1f73ce17cd1f03d6edad095cfa436cdac2c904787488c61bf84392"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.java.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3023,
+      "sourceHash": "sha256:ac41ef924c1f73ce17cd1f03d6edad095cfa436cdac2c904787488c61bf84392"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.python.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 830,
+      "sourceHash": "sha256:cacc4ec8a11c814936698f3281fb5c06dfca7a6d60d808ba3a830ccbfe30df0a"
+    },
+    {
+      "itemId": "dsa.hashing.contract.code.python.parity-v1",
+      "skillId": "dsa.hashing.contract",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 898,
+      "sourceHash": "sha256:cacc4ec8a11c814936698f3281fb5c06dfca7a6d60d808ba3a830ccbfe30df0a"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.c.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 720,
+      "sourceHash": "sha256:cc516b619bd1fa2afd8be1016b61b2ae8ef42cc6eca5f0b2b584899024036978"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.c.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 720,
+      "sourceHash": "sha256:cc516b619bd1fa2afd8be1016b61b2ae8ef42cc6eca5f0b2b584899024036978"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 652,
+      "sourceHash": "sha256:4609f46f1e5278704f3be2edc40e4cd055e011a571cf93726cea332a2878adf9"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 657,
+      "sourceHash": "sha256:4609f46f1e5278704f3be2edc40e4cd055e011a571cf93726cea332a2878adf9"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.java.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3407,
+      "sourceHash": "sha256:5768f6d03a304b641dab51aa414605b4414cf36a075a1a68e84a8844f0cde095"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.java.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3342,
+      "sourceHash": "sha256:5768f6d03a304b641dab51aa414605b4414cf36a075a1a68e84a8844f0cde095"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.python.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 881,
+      "sourceHash": "sha256:14406c8179bd997e31b89a15bfd0421e8fe272694d9f90112280867a78b77cbb"
+    },
+    {
+      "itemId": "dsa.hashing.patterns.code.python.parity-v1",
+      "skillId": "dsa.hashing.patterns",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 913,
+      "sourceHash": "sha256:14406c8179bd997e31b89a15bfd0421e8fe272694d9f90112280867a78b77cbb"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.c.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 643,
+      "sourceHash": "sha256:e2084f3eeeb69701a050cd8497d7d5b85660d882f4483cae288147df2ae2dc30"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.c.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 634,
+      "sourceHash": "sha256:e2084f3eeeb69701a050cd8497d7d5b85660d882f4483cae288147df2ae2dc30"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 563,
+      "sourceHash": "sha256:0f343b491e051d732c3f6e558540934d81a326260da7ea23571b370a923ba4ae"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.cpp.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 784,
+      "sourceHash": "sha256:0f343b491e051d732c3f6e558540934d81a326260da7ea23571b370a923ba4ae"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.java.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3283,
+      "sourceHash": "sha256:0d443383aa84407f6d149efcccf377339682e08a1ff2453d10e92cd6f5668be6"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.java.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3289,
+      "sourceHash": "sha256:0d443383aa84407f6d149efcccf377339682e08a1ff2453d10e92cd6f5668be6"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.python.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 929,
+      "sourceHash": "sha256:19e6c7eb7458747ef1b8d5a408e77efcb1ccd76d70554a7fa970548baa76c79b"
+    },
+    {
+      "itemId": "dsa.hashing.resize.code.python.parity-v1",
+      "skillId": "dsa.hashing.resize",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 915,
+      "sourceHash": "sha256:19e6c7eb7458747ef1b8d5a408e77efcb1ccd76d70554a7fa970548baa76c79b"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.c.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 570,
+      "sourceHash": "sha256:2f119c2eb6699a88c8ad2c6209e4a33010ae2b4f5554834c078c9d5d59eed923"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.c.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 624,
+      "sourceHash": "sha256:2f119c2eb6699a88c8ad2c6209e4a33010ae2b4f5554834c078c9d5d59eed923"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 641,
+      "sourceHash": "sha256:797f9a784b3a5a334f870e4b5c4fd436f36478dd2d4fc4b7f06d584f24cd32e9"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 717,
+      "sourceHash": "sha256:797f9a784b3a5a334f870e4b5c4fd436f36478dd2d4fc4b7f06d584f24cd32e9"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.java.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3001,
+      "sourceHash": "sha256:710dfe90da0f40fd727f500317ac992fefcced309923e40daed1e81a3d0f836c"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.java.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3043,
+      "sourceHash": "sha256:710dfe90da0f40fd727f500317ac992fefcced309923e40daed1e81a3d0f836c"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.python.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 799,
+      "sourceHash": "sha256:35c92eed247eb538966fa28a2d9faf9bd9afb5a26abaff25219548a8176b6aae"
+    },
+    {
+      "itemId": "dsa.heaps.heapsort.code.python.parity-v1",
+      "skillId": "dsa.heaps.heapsort",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 821,
+      "sourceHash": "sha256:35c92eed247eb538966fa28a2d9faf9bd9afb5a26abaff25219548a8176b6aae"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.c.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 695,
+      "sourceHash": "sha256:2d32a22db2bfa019380ecbeac8e6c00f44d0d100133a67d40cd27a37d269fc4b"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.c.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 556,
+      "sourceHash": "sha256:2d32a22db2bfa019380ecbeac8e6c00f44d0d100133a67d40cd27a37d269fc4b"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 503,
+      "sourceHash": "sha256:b7a1a7481c637e8a3a3c2c4b4cb9cf46958630fa4de0d3471cc96c3a5bd7c239"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 586,
+      "sourceHash": "sha256:b7a1a7481c637e8a3a3c2c4b4cb9cf46958630fa4de0d3471cc96c3a5bd7c239"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.java.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3072,
+      "sourceHash": "sha256:a354ec90738842cf136aa57034fe23d35fbb8e9c0dbcabcbcc643a62a507cc8b"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.java.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3057,
+      "sourceHash": "sha256:a354ec90738842cf136aa57034fe23d35fbb8e9c0dbcabcbcc643a62a507cc8b"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.python.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 846,
+      "sourceHash": "sha256:47f38e2d3154234275a461a91dd058a2611cc116ffca296eabf774ea82754c09"
+    },
+    {
+      "itemId": "dsa.heaps.operations.code.python.parity-v1",
+      "skillId": "dsa.heaps.operations",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 781,
+      "sourceHash": "sha256:47f38e2d3154234275a461a91dd058a2611cc116ffca296eabf774ea82754c09"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.c.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 571,
+      "sourceHash": "sha256:89372a6a2ff61d26884d69fac9ce57502fb06b306f17b3709ce0811c8494cfc5"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.c.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 633,
+      "sourceHash": "sha256:89372a6a2ff61d26884d69fac9ce57502fb06b306f17b3709ce0811c8494cfc5"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 706,
+      "sourceHash": "sha256:21e435d65450f9c3cd5d22822e0f6e4f22839496c1acbf391d9eaa826814f958"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 601,
+      "sourceHash": "sha256:21e435d65450f9c3cd5d22822e0f6e4f22839496c1acbf391d9eaa826814f958"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.java.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3111,
+      "sourceHash": "sha256:2d53667dc0626caa00f37bb06a59ad947414077b3818f1a6b4c8b430ae72f82e"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.java.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3109,
+      "sourceHash": "sha256:2d53667dc0626caa00f37bb06a59ad947414077b3818f1a6b4c8b430ae72f82e"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.python.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1036,
+      "sourceHash": "sha256:ad16b9bb9b8e9ad8709c38cd8915154baaf0fcb03a5a958f3692760df352830f"
+    },
+    {
+      "itemId": "dsa.heaps.priority-queue.code.python.parity-v1",
+      "skillId": "dsa.heaps.priority-queue",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 1030,
+      "sourceHash": "sha256:ad16b9bb9b8e9ad8709c38cd8915154baaf0fcb03a5a958f3692760df352830f"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.c.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 604,
+      "sourceHash": "sha256:de96d64bce3fa4f8f2728671a47848848943acd076c655c93c5438b15d16fca9"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.c.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 624,
+      "sourceHash": "sha256:de96d64bce3fa4f8f2728671a47848848943acd076c655c93c5438b15d16fca9"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 569,
+      "sourceHash": "sha256:309bc6756d22bad03cef9ebba38714c66c9a1e08bdc38ab29dd2606c4b2b4423"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.cpp.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 556,
+      "sourceHash": "sha256:309bc6756d22bad03cef9ebba38714c66c9a1e08bdc38ab29dd2606c4b2b4423"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.java.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2965,
+      "sourceHash": "sha256:91e1cfb1a03402de3ad14c52fb3e3230ba2e00c46638bac758fe60f410cfd2f1"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.java.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2973,
+      "sourceHash": "sha256:91e1cfb1a03402de3ad14c52fb3e3230ba2e00c46638bac758fe60f410cfd2f1"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.python.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 920,
+      "sourceHash": "sha256:0553f995cac3d54d55437c40e46f8e3cb3cef8b31a4ead9e05507545ba0a6b2b"
+    },
+    {
+      "itemId": "dsa.heaps.property.code.python.parity-v1",
+      "skillId": "dsa.heaps.property",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 897,
+      "sourceHash": "sha256:0553f995cac3d54d55437c40e46f8e3cb3cef8b31a4ead9e05507545ba0a6b2b"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.c.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 680,
+      "sourceHash": "sha256:8d0b992bcddded1eb5485a213ca382deca8dc229408980e51deb493ad75ba9df"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.c.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 684,
+      "sourceHash": "sha256:8d0b992bcddded1eb5485a213ca382deca8dc229408980e51deb493ad75ba9df"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.cpp.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 634,
+      "sourceHash": "sha256:224e8ce21f9886c7a276fcd4c32ad624a3bd953b176a068de095a1ca5d49cb91"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.cpp.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 631,
+      "sourceHash": "sha256:224e8ce21f9886c7a276fcd4c32ad624a3bd953b176a068de095a1ca5d49cb91"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.java.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2773,
+      "sourceHash": "sha256:58c1a292a82c0f199ce26179a97ebbd438afa646a286a0e4a0d18777c6244616"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.java.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2944,
+      "sourceHash": "sha256:58c1a292a82c0f199ce26179a97ebbd438afa646a286a0e4a0d18777c6244616"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.python.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 829,
+      "sourceHash": "sha256:06ae2273b35212606ec7a603f7a731b537c06a96d7df1084002d45f584d3d92a"
+    },
+    {
+      "itemId": "dsa.linear.applications.code.python.parity-v1",
+      "skillId": "dsa.linear.applications",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 908,
+      "sourceHash": "sha256:06ae2273b35212606ec7a603f7a731b537c06a96d7df1084002d45f584d3d92a"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.c.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 561,
+      "sourceHash": "sha256:72e57fb970206cb6014c24334679b944b0de16f4b5374516b842985b4feb5464"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.c.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 494,
+      "sourceHash": "sha256:72e57fb970206cb6014c24334679b944b0de16f4b5374516b842985b4feb5464"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.cpp.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 487,
+      "sourceHash": "sha256:d4e23e056db20bb08f5fba8dbdcc67867aeb3d4b70f2ef4ae194c9ebca55a967"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.cpp.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 583,
+      "sourceHash": "sha256:d4e23e056db20bb08f5fba8dbdcc67867aeb3d4b70f2ef4ae194c9ebca55a967"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.java.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2697,
+      "sourceHash": "sha256:37cf4209930df4175dbe155f1390c56fde13ab069d9f995cb2061d08c8fbdbba"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.java.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2658,
+      "sourceHash": "sha256:37cf4209930df4175dbe155f1390c56fde13ab069d9f995cb2061d08c8fbdbba"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.python.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 797,
+      "sourceHash": "sha256:350ac063dbc3a6d5b47d451752a182e82620c6dcaac015aa96fd04a10cfcd660"
+    },
+    {
+      "itemId": "dsa.lists.doubly-circular.code.python.parity-v1",
+      "skillId": "dsa.lists.doubly-circular",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 772,
+      "sourceHash": "sha256:350ac063dbc3a6d5b47d451752a182e82620c6dcaac015aa96fd04a10cfcd660"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.c.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 561,
+      "sourceHash": "sha256:56c29e36e9e2f8d0d4b50c6dbba19dec5c498b40184271e04a0544f1810b7792"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.c.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 527,
+      "sourceHash": "sha256:56c29e36e9e2f8d0d4b50c6dbba19dec5c498b40184271e04a0544f1810b7792"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.cpp.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 516,
+      "sourceHash": "sha256:aedfbb7a6a78c29fee2b733019df670f4e9a466f2ed7749fba2ff68f510307f8"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.cpp.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 525,
+      "sourceHash": "sha256:aedfbb7a6a78c29fee2b733019df670f4e9a466f2ed7749fba2ff68f510307f8"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.java.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2785,
+      "sourceHash": "sha256:496f11aa5498744ba7c55e2db20543b556acab9548230034a6bf95fdbf308b44"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.java.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2800,
+      "sourceHash": "sha256:496f11aa5498744ba7c55e2db20543b556acab9548230034a6bf95fdbf308b44"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.python.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 768,
+      "sourceHash": "sha256:52db5969cf315d009b8b2ee652d4d4946744f05d37dfb974df5f8bfb37ee8f9f"
+    },
+    {
+      "itemId": "dsa.lists.insert-delete.code.python.parity-v1",
+      "skillId": "dsa.lists.insert-delete",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 762,
+      "sourceHash": "sha256:52db5969cf315d009b8b2ee652d4d4946744f05d37dfb974df5f8bfb37ee8f9f"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.c.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 620,
+      "sourceHash": "sha256:78e2efb67d67bb089f161ebff137fac5a1f32ee2cc686d6b498750362876db47"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.c.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 658,
+      "sourceHash": "sha256:78e2efb67d67bb089f161ebff137fac5a1f32ee2cc686d6b498750362876db47"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.cpp.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 594,
+      "sourceHash": "sha256:93e555aefc37d99660a4e409d8ca45bb0ae98af5f6c622ed04265e238b20fc48"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.cpp.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 529,
+      "sourceHash": "sha256:93e555aefc37d99660a4e409d8ca45bb0ae98af5f6c622ed04265e238b20fc48"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.java.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2995,
+      "sourceHash": "sha256:509cc0fe87012bc3d35db623d38c4cffcfff8f06d8a51566ebdec2e3320c9d83"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.java.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2986,
+      "sourceHash": "sha256:509cc0fe87012bc3d35db623d38c4cffcfff8f06d8a51566ebdec2e3320c9d83"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.python.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 857,
+      "sourceHash": "sha256:38602555fc7b3787a4e32571cbc0b4ab7999635bd9eca073e42397b4c369b3f6"
+    },
+    {
+      "itemId": "dsa.lists.pointer-patterns.code.python.parity-v1",
+      "skillId": "dsa.lists.pointer-patterns",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 916,
+      "sourceHash": "sha256:38602555fc7b3787a4e32571cbc0b4ab7999635bd9eca073e42397b4c369b3f6"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.c.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 655,
+      "sourceHash": "sha256:b9acea7a387554d00ab2a09a990ad7f98ec4fbec05b08ebcb952cc66179ac2c9"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.c.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 681,
+      "sourceHash": "sha256:b9acea7a387554d00ab2a09a990ad7f98ec4fbec05b08ebcb952cc66179ac2c9"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.cpp.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 672,
+      "sourceHash": "sha256:844b14f19e129d6334d9adc1d02b8ef4ac7365189e6dc8d496c26ba513d790f7"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.cpp.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 611,
+      "sourceHash": "sha256:844b14f19e129d6334d9adc1d02b8ef4ac7365189e6dc8d496c26ba513d790f7"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.java.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3015,
+      "sourceHash": "sha256:2844418d8612d66fefae890e6895248239badf1cb7affe6e724c0c60b10a1305"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.java.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3009,
+      "sourceHash": "sha256:2844418d8612d66fefae890e6895248239badf1cb7affe6e724c0c60b10a1305"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.python.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 754,
+      "sourceHash": "sha256:ca772cd0844327f534f319b813c0e9135ef53560194db8dbdbd9835ec8380033"
+    },
+    {
+      "itemId": "dsa.lists.singly.code.python.parity-v1",
+      "skillId": "dsa.lists.singly",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 739,
+      "sourceHash": "sha256:ca772cd0844327f534f319b813c0e9135ef53560194db8dbdbd9835ec8380033"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.c.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 590,
+      "sourceHash": "sha256:cfd6265000c5ccfb1c24e400005133ec70cadca468edb203a8d6651b2e8e6aa5"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.c.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 637,
+      "sourceHash": "sha256:cfd6265000c5ccfb1c24e400005133ec70cadca468edb203a8d6651b2e8e6aa5"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 605,
+      "sourceHash": "sha256:a53ac834f69e338b2ff999052d37f5483ee3c180e67833ff249bd4de1aaf48e6"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 581,
+      "sourceHash": "sha256:a53ac834f69e338b2ff999052d37f5483ee3c180e67833ff249bd4de1aaf48e6"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.java.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2721,
+      "sourceHash": "sha256:66169c73d9af116a0311d59abfa5ba34684c3b7fd90e801090de86345c748c5f"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.java.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2912,
+      "sourceHash": "sha256:66169c73d9af116a0311d59abfa5ba34684c3b7fd90e801090de86345c748c5f"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.python.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 864,
+      "sourceHash": "sha256:65411a860591bf446915510a250006280dc2008955eb9ff948c0993f98a9a614"
+    },
+    {
+      "itemId": "dsa.patterns.interval.code.python.parity-v1",
+      "skillId": "dsa.patterns.interval",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 909,
+      "sourceHash": "sha256:65411a860591bf446915510a250006280dc2008955eb9ff948c0993f98a9a614"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.c.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 607,
+      "sourceHash": "sha256:fbfe19642ea3519e213f7d456855e341b60755fd9adc409bc27f172b95429466"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.c.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 569,
+      "sourceHash": "sha256:fbfe19642ea3519e213f7d456855e341b60755fd9adc409bc27f172b95429466"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 517,
+      "sourceHash": "sha256:39dc33e7dc7ef6a208bd2ad79ff2cc0428c1ffafa7bc9016112d882a1b7ba0dd"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 580,
+      "sourceHash": "sha256:39dc33e7dc7ef6a208bd2ad79ff2cc0428c1ffafa7bc9016112d882a1b7ba0dd"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.java.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2864,
+      "sourceHash": "sha256:c2b08979644fe233f0fcc29a808e0f73e2c9cb53706bbaf3bf0661ebed7dd5ab"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.java.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3098,
+      "sourceHash": "sha256:c2b08979644fe233f0fcc29a808e0f73e2c9cb53706bbaf3bf0661ebed7dd5ab"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.python.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 786,
+      "sourceHash": "sha256:c9646d5b7606e95e2bfd7cc7d0e6be586238655944893264311fea9c7ec7e0a9"
+    },
+    {
+      "itemId": "dsa.patterns.monotonic.code.python.parity-v1",
+      "skillId": "dsa.patterns.monotonic",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 836,
+      "sourceHash": "sha256:c9646d5b7606e95e2bfd7cc7d0e6be586238655944893264311fea9c7ec7e0a9"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.c.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 632,
+      "sourceHash": "sha256:d98f5fb66a249427a9ad7fce6ec7358c31680c0e9e19f7bc73251fce0af57cad"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.c.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 627,
+      "sourceHash": "sha256:d98f5fb66a249427a9ad7fce6ec7358c31680c0e9e19f7bc73251fce0af57cad"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 561,
+      "sourceHash": "sha256:d27d409cea638a82ebdee36c77fb0863e1574a3652a3737023e28cbd18b6033e"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 631,
+      "sourceHash": "sha256:d27d409cea638a82ebdee36c77fb0863e1574a3652a3737023e28cbd18b6033e"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.java.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2809,
+      "sourceHash": "sha256:bc274bcb2c44b4337cda1709973634825c57d6f2fd3d1e11fe183ae40446d870"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.java.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2713,
+      "sourceHash": "sha256:bc274bcb2c44b4337cda1709973634825c57d6f2fd3d1e11fe183ae40446d870"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.python.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 720,
+      "sourceHash": "sha256:3345570e95765a1e07804190a64021b2573b30642790c30bc9c3496a2f690c39"
+    },
+    {
+      "itemId": "dsa.patterns.sliding-window.code.python.parity-v1",
+      "skillId": "dsa.patterns.sliding-window",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 715,
+      "sourceHash": "sha256:3345570e95765a1e07804190a64021b2573b30642790c30bc9c3496a2f690c39"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.c.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 516,
+      "sourceHash": "sha256:68d33fd4b1265df7b8a803c0c573b0d40ab8f90e623655e9712e4478245b06da"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.c.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 631,
+      "sourceHash": "sha256:68d33fd4b1265df7b8a803c0c573b0d40ab8f90e623655e9712e4478245b06da"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 587,
+      "sourceHash": "sha256:faafc6fe28a7d56d06395ba5fdb8853acda732a391c96f5338cc941f86c7c832"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.cpp.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 550,
+      "sourceHash": "sha256:faafc6fe28a7d56d06395ba5fdb8853acda732a391c96f5338cc941f86c7c832"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.java.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3003,
+      "sourceHash": "sha256:bd85a526ab6f87a375c0afc1603276a00cb24a60a024b28cf965789331a5260e"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.java.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3053,
+      "sourceHash": "sha256:bd85a526ab6f87a375c0afc1603276a00cb24a60a024b28cf965789331a5260e"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.python.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 781,
+      "sourceHash": "sha256:447afe54e64878750ec9eeb64360af536386bd9d267666ae8855b7e46bf8d9dc"
+    },
+    {
+      "itemId": "dsa.patterns.two-pointer.code.python.parity-v1",
+      "skillId": "dsa.patterns.two-pointer",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 881,
+      "sourceHash": "sha256:447afe54e64878750ec9eeb64360af536386bd9d267666ae8855b7e46bf8d9dc"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.c.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 653,
+      "sourceHash": "sha256:fcf6066db09015346aaf1f30a3cdfb5ad65fbf2bd30a3ed60e05f4ee0ee6aaa0"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.c.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 674,
+      "sourceHash": "sha256:fcf6066db09015346aaf1f30a3cdfb5ad65fbf2bd30a3ed60e05f4ee0ee6aaa0"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.cpp.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 524,
+      "sourceHash": "sha256:9ed10f384b2ceb5da0971aa7a7b74d39bca2a582172c11fc3f93948d3a7f2a9f"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.cpp.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 544,
+      "sourceHash": "sha256:9ed10f384b2ceb5da0971aa7a7b74d39bca2a582172c11fc3f93948d3a7f2a9f"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.java.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2842,
+      "sourceHash": "sha256:9cf16b05e099bb847749f4d0639a59f06665cbef5f896af785cef98c8021f0f7"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.java.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2857,
+      "sourceHash": "sha256:9cf16b05e099bb847749f4d0639a59f06665cbef5f896af785cef98c8021f0f7"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.python.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 806,
+      "sourceHash": "sha256:b0d1b42cd599e6417e36f18d1f30a63f08b3dc026b6851869708fde357fea228"
+    },
+    {
+      "itemId": "dsa.quality.adversarial-tests.code.python.parity-v1",
+      "skillId": "dsa.quality.adversarial-tests",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 762,
+      "sourceHash": "sha256:b0d1b42cd599e6417e36f18d1f30a63f08b3dc026b6851869708fde357fea228"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.c.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 614,
+      "sourceHash": "sha256:318998be006c2b8af56d29936dd5b330c8d666ffe7b5f541950bd046ca7f692d"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.c.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 517,
+      "sourceHash": "sha256:318998be006c2b8af56d29936dd5b330c8d666ffe7b5f541950bd046ca7f692d"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.cpp.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 504,
+      "sourceHash": "sha256:fa0f7c868643e9d4f9b7fc0fc164afbdc11d39263b1d65a1d0b864a1bd489179"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.cpp.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 549,
+      "sourceHash": "sha256:fa0f7c868643e9d4f9b7fc0fc164afbdc11d39263b1d65a1d0b864a1bd489179"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.java.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2823,
+      "sourceHash": "sha256:9af268780b2549239e88dc23c40781fb78041a0cdd824e727f9597bbf77c0969"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.java.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2813,
+      "sourceHash": "sha256:9af268780b2549239e88dc23c40781fb78041a0cdd824e727f9597bbf77c0969"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.python.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 781,
+      "sourceHash": "sha256:d8295c3c5f4df4b72db3f55c4c20cb2b643e38e42c0f333ec7866faa149e2c25"
+    },
+    {
+      "itemId": "dsa.quality.capstone.code.python.parity-v1",
+      "skillId": "dsa.quality.capstone",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 743,
+      "sourceHash": "sha256:d8295c3c5f4df4b72db3f55c4c20cb2b643e38e42c0f333ec7866faa149e2c25"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.c.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 618,
+      "sourceHash": "sha256:5b02157cd72b99a4d75b52cb9910ea1fab4552fc73e6c67b4c581c0a48a20cd0"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.c.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 623,
+      "sourceHash": "sha256:5b02157cd72b99a4d75b52cb9910ea1fab4552fc73e6c67b4c581c0a48a20cd0"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.cpp.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 539,
+      "sourceHash": "sha256:250d11b805b3a5ef2f84f298eefa515827db2b1bfe874d123730ee4de88203aa"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.cpp.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 512,
+      "sourceHash": "sha256:250d11b805b3a5ef2f84f298eefa515827db2b1bfe874d123730ee4de88203aa"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.java.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2741,
+      "sourceHash": "sha256:0e8a31a9655e9550417ec6ce9a355d274697a7bd2a67c4887c681e23ec9e3b2b"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.java.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2734,
+      "sourceHash": "sha256:0e8a31a9655e9550417ec6ce9a355d274697a7bd2a67c4887c681e23ec9e3b2b"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.python.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 812,
+      "sourceHash": "sha256:3e80cc780b9ea2cfbf897defab658629d2a929967f10fc9e2b4ce4c5d30ab09c"
+    },
+    {
+      "itemId": "dsa.queue.adt.code.python.parity-v1",
+      "skillId": "dsa.queue.adt",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 687,
+      "sourceHash": "sha256:3e80cc780b9ea2cfbf897defab658629d2a929967f10fc9e2b4ce4c5d30ab09c"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.c.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 517,
+      "sourceHash": "sha256:6e0757c9550a6956ab49acfe20cedf3f938bc273c0ad276a584b052962cfc8ee"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.c.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 516,
+      "sourceHash": "sha256:6e0757c9550a6956ab49acfe20cedf3f938bc273c0ad276a584b052962cfc8ee"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 458,
+      "sourceHash": "sha256:927592a87d98f73f44888e996841f9f6edcc56cb6afac5725e3fac412a783269"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 505,
+      "sourceHash": "sha256:927592a87d98f73f44888e996841f9f6edcc56cb6afac5725e3fac412a783269"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.java.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2637,
+      "sourceHash": "sha256:b005acb1978a67da44ca7474fde794ac9eda0f6eeb3f3f1467f9ab02a8c71dab"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.java.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2863,
+      "sourceHash": "sha256:b005acb1978a67da44ca7474fde794ac9eda0f6eeb3f3f1467f9ab02a8c71dab"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.python.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 771,
+      "sourceHash": "sha256:ec440bce0604a8ed4ab793f974039468b8bff744966479d676a14fb735adbddf"
+    },
+    {
+      "itemId": "dsa.recursion.design.code.python.parity-v1",
+      "skillId": "dsa.recursion.design",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 820,
+      "sourceHash": "sha256:ec440bce0604a8ed4ab793f974039468b8bff744966479d676a14fb735adbddf"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.c.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 592,
+      "sourceHash": "sha256:35dd849baf8e5f454c98d396190c83863c2796f89ea083e4b241199ac3ed596c"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.c.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 601,
+      "sourceHash": "sha256:35dd849baf8e5f454c98d396190c83863c2796f89ea083e4b241199ac3ed596c"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 514,
+      "sourceHash": "sha256:e0a5d2666dfecedbba5a7cb3a306e9dc3bb3eb113b04a1a99b5d8b42e0e619c8"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 524,
+      "sourceHash": "sha256:e0a5d2666dfecedbba5a7cb3a306e9dc3bb3eb113b04a1a99b5d8b42e0e619c8"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.java.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2621,
+      "sourceHash": "sha256:a2859f6999d9279ae393c445c989e36a553f8940891ac6d1f1d98a1c9bc63aa1"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.java.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2600,
+      "sourceHash": "sha256:a2859f6999d9279ae393c445c989e36a553f8940891ac6d1f1d98a1c9bc63aa1"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.python.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 816,
+      "sourceHash": "sha256:289542cbf5c55dbee62f0dd5473cbcbb0af8f4dcb679a3451e046222c7834282"
+    },
+    {
+      "itemId": "dsa.recursion.divide-conquer.code.python.parity-v1",
+      "skillId": "dsa.recursion.divide-conquer",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 763,
+      "sourceHash": "sha256:289542cbf5c55dbee62f0dd5473cbcbb0af8f4dcb679a3451e046222c7834282"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.c.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 625,
+      "sourceHash": "sha256:2758d5fda44b74e5090d10c17544e790885ec8824e144c605e4bf77929a0ab1b"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.c.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 616,
+      "sourceHash": "sha256:2758d5fda44b74e5090d10c17544e790885ec8824e144c605e4bf77929a0ab1b"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 571,
+      "sourceHash": "sha256:a9fd23c7d2ed2e3cc52f88fb28c52e8309e7857551f1695b1bcc292b2e4f8e06"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 587,
+      "sourceHash": "sha256:a9fd23c7d2ed2e3cc52f88fb28c52e8309e7857551f1695b1bcc292b2e4f8e06"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.java.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2862,
+      "sourceHash": "sha256:10ea111012de1caab6c08c1583c4f6f295b294d81851fca78fab55f6ba264cad"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.java.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2835,
+      "sourceHash": "sha256:10ea111012de1caab6c08c1583c4f6f295b294d81851fca78fab55f6ba264cad"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.python.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 690,
+      "sourceHash": "sha256:e8e41fb7282bd45305cd46cbc1aca5df1b6fc312b379aaf5a3ee64d63be4fd44"
+    },
+    {
+      "itemId": "dsa.recursion.recurrence.code.python.parity-v1",
+      "skillId": "dsa.recursion.recurrence",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 734,
+      "sourceHash": "sha256:e8e41fb7282bd45305cd46cbc1aca5df1b6fc312b379aaf5a3ee64d63be4fd44"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.c.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 523,
+      "sourceHash": "sha256:e063da9a96efe4f7b36e59ea12807f3237d5512c4642f020da0f5fdcb8e8c4a6"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.c.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 596,
+      "sourceHash": "sha256:e063da9a96efe4f7b36e59ea12807f3237d5512c4642f020da0f5fdcb8e8c4a6"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 558,
+      "sourceHash": "sha256:bee449ef799826e6b754a2610c9cb00883424ef2dd599ad0f91572da3fee3f40"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.cpp.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 611,
+      "sourceHash": "sha256:bee449ef799826e6b754a2610c9cb00883424ef2dd599ad0f91572da3fee3f40"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.java.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2490,
+      "sourceHash": "sha256:37a7a5455d5b4abb43ad2060e22979561d21be2f79149a2a4c69dcf5420f83a8"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.java.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2575,
+      "sourceHash": "sha256:37a7a5455d5b4abb43ad2060e22979561d21be2f79149a2a4c69dcf5420f83a8"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.python.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 856,
+      "sourceHash": "sha256:f838034b461567a40ccf0f0e4e4f445aa959a191574e6a0b8556d92faaab063d"
+    },
+    {
+      "itemId": "dsa.recursion.stack.code.python.parity-v1",
+      "skillId": "dsa.recursion.stack",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 700,
+      "sourceHash": "sha256:f838034b461567a40ccf0f0e4e4f445aa959a191574e6a0b8556d92faaab063d"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.c.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 550,
+      "sourceHash": "sha256:7bd04da14fad1b9f04b67c600293494b6b6e51e647441958fe0ea9410fafe6d3"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.c.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 631,
+      "sourceHash": "sha256:7bd04da14fad1b9f04b67c600293494b6b6e51e647441958fe0ea9410fafe6d3"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.cpp.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 553,
+      "sourceHash": "sha256:91203412691b35b7e7fb2be31a621309d7336d7c6a0bd23df29958eef9c63f89"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.cpp.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 492,
+      "sourceHash": "sha256:91203412691b35b7e7fb2be31a621309d7336d7c6a0bd23df29958eef9c63f89"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.java.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2724,
+      "sourceHash": "sha256:6aae64c807513bafeba356d76d164c7ec6aa48d4719bfb0a2bbb62745c1e170b"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.java.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2650,
+      "sourceHash": "sha256:6aae64c807513bafeba356d76d164c7ec6aa48d4719bfb0a2bbb62745c1e170b"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.python.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 855,
+      "sourceHash": "sha256:c49892b3e44d229adac6c2ed46475181ad4d443e96adadf57e9a4e8ba2e880b6"
+    },
+    {
+      "itemId": "dsa.search.linear-binary.code.python.parity-v1",
+      "skillId": "dsa.search.linear-binary",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 818,
+      "sourceHash": "sha256:c49892b3e44d229adac6c2ed46475181ad4d443e96adadf57e9a4e8ba2e880b6"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.c.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 538,
+      "sourceHash": "sha256:6f3dd2dee98ee69e96f3f3d7fc2cf0bea1c637819bc37719b1ae8d0603fcd7b0"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.c.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 534,
+      "sourceHash": "sha256:6f3dd2dee98ee69e96f3f3d7fc2cf0bea1c637819bc37719b1ae8d0603fcd7b0"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.cpp.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 512,
+      "sourceHash": "sha256:1ae43ed3b9abaf3c120023d007fb9d385c98302cdf06f9195de772dc7c506de1"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.cpp.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 555,
+      "sourceHash": "sha256:1ae43ed3b9abaf3c120023d007fb9d385c98302cdf06f9195de772dc7c506de1"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.java.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2799,
+      "sourceHash": "sha256:ffb7765aa6715b9de74cc2a7cbce9a020c61d59e79443c0cd831b03c4f4f6d32"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.java.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2813,
+      "sourceHash": "sha256:ffb7765aa6715b9de74cc2a7cbce9a020c61d59e79443c0cd831b03c4f4f6d32"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.python.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 817,
+      "sourceHash": "sha256:0857a5e90cd0c6cbe52001570a81453802899bad03a6bd84cd049a4d80210f37"
+    },
+    {
+      "itemId": "dsa.sort.elementary.code.python.parity-v1",
+      "skillId": "dsa.sort.elementary",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 802,
+      "sourceHash": "sha256:0857a5e90cd0c6cbe52001570a81453802899bad03a6bd84cd049a4d80210f37"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.c.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 570,
+      "sourceHash": "sha256:639f91d68e8d3efec71f7867510abe3922123067da241f7f5723beabc0be3bee"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.c.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 576,
+      "sourceHash": "sha256:639f91d68e8d3efec71f7867510abe3922123067da241f7f5723beabc0be3bee"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.cpp.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 661,
+      "sourceHash": "sha256:e8178cfd10c72c93403ae85cd8257ee829e81690672c031a70497d6dcf02d27e"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.cpp.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 606,
+      "sourceHash": "sha256:e8178cfd10c72c93403ae85cd8257ee829e81690672c031a70497d6dcf02d27e"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.java.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3130,
+      "sourceHash": "sha256:5be439a49dd9cef8455fd6304e3a692951b4c7ca1cc6fd755df8588badba3bee"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.java.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3285,
+      "sourceHash": "sha256:5be439a49dd9cef8455fd6304e3a692951b4c7ca1cc6fd755df8588badba3bee"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.python.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 947,
+      "sourceHash": "sha256:d5c489701725286c04673c9c627573837d443f125cc750c92127706f0e9813d5"
+    },
+    {
+      "itemId": "dsa.sort.merge-quick.code.python.parity-v1",
+      "skillId": "dsa.sort.merge-quick",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 957,
+      "sourceHash": "sha256:d5c489701725286c04673c9c627573837d443f125cc750c92127706f0e9813d5"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.c.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 667,
+      "sourceHash": "sha256:fee773dd0bcd5a576eafd5a1668199feb9d26a583c36e92e7b3775685614d969"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.c.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 696,
+      "sourceHash": "sha256:fee773dd0bcd5a576eafd5a1668199feb9d26a583c36e92e7b3775685614d969"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.cpp.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 729,
+      "sourceHash": "sha256:cd54e988401191d4b7235154154fe4c0aeaf718ee45c67d312272f58bb1bdd86"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.cpp.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 799,
+      "sourceHash": "sha256:cd54e988401191d4b7235154154fe4c0aeaf718ee45c67d312272f58bb1bdd86"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.java.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3142,
+      "sourceHash": "sha256:995b8cf6e598d36fd962e8dfaba52149ddd21bcf9d6fa4a904df97e95347552a"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.java.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3077,
+      "sourceHash": "sha256:995b8cf6e598d36fd962e8dfaba52149ddd21bcf9d6fa4a904df97e95347552a"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.python.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 795,
+      "sourceHash": "sha256:950641b98ed2dd9a63af1f2b86489305cf81219e6bc6b766a5e585071d649687"
+    },
+    {
+      "itemId": "dsa.sort.selection.code.python.parity-v1",
+      "skillId": "dsa.sort.selection",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 914,
+      "sourceHash": "sha256:950641b98ed2dd9a63af1f2b86489305cf81219e6bc6b766a5e585071d649687"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.c.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 639,
+      "sourceHash": "sha256:6fa0c13effbf96414cc7c2ba627957839ca29f7ad75942536d781bc01a7a49db"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.c.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 671,
+      "sourceHash": "sha256:6fa0c13effbf96414cc7c2ba627957839ca29f7ad75942536d781bc01a7a49db"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.cpp.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 778,
+      "sourceHash": "sha256:603bec9d368c4c7f33b5e1edc310c768161507351d9046340def5db684794be8"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.cpp.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 817,
+      "sourceHash": "sha256:603bec9d368c4c7f33b5e1edc310c768161507351d9046340def5db684794be8"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.java.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3239,
+      "sourceHash": "sha256:f51f79da2e9bef084a36caff971b814e90aac10f67d37d47ae67bbe28176cfc4"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.java.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2998,
+      "sourceHash": "sha256:f51f79da2e9bef084a36caff971b814e90aac10f67d37d47ae67bbe28176cfc4"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.python.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 874,
+      "sourceHash": "sha256:4672393e493e8cdd89a45d1f4606f72c1962d1ef112a271f2b20605859051fbc"
+    },
+    {
+      "itemId": "dsa.stack.adt.code.python.parity-v1",
+      "skillId": "dsa.stack.adt",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1024,
+      "sourceHash": "sha256:4672393e493e8cdd89a45d1f4606f72c1962d1ef112a271f2b20605859051fbc"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.c.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 741,
+      "sourceHash": "sha256:ee711f72f034b9269efa56028bd227cda64acdecf8bb978ca6d08560728ac8d7"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.c.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 744,
+      "sourceHash": "sha256:ee711f72f034b9269efa56028bd227cda64acdecf8bb978ca6d08560728ac8d7"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.cpp.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 598,
+      "sourceHash": "sha256:2d8186ca64b65340ffe4eec6a27472307a154319964ba1a61643b4f9f8046ab5"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.cpp.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 695,
+      "sourceHash": "sha256:2d8186ca64b65340ffe4eec6a27472307a154319964ba1a61643b4f9f8046ab5"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.java.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2903,
+      "sourceHash": "sha256:86511491558e9c3d0651d757ff39abfb4c7f23956c88d58f44e599d1fc5cde74"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.java.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2814,
+      "sourceHash": "sha256:86511491558e9c3d0651d757ff39abfb4c7f23956c88d58f44e599d1fc5cde74"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.python.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 851,
+      "sourceHash": "sha256:1c96b75b092a31398506829f590e6eb2d2d8f1b199205c577e1c626d1051fc86"
+    },
+    {
+      "itemId": "dsa.strings.algorithms.code.python.parity-v1",
+      "skillId": "dsa.strings.algorithms",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 934,
+      "sourceHash": "sha256:1c96b75b092a31398506829f590e6eb2d2d8f1b199205c577e1c626d1051fc86"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.c.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 640,
+      "sourceHash": "sha256:aec0e0f99ad27849e8eee8faea1f16c57825b3612d9c0820ec07781fe93d933f"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.c.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 715,
+      "sourceHash": "sha256:aec0e0f99ad27849e8eee8faea1f16c57825b3612d9c0820ec07781fe93d933f"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.cpp.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 701,
+      "sourceHash": "sha256:f173c4cf9b979494daafeefd90943790fb6d277298d370ad9007ed99fcb4354e"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.cpp.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 722,
+      "sourceHash": "sha256:f173c4cf9b979494daafeefd90943790fb6d277298d370ad9007ed99fcb4354e"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.java.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3070,
+      "sourceHash": "sha256:1571afbf1e47f08d908408cf13146d1904ebfe6e46b2b057104e68f6a0d8c23c"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.java.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3366,
+      "sourceHash": "sha256:1571afbf1e47f08d908408cf13146d1904ebfe6e46b2b057104e68f6a0d8c23c"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.python.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 828,
+      "sourceHash": "sha256:06bfb29a300e652ff5045ca8f8bda3dfe31b7f0e174d916daa815b2b50f2dea0"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.c.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 543,
+      "sourceHash": "sha256:3d36107b4da2cd4e787e1e1e3a182501471e0c43d8096083758c9b2728eaa879"
+    },
+    {
+      "itemId": "dsa.transfer.language-map.code.python.parity-v1",
+      "skillId": "dsa.transfer.language-map",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 1163,
+      "sourceHash": "sha256:06bfb29a300e652ff5045ca8f8bda3dfe31b7f0e174d916daa815b2b50f2dea0"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.c.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 800,
+      "sourceHash": "sha256:3d36107b4da2cd4e787e1e1e3a182501471e0c43d8096083758c9b2728eaa879"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.cpp.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 607,
+      "sourceHash": "sha256:c06b7d3312f661ba9561eb7de0fa8256d076856efa3aa97d45302a530449310b"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.cpp.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 632,
+      "sourceHash": "sha256:c06b7d3312f661ba9561eb7de0fa8256d076856efa3aa97d45302a530449310b"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.java.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3048,
+      "sourceHash": "sha256:f2f94c861906c3571e60daeb03090cd35ea3ca1742ed5b6073247f3fd4b55de7"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.java.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3017,
+      "sourceHash": "sha256:f2f94c861906c3571e60daeb03090cd35ea3ca1742ed5b6073247f3fd4b55de7"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.python.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 876,
+      "sourceHash": "sha256:bdc1cc54a6a67667536e5e1edac36215ca0796e6b1081c2324b5a40a0986b93a"
+    },
+    {
+      "itemId": "dsa.transfer.switch-diagnostic.code.python.parity-v1",
+      "skillId": "dsa.transfer.switch-diagnostic",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 899,
+      "sourceHash": "sha256:bdc1cc54a6a67667536e5e1edac36215ca0796e6b1081c2324b5a40a0986b93a"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.c.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 585,
+      "sourceHash": "sha256:11ced1de6130789c7a218b1354de10a682d0b99690a9abdf55592f6958df8972"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.c.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 575,
+      "sourceHash": "sha256:11ced1de6130789c7a218b1354de10a682d0b99690a9abdf55592f6958df8972"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.cpp.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 533,
+      "sourceHash": "sha256:8e0d9c5c61a6cafc9ad291b9f8dfbf78fb4538a8c1f3990dc0021fb0eab968bf"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.cpp.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 596,
+      "sourceHash": "sha256:8e0d9c5c61a6cafc9ad291b9f8dfbf78fb4538a8c1f3990dc0021fb0eab968bf"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.java.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3455,
+      "sourceHash": "sha256:640c204beba38deb63f2002fd6d5944e3e7a338ef13806d7e269aff212390f76"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.java.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3027,
+      "sourceHash": "sha256:640c204beba38deb63f2002fd6d5944e3e7a338ef13806d7e269aff212390f76"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.python.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 803,
+      "sourceHash": "sha256:5f74b6ec0dc36387827c66d9665c6fc12179f8670aa4a470785610cdac8b6915"
+    },
+    {
+      "itemId": "dsa.trees.balance-trie.code.python.parity-v1",
+      "skillId": "dsa.trees.balance-trie",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 791,
+      "sourceHash": "sha256:5f74b6ec0dc36387827c66d9665c6fc12179f8670aa4a470785610cdac8b6915"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.c.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 541,
+      "sourceHash": "sha256:eec212191e1d630926ffd8dc8132c32d1ac7f47d9a0a5b264fdb7c91265588c6"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.c.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 611,
+      "sourceHash": "sha256:eec212191e1d630926ffd8dc8132c32d1ac7f47d9a0a5b264fdb7c91265588c6"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.cpp.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 553,
+      "sourceHash": "sha256:363a7a52319b44e9d2f845e05753127918fccc8e8e404e5ea72e7f24432fe538"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.cpp.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 578,
+      "sourceHash": "sha256:363a7a52319b44e9d2f845e05753127918fccc8e8e404e5ea72e7f24432fe538"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.java.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2979,
+      "sourceHash": "sha256:73d60eea4721bb7b2b75f3061c86579467aa9c9ca1a592501b1ed56df1016f65"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.java.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2884,
+      "sourceHash": "sha256:73d60eea4721bb7b2b75f3061c86579467aa9c9ca1a592501b1ed56df1016f65"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.python.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 1126,
+      "sourceHash": "sha256:699a000c474c68f27a9887ff44f08164f25e7c5e1252effb8ca657ffc1369842"
+    },
+    {
+      "itemId": "dsa.trees.bst.code.python.parity-v1",
+      "skillId": "dsa.trees.bst",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 1125,
+      "sourceHash": "sha256:699a000c474c68f27a9887ff44f08164f25e7c5e1252effb8ca657ffc1369842"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.c.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 587,
+      "sourceHash": "sha256:1f43f417a2e64f1b56bd08792f8e8b04a1f6d33dd2642404d08cbe4c60f3f7d1"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.c.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 631,
+      "sourceHash": "sha256:1f43f417a2e64f1b56bd08792f8e8b04a1f6d33dd2642404d08cbe4c60f3f7d1"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.cpp.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 581,
+      "sourceHash": "sha256:5abfb961f8e6dc36ec7b6a97fcd9414444df502729c132a265c685229ef56b1e"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.cpp.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 579,
+      "sourceHash": "sha256:5abfb961f8e6dc36ec7b6a97fcd9414444df502729c132a265c685229ef56b1e"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.java.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 2762,
+      "sourceHash": "sha256:8ca2e87b2314bcb45e7d576495b7ace2a9d664903658526d45645700db0f7a9d"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.java.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 2864,
+      "sourceHash": "sha256:8ca2e87b2314bcb45e7d576495b7ace2a9d664903658526d45645700db0f7a9d"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.python.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 849,
+      "sourceHash": "sha256:999f87a23a3ff0e12fc42a6d747d29ef1794e67f2f135da200db04914a2a61ab"
+    },
+    {
+      "itemId": "dsa.trees.structure.code.python.parity-v1",
+      "skillId": "dsa.trees.structure",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 782,
+      "sourceHash": "sha256:999f87a23a3ff0e12fc42a6d747d29ef1794e67f2f135da200db04914a2a61ab"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.c.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "c",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 560,
+      "sourceHash": "sha256:d522fa06067f78198855b5c663c54a4884b843ede146f1c12b6e57f70e3048a2"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.c.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "c",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 502,
+      "sourceHash": "sha256:d522fa06067f78198855b5c663c54a4884b843ede146f1c12b6e57f70e3048a2"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.cpp.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "cpp",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 505,
+      "sourceHash": "sha256:b642065297c3ca9a5ceef8e04705f7710a6ab13fb02d3297bc535ac1a51adfc0"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.cpp.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "cpp",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 598,
+      "sourceHash": "sha256:b642065297c3ca9a5ceef8e04705f7710a6ab13fb02d3297bc535ac1a51adfc0"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.java.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "java",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 3241,
+      "sourceHash": "sha256:376866401ecd0c8638436f9686a776e9ea5b45df51d67520176cdbbf0c6a90a0"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.java.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "java",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 3332,
+      "sourceHash": "sha256:376866401ecd0c8638436f9686a776e9ea5b45df51d67520176cdbbf0c6a90a0"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.python.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "python",
+      "visibility": "visible",
+      "status": "passed",
+      "durationMs": 962,
+      "sourceHash": "sha256:9f97926bc24ff923dde3873826b5c9d2a3dd82f352025b3c4a37dfe50a3fd5a2"
+    },
+    {
+      "itemId": "dsa.trees.traversal.code.python.parity-v1",
+      "skillId": "dsa.trees.traversal",
+      "language": "python",
+      "visibility": "hidden",
+      "status": "passed",
+      "durationMs": 940,
+      "sourceHash": "sha256:9f97926bc24ff923dde3873826b5c9d2a3dd82f352025b3c4a37dfe50a3fd5a2"
+    }
+  ],
+  "limitations": [
+    "All content remains AI-assisted draft with zero exam eligibility.",
+    "Numeric module-scoped contracts prove deterministic four-runtime equivalence, not human-reviewed pedagogy or idiomatic language quality.",
+    "Local Docker image IDs are evidence for this workstation only; production KVM/NUC deployment remains open."
+  ]
+}

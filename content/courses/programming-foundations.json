@@ -1,0 +1,146 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "programming-foundations",
+  "title": "Programming Foundations",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "An absolute-beginner bridge from everyday computer use to reading, tracing, designing, running, testing and explaining small programs.",
+  "audience": {
+    "level": "absolute beginner",
+    "assumed_knowledge": ["Basic reading and arithmetic", "Ability to use a keyboard and web browser"],
+    "target_capability": "Independently express a small problem as an algorithm, trace program state, use basic developer tools, and enter a language course with reliable mental models."
+  },
+  "scope": {
+    "includes": ["Computing and program mental models", "Problem decomposition and algorithms", "Values, state and control flow", "Functions and data collections conceptually", "Files, terminal and editor basics", "Errors, debugging and testing", "Responsible learning and use of assistance", "Small language-neutral designs"],
+    "non_goals": ["Fluency in a specific programming language", "Advanced computer architecture or operating systems", "Framework-specific development", "Formal proof of algorithm correctness"]
+  },
+  "authoritative_sources": [
+    { "id": "cs2023-sdf", "title": "CS2023 Software Development Fundamentals", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SDF-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" },
+    { "id": "cs2023-se", "title": "CS2023 Software Engineering", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SE-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" },
+    { "id": "acm-ethics", "title": "ACM Code of Ethics and Professional Conduct", "url": "https://www.acm.org/code-of-ethics", "type": "security-guidance", "version_or_date": "2018" },
+    { "id": "ies-learning", "title": "Organizing Instruction and Study to Improve Student Learning", "url": "https://ies.ed.gov/ncee/wwc/PracticeGuide/1", "type": "research", "version_or_date": "2007" }
+  ],
+  "runtime": {
+    "kind": "conceptual",
+    "language": "language-neutral pseudocode",
+    "standard": "Codestead pseudocode conventions 0.1",
+    "toolchain": ["Browser lesson workspace", "Plain-text editor", "Terminal simulator"],
+    "execution_environment": "Browser simulations and language-neutral tracing exercises",
+    "file_extensions": [".txt"],
+    "notes": ["Concrete syntax appears only as labeled comparison examples.", "Accessibility-safe visual traces must also expose textual state descriptions."]
+  },
+  "modules": [
+    {
+      "id": "pf.computing",
+      "title": "Programs and computers",
+      "description": "Build an accurate first mental model of software and execution.",
+      "required": true,
+      "prerequisites": [],
+      "skills": [
+        { "id": "pf.computing.program", "title": "Program, code and algorithm", "description": "Distinguish a program, its source code, and the algorithm it implements.", "outcomes": ["Classify examples as source code, programs, algorithms, inputs or outputs."], "prerequisites": [], "evidence_types": ["concept-check", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.computing.hardware-software", "title": "Hardware and software roles", "description": "Relate processor, memory, storage, devices, operating system and application software.", "outcomes": ["Explain where instructions and data reside while a small program runs."], "prerequisites": ["pf.computing.program"], "evidence_types": ["concept-check", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.computing.execution", "title": "Source-to-execution models", "description": "Recognize compilation, interpretation and virtual-machine execution without false absolutes.", "outcomes": ["Trace a high-level source file through a named toolchain to observable output."], "prerequisites": ["pf.computing.hardware-software"], "evidence_types": ["visual", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.computing.determinism", "title": "Instructions, state and determinism", "description": "Understand that execution follows defined instructions over changing state, subject to inputs and environment.", "outcomes": ["Explain why two runs may agree or differ using input, state and environment."], "prerequisites": ["pf.computing.execution"], "evidence_types": ["trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "pf.problem-solving",
+      "title": "Computational problem solving",
+      "description": "Turn an informal need into precise inputs, outputs and steps.",
+      "required": true,
+      "prerequisites": ["pf.computing.program"],
+      "skills": [
+        { "id": "pf.problem.io", "title": "Inputs, outputs and constraints", "description": "State what a problem receives, produces and must respect.", "outcomes": ["Write an unambiguous input-output-constraint statement for a small problem."], "prerequisites": ["pf.computing.program"], "evidence_types": ["design", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.problem.decomposition", "title": "Decomposition", "description": "Split a problem into cohesive, ordered subproblems.", "outcomes": ["Create and justify a decomposition whose parts cover the original requirement."], "prerequisites": ["pf.problem.io"], "evidence_types": ["design", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.problem.pseudocode", "title": "Pseudocode", "description": "Express executable intent without depending on one language's syntax.", "outcomes": ["Write and trace structured pseudocode for a calculation and decision."], "prerequisites": ["pf.problem.decomposition"], "evidence_types": ["design", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.problem.examples", "title": "Examples and edge cases", "description": "Use representative, boundary and invalid cases to refine a problem statement.", "outcomes": ["Produce normal, boundary and invalid examples with expected results."], "prerequisites": ["pf.problem.io"], "evidence_types": ["test", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "pf.state",
+      "title": "Values, state and expressions",
+      "description": "Reason about data and state changes before learning concrete syntax.",
+      "required": true,
+      "prerequisites": ["pf.problem.pseudocode"],
+      "skills": [
+        { "id": "pf.state.values-types", "title": "Values and types", "description": "Distinguish numbers, truth values, text and collections by valid operations.", "outcomes": ["Choose a suitable conceptual type and reject invalid operations for a value."], "prerequisites": ["pf.problem.pseudocode"], "evidence_types": ["concept-check", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.state.variables", "title": "Variables and assignment", "description": "Model a variable as a named part of program state whose value may change.", "outcomes": ["Trace variable values through a sequence of assignments without treating assignment as algebraic equality."], "prerequisites": ["pf.state.values-types"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.state.expressions", "title": "Expressions and evaluation", "description": "Evaluate operations using operands, precedence and intermediate results.", "outcomes": ["Evaluate mixed arithmetic, comparison and Boolean expressions step by step."], "prerequisites": ["pf.state.variables"], "evidence_types": ["trace", "concept-check"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.state.mutation", "title": "Mutation and aliases", "description": "Recognize the conceptual difference between rebinding a name and changing a shared value.", "outcomes": ["Predict visible changes when two names refer to the same mutable collection."], "prerequisites": ["pf.state.variables"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "pf.control",
+      "title": "Control flow",
+      "description": "Trace and design sequential, selective and repetitive execution.",
+      "required": true,
+      "prerequisites": ["pf.state.expressions"],
+      "skills": [
+        { "id": "pf.control.sequence", "title": "Sequence", "description": "Trace ordered statements and identify dependencies between them.", "outcomes": ["Produce a correct state table for sequential pseudocode."], "prerequisites": ["pf.state.expressions"], "evidence_types": ["trace", "visual"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.control.selection", "title": "Selection", "description": "Use Boolean conditions to choose among mutually appropriate paths.", "outcomes": ["Design and trace nested and multi-branch decisions including boundary cases."], "prerequisites": ["pf.control.sequence"], "evidence_types": ["trace", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.control.iteration", "title": "Iteration", "description": "Use counted and condition-controlled repetition with correct progress.", "outcomes": ["Design and trace loops while identifying initialization, condition, update and termination."], "prerequisites": ["pf.control.selection"], "evidence_types": ["trace", "design", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.control.nested", "title": "Nested control and tables", "description": "Reason about decisions and loops nested inside one another, including grid traversal.", "outcomes": ["Trace nested loops over a small two-dimensional table and count executions."], "prerequisites": ["pf.control.iteration"], "evidence_types": ["trace", "visual", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "pf.abstraction",
+      "title": "Functions and abstraction",
+      "description": "Organize repeated logic behind named, testable interfaces.",
+      "required": true,
+      "prerequisites": ["pf.control.iteration", "pf.problem.decomposition"],
+      "skills": [
+        { "id": "pf.abstraction.functions", "title": "Functions as contracts", "description": "Describe a function by purpose, inputs, outputs and observable effects.", "outcomes": ["Specify a small function contract independently of its implementation."], "prerequisites": ["pf.problem.decomposition"], "evidence_types": ["design", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.abstraction.calls", "title": "Calls, parameters and returns", "description": "Trace argument binding, local execution and returned results.", "outcomes": ["Trace nested function calls using separate call frames."], "prerequisites": ["pf.abstraction.functions", "pf.state.variables"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.abstraction.scope", "title": "Local scope", "description": "Distinguish local names from state visible outside a function.", "outcomes": ["Predict name visibility and avoid accidental dependence on global state."], "prerequisites": ["pf.abstraction.calls"], "evidence_types": ["trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.abstraction.recursion", "title": "Recursion concept", "description": "Understand base cases and smaller self-similar calls without requiring language syntax.", "outcomes": ["Trace a simple recursive definition and identify a missing or unreachable base case."], "prerequisites": ["pf.abstraction.calls", "pf.control.selection"], "evidence_types": ["trace", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "pf.data",
+      "title": "Structured data",
+      "description": "Select and operate on common conceptual data organizations.",
+      "required": true,
+      "prerequisites": ["pf.control.iteration", "pf.state.values-types"],
+      "skills": [
+        { "id": "pf.data.sequences", "title": "Sequences and indexes", "description": "Use ordered collections and valid positions, including empty and boundary cases.", "outcomes": ["Trace indexed reads, updates and traversal without off-by-one errors."], "prerequisites": ["pf.control.iteration"], "evidence_types": ["trace", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.data.records", "title": "Records and entities", "description": "Group related named fields that describe one conceptual entity.", "outcomes": ["Design a record representation and justify its fields and types."], "prerequisites": ["pf.state.values-types"], "evidence_types": ["design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.data.set-map", "title": "Sets and maps", "description": "Distinguish unique membership from key-to-value lookup.", "outcomes": ["Choose between sequence, set and map for a stated access requirement."], "prerequisites": ["pf.data.sequences"], "evidence_types": ["concept-check", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.data.selection", "title": "Data-structure choice", "description": "Compare data structures using order, duplicates, lookup, update and traversal needs.", "outcomes": ["Defend a data-structure choice and identify a reasonable alternative's trade-off."], "prerequisites": ["pf.data.records", "pf.data.set-map"], "evidence_types": ["design", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "pf.tools-quality",
+      "title": "Tools, errors and quality",
+      "description": "Develop a systematic edit-run-observe-debug-test workflow.",
+      "required": true,
+      "prerequisites": ["pf.computing.execution", "pf.problem.examples"],
+      "skills": [
+        { "id": "pf.tools.files", "title": "Files, folders and paths", "description": "Create, locate and organize source and data files using paths and extensions.", "outcomes": ["Construct and explain relative and absolute paths in a small project tree."], "prerequisites": ["pf.computing.hardware-software"], "evidence_types": ["artifact", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf", "cs2023-se"] },
+        { "id": "pf.tools.terminal-editor", "title": "Editor and terminal workflow", "description": "Edit, save, navigate and run a supplied command without confusing source and output.", "outcomes": ["Use a terminal simulator to navigate a project and run a named tool."], "prerequisites": ["pf.tools.files"], "evidence_types": ["artifact", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf", "cs2023-se"] },
+        { "id": "pf.tools.errors", "title": "Error categories and messages", "description": "Differentiate syntax/build, runtime and logic failures and extract actionable location information.", "outcomes": ["Classify an error, identify the earliest useful diagnostic and propose the next observation."], "prerequisites": ["pf.tools.terminal-editor", "pf.control.sequence"], "evidence_types": ["debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.tools.debug-test", "title": "Debugging and testing loop", "description": "Form a hypothesis, isolate a case, inspect state, change one cause and rerun tests.", "outcomes": ["Repair a flawed pseudocode routine and provide tests that expose the original defect."], "prerequisites": ["pf.tools.errors", "pf.problem.examples"], "evidence_types": ["debug", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf", "cs2023-se"] }
+      ]
+    },
+    {
+      "id": "pf.learning-practice",
+      "title": "Responsible and durable practice",
+      "description": "Use feedback, documentation and assistance without outsourcing understanding.",
+      "required": true,
+      "prerequisites": ["pf.tools.debug-test"],
+      "skills": [
+        { "id": "pf.practice.read-code", "title": "Reading before writing", "description": "Trace, annotate and explain existing code-like procedures before modifying them.", "outcomes": ["Explain a supplied routine's purpose, state changes and edge cases."], "prerequisites": ["pf.tools.debug-test"], "evidence_types": ["trace", "explain", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf"] },
+        { "id": "pf.practice.feedback", "title": "Using feedback", "description": "Convert correctness feedback into a diagnosis, correction and new test.", "outcomes": ["Explain why an answer failed and demonstrate a corrected transfer attempt."], "prerequisites": ["pf.practice.read-code"], "evidence_types": ["review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["ies-learning"] },
+        { "id": "pf.practice.assistance", "title": "Documentation and AI assistance", "description": "Ask bounded questions, verify claims and retain ownership of reasoning and submitted work.", "outcomes": ["Evaluate an assisted answer against a source, tests and the stated problem."], "prerequisites": ["pf.practice.feedback"], "evidence_types": ["review", "explain", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["acm-ethics", "cs2023-sdf"] },
+        { "id": "pf.practice.integrity", "title": "Integrity and attribution", "description": "Distinguish collaboration, reference use, attribution and plagiarism in programming work.", "outcomes": ["Choose and justify an ethical action in realistic learning and reuse scenarios."], "prerequisites": ["pf.practice.assistance"], "evidence_types": ["concept-check", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["acm-ethics", "cs2023-sdf"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Translate a small informal problem into inputs, outputs, constraints, examples and structured pseudocode.",
+    "Trace values, control flow, function calls and structured data while explaining the resulting output.",
+    "Use a basic editor-terminal workflow and classify, investigate and repair common program failures.",
+    "Design meaningful tests and use documentation or AI assistance without surrendering verification or authorship."
+  ],
+  "coverage_summary": { "required_skills": 32, "elective_skills": 0, "total_skills": 32, "covered": 32, "partial": 0, "planned": 0 }
+}

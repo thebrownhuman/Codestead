@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.quality.hooks.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.quality-debug",
+  "skillId": "git.quality.hooks",
+  "title": "Local hooks and server checks deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Local hooks and server checks; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "nist-ssdf"
+  ],
+  "items": [
+    {
+      "id": "git.quality.hooks.mcq.misconception",
+      "skillId": "git.quality.hooks",
+      "title": "Local hooks and server checks: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls.",
+        "incorrect": "The selected statement preserves the documented misconception. Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Local hooks and server checks instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+      }
+    }
+  ]
+}

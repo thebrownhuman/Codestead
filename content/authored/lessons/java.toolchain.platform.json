@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.toolchain.platform.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.toolchain",
+  "skillId": "java.toolchain.platform",
+  "title": "JDK, JVM and Java language",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for JDK, JVM and Java language; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Getting Started, Tools, JShell, and Launching Single-File Source-Code Programs; atomic topic: JDK, JVM and Java language",
+      "claim": "Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§7.6, 12, and 13: compilation units, execution, and binary compatibility; atomic topic: JDK, JVM and Java language",
+      "claim": "Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text. Your goal is to trace a Java source file through compilation and JVM execution. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "The language, JDK toolchain, JVM specification, and a concrete runtime implementation are related but distinct; ahead-of-time or just-in-time compilation does not erase those boundaries. The learner must reject this documented misconception: The JDK, Java language, bytecode, and JVM are four names for the same component and always have the same version behavior."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish source-language rules, development tools, bytecode and runtime services.",
+      "Trace a Java source file through compilation and JVM execution."
+    ],
+    "excludes": [
+      "The language, JDK toolchain, JVM specification, and a concrete runtime implementation are related but distinct; ahead-of-time or just-in-time compilation does not erase those boundaries."
+    ]
+  },
+  "outcomes": [
+    "Trace a Java source file through compilation and JVM execution."
+  ],
+  "examples": [
+    {
+      "id": "java.toolchain.platform.example.direct",
+      "title": "JDK, JVM and Java language: direct language case",
+      "situation": "The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release."
+      ],
+      "result": "The example meets the atomic outcome because Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release."
+    },
+    {
+      "id": "java.toolchain.platform.example.boundary",
+      "title": "JDK, JVM and Java language: boundary and transfer case",
+      "situation": "A class file compiled for a newer release is rejected by an older runtime even though both machines have a command named java.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A class file compiled for a newer release is rejected by an older runtime even though both machines have a command named java.",
+        "Step 2 — Keep the language boundary explicit: The language, JDK toolchain, JVM specification, and a concrete runtime implementation are related but distinct; ahead-of-time or just-in-time compilation does not erase those boundaries.",
+        "Step 3 — Reject the tempting but incorrect rule: The JDK, Java language, bytecode, and JVM are four names for the same component and always have the same version behavior."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace a Java source file through compilation and JVM execution."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.toolchain.platform.misconception",
+      "mistakenBelief": "The JDK, Java language, bytecode, and JVM are four names for the same component and always have the same version behavior.",
+      "correction": "Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: The JDK, Java language, bytecode, and JVM are four names for the same component and always have the same version behavior."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a workshop that turns a checked design into a labeled machine part and then runs it on a compatible line can introduce JDK, JVM and Java language, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "separating source rules, build tools, class files, and runtime execution"
+    ],
+    "limitations": [
+      "Java compatibility, verification, class loading, and diagnostics follow formal specifications rather than physical manufacturing",
+      "The language, JDK toolchain, JVM specification, and a concrete runtime implementation are related but distinct; ahead-of-time or just-in-time compilation does not erase those boundaries."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text.",
+      "Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services.",
+      "Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: The JDK, Java language, bytecode, and JVM are four names for the same component and always have the same version behavior."
+      }
+    ],
+    "textAlternative": "Starting artifact: The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text. Step 1, Observe. State: evidence: The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release.. Compare the observation with the correction and explain why the misconception fails: The JDK, Java language, bytecode, and JVM are four names for the same component and always have the same version behavior."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “JDK, JVM and Java language: direct language case”: state its starting evidence, apply the JDK, JVM and Java language rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: JDK, JVM and Java language: direct language case.",
+        "Starting evidence: The learner traces Main.java through javac into Main.class and then explains why java launches a JVM rather than interpreting the source file as ordinary text.",
+        "Core rule: Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services.",
+        "Observable result: The example meets the atomic outcome because Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release.",
+        "Boundary check: Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A class file compiled for a newer release is rejected by an older runtime even though both machines have a command named java.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java source is checked and translated by JDK tools into class-file bytecode, while a JVM loads, verifies, links, and executes that bytecode with runtime services.",
+        "The language, JDK toolchain, JVM specification, and a concrete runtime implementation are related but distinct; ahead-of-time or just-in-time compilation does not erase those boundaries."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of JDK, JVM and Java language, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace a Java source file through compilation and JVM execution.",
+        "Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.toolchain.platform.misconception",
+      "explanation": "Treat language rules, JDK tools, class-file bytecode, and the JVM as separate layers with explicit compatibility; javac produces class-file bytecode for a declared release.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A class file compiled for a newer release is rejected by an older runtime even though both machines have a command named java."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace a Java source file through compilation and JVM execution. Keep this boundary in view: The language, JDK toolchain, JVM specification, and a concrete runtime implementation are related but distinct; ahead-of-time or just-in-time compilation does not erase those boundaries.",
+    "retrievalPrompts": [
+      "Explain JDK, JVM and Java language using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: The JDK, Java language, bytecode, and JVM are four names for the same component and always have the same version behavior.",
+      "Predict this case from memory: A class file compiled for a newer release is rejected by an older runtime even though both machines have a command named java."
+    ],
+    "nextReviewPrompt": "Next: continue to “First source and main”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

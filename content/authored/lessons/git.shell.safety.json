@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.shell.safety.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.shell-files",
+  "skillId": "git.shell.safety",
+  "title": "Command safety and help",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Command safety and help; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Command safety and help",
+      "claim": "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository. Your goal is to review a risky command sequence and propose a verifiable safer workflow. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf tools files; Create, copy, move and rename. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Read help, preview scope, avoid destructive wildcards and stop when a computed target is uncertain.",
+      "Review a risky command sequence and propose a verifiable safer workflow."
+    ],
+    "excludes": [
+      "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target."
+    ]
+  },
+  "outcomes": [
+    "Review a risky command sequence and propose a verifiable safer workflow."
+  ],
+  "examples": [
+    {
+      "id": "git.shell.safety.example-a",
+      "title": "Command safety and help: direct case",
+      "situation": "Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+      ],
+      "result": "The case supports the declared outcome because Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+    },
+    {
+      "id": "git.shell.safety.example-b",
+      "title": "Command safety and help: boundary case",
+      "situation": "A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command.",
+        "Step 2 — Keep this boundary explicit: Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target.",
+        "Step 3 — Reject the documented misconception: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+      ],
+      "result": "This case demonstrates the declared outcome: Review a risky command sequence and propose a verifiable safer workflow."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.shell.safety.misconception",
+      "mistakenBelief": "A familiar delete command is safe to run immediately if the typed path looks approximately correct.",
+      "correction": "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled filing room can model Command safety and help: current location changes how relative directions resolve, and moving differs from copying a folder.",
+    "usefulFor": [
+      "Reasoning about exact locations, inspection, file operations, and destructive scope"
+    ],
+    "limitations": [
+      "Shell expansion, permissions, links, filesystem rules, and command execution can behave unlike physical folders.",
+      "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
+      "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
+      "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text."
+        },
+        "explanation": "Apply the declared Command safety and help model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+      }
+    ],
+    "textAlternative": "Starting artifact: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository. Step 1, Observe. State: evidence: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.. Apply the declared Command safety and help model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.. Compare the observation with the correction and reject the misconception: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Command safety and help: direct case”: state its starting evidence, apply the Command safety and help rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Command safety and help: direct case.",
+        "Starting evidence: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
+        "Core rule: Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
+        "Observable result: The case supports the declared outcome because Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.",
+        "Boundary check: Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
+        "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Command safety and help, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Review a risky command sequence and propose a verifiable safer workflow.",
+        "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.shell.safety.misconception",
+      "explanation": "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to review a risky command sequence and propose a verifiable safer workflow. Keep this boundary in view: Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target.",
+    "retrievalPrompts": [
+      "Explain Command safety and help without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A familiar delete command is safe to run immediately if the typed path looks approximately correct.",
+      "Apply the model to this case from memory: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command."
+    ],
+    "nextReviewPrompt": "Next: continue to “Repository and working tree”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

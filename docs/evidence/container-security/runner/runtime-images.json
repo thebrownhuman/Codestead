@@ -1,0 +1,31 @@
+{
+  "release": "local",
+  "local": true,
+  "records": [
+    {
+      "language": "c",
+      "reference": "learncoding/runtime-c@sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "digest": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b"
+    },
+    {
+      "language": "cpp",
+      "reference": "learncoding/runtime-cpp@sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "digest": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d"
+    },
+    {
+      "language": "java",
+      "reference": "learncoding/runtime-java@sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "digest": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c"
+    },
+    {
+      "language": "python",
+      "reference": "learncoding/runtime-python@sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+      "digest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657"
+    },
+    {
+      "language": "javascript",
+      "reference": "learncoding/runtime-javascript@sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931",
+      "digest": "sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931"
+    }
+  ]
+}

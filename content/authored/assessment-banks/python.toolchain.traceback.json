@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.toolchain.traceback.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.toolchain",
+  "skillId": "python.toolchain.traceback",
+  "title": "Tracebacks and error categories deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Tracebacks and error categories; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "python.toolchain.traceback.mcq.misconception",
+      "skillId": "python.toolchain.traceback",
+      "title": "Tracebacks and error categories: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? The first line of a traceback names the faulty source line and every Python bug raises an exception.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract.",
+        "incorrect": "That choice preserves the misconception. Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+        },
+        {
+          "id": "misconception",
+          "text": "The first line of a traceback names the faulty source line and every Python bug raises an exception."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+      }
+    },
+    {
+      "id": "python.toolchain.traceback.fill.checkpoint",
+      "skillId": "python.toolchain.traceback",
+      "title": "Tracebacks and error categories: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'causal chaining'. Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract.",
+        "incorrect": "The phrase must preserve the exact language rule. Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve [[checkpoint]], and verify the repaired contract.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "causal chaining"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+      }
+    }
+  ]
+}

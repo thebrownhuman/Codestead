@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.patterns.two-pointer.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.problem-patterns",
+  "skillId": "dsa.patterns.two-pointer",
+  "title": "Two-pointer and partition scans",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Two-pointer and partition scans; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Two-pointer and partition scans",
+      "claim": "Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: In a sorted pair-sum search, a small sum advances left and a large sum retreats right. Your goal is to recognize, implement and justify a two-pointer sequence solution. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Hash tables, sets and maps; Stacks, queues and deques; Array representation and operations; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "They often require sorted input or a specific partition property and can fail with negative or nonmonotonic effects. The draft therefore rejects: Two pointers improve every nested-loop array problem to linear time."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Move coordinated indexes under a monotonic or partition invariant.",
+      "Recognize, implement and justify a two-pointer sequence solution.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "excludes": [
+      "They often require sorted input or a specific partition property and can fail with negative or nonmonotonic effects."
+    ]
+  },
+  "outcomes": [
+    "Recognize, implement and justify a two-pointer sequence solution."
+  ],
+  "examples": [
+    {
+      "id": "dsa.patterns.two-pointer.example-a",
+      "title": "Two-pointer and partition scans: language-neutral trace",
+      "situation": "In a sorted pair-sum search, a small sum advances left and a large sum retreats right.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: In a sorted pair-sum search, a small sum advances left and a large sum retreats right.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use two pointers only when pointer movement safely eliminates candidates under a proved invariant."
+      ],
+      "result": "The conceptual result follows because Use two pointers only when pointer movement safely eliminates candidates under a proved invariant."
+    },
+    {
+      "id": "dsa.patterns.two-pointer.example-b",
+      "title": "Two-pointer and partition scans: implementation transfer",
+      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "Step 3 — Retest this boundary in the selected implementation: They often require sorted input or a specific partition property and can fail with negative or nonmonotonic effects."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.patterns.two-pointer.misconception",
+      "mistakenBelief": "Two pointers improve every nested-loop array problem to linear time.",
+      "correction": "Use two pointers only when pointer movement safely eliminates candidates under a proved invariant.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Two pointers improve every nested-loop array problem to linear time."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Two-pointer and partition scans, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "They often require sorted input or a specific partition property and can fail with negative or nonmonotonic effects."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "In a sorted pair-sum search, a small sum advances left and a large sum retreats right.",
+      "Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning.",
+      "Use two pointers only when pointer movement safely eliminates candidates under a proved invariant.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "In a sorted pair-sum search, a small sum advances left and a large sum retreats right."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Use two pointers only when pointer movement safely eliminates candidates under a proved invariant."
+        },
+        "explanation": "Verify the result and reject this misconception: Two pointers improve every nested-loop array problem to linear time."
+      }
+    ],
+    "textAlternative": "Starting artifact: In a sorted pair-sum search, a small sum advances left and a large sum retreats right. Step 1, Specification. State: scenario: In a sorted pair-sum search, a small sum advances left and a large sum retreats right.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: Use two pointers only when pointer movement safely eliminates candidates under a proved invariant.. Verify the result and reject this misconception: Two pointers improve every nested-loop array problem to linear time."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Two-pointer and partition scans: language-neutral trace”: state its starting evidence, apply the Two-pointer and partition scans rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Two-pointer and partition scans: language-neutral trace.",
+        "Starting evidence: In a sorted pair-sum search, a small sum advances left and a large sum retreats right.",
+        "Core rule: Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning.",
+        "Observable result: The conceptual result follows because Use two pointers only when pointer movement safely eliminates candidates under a proved invariant.",
+        "Boundary check: Use two pointers only when pointer movement safely eliminates candidates under a proved invariant."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Two-pointer methods coordinate positions under a monotonic invariant to avoid repeated scanning.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "They often require sorted input or a specific partition property and can fail with negative or nonmonotonic effects."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Two-pointer and partition scans case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Recognize, implement and justify a two-pointer sequence solution.",
+        "Use two pointers only when pointer movement safely eliminates candidates under a proved invariant."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.patterns.two-pointer.misconception",
+      "explanation": "Use two pointers only when pointer movement safely eliminates candidates under a proved invariant.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'eliminates candidates', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to recognize, implement and justify a two-pointer sequence solution. Keep this boundary in view: They often require sorted input or a specific partition property and can fail with negative or nonmonotonic effects.",
+    "retrievalPrompts": [
+      "State the Two-pointer and partition scans invariant and complexity without code.",
+      "Why is this claim false: Two pointers improve every nested-loop array problem to linear time.",
+      "Map checkpoint 'eliminates candidates' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Sliding windows”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.state.values-types.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.state",
+  "skillId": "pf.state.values-types",
+  "title": "Values and types",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Values and types; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Values and types",
+      "claim": "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15. Your goal is to choose a suitable conceptual type and reject invalid operations for a value. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Pseudocode. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish numbers, truth values, text and collections by valid operations.",
+      "Choose a suitable conceptual type and reject invalid operations for a value."
+    ],
+    "excludes": [
+      "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior."
+    ]
+  },
+  "outcomes": [
+    "Choose a suitable conceptual type and reject invalid operations for a value."
+  ],
+  "examples": [
+    {
+      "id": "pf.state.values-types.example-a",
+      "title": "Values and types: direct case",
+      "situation": "The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+      ],
+      "result": "The case supports the declared outcome because Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+    },
+    {
+      "id": "pf.state.values-types.example-b",
+      "title": "Values and types: boundary case",
+      "situation": "A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed.",
+        "Step 2 — Keep this boundary explicit: Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior.",
+        "Step 3 — Reject the documented misconception: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose a suitable conceptual type and reject invalid operations for a value."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.state.values-types.misconception",
+      "mistakenBelief": "Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable.",
+      "correction": "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled scoreboard can model Values and types: each label exposes a current value and each recorded event produces the next visible state.",
+    "usefulFor": [
+      "Reasoning about values, expressions, named state, and changes across time"
+    ],
+    "limitations": [
+      "The scoreboard does not accurately model binary representation, scope, aliases, object identity, or language coercion.",
+      "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
+      "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
+      "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text."
+        },
+        "explanation": "Apply the declared Values and types model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+      }
+    ],
+    "textAlternative": "Starting artifact: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15. Step 1, Observe. State: evidence: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.. Apply the declared Values and types model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.. Compare the observation with the correction and reject the misconception: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Values and types: direct case”: state its starting evidence, apply the Values and types rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Values and types: direct case.",
+        "Starting evidence: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
+        "Core rule: A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
+        "Observable result: The case supports the declared outcome because Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.",
+        "Boundary check: Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
+        "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Values and types, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Choose a suitable conceptual type and reject invalid operations for a value.",
+        "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.state.values-types.misconception",
+      "explanation": "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose a suitable conceptual type and reject invalid operations for a value. Keep this boundary in view: Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior.",
+    "retrievalPrompts": [
+      "Explain Values and types without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable.",
+      "Apply the model to this case from memory: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed."
+    ],
+    "nextReviewPrompt": "Next: continue to “Variables and assignment”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.unsupervised.dimensionality.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.unsupervised",
+  "skillId": "ai.unsupervised.dimensionality",
+  "title": "Dimensionality reduction",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Dimensionality reduction; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "sklearn",
+      "locator": "scikit-learn User Guide; 1.9.x target, accessed 2026-07; User Guide sections 2, 3.4.7, and 7.5: clustering, novelty/outlier detection, decomposition, and evaluation; atomic topic: Dimensionality reduction",
+      "claim": "Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information."
+    },
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning: unsupervised methods, clustering, dimensionality, and recommendation concepts; atomic topic: Dimensionality reduction",
+      "claim": "Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform. Your goal is to apply a linear projection and explain information retained and lost. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Data and experimental workflow; Bias, variance and regularization; Features and preprocessing. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Components may be hard to interpret, scaling matters, nonlinear visualizations distort distances, separated points need not be classes, fit must avoid leakage, and projection cannot recover omitted context. The learner must reject this overclaim: A two-dimensional projection preserves all important structure, and visually separated groups prove the original data contains discrete classes."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use low-dimensional projections for compression or exploration without overinterpreting visual separation.",
+      "Apply a linear projection and explain information retained and lost."
+    ],
+    "excludes": [
+      "Components may be hard to interpret, scaling matters, nonlinear visualizations distort distances, separated points need not be classes, fit must avoid leakage, and projection cannot recover omitted context."
+    ]
+  },
+  "outcomes": [
+    "Apply a linear projection and explain information retained and lost."
+  ],
+  "examples": [
+    {
+      "id": "ai.unsupervised.dimensionality.example.direct",
+      "title": "Dimensionality reduction: bounded direct case",
+      "situation": "PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim."
+      ],
+      "result": "This example supports only the atomic outcome because Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim."
+    },
+    {
+      "id": "ai.unsupervised.dimensionality.example.stress",
+      "title": "Dimensionality reduction: stress and transfer case",
+      "situation": "A two-dimensional visualization shows apparent islands that move with parameters, so it is used for exploration rather than evidence of distinct populations.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A two-dimensional visualization shows apparent islands that move with parameters, so it is used for exploration rather than evidence of distinct populations.",
+        "Step 2 — Keep the non-claim visible: Components may be hard to interpret, scaling matters, nonlinear visualizations distort distances, separated points need not be classes, fit must avoid leakage, and projection cannot recover omitted context.",
+        "Step 3 — Reject the tempting overclaim: A two-dimensional projection preserves all important structure, and visually separated groups prove the original data contains discrete classes."
+      ],
+      "result": "This case demonstrates the declared outcome: Apply a linear projection and explain information retained and lost."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.unsupervised.dimensionality.misconception",
+      "mistakenBelief": "A two-dimensional projection preserves all important structure, and visually separated groups prove the original data contains discrete classes.",
+      "correction": "Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A two-dimensional projection preserves all important structure, and visually separated groups prove the original data contains discrete classes."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an exploratory sorting table whose representation, distance, projection, reference population, and exposure policy determine visible patterns can introduce Dimensionality reduction only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "clustering, dimensionality reduction, anomaly scoring, and recommendation"
+    ],
+    "limitations": [
+      "algorithmic groups and outliers are parameter-dependent summaries rather than discovered human categories or harms",
+      "Components may be hard to interpret, scaling matters, nonlinear visualizations distort distances, separated points need not be classes, fit must avoid leakage, and projection cannot recover omitted context."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform.",
+      "Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information.",
+      "Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A two-dimensional projection preserves all important structure, and visually separated groups prove the original data contains discrete classes."
+      }
+    ],
+    "textAlternative": "Starting artifact: PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform. Step 1, Observe. State: boundedEvidence: PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim.. State what the evidence does not establish and reject the misconception: A two-dimensional projection preserves all important structure, and visually separated groups prove the original data contains discrete classes."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Dimensionality reduction: bounded direct case”: state its starting evidence, apply the Dimensionality reduction rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Dimensionality reduction: bounded direct case.",
+        "Starting evidence: PCA is fitted on standardized training features, explained variance and reconstruction loss are reported, and downstream evaluation uses the same fitted transform.",
+        "Core rule: Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information.",
+        "Observable result: This example supports only the atomic outcome because Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim.",
+        "Boundary check: Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A two-dimensional visualization shows apparent islands that move with parameters, so it is used for exploration rather than evidence of distinct populations.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Dimensionality reduction maps data into fewer coordinates to preserve a stated property such as linear variance, neighborhood, or reconstruction, inevitably losing other information.",
+        "Components may be hard to interpret, scaling matters, nonlinear visualizations distort distances, separated points need not be classes, fit must avoid leakage, and projection cannot recover omitted context."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Dimensionality reduction and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Apply a linear projection and explain information retained and lost.",
+        "Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.unsupervised.dimensionality.misconception",
+      "explanation": "Name the property the projection preserves, quantify retained and lost information, fit it within the evaluation split, and avoid turning visual separation into a class claim.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A two-dimensional visualization shows apparent islands that move with parameters, so it is used for exploration rather than evidence of distinct populations."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to apply a linear projection and explain information retained and lost. Keep this boundary in view: Components may be hard to interpret, scaling matters, nonlinear visualizations distort distances, separated points need not be classes, fit must avoid leakage, and projection cannot recover omitted context.",
+    "retrievalPrompts": [
+      "Explain Dimensionality reduction with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A two-dimensional projection preserves all important structure, and visually separated groups prove the original data contains discrete classes.",
+      "Apply the boundary to: A two-dimensional visualization shows apparent islands that move with parameters, so it is used for exploration rather than evidence of distinct populations."
+    ],
+    "nextReviewPrompt": "Next: continue to “Anomaly detection”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

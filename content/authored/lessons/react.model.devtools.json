@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.model.devtools.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.model-setup",
+  "skillId": "react.model.devtools",
+  "title": "React developer tools",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for React developer tools; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to React developer tools",
+      "claim": "React DevTools inspect component trees, props, state, context, and profiling for a particular development render."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A profiler shows an expensive list rerender before memoization is considered and measured again. Your goal is to locate and explain a component data-flow defect using developer-tool evidence. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: javascript project browser app; Declarative UI and re-rendering; javascript runtime devtools. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "React DevTools inspect component trees, props, state, context, and profiling for a particular development render. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects. This draft therefore rejects: Every highlighted rerender must be removed with memoization."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Inspect component trees, props, state and render causes without editing production state as a fix.",
+      "Locate and explain a component data-flow defect using developer-tool evidence."
+    ],
+    "excludes": [
+      "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects."
+    ]
+  },
+  "outcomes": [
+    "Locate and explain a component data-flow defect using developer-tool evidence."
+  ],
+  "examples": [
+    {
+      "id": "react.model.devtools.example-a",
+      "title": "React developer tools: concrete case",
+      "situation": "A profiler shows an expensive list rerender before memoization is considered and measured again.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A profiler shows an expensive list rerender before memoization is considered and measured again.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      ],
+      "result": "The result follows because Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+    },
+    {
+      "id": "react.model.devtools.example-b",
+      "title": "React developer tools: boundary case",
+      "situation": "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Every highlighted rerender must be removed with memoization."
+      ],
+      "result": "The boundary requires this correction: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.model.devtools.misconception",
+      "mistakenBelief": "Every highlighted rerender must be removed with memoization.",
+      "correction": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Every highlighted rerender must be removed with memoization."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model React developer tools, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for React developer tools before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A profiler shows an expensive list rerender before memoization is considered and measured again.",
+      "React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
+      "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A profiler shows an expensive list rerender before memoization is considered and measured again."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "React DevTools inspect component trees, props, state, context, and profiling for a particular development render."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Every highlighted rerender must be removed with memoization."
+      }
+    ],
+    "textAlternative": "Starting artifact: A profiler shows an expensive list rerender before memoization is considered and measured again. Step 1, Artifact. State: evidence: A profiler shows an expensive list rerender before memoization is considered and measured again.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React DevTools inspect component trees, props, state, context, and profiling for a particular development render.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.. Check the result against the boundary and reject this misconception: Every highlighted rerender must be removed with memoization."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “React developer tools: concrete case”: state its starting evidence, apply the React developer tools rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: React developer tools: concrete case.",
+        "Starting evidence: A profiler shows an expensive list rerender before memoization is considered and measured again.",
+        "Core rule: React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
+        "Observable result: The result follows because Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.",
+        "Boundary check: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
+        "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for React developer tools and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Locate and explain a component data-flow defect using developer-tool evidence.",
+        "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.model.devtools.misconception",
+      "explanation": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'measurements' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to locate and explain a component data-flow defect using developer-tool evidence. Keep this boundary in view: Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
+    "retrievalPrompts": [
+      "Explain React developer tools using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Every highlighted rerender must be removed with memoization.",
+      "Apply checkpoint 'measurements' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Function components”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

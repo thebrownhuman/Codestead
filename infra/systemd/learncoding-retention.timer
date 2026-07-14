@@ -1,0 +1,12 @@
+[Unit]
+Description=Run LearnCoding retention in UTC each day
+
+[Timer]
+OnCalendar=*-*-* 03:45:00 UTC
+RandomizedDelaySec=15m
+Persistent=true
+AccuracySec=1m
+Unit=learncoding-retention.service
+
+[Install]
+WantedBy=timers.target

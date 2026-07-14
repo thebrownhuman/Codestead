@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.decision.utility.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.planning-decision",
+  "skillId": "ai.decision.utility",
+  "title": "Utility and expected decisions deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Utility and expected decisions; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai",
+    "nist-ai-rmf"
+  ],
+  "items": [
+    {
+      "id": "ai.decision.utility.mcq.misconception",
+      "skillId": "ai.decision.utility",
+      "title": "Utility and expected decisions: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values.",
+        "incorrect": "That option preserves the overclaim. Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+        },
+        {
+          "id": "overclaim",
+          "text": "The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+      }
+    },
+    {
+      "id": "ai.decision.utility.fill.checkpoint",
+      "skillId": "ai.decision.utility",
+      "title": "Utility and expected decisions: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'sensitivity explicit'. Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Make outcome utilities, probabilities, stakeholders, constraints, and [[checkpoint]]; expected utility supports a bounded choice rather than neutralizing values.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "sensitivity explicit"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+      }
+    },
+    {
+      "id": "ai.decision.utility.code.offline",
+      "skillId": "ai.decision.utility",
+      "title": "Utility and expected decisions: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read success probability, success utility, and failure utility for actions A and B. Print the higher expected-utility action and both expectations to two decimals; ties choose A.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.decision.utility.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "0.8 10 -2 0.6 14 -1\n",
+          "expectedStdout": "B 7.60 8.00",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.decision.utility.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0.5 1 -1 0.5 1 -1\n",
+          "expectedStdout": "A 0.00 0.00",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    values = list(map(float, data.split()))\n    pa, usa, ufa, pb, usb, ufb = values\n    a = pa * usa + (1 - pa) * ufa\n    b = pb * usb + (1 - pb) * ufb\n    return f\"{'A' if a >= b else 'B'} {a:.2f} {b:.2f}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The calculation exposes both probabilities and utilities; it is a bounded arithmetic comparison, not a claim that the utilities are neutral."
+      }
+    }
+  ]
+}

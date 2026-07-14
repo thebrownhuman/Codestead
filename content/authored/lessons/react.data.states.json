@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.data.states.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.data",
+  "skillId": "react.data.states",
+  "title": "Loading, empty, success and failure states",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Loading, empty, success and failure states; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Loading, empty, success and failure states",
+      "claim": "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error. Your goal is to render and test every observable remote-data state. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Cleanup and race prevention; javascript network fetch; Conditional rendering. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Previous data, background refresh, partial results, and permission failures can overlap these labels. This draft therefore rejects: An empty array during loading is equivalent to a confirmed empty result."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Model remote data as explicit states rather than ambiguous null checks.",
+      "Render and test every observable remote-data state."
+    ],
+    "excludes": [
+      "Previous data, background refresh, partial results, and permission failures can overlap these labels."
+    ]
+  },
+  "outcomes": [
+    "Render and test every observable remote-data state."
+  ],
+  "examples": [
+    {
+      "id": "react.data.states.example-a",
+      "title": "Loading, empty, success and failure states: concrete case",
+      "situation": "A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+      ],
+      "result": "The result follows because Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+    },
+    {
+      "id": "react.data.states.example-b",
+      "title": "Loading, empty, success and failure states: boundary case",
+      "situation": "Previous data, background refresh, partial results, and permission failures can overlap these labels.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Previous data, background refresh, partial results, and permission failures can overlap these labels.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: An empty array during loading is equivalent to a confirmed empty result."
+      ],
+      "result": "The boundary requires this correction: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.data.states.misconception",
+      "mistakenBelief": "An empty array during loading is equivalent to a confirmed empty result.",
+      "correction": "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: An empty array during loading is equivalent to a confirmed empty result."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Loading, empty, success and failure states, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Loading, empty, success and failure states before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Previous data, background refresh, partial results, and permission failures can overlap these labels."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
+      "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
+      "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: An empty array during loading is equivalent to a confirmed empty result."
+      }
+    ],
+    "textAlternative": "Starting artifact: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error. Step 1, Artifact. State: evidence: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.. Check the result against the boundary and reject this misconception: An empty array during loading is equivalent to a confirmed empty result."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Loading, empty, success and failure states: concrete case”: state its starting evidence, apply the Loading, empty, success and failure states rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Loading, empty, success and failure states: concrete case.",
+        "Starting evidence: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
+        "Core rule: Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
+        "Observable result: The result follows because Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.",
+        "Boundary check: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Previous data, background refresh, partial results, and permission failures can overlap these labels.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
+        "Previous data, background refresh, partial results, and permission failures can overlap these labels."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Loading, empty, success and failure states and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Render and test every observable remote-data state.",
+        "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.data.states.misconception",
+      "explanation": "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not misrepresented' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to render and test every observable remote-data state. Keep this boundary in view: Previous data, background refresh, partial results, and permission failures can overlap these labels.",
+    "retrievalPrompts": [
+      "Explain Loading, empty, success and failure states using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: An empty array during loading is equivalent to a confirmed empty result.",
+      "Apply checkpoint 'not misrepresented' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Client fetch lifecycle”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.project.model-card.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.project",
+  "skillId": "ai.project.model-card",
+  "title": "Model card and human oversight",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Model card and human oversight; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF lifecycle profiles, documentation, accountability, monitoring, residual risk, and management outcomes; atomic topic: Model card and human oversight",
+      "claim": "A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence."
+    },
+    {
+      "sourceRef": "nist-genai",
+      "locator": "NIST AI 600-1 Generative AI Profile; July 2024; NIST AI 600-1 governance, documentation, measurement, human oversight, and deployment risk actions; atomic topic: Model card and human oversight",
+      "claim": "A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently. Your goal is to write a model card whose claims match recorded evaluation evidence. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Evaluation and responsible AI; Language, perception and embodied applications; Reproducible pipeline; Fairness and explainability. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Documentation can become stale, aggregate metrics hide failures, intended use does not prevent misuse, proprietary gaps reduce review, human oversight needs authority and capacity, and a card is not certification. The learner must reject this overclaim: Publishing a model card makes a model transparent, fair, and safe even when evidence is incomplete or deployment changes."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Report intended use, exclusions, data, metrics, slices, limitations, review points and escalation paths.",
+      "Write a model card whose claims match recorded evaluation evidence."
+    ],
+    "excludes": [
+      "Documentation can become stale, aggregate metrics hide failures, intended use does not prevent misuse, proprietary gaps reduce review, human oversight needs authority and capacity, and a card is not certification."
+    ]
+  },
+  "outcomes": [
+    "Write a model card whose claims match recorded evaluation evidence."
+  ],
+  "examples": [
+    {
+      "id": "ai.project.model-card.example.direct",
+      "title": "Model card and human oversight: bounded direct case",
+      "situation": "Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership."
+      ],
+      "result": "This example supports only the atomic outcome because Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership."
+    },
+    {
+      "id": "ai.project.model-card.example.stress",
+      "title": "Model card and human oversight: stress and transfer case",
+      "situation": "A new deployment population falls outside evaluated scope, so the card blocks reuse pending mapping and testing instead of inheriting old claims.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A new deployment population falls outside evaluated scope, so the card blocks reuse pending mapping and testing instead of inheriting old claims.",
+        "Step 2 — Keep the non-claim visible: Documentation can become stale, aggregate metrics hide failures, intended use does not prevent misuse, proprietary gaps reduce review, human oversight needs authority and capacity, and a card is not certification.",
+        "Step 3 — Reject the tempting overclaim: Publishing a model card makes a model transparent, fair, and safe even when evidence is incomplete or deployment changes."
+      ],
+      "result": "This case demonstrates the declared outcome: Write a model card whose claims match recorded evaluation evidence."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.project.model-card.misconception",
+      "mistakenBelief": "Publishing a model card makes a model transparent, fair, and safe even when evidence is incomplete or deployment changes.",
+      "correction": "Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Publishing a model card makes a model transparent, fair, and safe even when evidence is incomplete or deployment changes."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a reviewable experiment package containing scope, baseline, data/version manifests, evaluation, model card, risk register, and reproduction commands can introduce Model card and human oversight only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "project design, reproducibility, oversight documentation, and capstone defense"
+    ],
+    "limitations": [
+      "documentation and a polished demo are bounded evidence, not production authorization or proof of safe capability",
+      "Documentation can become stale, aggregate metrics hide failures, intended use does not prevent misuse, proprietary gaps reduce review, human oversight needs authority and capacity, and a card is not certification."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently.",
+      "A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence.",
+      "Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Publishing a model card makes a model transparent, fair, and safe even when evidence is incomplete or deployment changes."
+      }
+    ],
+    "textAlternative": "Starting artifact: Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently. Step 1, Observe. State: boundedEvidence: Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership.. State what the evidence does not establish and reject the misconception: Publishing a model card makes a model transparent, fair, and safe even when evidence is incomplete or deployment changes."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Model card and human oversight: bounded direct case”: state its starting evidence, apply the Model card and human oversight rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Model card and human oversight: bounded direct case.",
+        "Starting evidence: Every performance claim cites a versioned evaluation table and date, while known unsupported languages and prohibited high-stakes uses appear prominently.",
+        "Core rule: A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence.",
+        "Observable result: This example supports only the atomic outcome because Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership.",
+        "Boundary check: Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A new deployment population falls outside evaluated scope, so the card blocks reuse pending mapping and testing instead of inheriting old claims.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A model card links intended use, exclusions, users, data, training/evaluation procedure, metrics and slices, limitations, ethical/risk considerations, monitoring, human oversight, and escalation to recorded evidence.",
+        "Documentation can become stale, aggregate metrics hide failures, intended use does not prevent misuse, proprietary gaps reduce review, human oversight needs authority and capacity, and a card is not certification."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Model card and human oversight and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Write a model card whose claims match recorded evaluation evidence.",
+        "Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.project.model-card.misconception",
+      "explanation": "Keep model-card claims traceable to versioned evidence, name exclusions and uncertainty, and connect oversight, monitoring, escalation, and update ownership.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A new deployment population falls outside evaluated scope, so the card blocks reuse pending mapping and testing instead of inheriting old claims."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write a model card whose claims match recorded evaluation evidence. Keep this boundary in view: Documentation can become stale, aggregate metrics hide failures, intended use does not prevent misuse, proprietary gaps reduce review, human oversight needs authority and capacity, and a card is not certification.",
+    "retrievalPrompts": [
+      "Explain Model card and human oversight with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Publishing a model card makes a model transparent, fair, and safe even when evidence is incomplete or deployment changes.",
+      "Apply the boundary to: A new deployment population falls outside evaluated scope, so the card blocks reuse pending mapping and testing instead of inheriting old claims."
+    ],
+    "nextReviewPrompt": "Next: continue to “AI foundations capstone”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

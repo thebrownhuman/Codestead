@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.values.coercion.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.values",
+  "skillId": "javascript.values.coercion",
+  "title": "Equality, truthiness and coercion",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Equality, truthiness and coercion; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Equality, truthiness and coercion",
+      "claim": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Equality, truthiness and coercion",
+      "claim": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'. Your goal is to predict and repair equality, concatenation and truthiness defects. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scripts and console; pf state expressions; Primitive values and typeof. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths. This draft therefore rejects: The plus operator always performs numeric addition when one operand is a number."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Prefer explicit conversion and strict equality while understanding common coercion rules.",
+      "Predict and repair equality, concatenation and truthiness defects."
+    ],
+    "excludes": [
+      "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths."
+    ]
+  },
+  "outcomes": [
+    "Predict and repair equality, concatenation and truthiness defects."
+  ],
+  "examples": [
+    {
+      "id": "javascript.values.coercion.example-a",
+      "title": "Equality, truthiness and coercion: concrete case",
+      "situation": "Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: String participation can make + concatenate; convert inputs explicitly before arithmetic."
+      ],
+      "result": "The result follows because String participation can make + concatenate; convert inputs explicitly before arithmetic."
+    },
+    {
+      "id": "javascript.values.coercion.example-b",
+      "title": "Equality, truthiness and coercion: boundary case",
+      "situation": "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: The plus operator always performs numeric addition when one operand is a number."
+      ],
+      "result": "The boundary requires this correction: String participation can make + concatenate; convert inputs explicitly before arithmetic."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.values.coercion.misconception",
+      "mistakenBelief": "The plus operator always performs numeric addition when one operand is a number.",
+      "correction": "String participation can make + concatenate; convert inputs explicitly before arithmetic.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: The plus operator always performs numeric addition when one operand is a number."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Equality, truthiness and coercion, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Equality, truthiness and coercion before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
+      "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
+      "String participation can make + concatenate; convert inputs explicitly before arithmetic."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "String participation can make + concatenate; convert inputs explicitly before arithmetic."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: The plus operator always performs numeric addition when one operand is a number."
+      }
+    ],
+    "textAlternative": "Starting artifact: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'. Step 1, Artifact. State: evidence: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: String participation can make + concatenate; convert inputs explicitly before arithmetic.. Check the result against the boundary and reject this misconception: The plus operator always performs numeric addition when one operand is a number."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Equality, truthiness and coercion: concrete case”: state its starting evidence, apply the Equality, truthiness and coercion rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Equality, truthiness and coercion: concrete case.",
+        "Starting evidence: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
+        "Core rule: JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
+        "Observable result: The result follows because String participation can make + concatenate; convert inputs explicitly before arithmetic.",
+        "Boundary check: String participation can make + concatenate; convert inputs explicitly before arithmetic."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
+        "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Equality, truthiness and coercion and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Predict and repair equality, concatenation and truthiness defects.",
+        "String participation can make + concatenate; convert inputs explicitly before arithmetic."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.values.coercion.misconception",
+      "explanation": "String participation can make + concatenate; convert inputs explicitly before arithmetic.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'convert inputs explicitly' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to predict and repair equality, concatenation and truthiness defects. Keep this boundary in view: Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
+    "retrievalPrompts": [
+      "Explain Equality, truthiness and coercion using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: The plus operator always performs numeric addition when one operand is a number.",
+      "Apply checkpoint 'convert inputs explicitly' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Numbers, NaN and precision”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

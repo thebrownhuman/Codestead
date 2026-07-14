@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.data.quality.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.data-workflow",
+  "skillId": "ai.data.quality",
+  "title": "Sampling, labels and data quality",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Sampling, labels and data quality; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Map/Measure outcomes for context, data, affected populations, validity, and measurement; atomic topic: Sampling, labels and data quality",
+      "claim": "Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population."
+    },
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning foundations: problem formulation, data, representation, and evaluation; atomic topic: Sampling, labels and data quality",
+      "claim": "Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection. Your goal is to produce a data-quality report and identify who or what is absent or mismeasured. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: python quality project; Problem and environment characteristics; Problem, target and success measure. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Cleaning cannot recover absent populations, missingness can be informative, majority labels can be wrong, deduplication can leak across splits, and a large dataset can still be systematically biased. The learner must reject this overclaim: Removing nulls and duplicates makes a dataset unbiased and representative, especially when the remaining row count is large."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Inspect provenance, missingness, duplicates, measurement error, representation and label uncertainty.",
+      "Produce a data-quality report and identify who or what is absent or mismeasured."
+    ],
+    "excludes": [
+      "Cleaning cannot recover absent populations, missingness can be informative, majority labels can be wrong, deduplication can leak across splits, and a large dataset can still be systematically biased."
+    ]
+  },
+  "outcomes": [
+    "Produce a data-quality report and identify who or what is absent or mismeasured."
+  ],
+  "examples": [
+    {
+      "id": "ai.data.quality.example.direct",
+      "title": "Sampling, labels and data quality: bounded direct case",
+      "situation": "A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness."
+      ],
+      "result": "This example supports only the atomic outcome because Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness."
+    },
+    {
+      "id": "ai.data.quality.example.stress",
+      "title": "Sampling, labels and data quality: stress and transfer case",
+      "situation": "Dropping every incomplete row removes a subgroup with lower device connectivity, changing both representation and the decision target.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Dropping every incomplete row removes a subgroup with lower device connectivity, changing both representation and the decision target.",
+        "Step 2 — Keep the non-claim visible: Cleaning cannot recover absent populations, missingness can be informative, majority labels can be wrong, deduplication can leak across splits, and a large dataset can still be systematically biased.",
+        "Step 3 — Reject the tempting overclaim: Removing nulls and duplicates makes a dataset unbiased and representative, especially when the remaining row count is large."
+      ],
+      "result": "This case demonstrates the declared outcome: Produce a data-quality report and identify who or what is absent or mismeasured."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.data.quality.misconception",
+      "mistakenBelief": "Removing nulls and duplicates makes a dataset unbiased and representative, especially when the remaining row count is large.",
+      "correction": "Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Removing nulls and duplicates makes a dataset unbiased and representative, especially when the remaining row count is large."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a provenance-controlled laboratory that defines the decision, inspects samples and labels, derives transformations, and seals evaluation partitions can introduce Sampling, labels and data quality only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "problem framing, data quality, preprocessing, and leakage control"
+    ],
+    "limitations": [
+      "clean procedures cannot recover absent populations, authorize data, or make a harmful target appropriate",
+      "Cleaning cannot recover absent populations, missingness can be informative, majority labels can be wrong, deduplication can leak across splits, and a large dataset can still be systematically biased."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection.",
+      "Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population.",
+      "Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Removing nulls and duplicates makes a dataset unbiased and representative, especially when the remaining row count is large."
+      }
+    ],
+    "textAlternative": "Starting artifact: A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection. Step 1, Observe. State: boundedEvidence: A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness.. State what the evidence does not establish and reject the misconception: Removing nulls and duplicates makes a dataset unbiased and representative, especially when the remaining row count is large."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Sampling, labels and data quality: bounded direct case”: state its starting evidence, apply the Sampling, labels and data quality rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Sampling, labels and data quality: bounded direct case.",
+        "Starting evidence: A report groups missing labels by site and month, measures duplicate entities before splitting, samples label disagreements, and names populations absent from collection.",
+        "Core rule: Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population.",
+        "Observable result: This example supports only the atomic outcome because Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness.",
+        "Boundary check: Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Dropping every incomplete row removes a subgroup with lower device connectivity, changing both representation and the decision target.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Data quality assessment examines provenance, collection process, consent/authority, sampling, missingness, duplicates, measurement error, label uncertainty, representation, time, and linkage to the deployment population.",
+        "Cleaning cannot recover absent populations, missingness can be informative, majority labels can be wrong, deduplication can leak across splits, and a large dataset can still be systematically biased."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Sampling, labels and data quality and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Produce a data-quality report and identify who or what is absent or mismeasured.",
+        "Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.data.quality.misconception",
+      "explanation": "Report provenance and measurement processes plus who or what is missing or mismeasured; cleaning changes data but cannot establish representativeness.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Dropping every incomplete row removes a subgroup with lower device connectivity, changing both representation and the decision target."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to produce a data-quality report and identify who or what is absent or mismeasured. Keep this boundary in view: Cleaning cannot recover absent populations, missingness can be informative, majority labels can be wrong, deduplication can leak across splits, and a large dataset can still be systematically biased.",
+    "retrievalPrompts": [
+      "Explain Sampling, labels and data quality with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Removing nulls and duplicates makes a dataset unbiased and representative, especially when the remaining row count is large.",
+      "Apply the boundary to: Dropping every incomplete row removes a subgroup with lower device connectivity, changing both representation and the decision target."
+    ],
+    "nextReviewPrompt": "Next: continue to “Features and preprocessing”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

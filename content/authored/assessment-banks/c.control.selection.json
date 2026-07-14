@@ -1,0 +1,213 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.c.control.selection.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.control-io",
+  "skillId": "c.control.selection",
+  "title": "if and switch deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Added digest-pinned deterministic executable evidence for if and switch; AI-assisted draft remains human-unreviewed and exam-ineligible."
+  },
+  "sourceRefs": [
+    "gnu-c"
+  ],
+  "items": [
+    {
+      "skillId": "c.control.selection",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.control.selection.mcq.misconception",
+      "title": "if and switch: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this C misconception? Every switch case stops automatically when its statements finish, even without break or another control transfer.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended.",
+        "incorrect": "That option preserves the documented misconception. A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned C correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Every switch case stops automatically when its statements finish, even without break or another control transfer."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+      }
+    },
+    {
+      "skillId": "c.control.selection",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.control.selection.fill.checkpoint",
+      "title": "if and switch: complete the language rule",
+      "prompt": "Complete the missing C checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: Every switch case stops automatically when its statements finish, even without break or another control transfer."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'break'.",
+        "incorrect": "Recheck the exact language rule and its boundary. A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact C token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "A switch continues into following labels unless control transfers; use {{key-rule}} or an explicit documented fallthrough when that behavior is intended.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "break"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+      }
+    },
+    {
+      "id": "c.control.selection.code.apply",
+      "skillId": "c.control.selection",
+      "title": "if and switch: executable application",
+      "kind": "code",
+      "prompt": "Read one integer and print negative, zero, or positive using a mutually exclusive C selection whose boundary behavior is explicit.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards, security, and assessment review."
+      },
+      "hints": [
+        "Start from input validation and the declared observable output, then apply only the target language rule before considering optimization."
+      ],
+      "feedback": {
+        "correct": "All visible and hidden deterministic behavior checks passed for the bounded source task.",
+        "incorrect": "At least one deterministic behavior check failed; inspect bounds, input state, and the target rule without exposing hidden cases."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "behavior",
+            "description": "Compiles in the pinned runtime and passes every normal and boundary behavior test.",
+            "points": 7,
+            "critical": true
+          },
+          {
+            "id": "target-rule",
+            "description": "Applies if and switch without undefined behavior or an out-of-scope workaround.",
+            "points": 3,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "AI-assisted and human-unreviewed: formal exam eligibility is prohibited until independent technical and assessment approval.",
+        "Reference verification uses the digest-pinned local container with network=none, no package installation, a read-only source mount, and deterministic stdin/stdout.",
+        "Executable facet: existing bounded executable application retained from the authored language tranche"
+      ],
+      "starterCode": "#include <stdio.h>\n\nint main(void) {\n    int value;\n    if (scanf(\"%d\", &value) != 1) return 1;\n    /* classify value */\n    return 0;\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "c",
+        "version": "C23 / GCC 14.2.0",
+        "imageDigest": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+        "entrypoint": "main.c",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "selection-visible-positive",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "8\n",
+          "expectedStdout": "positive\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "selection-hidden-zero",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0\n",
+          "expectedStdout": "zero\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "selection-hidden-negative",
+          "visibility": "hidden",
+          "category": "normal",
+          "stdin": "-1\n",
+          "expectedStdout": "negative\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "#include <stdio.h>\n\nint main(void) {\n    int value;\n    if (scanf(\"%d\", &value) != 1) return 1;\n    if (value < 0) puts(\"negative\");\n    else if (value == 0) puts(\"zero\");\n    else puts(\"positive\");\n    return 0;\n}\n",
+        "explanation": "The reference solution exercises existing bounded executable application retained from the authored language tranche under the bounded deterministic contract; it remains an AI-assisted draft pending human review."
+      }
+    }
+  ]
+}

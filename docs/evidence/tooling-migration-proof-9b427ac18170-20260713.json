@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-13T15:21:03.6176934+05:30",
+  "scope": "Disposable local exact-image migration proof; no live service or persistent database was used.",
+  "toolingImage": {
+    "tag": "learncoding/app-tooling:local",
+    "localImageId": "sha256:9b427ac18170715ca7141bbae3d66ea32cc6c5bcc19bbe102b31498c17e7f6e0",
+    "platform": "linux/amd64",
+    "configuredUser": "node",
+    "entrypoint": [
+      "/usr/local/bin/learncoding-entrypoint"
+    ],
+    "commandMode": "Image default direct Node ESM Drizzle ORM migrator; no command override."
+  },
+  "databaseImage": {
+    "localImageId": "sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+    "platform": "linux/amd64",
+    "containerId": "e32461839712df21f329a77eb68451f88ca8fab4ad75f871339d0e023a4873f5"
+  },
+  "isolation": {
+    "networkId": "fdd0eb97a279093c4ae0861af044662cc7540171703af6ebf1309292b5c40858",
+    "internalOnly": true,
+    "hostPortBindings": 0,
+    "databaseDataStorage": "tmpfs:/var/lib/postgresql/data",
+    "persistentVolumes": 0,
+    "bindMounts": 0
+  },
+  "runs": [
+    {
+      "attempt": 1,
+      "exitCode": 0
+    },
+    {
+      "attempt": 2,
+      "exitCode": 0
+    }
+  ],
+  "result": {
+    "drizzleMigrationRows": 41,
+    "publicTables": 89,
+    "idempotentSecondRunPassed": true,
+    "passed": true
+  },
+  "cleanup": {
+    "toolingContainersRemaining": 0,
+    "databaseContainerRemoved": true,
+    "networkAttachmentsBeforeRemoval": 0,
+    "networkRemoved": true,
+    "ownedContainersRemainingForRun": 0,
+    "ownedNetworksRemainingForRun": 0
+  }
+}

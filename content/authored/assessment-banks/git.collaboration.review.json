@@ -1,0 +1,80 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.collaboration.review.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.collaboration",
+  "skillId": "git.collaboration.review",
+  "title": "Code review deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Code review; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "github-docs",
+    "cs2023-se",
+    "nist-ssdf"
+  ],
+  "items": [
+    {
+      "id": "git.collaboration.review.mcq.misconception",
+      "skillId": "git.collaboration.review",
+      "title": "Code review: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Review quality is measured by the number of comments, and personal style differences should block a correct change.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.",
+        "incorrect": "The selected statement preserves the documented misconception. Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Code review instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Review quality is measured by the number of comments, and personal style differences should block a correct change."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "generatedAt": "2026-07-13T09:40:36.380Z",
+  "passed": [
+    "real executor: compile/run/stdin",
+    "real executor: hidden-data redaction",
+    "real executor: output cap and forced cleanup",
+    "real executor: cross-job source cleanup"
+  ]
+}

@@ -1,0 +1,12 @@
+[Unit]
+Description=LearnCoding failure alert for %i
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/bash /opt/learncoding/infra/ops/alert.sh %i
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077

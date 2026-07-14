@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.functions.parameters.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.functions",
+  "skillId": "python.functions.parameters",
+  "title": "Parameter kinds and argument binding",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Parameter kinds and argument binding; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial §4.9 and chapter 8: function definitions, parameter rules, and errors; atomic topic: Parameter kinds and argument binding",
+      "claim": "Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Execution Model and Function Definitions: name binding, scopes, closures, calls, and defaults; atomic topic: Parameter kinds and argument binding",
+      "claim": "Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number. Your goal is to trace argument binding and repair an unsafe or ambiguous function signature. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; pf abstraction calls; Function contracts and returns; Mutability, aliases and copying. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Default expressions run once at definition, *args is a tuple, **kwargs is a dict, duplicate bindings fail, and changing a public parameter name can break keyword callers. The learner must reject this documented misconception: Default list expressions run for each call, so appending to a default cannot affect a later invocation."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use positional, keyword, default, variadic and keyword-only parameters without mutable-default traps.",
+      "Trace argument binding and repair an unsafe or ambiguous function signature."
+    ],
+    "excludes": [
+      "Default expressions run once at definition, *args is a tuple, **kwargs is a dict, duplicate bindings fail, and changing a public parameter name can break keyword callers."
+    ]
+  },
+  "outcomes": [
+    "Trace argument binding and repair an unsafe or ambiguous function signature."
+  ],
+  "examples": [
+    {
+      "id": "python.functions.parameters.example.direct",
+      "title": "Parameter kinds and argument binding: direct language case",
+      "situation": "A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body."
+      ],
+      "result": "The example meets the atomic outcome because Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body."
+    },
+    {
+      "id": "python.functions.parameters.example.boundary",
+      "title": "Parameter kinds and argument binding: boundary and transfer case",
+      "situation": "A logging wrapper forwards *args and **kwargs exactly once and does not silently consume a caller keyword intended for the wrapped function.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A logging wrapper forwards *args and **kwargs exactly once and does not silently consume a caller keyword intended for the wrapped function.",
+        "Step 2 — Keep the language boundary explicit: Default expressions run once at definition, *args is a tuple, **kwargs is a dict, duplicate bindings fail, and changing a public parameter name can break keyword callers.",
+        "Step 3 — Reject the tempting but incorrect rule: Default list expressions run for each call, so appending to a default cannot affect a later invocation."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace argument binding and repair an unsafe or ambiguous function signature."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.functions.parameters.misconception",
+      "mistakenBelief": "Default list expressions run for each call, so appending to a default cannot affect a later invocation.",
+      "correction": "Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Default list expressions run for each call, so appending to a default cannot affect a later invocation."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a callable service counter with a published request form, binding rules, retained enclosing notes, and a recursive delegation limit can introduce Parameter kinds and argument binding, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "contracts, parameters, closures, and recursion"
+    ],
+    "limitations": [
+      "definition-time defaults, LEGB lookup, late binding, exceptions, and stack limits have no exact service-counter counterpart",
+      "Default expressions run once at definition, *args is a tuple, **kwargs is a dict, duplicate bindings fail, and changing a public parameter name can break keyword callers."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number.",
+      "Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes.",
+      "Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Default list expressions run for each call, so appending to a default cannot affect a later invocation."
+      }
+    ],
+    "textAlternative": "Starting artifact: A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number. Step 1, Observe. State: evidence: A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body.. Compare the observation with the correction and explain why the misconception fails: Default list expressions run for each call, so appending to a default cannot affect a later invocation."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Parameter kinds and argument binding: direct language case”: state its starting evidence, apply the Parameter kinds and argument binding rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Parameter kinds and argument binding: direct language case.",
+        "Starting evidence: A function uses None as a default and creates a new list per call, while a keyword-only timeout prevents an unclear positional boolean or number.",
+        "Core rule: Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes.",
+        "Observable result: The example meets the atomic outcome because Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body.",
+        "Boundary check: Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A logging wrapper forwards *args and **kwargs exactly once and does not silently consume a caller keyword intended for the wrapped function.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python binds arguments to positional-only, positional-or-keyword, variadic, keyword-only, and defaulted parameters according to the signature before the function body executes.",
+        "Default expressions run once at definition, *args is a tuple, **kwargs is a dict, duplicate bindings fail, and changing a public parameter name can break keyword callers."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Parameter kinds and argument binding, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace argument binding and repair an unsafe or ambiguous function signature.",
+        "Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.functions.parameters.misconception",
+      "explanation": "Default expressions are evaluated once at function definition; use an immutable sentinel such as None and create per-call mutable state inside the body.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A logging wrapper forwards *args and **kwargs exactly once and does not silently consume a caller keyword intended for the wrapped function."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace argument binding and repair an unsafe or ambiguous function signature. Keep this boundary in view: Default expressions run once at definition, *args is a tuple, **kwargs is a dict, duplicate bindings fail, and changing a public parameter name can break keyword callers.",
+    "retrievalPrompts": [
+      "Explain Parameter kinds and argument binding using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Default list expressions run for each call, so appending to a default cannot affect a later invocation.",
+      "Predict this case from memory: A logging wrapper forwards *args and **kwargs exactly once and does not silently consume a caller keyword intended for the wrapped function."
+    ],
+    "nextReviewPrompt": "Next: continue to “Scope and closures”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

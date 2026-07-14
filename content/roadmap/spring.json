@@ -1,0 +1,15 @@
+{
+  "$schema": "../schema/roadmap-track.schema.json",
+  "format": "roadmap-track",
+  "schema_version": "1.0.0",
+  "id": "spring",
+  "title": "Spring Framework",
+  "status": "coming-soon",
+  "release": "launch-3",
+  "prerequisites": ["java"],
+  "scope_brief": "A future Spring Framework extension gated behind the complete intermediate Java track.",
+  "planned_scope": ["Dependency injection and application context models", "Web, data and transaction boundaries", "Testing, configuration, security awareness and diagnostics"],
+  "non_goals": ["Spring is not bundled into or counted as part of Launch 1 Java."],
+  "approval": { "state": "approved-for-roadmap-only", "required_role": "admin", "decision_ref": "owner-scope-2026-07-12" },
+  "publication": { "learner_content_available": false, "authored_lessons": 0, "assessment_banks": 0, "exam_eligible_items": 0, "requires_separate_verified_release": true }
+}

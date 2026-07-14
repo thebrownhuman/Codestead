@@ -1,0 +1,15 @@
+{
+  "$schema": "../schema/roadmap-track.schema.json",
+  "format": "roadmap-track",
+  "schema_version": "1.0.0",
+  "id": "numpy",
+  "title": "NumPy",
+  "status": "coming-soon",
+  "release": "launch-3",
+  "prerequisites": ["python"],
+  "scope_brief": "A future array-programming extension gated behind the complete intermediate Python track.",
+  "planned_scope": ["Array shape, dtype, indexing and broadcasting models", "Vectorized computation, correctness and performance measurement", "Testing, file interchange and numerical reliability boundaries"],
+  "non_goals": ["NumPy is not bundled into or counted as part of Launch 1 Python."],
+  "approval": { "state": "approved-for-roadmap-only", "required_role": "admin", "decision_ref": "owner-scope-2026-07-12" },
+  "publication": { "learner_content_available": false, "authored_lessons": 0, "assessment_banks": 0, "exam_eligible_items": 0, "requires_separate_verified_release": true }
+}

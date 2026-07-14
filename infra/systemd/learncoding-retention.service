@@ -1,0 +1,17 @@
+[Unit]
+Description=Apply LearnCoding versioned data-retention policy
+Documentation=/opt/learncoding/docs/runbooks/data-lifecycle.md
+After=learncoding-compose.service
+Wants=learncoding-compose.service
+OnFailure=learncoding-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/learncoding
+ExecStart=/usr/bin/docker compose --profile operations run --rm lifecycle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+TimeoutStartSec=2h

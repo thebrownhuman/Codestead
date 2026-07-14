@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.color.contrast.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.type-color",
+  "skillId": "css.color.contrast",
+  "title": "Color and contrast",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Color and contrast; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Color and contrast",
+      "claim": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states."
+    },
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Color and contrast",
+      "claim": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A focus indicator and error text are measured on every background they can overlap, not only the design canvas. Your goal is to measure and repair text, component and focus-indicator contrast. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Lengths, percentages and viewport units; html semantics text; Custom properties and design tokens; Readable text metrics. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast. This draft therefore rejects: A contrast-safe text hex value remains compliant on every translucent or image background."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose foreground, background, focus and state colors that satisfy contrast and do not encode meaning alone.",
+      "Measure and repair text, component and focus-indicator contrast."
+    ],
+    "excludes": [
+      "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast."
+    ]
+  },
+  "outcomes": [
+    "Measure and repair text, component and focus-indicator contrast."
+  ],
+  "examples": [
+    {
+      "id": "css.color.contrast.example-a",
+      "title": "Color and contrast: concrete case",
+      "situation": "A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+      ],
+      "result": "The result follows because Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+    },
+    {
+      "id": "css.color.contrast.example-b",
+      "title": "Color and contrast: boundary case",
+      "situation": "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A contrast-safe text hex value remains compliant on every translucent or image background."
+      ],
+      "result": "The boundary requires this correction: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.color.contrast.misconception",
+      "mistakenBelief": "A contrast-safe text hex value remains compliant on every translucent or image background.",
+      "correction": "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A contrast-safe text hex value remains compliant on every translucent or image background."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Color and contrast, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Color and contrast before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
+      "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
+      "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A focus indicator and error text are measured on every background they can overlap, not only the design canvas."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A contrast-safe text hex value remains compliant on every translucent or image background."
+      }
+    ],
+    "textAlternative": "Starting artifact: A focus indicator and error text are measured on every background they can overlap, not only the design canvas. Step 1, Artifact. State: evidence: A focus indicator and error text are measured on every background they can overlap, not only the design canvas.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.. Check the result against the boundary and reject this misconception: A contrast-safe text hex value remains compliant on every translucent or image background."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Color and contrast: concrete case”: state its starting evidence, apply the Color and contrast rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Color and contrast: concrete case.",
+        "Starting evidence: A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
+        "Core rule: Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
+        "Observable result: The result follows because Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.",
+        "Boundary check: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
+        "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Color and contrast and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Measure and repair text, component and focus-indicator contrast.",
+        "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.color.contrast.misconception",
+      "explanation": "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'foreground-background pair' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to measure and repair text, component and focus-indicator contrast. Keep this boundary in view: Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
+    "retrievalPrompts": [
+      "Explain Color and contrast using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: A contrast-safe text hex value remains compliant on every translucent or image background.",
+      "Apply checkpoint 'foreground-background pair' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Borders, shadows, gradients and backgrounds”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

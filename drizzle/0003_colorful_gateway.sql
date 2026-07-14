@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "provider_policy_operation_unique" ON "provider_policy" USING btree ("provider","operation","model");--> statement-breakpoint
+CREATE INDEX "provider_policy_priority_idx" ON "provider_policy" USING btree ("operation","enabled","priority");

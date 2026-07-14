@@ -1,0 +1,2475 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.69.2"
+  },
+  "ReportID": "019f5a79-a31d-7774-8d6f-089feac6cbb5",
+  "CreatedAt": "2026-07-13T13:25:48.8934885+05:30",
+  "ArtifactID": "sha256:8d50ede50ea45fde4115a3229136573a51b40a9428ddc59867688733b8e3b936",
+  "ArtifactName": "learncoding/runtime-java:local",
+  "ArtifactType": "container_image",
+  "Metadata": {
+    "Size": 318241280,
+    "OS": {
+      "Family": "alpine",
+      "Name": "3.23.5"
+    },
+    "ImageID": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+    "DiffIDs": [
+      "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0",
+      "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187",
+      "sha256:7729eb19cefec5d70805a2789039b5b95ed0d4620485b981c332511949324bb2",
+      "sha256:de8ec668e33598b9c97a12397ac5d9b32cd33662057088fa850f5a3a9f0db4ad"
+    ],
+    "RepoTags": [
+      "learncoding/runtime-java:local"
+    ],
+    "RepoDigests": [
+      "learncoding/runtime-java@sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c"
+    ],
+    "Reference": "learncoding/runtime-java:local",
+    "ImageConfig": {
+      "architecture": "amd64",
+      "created": "2026-07-13T07:54:35.076490972Z",
+      "history": [
+        {
+          "created": "2026-06-22T19:20:09Z",
+          "created_by": "ADD alpine-minirootfs-3.23.5-x86_64.tar.gz / # buildkit",
+          "comment": "buildkit.dockerfile.v0"
+        },
+        {
+          "created": "2026-06-22T19:20:09Z",
+          "created_by": "CMD [\"/bin/sh\"]",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "ARG EXPECTED_LANGUAGE",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "ARG EXPECTED_TOOL_VERSION",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "ARG BASE_IMAGE_REFERENCE",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "ARG RUNTIME_PACKAGES",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "RUN |4 EXPECTED_LANGUAGE=java EXPECTED_TOOL_VERSION=21.0.11 BASE_IMAGE_REFERENCE=alpine:3.23@sha256:1beb0dc0a51de7ff38e3b5274078a2e0b81113ba5c7535e1a03d5913a5edbda3 RUNTIME_PACKAGES=openjdk21-jdk=21.0.11_p10-r0 /bin/sh -c set -eu;     if [ -n \"${RUNTIME_PACKAGES}\" ]; then apk add --no-cache ${RUNTIME_PACKAGES}; fi;     mkdir -p /usr/local/bin;     case \"${EXPECTED_LANGUAGE}\" in       c)         ln -s /usr/bin/gcc /usr/local/bin/gcc;         test \"$(/usr/local/bin/gcc -dumpfullversion)\" = \"${EXPECTED_TOOL_VERSION}\"         ;;       cpp)         ln -s /usr/bin/g++ /usr/local/bin/g++;         test \"$(/usr/local/bin/g++ -dumpfullversion)\" = \"${EXPECTED_TOOL_VERSION}\"         ;;       java)         mkdir -p /opt/java;         ln -s /usr/lib/jvm/java-21-openjdk /opt/java/openjdk;         /opt/java/openjdk/bin/java -XshowSettings:properties -version 2\u003e\u00261           | grep -F \"java.version = ${EXPECTED_TOOL_VERSION}\" \u003e/dev/null         ;;       python)         rm -rf /usr/local/lib/python3.14/ensurepip           /usr/local/lib/python3.14/site-packages/pip           /usr/local/lib/python3.14/site-packages/pip-*.dist-info;         rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14;         ! command -v pip \u003e/dev/null 2\u003e\u00261;         ! /usr/local/bin/python3 -m ensurepip --version \u003e/dev/null 2\u003e\u00261;         test \"$(/usr/local/bin/python3 -c 'import platform; print(platform.python_version())')\" = \"${EXPECTED_TOOL_VERSION}\"         ;;       javascript)         rm -rf /usr/local/lib/node_modules /opt/yarn-v*;         rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack           /usr/local/bin/yarn /usr/local/bin/yarnpkg;         test \"$(/usr/local/bin/node --version)\" = \"v${EXPECTED_TOOL_VERSION}\"         ;;       *) exit 64 ;;     esac;     rm -f /sbin/apk # buildkit",
+          "comment": "buildkit.dockerfile.v0"
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "LABEL org.opencontainers.image.title=LearnCoding java runtime org.opencontainers.image.description=Networkless, non-root learner-code runtime with fixed native harness org.opencontainers.image.vendor=LearnCoding org.opencontainers.image.licenses=AGPL-3.0-or-later io.learncoding.runner.protocol=1 io.learncoding.runner.language=java io.learncoding.runner.base=alpine:3.23@sha256:1beb0dc0a51de7ff38e3b5274078a2e0b81113ba5c7535e1a03d5913a5edbda3 io.learncoding.runner.packages=openjdk21-jdk=21.0.11_p10-r0",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "COPY --chown=65532:65532 --chmod=0555 /out/execute /opt/runner/execute # buildkit",
+          "comment": "buildkit.dockerfile.v0"
+        },
+        {
+          "created": "2026-07-13T07:54:34Z",
+          "created_by": "USER 65532:65532",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:35Z",
+          "created_by": "WORKDIR /work",
+          "comment": "buildkit.dockerfile.v0"
+        },
+        {
+          "created": "2026-07-13T07:54:35Z",
+          "created_by": "ENTRYPOINT []",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        },
+        {
+          "created": "2026-07-13T07:54:35Z",
+          "created_by": "CMD [\"/opt/runner/execute\" \"--describe\"]",
+          "comment": "buildkit.dockerfile.v0",
+          "empty_layer": true
+        }
+      ],
+      "os": "linux",
+      "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+          "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0",
+          "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187",
+          "sha256:7729eb19cefec5d70805a2789039b5b95ed0d4620485b981c332511949324bb2",
+          "sha256:de8ec668e33598b9c97a12397ac5d9b32cd33662057088fa850f5a3a9f0db4ad"
+        ]
+      },
+      "config": {
+        "Cmd": [
+          "/opt/runner/execute",
+          "--describe"
+        ],
+        "Env": [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ],
+        "Labels": {
+          "io.learncoding.runner.base": "alpine:3.23@sha256:1beb0dc0a51de7ff38e3b5274078a2e0b81113ba5c7535e1a03d5913a5edbda3",
+          "io.learncoding.runner.language": "java",
+          "io.learncoding.runner.packages": "openjdk21-jdk=21.0.11_p10-r0",
+          "io.learncoding.runner.protocol": "1",
+          "org.opencontainers.image.description": "Networkless, non-root learner-code runtime with fixed native harness",
+          "org.opencontainers.image.licenses": "AGPL-3.0-or-later",
+          "org.opencontainers.image.title": "LearnCoding java runtime",
+          "org.opencontainers.image.vendor": "LearnCoding"
+        },
+        "User": "65532:65532",
+        "WorkingDir": "/work",
+        "ArgsEscaped": true
+      }
+    },
+    "Layers": [
+      {
+        "Size": 8693760,
+        "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+        "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+      },
+      {
+        "Size": 309226496,
+        "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+        "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+      },
+      {
+        "Size": 319488,
+        "Digest": "sha256:795d1248c815b030e52b29534be4ec0353d361b31ce45143b07a9fc0a71f04d2",
+        "DiffID": "sha256:7729eb19cefec5d70805a2789039b5b95ed0d4620485b981c332511949324bb2"
+      },
+      {
+        "Size": 1536,
+        "Digest": "sha256:61049bdf42354f8ff9a3a60cc3d8195c27ac458a44609e345a852ae97b9fc470",
+        "DiffID": "sha256:de8ec668e33598b9c97a12397ac5d9b32cd33662057088fa850f5a3a9f0db4ad"
+      }
+    ]
+  },
+  "Results": [
+    {
+      "Target": "learncoding/runtime-java:local (alpine 3.23.5)",
+      "Class": "os-pkgs",
+      "Type": "alpine",
+      "Packages": [
+        {
+          "ID": "alpine-baselayout@3.7.2-r0",
+          "Name": "alpine-baselayout",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/alpine-baselayout@3.7.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "ff3090489ca40326"
+          },
+          "Version": "3.7.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "alpine-baselayout",
+          "SrcVersion": "3.7.2-r0",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "alpine-baselayout-data@3.7.2-r0",
+            "busybox-binsh@1.37.0-r30"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:545aa6f291209af89932b761d9e422c2778596cc",
+          "InstalledFiles": [
+            "etc/motd",
+            "etc/crontabs/root",
+            "etc/modprobe.d/aliases.conf",
+            "etc/modprobe.d/blacklist.conf",
+            "etc/modprobe.d/i386.conf",
+            "etc/profile.d/20locale.sh",
+            "etc/profile.d/README",
+            "etc/profile.d/color_prompt.sh.disabled",
+            "usr/lib/sysctl.d/00-alpine.conf",
+            "var/lock",
+            "var/run",
+            "var/spool/mail",
+            "var/spool/cron/crontabs"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "alpine-baselayout-data@3.7.2-r0",
+          "Name": "alpine-baselayout-data",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/alpine-baselayout-data@3.7.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "78c0ed61d7df9a7e"
+          },
+          "Version": "3.7.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "alpine-baselayout",
+          "SrcVersion": "3.7.2-r0",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:85816632dbce07ba7e9e7a629fa59eddbd1687fb",
+          "InstalledFiles": [
+            "etc/fstab",
+            "etc/group",
+            "etc/hostname",
+            "etc/hosts",
+            "etc/inittab",
+            "etc/modules",
+            "etc/mtab",
+            "etc/nsswitch.conf",
+            "etc/passwd",
+            "etc/profile",
+            "etc/protocols",
+            "etc/services",
+            "etc/shadow",
+            "etc/shells",
+            "etc/sysctl.conf"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "alpine-keys@2.6-r0",
+          "Name": "alpine-keys",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/alpine-keys@2.6-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "2c7cb90de388aa7d"
+          },
+          "Version": "2.6-r0",
+          "Arch": "x86_64",
+          "SrcName": "alpine-keys",
+          "SrcVersion": "2.6-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:5c45a821cd6b84d543bbd7ff12a7de1855c5cd13",
+          "InstalledFiles": [
+            "etc/apk/keys/alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub",
+            "etc/apk/keys/alpine-devel@lists.alpinelinux.org-5261cecb.rsa.pub",
+            "etc/apk/keys/alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-5243ef4b.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-524d27bb.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-5261cecb.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-58199dcc.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-58cbb476.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-58e4f17d.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-5e69ca50.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-60ac2099.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-61666e3f.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-616a9724.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-616abc23.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-616ac3bc.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-616adfeb.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-616db30d.rsa.pub",
+            "usr/share/apk/keys/alpine-devel@lists.alpinelinux.org-66ba20fe.rsa.pub",
+            "usr/share/apk/keys/aarch64/alpine-devel@lists.alpinelinux.org-58199dcc.rsa.pub",
+            "usr/share/apk/keys/aarch64/alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub",
+            "usr/share/apk/keys/armhf/alpine-devel@lists.alpinelinux.org-524d27bb.rsa.pub",
+            "usr/share/apk/keys/armhf/alpine-devel@lists.alpinelinux.org-616a9724.rsa.pub",
+            "usr/share/apk/keys/armv7/alpine-devel@lists.alpinelinux.org-524d27bb.rsa.pub",
+            "usr/share/apk/keys/armv7/alpine-devel@lists.alpinelinux.org-616adfeb.rsa.pub",
+            "usr/share/apk/keys/loongarch64/alpine-devel@lists.alpinelinux.org-66ba20fe.rsa.pub",
+            "usr/share/apk/keys/mips64/alpine-devel@lists.alpinelinux.org-5e69ca50.rsa.pub",
+            "usr/share/apk/keys/ppc64le/alpine-devel@lists.alpinelinux.org-58cbb476.rsa.pub",
+            "usr/share/apk/keys/ppc64le/alpine-devel@lists.alpinelinux.org-616abc23.rsa.pub",
+            "usr/share/apk/keys/riscv64/alpine-devel@lists.alpinelinux.org-60ac2099.rsa.pub",
+            "usr/share/apk/keys/riscv64/alpine-devel@lists.alpinelinux.org-616db30d.rsa.pub",
+            "usr/share/apk/keys/s390x/alpine-devel@lists.alpinelinux.org-58e4f17d.rsa.pub",
+            "usr/share/apk/keys/s390x/alpine-devel@lists.alpinelinux.org-616ac3bc.rsa.pub",
+            "usr/share/apk/keys/x86/alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub",
+            "usr/share/apk/keys/x86/alpine-devel@lists.alpinelinux.org-5243ef4b.rsa.pub",
+            "usr/share/apk/keys/x86/alpine-devel@lists.alpinelinux.org-61666e3f.rsa.pub",
+            "usr/share/apk/keys/x86_64/alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub",
+            "usr/share/apk/keys/x86_64/alpine-devel@lists.alpinelinux.org-5261cecb.rsa.pub",
+            "usr/share/apk/keys/x86_64/alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "alpine-release@3.23.5-r0",
+          "Name": "alpine-release",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/alpine-release@3.23.5-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "58b001445238c53e"
+          },
+          "Version": "3.23.5-r0",
+          "Arch": "x86_64",
+          "SrcName": "alpine-base",
+          "SrcVersion": "3.23.5-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "alpine-keys@2.6-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:37f737cfc477560795ce10cbe468fb86e9e7aabb",
+          "InstalledFiles": [
+            "etc/alpine-release",
+            "etc/issue",
+            "etc/os-release",
+            "etc/secfixes.d/alpine",
+            "usr/lib/os-release"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "alsa-lib@1.2.14-r2",
+          "Name": "alsa-lib",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/alsa-lib@1.2.14-r2?arch=x86_64\u0026distro=3.23.5",
+            "UID": "150c349bbc7f1b2f"
+          },
+          "Version": "1.2.14-r2",
+          "Arch": "x86_64",
+          "SrcName": "alsa-lib",
+          "SrcVersion": "1.2.14-r2",
+          "Licenses": [
+            "LGPL-2.1-or-later"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:dfb787005e07d66c2db231863d54ab01c2cfb350",
+          "InstalledFiles": [
+            "usr/bin/aserver",
+            "usr/lib/libasound.so.2",
+            "usr/lib/libasound.so.2.0.0",
+            "usr/lib/libatopology.so.2",
+            "usr/lib/libatopology.so.2.0.0",
+            "usr/share/alsa/alsa.conf",
+            "usr/share/alsa/cards/AACI.conf",
+            "usr/share/alsa/cards/ATIIXP-MODEM.conf",
+            "usr/share/alsa/cards/ATIIXP-SPDMA.conf",
+            "usr/share/alsa/cards/ATIIXP.conf",
+            "usr/share/alsa/cards/AU8810.conf",
+            "usr/share/alsa/cards/AU8820.conf",
+            "usr/share/alsa/cards/AU8830.conf",
+            "usr/share/alsa/cards/Audigy.conf",
+            "usr/share/alsa/cards/Audigy2.conf",
+            "usr/share/alsa/cards/Aureon51.conf",
+            "usr/share/alsa/cards/Aureon71.conf",
+            "usr/share/alsa/cards/CA0106.conf",
+            "usr/share/alsa/cards/CMI8338-SWIEC.conf",
+            "usr/share/alsa/cards/CMI8338.conf",
+            "usr/share/alsa/cards/CMI8738-MC6.conf",
+            "usr/share/alsa/cards/CMI8738-MC8.conf",
+            "usr/share/alsa/cards/CMI8788.conf",
+            "usr/share/alsa/cards/CS46xx.conf",
+            "usr/share/alsa/cards/EMU10K1.conf",
+            "usr/share/alsa/cards/EMU10K1X.conf",
+            "usr/share/alsa/cards/ENS1370.conf",
+            "usr/share/alsa/cards/ENS1371.conf",
+            "usr/share/alsa/cards/ES1968.conf",
+            "usr/share/alsa/cards/Echo_Echo3G.conf",
+            "usr/share/alsa/cards/FM801.conf",
+            "usr/share/alsa/cards/FWSpeakers.conf",
+            "usr/share/alsa/cards/FireWave.conf",
+            "usr/share/alsa/cards/GUS.conf",
+            "usr/share/alsa/cards/HDA-Intel.conf",
+            "usr/share/alsa/cards/HdmiLpeAudio.conf",
+            "usr/share/alsa/cards/ICE1712.conf",
+            "usr/share/alsa/cards/ICE1724.conf",
+            "usr/share/alsa/cards/ICH-MODEM.conf",
+            "usr/share/alsa/cards/ICH.conf",
+            "usr/share/alsa/cards/ICH4.conf",
+            "usr/share/alsa/cards/Loopback.conf",
+            "usr/share/alsa/cards/Maestro3.conf",
+            "usr/share/alsa/cards/NFORCE.conf",
+            "usr/share/alsa/cards/PC-Speaker.conf",
+            "usr/share/alsa/cards/PMac.conf",
+            "usr/share/alsa/cards/PMacToonie.conf",
+            "usr/share/alsa/cards/PS3.conf",
+            "usr/share/alsa/cards/RME9636.conf",
+            "usr/share/alsa/cards/RME9652.conf",
+            "usr/share/alsa/cards/SB-XFi.conf",
+            "usr/share/alsa/cards/SI7018.conf",
+            "usr/share/alsa/cards/TRID4DWAVENX.conf",
+            "usr/share/alsa/cards/USB-Audio.conf",
+            "usr/share/alsa/cards/VIA686A.conf",
+            "usr/share/alsa/cards/VIA8233.conf",
+            "usr/share/alsa/cards/VIA8233A.conf",
+            "usr/share/alsa/cards/VIA8237.conf",
+            "usr/share/alsa/cards/VX222.conf",
+            "usr/share/alsa/cards/VXPocket.conf",
+            "usr/share/alsa/cards/VXPocket440.conf",
+            "usr/share/alsa/cards/YMF744.conf",
+            "usr/share/alsa/cards/aliases.conf",
+            "usr/share/alsa/cards/pistachio-card.conf",
+            "usr/share/alsa/cards/vc4-hdmi.conf",
+            "usr/share/alsa/ctl/default.conf",
+            "usr/share/alsa/pcm/center_lfe.conf",
+            "usr/share/alsa/pcm/default.conf",
+            "usr/share/alsa/pcm/dmix.conf",
+            "usr/share/alsa/pcm/dpl.conf",
+            "usr/share/alsa/pcm/dsnoop.conf",
+            "usr/share/alsa/pcm/front.conf",
+            "usr/share/alsa/pcm/hdmi.conf",
+            "usr/share/alsa/pcm/iec958.conf",
+            "usr/share/alsa/pcm/modem.conf",
+            "usr/share/alsa/pcm/rear.conf",
+            "usr/share/alsa/pcm/side.conf",
+            "usr/share/alsa/pcm/surround21.conf",
+            "usr/share/alsa/pcm/surround40.conf",
+            "usr/share/alsa/pcm/surround41.conf",
+            "usr/share/alsa/pcm/surround50.conf",
+            "usr/share/alsa/pcm/surround51.conf",
+            "usr/share/alsa/pcm/surround71.conf"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "apk-tools@3.0.6-r0",
+          "Name": "apk-tools",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/apk-tools@3.0.6-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "c719faa075d9da13"
+          },
+          "Version": "3.0.6-r0",
+          "Arch": "x86_64",
+          "SrcName": "apk-tools",
+          "SrcVersion": "3.0.6-r0",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "ca-certificates-bundle@20260611-r0",
+            "libapk@3.0.6-r0",
+            "libcrypto3@3.5.7-r0",
+            "musl@1.2.5-r23",
+            "zlib@1.3.2-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:86f3b3ef94d1cb213a4ed1187b34a6bb9f593033",
+          "InstalledFiles": [
+            "sbin/apk"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "brotli-libs@1.2.0-r0",
+          "Name": "brotli-libs",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/brotli-libs@1.2.0-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "234da2b3c350083b"
+          },
+          "Version": "1.2.0-r0",
+          "Arch": "x86_64",
+          "SrcName": "brotli",
+          "SrcVersion": "1.2.0-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "prspkt \u003cprspkt@protonmail.com\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:0814694602f35d2741e916fdcb4c9a1e0ec50b42",
+          "InstalledFiles": [
+            "usr/lib/libbrotlicommon.so.1",
+            "usr/lib/libbrotlicommon.so.1.2.0",
+            "usr/lib/libbrotlidec.so.1",
+            "usr/lib/libbrotlidec.so.1.2.0",
+            "usr/lib/libbrotlienc.so.1",
+            "usr/lib/libbrotlienc.so.1.2.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "busybox@1.37.0-r30",
+          "Name": "busybox",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/busybox@1.37.0-r30?arch=x86_64\u0026distro=3.23.5",
+            "UID": "9647681d0b54db77"
+          },
+          "Version": "1.37.0-r30",
+          "Arch": "x86_64",
+          "SrcName": "busybox",
+          "SrcVersion": "1.37.0-r30",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Sören Tempel \u003csoeren+alpine@soeren-tempel.net\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:f1347801bb96b1aa40d17f82237c3f4ff02a4725",
+          "InstalledFiles": [
+            "bin/busybox",
+            "etc/securetty",
+            "etc/busybox-paths.d/busybox",
+            "etc/logrotate.d/acpid",
+            "etc/network/if-up.d/dad",
+            "etc/udhcpc/udhcpc.conf",
+            "usr/share/udhcpc/default.script"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "busybox-binsh@1.37.0-r30",
+          "Name": "busybox-binsh",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/busybox-binsh@1.37.0-r30?arch=x86_64\u0026distro=3.23.5",
+            "UID": "3e18d05d46a6f46f"
+          },
+          "Version": "1.37.0-r30",
+          "Arch": "x86_64",
+          "SrcName": "busybox",
+          "SrcVersion": "1.37.0-r30",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Sören Tempel \u003csoeren+alpine@soeren-tempel.net\u003e",
+          "DependsOn": [
+            "busybox@1.37.0-r30"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:188d2d0110afa58e8a3e3e5fd424b2d996df7a09",
+          "InstalledFiles": [
+            "bin/sh"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "ca-certificates@20260611-r0",
+          "Name": "ca-certificates",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/ca-certificates@20260611-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "aea269ef856f835"
+          },
+          "Version": "20260611-r0",
+          "Arch": "x86_64",
+          "SrcName": "ca-certificates",
+          "SrcVersion": "20260611-r0",
+          "Licenses": [
+            "MPL-2.0",
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "busybox-binsh@1.37.0-r30",
+            "libcrypto3@3.5.7-r0",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:99993992c0b045c9914c5148257c33eb74993615",
+          "InstalledFiles": [
+            "etc/ca-certificates.conf",
+            "etc/apk/protected_paths.d/ca-certificates.list",
+            "etc/ca-certificates/update.d/certhash",
+            "usr/bin/c_rehash",
+            "usr/sbin/update-ca-certificates",
+            "usr/share/ca-certificates/mozilla/ACCVRAIZ1.crt",
+            "usr/share/ca-certificates/mozilla/AC_RAIZ_FNMT-RCM.crt",
+            "usr/share/ca-certificates/mozilla/AC_RAIZ_FNMT-RCM_SERVIDORES_SEGUROS.crt",
+            "usr/share/ca-certificates/mozilla/ANF_Secure_Server_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/Actalis_Authentication_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/Amazon_Root_CA_1.crt",
+            "usr/share/ca-certificates/mozilla/Amazon_Root_CA_2.crt",
+            "usr/share/ca-certificates/mozilla/Amazon_Root_CA_3.crt",
+            "usr/share/ca-certificates/mozilla/Amazon_Root_CA_4.crt",
+            "usr/share/ca-certificates/mozilla/Atos_TrustedRoot_2011.crt",
+            "usr/share/ca-certificates/mozilla/Atos_TrustedRoot_Root_CA_ECC_TLS_2021.crt",
+            "usr/share/ca-certificates/mozilla/Atos_TrustedRoot_Root_CA_RSA_TLS_2021.crt",
+            "usr/share/ca-certificates/mozilla/Autoridad_de_Certificacion_Firmaprofesional_CIF_A62634068.crt",
+            "usr/share/ca-certificates/mozilla/BJCA_Global_Root_CA1.crt",
+            "usr/share/ca-certificates/mozilla/BJCA_Global_Root_CA2.crt",
+            "usr/share/ca-certificates/mozilla/Buypass_Class_2_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/Buypass_Class_3_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/CA_Disig_Root_R2.crt",
+            "usr/share/ca-certificates/mozilla/CFCA_EV_ROOT.crt",
+            "usr/share/ca-certificates/mozilla/COMODO_ECC_Certification_Authority.crt",
+            "usr/share/ca-certificates/mozilla/COMODO_RSA_Certification_Authority.crt",
+            "usr/share/ca-certificates/mozilla/Certainly_Root_E1.crt",
+            "usr/share/ca-certificates/mozilla/Certainly_Root_R1.crt",
+            "usr/share/ca-certificates/mozilla/Certigna_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/Certum_EC-384_CA.crt",
+            "usr/share/ca-certificates/mozilla/Certum_Trusted_Network_CA.crt",
+            "usr/share/ca-certificates/mozilla/Certum_Trusted_Network_CA_2.crt",
+            "usr/share/ca-certificates/mozilla/Certum_Trusted_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/D-TRUST_BR_Root_CA_1_2020.crt",
+            "usr/share/ca-certificates/mozilla/D-TRUST_BR_Root_CA_2_2023.crt",
+            "usr/share/ca-certificates/mozilla/D-TRUST_EV_Root_CA_1_2020.crt",
+            "usr/share/ca-certificates/mozilla/D-TRUST_EV_Root_CA_2_2023.crt",
+            "usr/share/ca-certificates/mozilla/D-TRUST_Root_Class_3_CA_2_2009.crt",
+            "usr/share/ca-certificates/mozilla/D-TRUST_Root_Class_3_CA_2_EV_2009.crt",
+            "usr/share/ca-certificates/mozilla/DigiCert_Assured_ID_Root_G2.crt",
+            "usr/share/ca-certificates/mozilla/DigiCert_Assured_ID_Root_G3.crt",
+            "usr/share/ca-certificates/mozilla/DigiCert_Global_Root_G2.crt",
+            "usr/share/ca-certificates/mozilla/DigiCert_Global_Root_G3.crt",
+            "usr/share/ca-certificates/mozilla/DigiCert_TLS_ECC_P384_Root_G5.crt",
+            "usr/share/ca-certificates/mozilla/DigiCert_TLS_RSA4096_Root_G5.crt",
+            "usr/share/ca-certificates/mozilla/DigiCert_Trusted_Root_G4.crt",
+            "usr/share/ca-certificates/mozilla/GDCA_TrustAUTH_R5_ROOT.crt",
+            "usr/share/ca-certificates/mozilla/GTS_Root_R1.crt",
+            "usr/share/ca-certificates/mozilla/GTS_Root_R3.crt",
+            "usr/share/ca-certificates/mozilla/GTS_Root_R4.crt",
+            "usr/share/ca-certificates/mozilla/GlobalSign_ECC_Root_CA_-_R4.crt",
+            "usr/share/ca-certificates/mozilla/GlobalSign_ECC_Root_CA_-_R5.crt",
+            "usr/share/ca-certificates/mozilla/GlobalSign_Root_CA_-_R3.crt",
+            "usr/share/ca-certificates/mozilla/GlobalSign_Root_CA_-_R6.crt",
+            "usr/share/ca-certificates/mozilla/GlobalSign_Root_E46.crt",
+            "usr/share/ca-certificates/mozilla/GlobalSign_Root_R46.crt",
+            "usr/share/ca-certificates/mozilla/Go_Daddy_Root_Certificate_Authority_-_G2.crt",
+            "usr/share/ca-certificates/mozilla/HARICA_TLS_ECC_Root_CA_2021.crt",
+            "usr/share/ca-certificates/mozilla/HARICA_TLS_RSA_Root_CA_2021.crt",
+            "usr/share/ca-certificates/mozilla/Hellenic_Academic_and_Research_Institutions_ECC_RootCA_2015.crt",
+            "usr/share/ca-certificates/mozilla/Hellenic_Academic_and_Research_Institutions_RootCA_2015.crt",
+            "usr/share/ca-certificates/mozilla/HiPKI_Root_CA_-_G1.crt",
+            "usr/share/ca-certificates/mozilla/Hongkong_Post_Root_CA_3.crt",
+            "usr/share/ca-certificates/mozilla/ISRG_Root_X1.crt",
+            "usr/share/ca-certificates/mozilla/ISRG_Root_X2.crt",
+            "usr/share/ca-certificates/mozilla/IdenTrust_Commercial_Root_CA_1.crt",
+            "usr/share/ca-certificates/mozilla/IdenTrust_Public_Sector_Root_CA_1.crt",
+            "usr/share/ca-certificates/mozilla/Izenpe.com.crt",
+            "usr/share/ca-certificates/mozilla/Microsec_e-Szigno_Root_CA_2009.crt",
+            "usr/share/ca-certificates/mozilla/Microsoft_ECC_Root_Certificate_Authority_2017.crt",
+            "usr/share/ca-certificates/mozilla/Microsoft_RSA_Root_Certificate_Authority_2017.crt",
+            "usr/share/ca-certificates/mozilla/NAVER_Global_Root_Certification_Authority.crt",
+            "usr/share/ca-certificates/mozilla/NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt",
+            "usr/share/ca-certificates/mozilla/OISTE_Server_Root_ECC_G1.crt",
+            "usr/share/ca-certificates/mozilla/OISTE_Server_Root_RSA_G1.crt",
+            "usr/share/ca-certificates/mozilla/OISTE_WISeKey_Global_Root_GB_CA.crt",
+            "usr/share/ca-certificates/mozilla/OISTE_WISeKey_Global_Root_GC_CA.crt",
+            "usr/share/ca-certificates/mozilla/QuoVadis_Root_CA_1_G3.crt",
+            "usr/share/ca-certificates/mozilla/QuoVadis_Root_CA_2_G3.crt",
+            "usr/share/ca-certificates/mozilla/QuoVadis_Root_CA_3_G3.crt",
+            "usr/share/ca-certificates/mozilla/SSL.com_EV_Root_Certification_Authority_ECC.crt",
+            "usr/share/ca-certificates/mozilla/SSL.com_EV_Root_Certification_Authority_RSA_R2.crt",
+            "usr/share/ca-certificates/mozilla/SSL.com_Root_Certification_Authority_ECC.crt",
+            "usr/share/ca-certificates/mozilla/SSL.com_Root_Certification_Authority_RSA.crt",
+            "usr/share/ca-certificates/mozilla/SSL.com_TLS_ECC_Root_CA_2022.crt",
+            "usr/share/ca-certificates/mozilla/SSL.com_TLS_RSA_Root_CA_2022.crt",
+            "usr/share/ca-certificates/mozilla/SZAFIR_ROOT_CA2.crt",
+            "usr/share/ca-certificates/mozilla/Sectigo_Public_Server_Authentication_Root_E46.crt",
+            "usr/share/ca-certificates/mozilla/Sectigo_Public_Server_Authentication_Root_R46.crt",
+            "usr/share/ca-certificates/mozilla/SecureSign_Root_CA14.crt",
+            "usr/share/ca-certificates/mozilla/SecureSign_Root_CA15.crt",
+            "usr/share/ca-certificates/mozilla/Security_Communication_ECC_RootCA1.crt",
+            "usr/share/ca-certificates/mozilla/Security_Communication_RootCA2.crt",
+            "usr/share/ca-certificates/mozilla/Starfield_Root_Certificate_Authority_-_G2.crt",
+            "usr/share/ca-certificates/mozilla/Starfield_Services_Root_Certificate_Authority_-_G2.crt",
+            "usr/share/ca-certificates/mozilla/SwissSign_RSA_TLS_Root_CA_2022_-_1.crt",
+            "usr/share/ca-certificates/mozilla/T-TeleSec_GlobalRoot_Class_2.crt",
+            "usr/share/ca-certificates/mozilla/T-TeleSec_GlobalRoot_Class_3.crt",
+            "usr/share/ca-certificates/mozilla/TUBITAK_Kamu_SM_SSL_Kok_Sertifikasi_-_Surum_1.crt",
+            "usr/share/ca-certificates/mozilla/TWCA_CYBER_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/TWCA_Global_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/TWCA_Root_Certification_Authority.crt",
+            "usr/share/ca-certificates/mozilla/Telekom_Security_TLS_ECC_Root_2020.crt",
+            "usr/share/ca-certificates/mozilla/Telekom_Security_TLS_RSA_Root_2023.crt",
+            "usr/share/ca-certificates/mozilla/Telia_Root_CA_v2.crt",
+            "usr/share/ca-certificates/mozilla/TrustAsia_Global_Root_CA_G3.crt",
+            "usr/share/ca-certificates/mozilla/TrustAsia_Global_Root_CA_G4.crt",
+            "usr/share/ca-certificates/mozilla/TrustAsia_TLS_ECC_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/TrustAsia_TLS_RSA_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/TunTrust_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/UCA_Extended_Validation_Root.crt",
+            "usr/share/ca-certificates/mozilla/UCA_Global_G2_Root.crt",
+            "usr/share/ca-certificates/mozilla/USERTrust_ECC_Certification_Authority.crt",
+            "usr/share/ca-certificates/mozilla/USERTrust_RSA_Certification_Authority.crt",
+            "usr/share/ca-certificates/mozilla/certSIGN_Root_CA_G2.crt",
+            "usr/share/ca-certificates/mozilla/e-Szigno_Root_CA_2017.crt",
+            "usr/share/ca-certificates/mozilla/e-Szigno_TLS_Root_CA_2023.crt",
+            "usr/share/ca-certificates/mozilla/ePKI_Root_Certification_Authority.crt",
+            "usr/share/ca-certificates/mozilla/emSign_ECC_Root_CA_-_C3.crt",
+            "usr/share/ca-certificates/mozilla/emSign_ECC_Root_CA_-_G3.crt",
+            "usr/share/ca-certificates/mozilla/emSign_Root_CA_-_C1.crt",
+            "usr/share/ca-certificates/mozilla/emSign_Root_CA_-_G1.crt",
+            "usr/share/ca-certificates/mozilla/vTrus_ECC_Root_CA.crt",
+            "usr/share/ca-certificates/mozilla/vTrus_Root_CA.crt"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "ca-certificates-bundle@20260611-r0",
+          "Name": "ca-certificates-bundle",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/ca-certificates-bundle@20260611-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "a9a37912fbf01124"
+          },
+          "Version": "20260611-r0",
+          "Arch": "x86_64",
+          "SrcName": "ca-certificates",
+          "SrcVersion": "20260611-r0",
+          "Licenses": [
+            "MPL-2.0",
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:41204225abcd63eeb1a73766e6a2e8e894b7423b",
+          "InstalledFiles": [
+            "etc/ssl/cert.pem",
+            "etc/ssl/certs/ca-certificates.crt",
+            "etc/ssl1.1/cert.pem",
+            "etc/ssl1.1/certs"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "freetype@2.14.1-r0",
+          "Name": "freetype",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/freetype@2.14.1-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "d0ae0a3d160c9ff2"
+          },
+          "Version": "2.14.1-r0",
+          "Arch": "x86_64",
+          "SrcName": "freetype",
+          "SrcVersion": "2.14.1-r0",
+          "Licenses": [
+            "FTL",
+            "GPL-2.0-or-later"
+          ],
+          "Maintainer": "Carlo Landmeter \u003cclandmeter@alpinelinux.org\u003e",
+          "DependsOn": [
+            "brotli-libs@1.2.0-r0",
+            "libbz2@1.0.8-r6",
+            "libpng@1.6.58-r1",
+            "musl@1.2.5-r23",
+            "zlib@1.3.2-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:e227f29a00edd7ed5b1e62a050da6532183e60be",
+          "InstalledFiles": [
+            "usr/lib/libfreetype.so.6",
+            "usr/lib/libfreetype.so.6.20.4"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "giflib@5.2.2-r1",
+          "Name": "giflib",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/giflib@5.2.2-r1?arch=x86_64\u0026distro=3.23.5",
+            "UID": "114678e364b00641"
+          },
+          "Version": "5.2.2-r1",
+          "Arch": "x86_64",
+          "SrcName": "giflib",
+          "SrcVersion": "5.2.2-r1",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:18c5a46dd282cbd6aba1f8246985d992a160e9b5",
+          "InstalledFiles": [
+            "usr/lib/libgif.so.7",
+            "usr/lib/libgif.so.7.2.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "java-cacerts@1.1-r0",
+          "Name": "java-cacerts",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/java-cacerts@1.1-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "6c95e6f58f1f3921"
+          },
+          "Version": "1.1-r0",
+          "Arch": "x86_64",
+          "SrcName": "java-cacerts",
+          "SrcVersion": "1.1-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "busybox-binsh@1.37.0-r30",
+            "ca-certificates@20260611-r0",
+            "p11-kit-trust@0.26.2-r0",
+            "p11-kit@0.26.2-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:dd6d704f5e91ed26d9c026eac28bcd716f49a753",
+          "InstalledFiles": [
+            "etc/ca-certificates/update.d/java-cacerts"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "java-common@1.0-r1",
+          "Name": "java-common",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/java-common@1.0-r1?arch=x86_64\u0026distro=3.23.5",
+            "UID": "c6725fd596abc261"
+          },
+          "Version": "1.0-r1",
+          "Arch": "x86_64",
+          "SrcName": "java-common",
+          "SrcVersion": "1.0-r1",
+          "Licenses": [
+            "GPL-2.0-or-later"
+          ],
+          "Maintainer": "Timo Teras \u003ctimo.teras@iki.fi\u003e",
+          "DependsOn": [
+            "busybox-binsh@1.37.0-r30"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:52205baa8687d26c879a55110a0a258d4dbfe8a6",
+          "InstalledFiles": [
+            "usr/bin/java"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "lcms2@2.19-r0",
+          "Name": "lcms2",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/lcms2@2.19-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "b2152b1ba6dcf2d7"
+          },
+          "Version": "2.19-r0",
+          "Arch": "x86_64",
+          "SrcName": "lcms2",
+          "SrcVersion": "2.19-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:30f7fcf84e250a09bad0381e36220b700625fd54",
+          "InstalledFiles": [
+            "usr/lib/liblcms2.so.2",
+            "usr/lib/liblcms2.so.2.0.19"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libapk@3.0.6-r0",
+          "Name": "libapk",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libapk@3.0.6-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "843500ddf1c91d19"
+          },
+          "Version": "3.0.6-r0",
+          "Arch": "x86_64",
+          "SrcName": "apk-tools",
+          "SrcVersion": "3.0.6-r0",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libcrypto3@3.5.7-r0",
+            "libssl3@3.5.7-r0",
+            "musl@1.2.5-r23",
+            "zlib@1.3.2-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:f064c8318c4f7f17da6a490921ce0d5e709fc063",
+          "InstalledFiles": [
+            "usr/lib/libapk.so.3.0.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libbsd@0.12.2-r0",
+          "Name": "libbsd",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libbsd@0.12.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "dd77a74c79623bb3"
+          },
+          "Version": "0.12.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "libbsd",
+          "SrcVersion": "0.12.2-r0",
+          "Licenses": [
+            "BSD-3-Clause"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libmd@1.1.0-r0",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:33970b157edad359d05a2c3e6f3460e725549c8b",
+          "InstalledFiles": [
+            "usr/lib/libbsd.so.0",
+            "usr/lib/libbsd.so.0.12.2"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libbz2@1.0.8-r6",
+          "Name": "libbz2",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libbz2@1.0.8-r6?arch=x86_64\u0026distro=3.23.5",
+            "UID": "d5d1649d0ebe2b41"
+          },
+          "Version": "1.0.8-r6",
+          "Arch": "x86_64",
+          "SrcName": "bzip2",
+          "SrcVersion": "1.0.8-r6",
+          "Licenses": [
+            "bzip-2-1.0.6"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:864d363da11ee24c7920e0d052d2da7f8429251e",
+          "InstalledFiles": [
+            "usr/lib/libbz2.so.1",
+            "usr/lib/libbz2.so.1.0.8"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libcrypto3@3.5.7-r0",
+          "Name": "libcrypto3",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libcrypto3@3.5.7-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "6154ae3cc122c0b8"
+          },
+          "Version": "3.5.7-r0",
+          "Arch": "x86_64",
+          "SrcName": "openssl",
+          "SrcVersion": "3.5.7-r0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:2b46c87dd1bb8fc2bf5518616ddc5ca28870f828",
+          "InstalledFiles": [
+            "etc/ssl/ct_log_list.cnf",
+            "etc/ssl/ct_log_list.cnf.dist",
+            "etc/ssl/openssl.cnf",
+            "etc/ssl/openssl.cnf.dist",
+            "usr/lib/libcrypto.so.3",
+            "usr/lib/engines-3/afalg.so",
+            "usr/lib/engines-3/capi.so",
+            "usr/lib/engines-3/loader_attic.so",
+            "usr/lib/engines-3/padlock.so",
+            "usr/lib/ossl-modules/legacy.so"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libffi@3.5.2-r0",
+          "Name": "libffi",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libffi@3.5.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "8fe4c0ede91e6f13"
+          },
+          "Version": "3.5.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "libffi",
+          "SrcVersion": "3.5.2-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:fa51bf028f40768bfe1c7ef494b1fe3f8590c19f",
+          "InstalledFiles": [
+            "usr/lib/libffi.so.8",
+            "usr/lib/libffi.so.8.2.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libjpeg-turbo@3.1.2-r0",
+          "Name": "libjpeg-turbo",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libjpeg-turbo@3.1.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "76e9eea31b92641e"
+          },
+          "Version": "3.1.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "libjpeg-turbo",
+          "SrcVersion": "3.1.2-r0",
+          "Licenses": [
+            "BSD-3-Clause",
+            "IJG",
+            "Zlib"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:aa025fb7ecf9bd65ef2afe47e3740639521e09ce",
+          "InstalledFiles": [
+            "usr/lib/libjpeg.so.8",
+            "usr/lib/libjpeg.so.8.3.2"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libmd@1.1.0-r0",
+          "Name": "libmd",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libmd@1.1.0-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "53cb33d88e504fac"
+          },
+          "Version": "1.1.0-r0",
+          "Arch": "x86_64",
+          "SrcName": "libmd",
+          "SrcVersion": "1.1.0-r0",
+          "Licenses": [
+            "BSD-3-Clause",
+            "BSD-2-Clause",
+            "ISC",
+            "Beerware",
+            "Public",
+            "Domain"
+          ],
+          "Maintainer": "omni \u003comni+alpine@hack.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:ce7c57bd1f6628da8ba0d3f2ac18f6d8c93c0346",
+          "InstalledFiles": [
+            "usr/lib/libmd.so.0",
+            "usr/lib/libmd.so.0.1.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libpng@1.6.58-r1",
+          "Name": "libpng",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libpng@1.6.58-r1?arch=x86_64\u0026distro=3.23.5",
+            "UID": "f22fca42d750ae4d"
+          },
+          "Version": "1.6.58-r1",
+          "Arch": "x86_64",
+          "SrcName": "libpng",
+          "SrcVersion": "1.6.58-r1",
+          "Licenses": [
+            "Libpng"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23",
+            "zlib@1.3.2-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:2dce71ea975aa82cbbcfcaac80af209bc84dd3c8",
+          "InstalledFiles": [
+            "usr/lib/libpng16.so.16",
+            "usr/lib/libpng16.so.16.58.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libssl3@3.5.7-r0",
+          "Name": "libssl3",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libssl3@3.5.7-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "f1aee6071ea99047"
+          },
+          "Version": "3.5.7-r0",
+          "Arch": "x86_64",
+          "SrcName": "openssl",
+          "SrcVersion": "3.5.7-r0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libcrypto3@3.5.7-r0",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:3d2a94cb6df45e919a7d0fc7bf2fe4d1b973ab52",
+          "InstalledFiles": [
+            "usr/lib/libssl.so.3"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libtasn1@4.21.0-r0",
+          "Name": "libtasn1",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libtasn1@4.21.0-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "e900196eb3e9b82b"
+          },
+          "Version": "4.21.0-r0",
+          "Arch": "x86_64",
+          "SrcName": "libtasn1",
+          "SrcVersion": "4.21.0-r0",
+          "Licenses": [
+            "LGPL-2.1-or-later"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:f3d992e32ae5e44954dd2ac8bca95e75dcd9eaa7",
+          "InstalledFiles": [
+            "usr/lib/libtasn1.so.6",
+            "usr/lib/libtasn1.so.6.6.5"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libx11@1.8.12-r1",
+          "Name": "libx11",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libx11@1.8.12-r1?arch=x86_64\u0026distro=3.23.5",
+            "UID": "e8538d9e85dca6bf"
+          },
+          "Version": "1.8.12-r1",
+          "Arch": "x86_64",
+          "SrcName": "libx11",
+          "SrcVersion": "1.8.12-r1",
+          "Licenses": [
+            "X-11"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libxcb@1.17.0-r1",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:689b36ec47d6c9abb9cbd0c7067ba4636568dbd5",
+          "InstalledFiles": [
+            "usr/lib/libX11-xcb.so.1",
+            "usr/lib/libX11-xcb.so.1.0.0",
+            "usr/lib/libX11.so.6",
+            "usr/lib/libX11.so.6.4.0",
+            "usr/share/X11/XErrorDB",
+            "usr/share/X11/Xcms.txt",
+            "usr/share/X11/locale/compose.dir",
+            "usr/share/X11/locale/locale.alias",
+            "usr/share/X11/locale/locale.dir",
+            "usr/share/X11/locale/C/Compose",
+            "usr/share/X11/locale/C/XI18N_OBJS",
+            "usr/share/X11/locale/C/XLC_LOCALE",
+            "usr/share/X11/locale/am_ET.UTF-8/Compose",
+            "usr/share/X11/locale/am_ET.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/am_ET.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/armscii-8/Compose",
+            "usr/share/X11/locale/armscii-8/XI18N_OBJS",
+            "usr/share/X11/locale/armscii-8/XLC_LOCALE",
+            "usr/share/X11/locale/cs_CZ.UTF-8/Compose",
+            "usr/share/X11/locale/cs_CZ.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/cs_CZ.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/el_GR.UTF-8/Compose",
+            "usr/share/X11/locale/el_GR.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/el_GR.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/en_US.UTF-8/Compose",
+            "usr/share/X11/locale/en_US.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/en_US.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/fi_FI.UTF-8/Compose",
+            "usr/share/X11/locale/fi_FI.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/fi_FI.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/georgian-academy/Compose",
+            "usr/share/X11/locale/georgian-academy/XI18N_OBJS",
+            "usr/share/X11/locale/georgian-academy/XLC_LOCALE",
+            "usr/share/X11/locale/georgian-ps/Compose",
+            "usr/share/X11/locale/georgian-ps/XI18N_OBJS",
+            "usr/share/X11/locale/georgian-ps/XLC_LOCALE",
+            "usr/share/X11/locale/ibm-cp1133/Compose",
+            "usr/share/X11/locale/ibm-cp1133/XI18N_OBJS",
+            "usr/share/X11/locale/ibm-cp1133/XLC_LOCALE",
+            "usr/share/X11/locale/iscii-dev/Compose",
+            "usr/share/X11/locale/iscii-dev/XI18N_OBJS",
+            "usr/share/X11/locale/iscii-dev/XLC_LOCALE",
+            "usr/share/X11/locale/isiri-3342/Compose",
+            "usr/share/X11/locale/isiri-3342/XI18N_OBJS",
+            "usr/share/X11/locale/isiri-3342/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-1/Compose",
+            "usr/share/X11/locale/iso8859-1/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-1/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-10/Compose",
+            "usr/share/X11/locale/iso8859-10/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-10/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-11/Compose",
+            "usr/share/X11/locale/iso8859-11/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-11/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-13/Compose",
+            "usr/share/X11/locale/iso8859-13/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-13/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-14/Compose",
+            "usr/share/X11/locale/iso8859-14/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-14/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-15/Compose",
+            "usr/share/X11/locale/iso8859-15/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-15/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-2/Compose",
+            "usr/share/X11/locale/iso8859-2/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-2/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-3/Compose",
+            "usr/share/X11/locale/iso8859-3/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-3/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-4/Compose",
+            "usr/share/X11/locale/iso8859-4/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-4/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-5/Compose",
+            "usr/share/X11/locale/iso8859-5/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-5/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-6/Compose",
+            "usr/share/X11/locale/iso8859-6/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-6/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-7/Compose",
+            "usr/share/X11/locale/iso8859-7/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-7/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-8/Compose",
+            "usr/share/X11/locale/iso8859-8/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-8/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-9/Compose",
+            "usr/share/X11/locale/iso8859-9/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-9/XLC_LOCALE",
+            "usr/share/X11/locale/iso8859-9e/Compose",
+            "usr/share/X11/locale/iso8859-9e/XI18N_OBJS",
+            "usr/share/X11/locale/iso8859-9e/XLC_LOCALE",
+            "usr/share/X11/locale/ja/Compose",
+            "usr/share/X11/locale/ja/XI18N_OBJS",
+            "usr/share/X11/locale/ja/XLC_LOCALE",
+            "usr/share/X11/locale/ja.JIS/Compose",
+            "usr/share/X11/locale/ja.JIS/XI18N_OBJS",
+            "usr/share/X11/locale/ja.JIS/XLC_LOCALE",
+            "usr/share/X11/locale/ja.SJIS/Compose",
+            "usr/share/X11/locale/ja.SJIS/XI18N_OBJS",
+            "usr/share/X11/locale/ja.SJIS/XLC_LOCALE",
+            "usr/share/X11/locale/ja_JP.UTF-8/Compose",
+            "usr/share/X11/locale/ja_JP.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/ja_JP.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/km_KH.UTF-8/Compose",
+            "usr/share/X11/locale/km_KH.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/km_KH.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/ko/Compose",
+            "usr/share/X11/locale/ko/XI18N_OBJS",
+            "usr/share/X11/locale/ko/XLC_LOCALE",
+            "usr/share/X11/locale/ko_KR.UTF-8/Compose",
+            "usr/share/X11/locale/ko_KR.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/ko_KR.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/koi8-c/Compose",
+            "usr/share/X11/locale/koi8-c/XI18N_OBJS",
+            "usr/share/X11/locale/koi8-c/XLC_LOCALE",
+            "usr/share/X11/locale/koi8-r/Compose",
+            "usr/share/X11/locale/koi8-r/XI18N_OBJS",
+            "usr/share/X11/locale/koi8-r/XLC_LOCALE",
+            "usr/share/X11/locale/koi8-u/Compose",
+            "usr/share/X11/locale/koi8-u/XI18N_OBJS",
+            "usr/share/X11/locale/koi8-u/XLC_LOCALE",
+            "usr/share/X11/locale/microsoft-cp1251/Compose",
+            "usr/share/X11/locale/microsoft-cp1251/XI18N_OBJS",
+            "usr/share/X11/locale/microsoft-cp1251/XLC_LOCALE",
+            "usr/share/X11/locale/microsoft-cp1255/Compose",
+            "usr/share/X11/locale/microsoft-cp1255/XI18N_OBJS",
+            "usr/share/X11/locale/microsoft-cp1255/XLC_LOCALE",
+            "usr/share/X11/locale/microsoft-cp1256/Compose",
+            "usr/share/X11/locale/microsoft-cp1256/XI18N_OBJS",
+            "usr/share/X11/locale/microsoft-cp1256/XLC_LOCALE",
+            "usr/share/X11/locale/mulelao-1/Compose",
+            "usr/share/X11/locale/mulelao-1/XI18N_OBJS",
+            "usr/share/X11/locale/mulelao-1/XLC_LOCALE",
+            "usr/share/X11/locale/nokhchi-1/Compose",
+            "usr/share/X11/locale/nokhchi-1/XI18N_OBJS",
+            "usr/share/X11/locale/nokhchi-1/XLC_LOCALE",
+            "usr/share/X11/locale/pt_BR.UTF-8/Compose",
+            "usr/share/X11/locale/pt_BR.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/pt_BR.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/pt_PT.UTF-8/Compose",
+            "usr/share/X11/locale/pt_PT.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/pt_PT.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/ru_RU.UTF-8/Compose",
+            "usr/share/X11/locale/ru_RU.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/ru_RU.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/sr_RS.UTF-8/Compose",
+            "usr/share/X11/locale/sr_RS.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/sr_RS.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/tatar-cyr/Compose",
+            "usr/share/X11/locale/tatar-cyr/XI18N_OBJS",
+            "usr/share/X11/locale/tatar-cyr/XLC_LOCALE",
+            "usr/share/X11/locale/th_TH/Compose",
+            "usr/share/X11/locale/th_TH/XI18N_OBJS",
+            "usr/share/X11/locale/th_TH/XLC_LOCALE",
+            "usr/share/X11/locale/th_TH.UTF-8/Compose",
+            "usr/share/X11/locale/th_TH.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/th_TH.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/tscii-0/Compose",
+            "usr/share/X11/locale/tscii-0/XI18N_OBJS",
+            "usr/share/X11/locale/tscii-0/XLC_LOCALE",
+            "usr/share/X11/locale/vi_VN.tcvn/Compose",
+            "usr/share/X11/locale/vi_VN.tcvn/XI18N_OBJS",
+            "usr/share/X11/locale/vi_VN.tcvn/XLC_LOCALE",
+            "usr/share/X11/locale/vi_VN.viscii/Compose",
+            "usr/share/X11/locale/vi_VN.viscii/XI18N_OBJS",
+            "usr/share/X11/locale/vi_VN.viscii/XLC_LOCALE",
+            "usr/share/X11/locale/zh_CN/Compose",
+            "usr/share/X11/locale/zh_CN/XI18N_OBJS",
+            "usr/share/X11/locale/zh_CN/XLC_LOCALE",
+            "usr/share/X11/locale/zh_CN.UTF-8/Compose",
+            "usr/share/X11/locale/zh_CN.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/zh_CN.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/zh_CN.gb18030/Compose",
+            "usr/share/X11/locale/zh_CN.gb18030/XI18N_OBJS",
+            "usr/share/X11/locale/zh_CN.gb18030/XLC_LOCALE",
+            "usr/share/X11/locale/zh_CN.gbk/Compose",
+            "usr/share/X11/locale/zh_CN.gbk/XI18N_OBJS",
+            "usr/share/X11/locale/zh_CN.gbk/XLC_LOCALE",
+            "usr/share/X11/locale/zh_HK.UTF-8/Compose",
+            "usr/share/X11/locale/zh_HK.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/zh_HK.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/zh_HK.big5/Compose",
+            "usr/share/X11/locale/zh_HK.big5/XI18N_OBJS",
+            "usr/share/X11/locale/zh_HK.big5/XLC_LOCALE",
+            "usr/share/X11/locale/zh_HK.big5hkscs/Compose",
+            "usr/share/X11/locale/zh_HK.big5hkscs/XI18N_OBJS",
+            "usr/share/X11/locale/zh_HK.big5hkscs/XLC_LOCALE",
+            "usr/share/X11/locale/zh_TW/Compose",
+            "usr/share/X11/locale/zh_TW/XI18N_OBJS",
+            "usr/share/X11/locale/zh_TW/XLC_LOCALE",
+            "usr/share/X11/locale/zh_TW.UTF-8/Compose",
+            "usr/share/X11/locale/zh_TW.UTF-8/XI18N_OBJS",
+            "usr/share/X11/locale/zh_TW.UTF-8/XLC_LOCALE",
+            "usr/share/X11/locale/zh_TW.big5/Compose",
+            "usr/share/X11/locale/zh_TW.big5/XI18N_OBJS",
+            "usr/share/X11/locale/zh_TW.big5/XLC_LOCALE"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libxau@1.0.12-r0",
+          "Name": "libxau",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libxau@1.0.12-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "d485bce96f246b42"
+          },
+          "Version": "1.0.12-r0",
+          "Arch": "x86_64",
+          "SrcName": "libxau",
+          "SrcVersion": "1.0.12-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:89d2bc9daae3cb0e2ae095db6866357b7653f341",
+          "InstalledFiles": [
+            "usr/lib/libXau.so.6",
+            "usr/lib/libXau.so.6.0.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libxcb@1.17.0-r1",
+          "Name": "libxcb",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libxcb@1.17.0-r1?arch=x86_64\u0026distro=3.23.5",
+            "UID": "9257eaebc5b55b2"
+          },
+          "Version": "1.17.0-r1",
+          "Arch": "x86_64",
+          "SrcName": "libxcb",
+          "SrcVersion": "1.17.0-r1",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libxau@1.0.12-r0",
+            "libxdmcp@1.1.5-r1",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:61b06f883e8f8d2d8ee360e4dac04ac037fcca13",
+          "InstalledFiles": [
+            "usr/lib/libxcb-composite.so.0",
+            "usr/lib/libxcb-composite.so.0.0.0",
+            "usr/lib/libxcb-damage.so.0",
+            "usr/lib/libxcb-damage.so.0.0.0",
+            "usr/lib/libxcb-dbe.so.0",
+            "usr/lib/libxcb-dbe.so.0.0.0",
+            "usr/lib/libxcb-dpms.so.0",
+            "usr/lib/libxcb-dpms.so.0.0.0",
+            "usr/lib/libxcb-dri2.so.0",
+            "usr/lib/libxcb-dri2.so.0.0.0",
+            "usr/lib/libxcb-dri3.so.0",
+            "usr/lib/libxcb-dri3.so.0.1.0",
+            "usr/lib/libxcb-glx.so.0",
+            "usr/lib/libxcb-glx.so.0.0.0",
+            "usr/lib/libxcb-present.so.0",
+            "usr/lib/libxcb-present.so.0.0.0",
+            "usr/lib/libxcb-randr.so.0",
+            "usr/lib/libxcb-randr.so.0.1.0",
+            "usr/lib/libxcb-record.so.0",
+            "usr/lib/libxcb-record.so.0.0.0",
+            "usr/lib/libxcb-render.so.0",
+            "usr/lib/libxcb-render.so.0.0.0",
+            "usr/lib/libxcb-res.so.0",
+            "usr/lib/libxcb-res.so.0.0.0",
+            "usr/lib/libxcb-screensaver.so.0",
+            "usr/lib/libxcb-screensaver.so.0.0.0",
+            "usr/lib/libxcb-shape.so.0",
+            "usr/lib/libxcb-shape.so.0.0.0",
+            "usr/lib/libxcb-shm.so.0",
+            "usr/lib/libxcb-shm.so.0.0.0",
+            "usr/lib/libxcb-sync.so.1",
+            "usr/lib/libxcb-sync.so.1.0.0",
+            "usr/lib/libxcb-xf86dri.so.0",
+            "usr/lib/libxcb-xf86dri.so.0.0.0",
+            "usr/lib/libxcb-xfixes.so.0",
+            "usr/lib/libxcb-xfixes.so.0.0.0",
+            "usr/lib/libxcb-xinerama.so.0",
+            "usr/lib/libxcb-xinerama.so.0.0.0",
+            "usr/lib/libxcb-xinput.so.0",
+            "usr/lib/libxcb-xinput.so.0.1.0",
+            "usr/lib/libxcb-xkb.so.1",
+            "usr/lib/libxcb-xkb.so.1.0.0",
+            "usr/lib/libxcb-xtest.so.0",
+            "usr/lib/libxcb-xtest.so.0.0.0",
+            "usr/lib/libxcb-xv.so.0",
+            "usr/lib/libxcb-xv.so.0.0.0",
+            "usr/lib/libxcb-xvmc.so.0",
+            "usr/lib/libxcb-xvmc.so.0.0.0",
+            "usr/lib/libxcb.so.1",
+            "usr/lib/libxcb.so.1.1.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libxdmcp@1.1.5-r1",
+          "Name": "libxdmcp",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libxdmcp@1.1.5-r1?arch=x86_64\u0026distro=3.23.5",
+            "UID": "4ce7671300ab208e"
+          },
+          "Version": "1.1.5-r1",
+          "Arch": "x86_64",
+          "SrcName": "libxdmcp",
+          "SrcVersion": "1.1.5-r1",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libbsd@0.12.2-r0",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:99a24c0fa12282b5ef89a6e732a8d494b7696d9d",
+          "InstalledFiles": [
+            "usr/lib/libXdmcp.so.6",
+            "usr/lib/libXdmcp.so.6.0.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libxext@1.3.6-r2",
+          "Name": "libxext",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libxext@1.3.6-r2?arch=x86_64\u0026distro=3.23.5",
+            "UID": "6995b5d26ca62497"
+          },
+          "Version": "1.3.6-r2",
+          "Arch": "x86_64",
+          "SrcName": "libxext",
+          "SrcVersion": "1.3.6-r2",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libx11@1.8.12-r1",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:92fb4f12c2170403d6a48c7485ecaee40c84bee2",
+          "InstalledFiles": [
+            "usr/lib/libXext.so.6",
+            "usr/lib/libXext.so.6.4.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libxi@1.8.2-r0",
+          "Name": "libxi",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libxi@1.8.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "f30d74efd975db35"
+          },
+          "Version": "1.8.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "libxi",
+          "SrcVersion": "1.8.2-r0",
+          "Licenses": [
+            "MIT",
+            "X-11"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libx11@1.8.12-r1",
+            "libxext@1.3.6-r2",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:78ea3cdf1dfa3c07aa965866bb9e64be2254fc5e",
+          "InstalledFiles": [
+            "usr/lib/libXi.so.6",
+            "usr/lib/libXi.so.6.1.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libxrender@0.9.12-r0",
+          "Name": "libxrender",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libxrender@0.9.12-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "bfe9066ff4f184fc"
+          },
+          "Version": "0.9.12-r0",
+          "Arch": "x86_64",
+          "SrcName": "libxrender",
+          "SrcVersion": "0.9.12-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libx11@1.8.12-r1",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:16accdec4598ad42a3201234aab60e44d607f1b0",
+          "InstalledFiles": [
+            "usr/lib/libXrender.so.1",
+            "usr/lib/libXrender.so.1.3.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "libxtst@1.2.5-r0",
+          "Name": "libxtst",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/libxtst@1.2.5-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "ac2dc9d70584c470"
+          },
+          "Version": "1.2.5-r0",
+          "Arch": "x86_64",
+          "SrcName": "libxtst",
+          "SrcVersion": "1.2.5-r0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "libx11@1.8.12-r1",
+            "libxext@1.3.6-r2",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:6c021814b3a61c34ad3d6c83b916c68159e8316f",
+          "InstalledFiles": [
+            "usr/lib/libXtst.so.6",
+            "usr/lib/libXtst.so.6.1.0"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "musl@1.2.5-r23",
+          "Name": "musl",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/musl@1.2.5-r23?arch=x86_64\u0026distro=3.23.5",
+            "UID": "dca30b3fd6708a32"
+          },
+          "Version": "1.2.5-r23",
+          "Arch": "x86_64",
+          "SrcName": "musl",
+          "SrcVersion": "1.2.5-r23",
+          "Licenses": [
+            "MIT"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:1b6c50426d3c0656e9c5a567a5a59601c7f4307a",
+          "InstalledFiles": [
+            "lib/ld-musl-x86_64.so.1",
+            "lib/libc.musl-x86_64.so.1"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "musl-utils@1.2.5-r23",
+          "Name": "musl-utils",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/musl-utils@1.2.5-r23?arch=x86_64\u0026distro=3.23.5",
+            "UID": "ffcf7198a9776c5f"
+          },
+          "Version": "1.2.5-r23",
+          "Arch": "x86_64",
+          "SrcName": "musl",
+          "SrcVersion": "1.2.5-r23",
+          "Licenses": [
+            "MIT",
+            "BSD-2-Clause",
+            "GPL-2.0-or-later"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23",
+            "scanelf@1.3.8-r2"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:92fdbe96d25f13fe3a3d297ada56e4fb907aacec",
+          "InstalledFiles": [
+            "sbin/ldconfig",
+            "usr/bin/getconf",
+            "usr/bin/getent",
+            "usr/bin/iconv",
+            "usr/bin/ldd"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "openjdk21-jdk@21.0.11_p10-r0",
+          "Name": "openjdk21-jdk",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/openjdk21-jdk@21.0.11_p10-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "4e7c0fa0a02b30f9"
+          },
+          "Version": "21.0.11_p10-r0",
+          "Arch": "x86_64",
+          "SrcName": "openjdk21",
+          "SrcVersion": "21.0.11_p10-r0",
+          "Licenses": [
+            "GPL-2.0-with-classpath-exception"
+          ],
+          "Maintainer": "Simon Frankenberger \u003csimon-alpine@fraho.eu\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23",
+            "openjdk21-jmods@21.0.11_p10-r0",
+            "openjdk21-jre-headless@21.0.11_p10-r0",
+            "openjdk21-jre@21.0.11_p10-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:5c441a49fa7027f0776ab19de9f58a9ee4d04549",
+          "InstalledFiles": [
+            "usr/lib/jvm/java-21-openjdk/bin/jar",
+            "usr/lib/jvm/java-21-openjdk/bin/jarsigner",
+            "usr/lib/jvm/java-21-openjdk/bin/javac",
+            "usr/lib/jvm/java-21-openjdk/bin/javadoc",
+            "usr/lib/jvm/java-21-openjdk/bin/javap",
+            "usr/lib/jvm/java-21-openjdk/bin/jcmd",
+            "usr/lib/jvm/java-21-openjdk/bin/jconsole",
+            "usr/lib/jvm/java-21-openjdk/bin/jdb",
+            "usr/lib/jvm/java-21-openjdk/bin/jdeprscan",
+            "usr/lib/jvm/java-21-openjdk/bin/jdeps",
+            "usr/lib/jvm/java-21-openjdk/bin/jhsdb",
+            "usr/lib/jvm/java-21-openjdk/bin/jimage",
+            "usr/lib/jvm/java-21-openjdk/bin/jinfo",
+            "usr/lib/jvm/java-21-openjdk/bin/jlink",
+            "usr/lib/jvm/java-21-openjdk/bin/jmap",
+            "usr/lib/jvm/java-21-openjdk/bin/jmod",
+            "usr/lib/jvm/java-21-openjdk/bin/jpackage",
+            "usr/lib/jvm/java-21-openjdk/bin/jps",
+            "usr/lib/jvm/java-21-openjdk/bin/jshell",
+            "usr/lib/jvm/java-21-openjdk/bin/jstack",
+            "usr/lib/jvm/java-21-openjdk/bin/jstat",
+            "usr/lib/jvm/java-21-openjdk/bin/jstatd",
+            "usr/lib/jvm/java-21-openjdk/bin/serialver",
+            "usr/lib/jvm/java-21-openjdk/include/classfile_constants.h",
+            "usr/lib/jvm/java-21-openjdk/include/jawt.h",
+            "usr/lib/jvm/java-21-openjdk/include/jdwpTransport.h",
+            "usr/lib/jvm/java-21-openjdk/include/jni.h",
+            "usr/lib/jvm/java-21-openjdk/include/jvmti.h",
+            "usr/lib/jvm/java-21-openjdk/include/jvmticmlr.h",
+            "usr/lib/jvm/java-21-openjdk/include/linux/jawt_md.h",
+            "usr/lib/jvm/java-21-openjdk/include/linux/jni_md.h",
+            "usr/lib/jvm/java-21-openjdk/lib/ct.sym"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "openjdk21-jmods@21.0.11_p10-r0",
+          "Name": "openjdk21-jmods",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/openjdk21-jmods@21.0.11_p10-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "e893624454ca1adc"
+          },
+          "Version": "21.0.11_p10-r0",
+          "Arch": "x86_64",
+          "SrcName": "openjdk21",
+          "SrcVersion": "21.0.11_p10-r0",
+          "Licenses": [
+            "GPL-2.0-with-classpath-exception"
+          ],
+          "Maintainer": "Simon Frankenberger \u003csimon-alpine@fraho.eu\u003e",
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:0d888ef82d781492ad7dcd0e1f461c19e163e48e",
+          "InstalledFiles": [
+            "usr/lib/jvm/java-21-openjdk/jmods/java.base.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.compiler.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.datatransfer.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.desktop.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.instrument.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.logging.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.management.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.management.rmi.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.naming.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.net.http.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.prefs.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.rmi.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.scripting.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.se.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.security.jgss.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.security.sasl.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.smartcardio.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.sql.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.sql.rowset.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.transaction.xa.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.xml.crypto.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/java.xml.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.accessibility.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.attach.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.charsets.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.compiler.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.crypto.cryptoki.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.crypto.ec.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.dynalink.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.editpad.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.hotspot.agent.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.httpserver.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.incubator.vector.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.internal.ed.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.internal.jvmstat.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.internal.le.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.internal.opt.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.internal.vm.ci.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.internal.vm.compiler.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.internal.vm.compiler.management.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jartool.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.javadoc.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jcmd.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jconsole.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jdeps.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jdi.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jdwp.agent.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jfr.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jlink.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jpackage.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jshell.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jsobject.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.jstatd.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.localedata.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.management.agent.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.management.jfr.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.management.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.naming.dns.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.naming.rmi.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.net.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.nio.mapmode.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.random.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.sctp.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.security.auth.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.security.jgss.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.unsupported.desktop.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.unsupported.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.xml.dom.jmod",
+            "usr/lib/jvm/java-21-openjdk/jmods/jdk.zipfs.jmod"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "openjdk21-jre@21.0.11_p10-r0",
+          "Name": "openjdk21-jre",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/openjdk21-jre@21.0.11_p10-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "c7c24177fe4fcdf2"
+          },
+          "Version": "21.0.11_p10-r0",
+          "Arch": "x86_64",
+          "SrcName": "openjdk21",
+          "SrcVersion": "21.0.11_p10-r0",
+          "Licenses": [
+            "GPL-2.0-with-classpath-exception"
+          ],
+          "Maintainer": "Simon Frankenberger \u003csimon-alpine@fraho.eu\u003e",
+          "DependsOn": [
+            "alsa-lib@1.2.14-r2",
+            "freetype@2.14.1-r0",
+            "giflib@5.2.2-r1",
+            "lcms2@2.19-r0",
+            "libjpeg-turbo@3.1.2-r0",
+            "libpng@1.6.58-r1",
+            "libx11@1.8.12-r1",
+            "libxext@1.3.6-r2",
+            "libxi@1.8.2-r0",
+            "libxrender@0.9.12-r0",
+            "libxtst@1.2.5-r0",
+            "musl@1.2.5-r23",
+            "openjdk21-jre-headless@21.0.11_p10-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:bfa696be178786e217d80cd19af1492b4b4b0559",
+          "InstalledFiles": [
+            "usr/lib/jvm/java-21-openjdk/lib/libawt_xawt.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libfontmanager.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjavajpeg.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjawt.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjsound.so",
+            "usr/lib/jvm/java-21-openjdk/lib/liblcms.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libsplashscreen.so"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "openjdk21-jre-headless@21.0.11_p10-r0",
+          "Name": "openjdk21-jre-headless",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/openjdk21-jre-headless@21.0.11_p10-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "be195da56216ca1f"
+          },
+          "Version": "21.0.11_p10-r0",
+          "Arch": "x86_64",
+          "SrcName": "openjdk21",
+          "SrcVersion": "21.0.11_p10-r0",
+          "Licenses": [
+            "GPL-2.0-with-classpath-exception"
+          ],
+          "Maintainer": "Simon Frankenberger \u003csimon-alpine@fraho.eu\u003e",
+          "DependsOn": [
+            "java-cacerts@1.1-r0",
+            "java-common@1.0-r1",
+            "musl@1.2.5-r23",
+            "zlib@1.3.2-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:afac111f0bff981c76cc100da85df383767d1012",
+          "InstalledFiles": [
+            "usr/lib/jvm/java-21-openjdk/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/README.md",
+            "usr/lib/jvm/java-21-openjdk/jre",
+            "usr/lib/jvm/java-21-openjdk/release",
+            "usr/lib/jvm/java-21-openjdk/bin/java",
+            "usr/lib/jvm/java-21-openjdk/bin/jfr",
+            "usr/lib/jvm/java-21-openjdk/bin/jrunscript",
+            "usr/lib/jvm/java-21-openjdk/bin/jwebserver",
+            "usr/lib/jvm/java-21-openjdk/bin/keytool",
+            "usr/lib/jvm/java-21-openjdk/bin/rmiregistry",
+            "usr/lib/jvm/java-21-openjdk/conf/jaxp.properties",
+            "usr/lib/jvm/java-21-openjdk/conf/logging.properties",
+            "usr/lib/jvm/java-21-openjdk/conf/net.properties",
+            "usr/lib/jvm/java-21-openjdk/conf/sound.properties",
+            "usr/lib/jvm/java-21-openjdk/conf/management/jmxremote.access",
+            "usr/lib/jvm/java-21-openjdk/conf/management/jmxremote.password.template",
+            "usr/lib/jvm/java-21-openjdk/conf/management/management.properties",
+            "usr/lib/jvm/java-21-openjdk/conf/sdp/sdp.conf.template",
+            "usr/lib/jvm/java-21-openjdk/conf/security/java.policy",
+            "usr/lib/jvm/java-21-openjdk/conf/security/java.security",
+            "usr/lib/jvm/java-21-openjdk/conf/security/policy/README.txt",
+            "usr/lib/jvm/java-21-openjdk/conf/security/policy/limited/default_US_export.policy",
+            "usr/lib/jvm/java-21-openjdk/conf/security/policy/limited/default_local.policy",
+            "usr/lib/jvm/java-21-openjdk/conf/security/policy/limited/exempt_local.policy",
+            "usr/lib/jvm/java-21-openjdk/conf/security/policy/unlimited/default_US_export.policy",
+            "usr/lib/jvm/java-21-openjdk/conf/security/policy/unlimited/default_local.policy",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/aes.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/asm.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/c-libutl.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/cldr.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/gcc.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/icu.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/public_suffix.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/siphash.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.base/unicode.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.compiler/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.compiler/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.compiler/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.datatransfer/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.datatransfer/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.datatransfer/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/colorimaging.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/harfbuzz.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/mesa3d.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/pipewire.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.desktop/xwd.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.instrument/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.instrument/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.instrument/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.logging/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.logging/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.logging/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.management/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.management/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.management/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.management.rmi/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.management.rmi/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.management.rmi/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.naming/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.naming/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.naming/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.net.http/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.net.http/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.net.http/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.prefs/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.prefs/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.prefs/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.rmi/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.rmi/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.rmi/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.scripting/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.scripting/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.scripting/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.se/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.se/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.se/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.security.jgss/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.security.jgss/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.security.jgss/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.security.sasl/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.security.sasl/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.security.sasl/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.smartcardio/pcsclite.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.sql/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.sql/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.sql/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.sql.rowset/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.sql.rowset/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.sql.rowset/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.transaction.xa/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.transaction.xa/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.transaction.xa/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/bcel.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/dom.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/jcup.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/xalan.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml/xerces.md",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/java.xml.crypto/santuario.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.accessibility/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.accessibility/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.accessibility/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.attach/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.attach/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.attach/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.charsets/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.charsets/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.charsets/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.compiler/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.compiler/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.compiler/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/pkcs11cryptotoken.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.cryptoki/pkcs11wrapper.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.ec/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.ec/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.crypto.ec/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.dynalink/dynalink.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.editpad/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.editpad/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.editpad/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.hotspot.agent/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.hotspot.agent/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.hotspot.agent/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.httpserver/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.httpserver/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.httpserver/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.incubator.vector/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.incubator.vector/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.incubator.vector/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.ed/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.ed/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.ed/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.jvmstat/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.jvmstat/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.jvmstat/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.le/jline.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.opt/jopt-simple.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.ci/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.ci/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.ci/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler.management/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler.management/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.internal.vm.compiler.management/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jartool/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jartool/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jartool/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/jquery.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.javadoc/jqueryUI.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jcmd/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jcmd/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jcmd/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jconsole/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jconsole/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jconsole/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdeps/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdeps/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdeps/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdi/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdi/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdi/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdwp.agent/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdwp.agent/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jdwp.agent/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jfr/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jfr/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jfr/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jlink/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jlink/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jlink/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jpackage/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jpackage/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jpackage/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jshell/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jshell/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jshell/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jsobject/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jsobject/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jsobject/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jstatd/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jstatd/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.jstatd/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/cldr.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.localedata/thaidict.md",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management.agent/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management.agent/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management.agent/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management.jfr/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management.jfr/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.management.jfr/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.dns/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.dns/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.dns/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.rmi/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.rmi/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.naming.rmi/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.net/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.net/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.net/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.nio.mapmode/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.nio.mapmode/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.nio.mapmode/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.random/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.random/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.random/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.sctp/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.sctp/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.sctp/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.security.auth/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.security.auth/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.security.auth/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.security.jgss/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.security.jgss/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.security.jgss/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported.desktop/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported.desktop/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.unsupported.desktop/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.xml.dom/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.xml.dom/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.xml.dom/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.zipfs/ADDITIONAL_LICENSE_INFO",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.zipfs/ASSEMBLY_EXCEPTION",
+            "usr/lib/jvm/java-21-openjdk/legal/jdk.zipfs/LICENSE",
+            "usr/lib/jvm/java-21-openjdk/lib/classlist",
+            "usr/lib/jvm/java-21-openjdk/lib/jexec",
+            "usr/lib/jvm/java-21-openjdk/lib/jrt-fs.jar",
+            "usr/lib/jvm/java-21-openjdk/lib/jspawnhelper",
+            "usr/lib/jvm/java-21-openjdk/lib/jvm.cfg",
+            "usr/lib/jvm/java-21-openjdk/lib/libattach.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libawt.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libawt_headless.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libdt_socket.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libextnet.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libinstrument.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libj2gss.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libj2pcsc.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libj2pkcs11.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjaas.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjava.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjdwp.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjimage.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjli.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjsig.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libjsvml.so",
+            "usr/lib/jvm/java-21-openjdk/lib/lible.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libmanagement.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libmanagement_agent.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libmanagement_ext.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libmlib_image.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libnet.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libnio.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libprefs.so",
+            "usr/lib/jvm/java-21-openjdk/lib/librmi.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libsaproc.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libsctp.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libsyslookup.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libverify.so",
+            "usr/lib/jvm/java-21-openjdk/lib/libzip.so",
+            "usr/lib/jvm/java-21-openjdk/lib/modules",
+            "usr/lib/jvm/java-21-openjdk/lib/psfont.properties.ja",
+            "usr/lib/jvm/java-21-openjdk/lib/psfontj2d.properties",
+            "usr/lib/jvm/java-21-openjdk/lib/tzdb.dat",
+            "usr/lib/jvm/java-21-openjdk/lib/jfr/default.jfc",
+            "usr/lib/jvm/java-21-openjdk/lib/jfr/profile.jfc",
+            "usr/lib/jvm/java-21-openjdk/lib/security/blocked.certs",
+            "usr/lib/jvm/java-21-openjdk/lib/security/cacerts",
+            "usr/lib/jvm/java-21-openjdk/lib/security/default.policy",
+            "usr/lib/jvm/java-21-openjdk/lib/security/public_suffix_list.dat",
+            "usr/lib/jvm/java-21-openjdk/lib/server/classes.jsa",
+            "usr/lib/jvm/java-21-openjdk/lib/server/classes_nocoops.jsa",
+            "usr/lib/jvm/java-21-openjdk/lib/server/libjsig.so",
+            "usr/lib/jvm/java-21-openjdk/lib/server/libjvm.so"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "p11-kit@0.26.2-r0",
+          "Name": "p11-kit",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/p11-kit@0.26.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "e24da90c96c3e2d2"
+          },
+          "Version": "0.26.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "p11-kit",
+          "SrcVersion": "0.26.2-r0",
+          "Licenses": [
+            "BSD-3-Clause"
+          ],
+          "Maintainer": "Patrycja Rosa \u003calpine@ptrcnull.me\u003e",
+          "DependsOn": [
+            "libffi@3.5.2-r0",
+            "libtasn1@4.21.0-r0",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:683edfbab6c9d2f63312dd1dfa602dacb6195f78",
+          "InstalledFiles": [
+            "etc/pkcs11/pkcs11.conf.example",
+            "usr/bin/p11-kit",
+            "usr/lib/libp11-kit.so.0",
+            "usr/lib/libp11-kit.so.0.4.8",
+            "usr/libexec/p11-kit/p11-kit-remote",
+            "usr/libexec/p11-kit/trust-extract-compat"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "p11-kit-trust@0.26.2-r0",
+          "Name": "p11-kit-trust",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/p11-kit-trust@0.26.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "f8876153c84efc17"
+          },
+          "Version": "0.26.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "p11-kit",
+          "SrcVersion": "0.26.2-r0",
+          "Licenses": [
+            "BSD-3-Clause"
+          ],
+          "Maintainer": "Patrycja Rosa \u003calpine@ptrcnull.me\u003e",
+          "DependsOn": [
+            "libtasn1@4.21.0-r0",
+            "musl@1.2.5-r23",
+            "p11-kit@0.26.2-r0"
+          ],
+          "Layer": {
+            "Digest": "sha256:a4525c723f63964183214434b81dceb95efaec5b48a0fef27c00d9541245586f",
+            "DiffID": "sha256:a13259fc0baae33a082f521085db359d97f004546d4cf16d69bc59d32802b187"
+          },
+          "Digest": "sha1:a6ce88d56687e1af3bea92de7d9e3f63495f6817",
+          "InstalledFiles": [
+            "usr/bin/trust",
+            "usr/lib/pkcs11/p11-kit-trust.so",
+            "usr/share/p11-kit/modules/p11-kit-trust.module"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "scanelf@1.3.8-r2",
+          "Name": "scanelf",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/scanelf@1.3.8-r2?arch=x86_64\u0026distro=3.23.5",
+            "UID": "4efd612ed6f16dca"
+          },
+          "Version": "1.3.8-r2",
+          "Arch": "x86_64",
+          "SrcName": "pax-utils",
+          "SrcVersion": "1.3.8-r2",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:6ea36dd44ef9f6364f0cdfabe09ea15d2fdbe229",
+          "InstalledFiles": [
+            "usr/bin/scanelf"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "ssl_client@1.37.0-r30",
+          "Name": "ssl_client",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/ssl_client@1.37.0-r30?arch=x86_64\u0026distro=3.23.5",
+            "UID": "b95632d8ece05f0c"
+          },
+          "Version": "1.37.0-r30",
+          "Arch": "x86_64",
+          "SrcName": "busybox",
+          "SrcVersion": "1.37.0-r30",
+          "Licenses": [
+            "GPL-2.0-only"
+          ],
+          "Maintainer": "Sören Tempel \u003csoeren+alpine@soeren-tempel.net\u003e",
+          "DependsOn": [
+            "libcrypto3@3.5.7-r0",
+            "libssl3@3.5.7-r0",
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:5b6ec0939cfc9be47d9677a3152c547cc18b5edd",
+          "InstalledFiles": [
+            "usr/bin/ssl_client"
+          ],
+          "AnalyzedBy": "apk"
+        },
+        {
+          "ID": "zlib@1.3.2-r0",
+          "Name": "zlib",
+          "Identifier": {
+            "PURL": "pkg:apk/alpine/zlib@1.3.2-r0?arch=x86_64\u0026distro=3.23.5",
+            "UID": "23a5a7d167a86311"
+          },
+          "Version": "1.3.2-r0",
+          "Arch": "x86_64",
+          "SrcName": "zlib",
+          "SrcVersion": "1.3.2-r0",
+          "Licenses": [
+            "Zlib"
+          ],
+          "Maintainer": "Natanael Copa \u003cncopa@alpinelinux.org\u003e",
+          "DependsOn": [
+            "musl@1.2.5-r23"
+          ],
+          "Layer": {
+            "Digest": "sha256:e6f31ffc071e5560b82a8685fba8214954e5721e3e49269d00958316edbe89fe",
+            "DiffID": "sha256:31ad4a471c6852bfec14d757cc75a566c82a9769f12c3918cf6bf52cc0eeb3d0"
+          },
+          "Digest": "sha1:68bb97ea5255e77aa974e65476d64832ad56288a",
+          "InstalledFiles": [
+            "usr/lib/libz.so.1",
+            "usr/lib/libz.so.1.3.2"
+          ],
+          "AnalyzedBy": "apk"
+        }
+      ]
+    }
+  ]
+}

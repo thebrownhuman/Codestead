@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.computing.determinism.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.computing",
+  "skillId": "pf.computing.determinism",
+  "title": "Instructions, state and determinism",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Instructions, state and determinism; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Instructions, state and determinism",
+      "claim": "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times. Your goal is to explain why two runs may agree or differ using input, state and environment. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Source-to-execution models. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Understand that execution follows defined instructions over changing state, subject to inputs and environment.",
+      "Explain why two runs may agree or differ using input, state and environment."
+    ],
+    "excludes": [
+      "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs."
+    ]
+  },
+  "outcomes": [
+    "Explain why two runs may agree or differ using input, state and environment."
+  ],
+  "examples": [
+    {
+      "id": "pf.computing.determinism.example-a",
+      "title": "Instructions, state and determinism: direct case",
+      "situation": "A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+      ],
+      "result": "The case supports the declared outcome because Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+    },
+    {
+      "id": "pf.computing.determinism.example-b",
+      "title": "Instructions, state and determinism: boundary case",
+      "situation": "A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs.",
+        "Step 2 — Keep this boundary explicit: Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs.",
+        "Step 3 — Reject the documented misconception: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+      ],
+      "result": "This case demonstrates the declared outcome: Explain why two runs may agree or differ using input, state and environment."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.computing.determinism.misconception",
+      "mistakenBelief": "The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior.",
+      "correction": "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A workshop can model Instructions, state and determinism: instructions direct workers, the workbench holds active materials, and shelves preserve supplies between jobs.",
+    "usefulFor": [
+      "Separating active execution, temporary state, persistent material, and coordinating roles"
+    ],
+    "limitations": [
+      "Computer components follow formal interfaces and timing rules that a human workshop does not reproduce.",
+      "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
+      "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
+      "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same."
+        },
+        "explanation": "Apply the declared Instructions, state and determinism model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+      }
+    ],
+    "textAlternative": "Starting artifact: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times. Step 1, Observe. State: evidence: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.. Apply the declared Instructions, state and determinism model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.. Compare the observation with the correction and reject the misconception: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Instructions, state and determinism: direct case”: state its starting evidence, apply the Instructions, state and determinism rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Instructions, state and determinism: direct case.",
+        "Starting evidence: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
+        "Core rule: A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
+        "Observable result: The case supports the declared outcome because Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.",
+        "Boundary check: Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
+        "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Instructions, state and determinism, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Explain why two runs may agree or differ using input, state and environment.",
+        "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.computing.determinism.misconception",
+      "explanation": "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to explain why two runs may agree or differ using input, state and environment. Keep this boundary in view: Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs.",
+    "retrievalPrompts": [
+      "Explain Instructions, state and determinism without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior.",
+      "Apply the model to this case from memory: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs."
+    ],
+    "nextReviewPrompt": "Next: continue to “Inputs, outputs and constraints”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

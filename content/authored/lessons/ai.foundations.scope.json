@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.foundations.scope.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.foundations",
+  "skillId": "ai.foundations.scope",
+  "title": "AI, automation and intelligence claims",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for AI, automation and intelligence claims; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; AI Knowledge Area: fundamental issues, intelligent agents, history, and societal context; atomic topic: AI, automation and intelligence claims",
+      "claim": "AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF 1.0 sections 1-4: risk framing, audience, effectiveness, and trustworthy characteristics; atomic topic: AI, automation and intelligence claims",
+      "claim": "AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label. Your goal is to classify example systems and state what evidence would support an intelligence claim. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf problem io; python quality project. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Fixed automation can be complex without learning, learned systems can still be narrow, fluent output does not prove understanding, and one benchmark cannot establish general intelligence or deployment fitness. The learner must reject this overclaim: Any system that adapts output, uses a neural network, or speaks fluently has demonstrated broad human-like intelligence."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish AI techniques from fixed automation and evaluate claims by capability and evidence rather than marketing.",
+      "Classify example systems and state what evidence would support an intelligence claim."
+    ],
+    "excludes": [
+      "Fixed automation can be complex without learning, learned systems can still be narrow, fluent output does not prove understanding, and one benchmark cannot establish general intelligence or deployment fitness."
+    ]
+  },
+  "outcomes": [
+    "Classify example systems and state what evidence would support an intelligence claim."
+  ],
+  "examples": [
+    {
+      "id": "ai.foundations.scope.example.direct",
+      "title": "AI, automation and intelligence claims: bounded direct case",
+      "situation": "A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency."
+      ],
+      "result": "This example supports only the atomic outcome because State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency."
+    },
+    {
+      "id": "ai.foundations.scope.example.stress",
+      "title": "AI, automation and intelligence claims: stress and transfer case",
+      "situation": "A chatbot writes plausible explanations on a benchmark but fails changed instructions and unsupported facts, so the claim is narrowed to the tested conditions.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A chatbot writes plausible explanations on a benchmark but fails changed instructions and unsupported facts, so the claim is narrowed to the tested conditions.",
+        "Step 2 — Keep the non-claim visible: Fixed automation can be complex without learning, learned systems can still be narrow, fluent output does not prove understanding, and one benchmark cannot establish general intelligence or deployment fitness.",
+        "Step 3 — Reject the tempting overclaim: Any system that adapts output, uses a neural network, or speaks fluently has demonstrated broad human-like intelligence."
+      ],
+      "result": "This case demonstrates the declared outcome: Classify example systems and state what evidence would support an intelligence claim."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.foundations.scope.misconception",
+      "mistakenBelief": "Any system that adapts output, uses a neural network, or speaks fluently has demonstrated broad human-like intelligence.",
+      "correction": "State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Any system that adapts output, uses a neural network, or speaks fluently has demonstrated broad human-like intelligence."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a map that labels what an automated system observes, claims, chooses, and cannot establish can introduce AI, automation and intelligence claims only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "separating techniques, environments, agents, evidence, and historical limits"
+    ],
+    "limitations": [
+      "maps simplify contested intelligence concepts and cannot turn benchmark evidence into general capability",
+      "Fixed automation can be complex without learning, learned systems can still be narrow, fluent output does not prove understanding, and one benchmark cannot establish general intelligence or deployment fitness."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label.",
+      "AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence.",
+      "State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Any system that adapts output, uses a neural network, or speaks fluently has demonstrated broad human-like intelligence."
+      }
+    ],
+    "textAlternative": "Starting artifact: A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label. Step 1, Observe. State: boundedEvidence: A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency.. State what the evidence does not establish and reject the misconception: Any system that adapts output, uses a neural network, or speaks fluently has demonstrated broad human-like intelligence."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “AI, automation and intelligence claims: bounded direct case”: state its starting evidence, apply the AI, automation and intelligence claims rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: AI, automation and intelligence claims: bounded direct case.",
+        "Starting evidence: A rules engine always applies authored thresholds, while a classifier estimates a label from fitted examples; both are evaluated against their declared decision task rather than a marketing label.",
+        "Core rule: AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence.",
+        "Observable result: This example supports only the atomic outcome because State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency.",
+        "Boundary check: State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A chatbot writes plausible explanations on a benchmark but fails changed instructions and unsupported facts, so the claim is narrowed to the tested conditions.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "AI is an umbrella for computational techniques that perform bounded tasks associated with perception, prediction, reasoning, search, generation, or action; capability claims require an operational task, comparison, and evidence.",
+        "Fixed automation can be complex without learning, learned systems can still be narrow, fluent output does not prove understanding, and one benchmark cannot establish general intelligence or deployment fitness."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for AI, automation and intelligence claims and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Classify example systems and state what evidence would support an intelligence claim.",
+        "State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.foundations.scope.misconception",
+      "explanation": "State an operational capability claim with task, population, conditions, baseline, metric, uncertainty, and failure evidence; do not infer general intelligence from technique or fluency.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A chatbot writes plausible explanations on a benchmark but fails changed instructions and unsupported facts, so the claim is narrowed to the tested conditions."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to classify example systems and state what evidence would support an intelligence claim. Keep this boundary in view: Fixed automation can be complex without learning, learned systems can still be narrow, fluent output does not prove understanding, and one benchmark cannot establish general intelligence or deployment fitness.",
+    "retrievalPrompts": [
+      "Explain AI, automation and intelligence claims with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Any system that adapts output, uses a neural network, or speaks fluently has demonstrated broad human-like intelligence.",
+      "Apply the boundary to: A chatbot writes plausible explanations on a benchmark but fails changed instructions and unsupported facts, so the claim is narrowed to the tested conditions."
+    ],
+    "nextReviewPrompt": "Next: continue to “Problem and environment characteristics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

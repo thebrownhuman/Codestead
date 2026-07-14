@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.functions.contracts.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.functions",
+  "skillId": "python.functions.contracts",
+  "title": "Function contracts and returns",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Function contracts and returns; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial §4.9 and chapter 8: function definitions, parameter rules, and errors; atomic topic: Function contracts and returns",
+      "claim": "A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; CS2023 Software Development Fundamentals: programming practices, testing, debugging, abstraction, data, and concurrency outcomes as applicable; atomic topic: Function contracts and returns",
+      "claim": "A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests. Your goal is to design, implement and test a function with a clear docstring contract. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; pf abstraction calls; pf abstraction functions; Numbers, booleans, None and text. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "A missing return produces None, annotations are not automatic validators, mutable inputs can be aliased, exceptions form part of the contract, and broad side effects hinder testing. The learner must reject this documented misconception: A return annotation forces Python to return that type and a docstring makes invalid calls impossible."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Write cohesive functions with documented inputs, outputs, effects and failure behavior.",
+      "Design, implement and test a function with a clear docstring contract."
+    ],
+    "excludes": [
+      "A missing return produces None, annotations are not automatic validators, mutable inputs can be aliased, exceptions form part of the contract, and broad side effects hinder testing."
+    ]
+  },
+  "outcomes": [
+    "Design, implement and test a function with a clear docstring contract."
+  ],
+  "examples": [
+    {
+      "id": "python.functions.contracts.example.direct",
+      "title": "Function contracts and returns: direct language case",
+      "situation": "A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+      ],
+      "result": "The example meets the atomic outcome because Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+    },
+    {
+      "id": "python.functions.contracts.example.boundary",
+      "title": "Function contracts and returns: boundary and transfer case",
+      "situation": "A function that sorts a caller list is renamed and documented as mutating, or changed to return a new sorted list so its effect is not hidden.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A function that sorts a caller list is renamed and documented as mutating, or changed to return a new sorted list so its effect is not hidden.",
+        "Step 2 — Keep the language boundary explicit: A missing return produces None, annotations are not automatic validators, mutable inputs can be aliased, exceptions form part of the contract, and broad side effects hinder testing.",
+        "Step 3 — Reject the tempting but incorrect rule: A return annotation forces Python to return that type and a docstring makes invalid calls impossible."
+      ],
+      "result": "This case demonstrates the declared outcome: Design, implement and test a function with a clear docstring contract."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.functions.contracts.misconception",
+      "mistakenBelief": "A return annotation forces Python to return that type and a docstring makes invalid calls impossible.",
+      "correction": "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A return annotation forces Python to return that type and a docstring makes invalid calls impossible."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a callable service counter with a published request form, binding rules, retained enclosing notes, and a recursive delegation limit can introduce Function contracts and returns, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "contracts, parameters, closures, and recursion"
+    ],
+    "limitations": [
+      "definition-time defaults, LEGB lookup, late binding, exceptions, and stack limits have no exact service-counter counterpart",
+      "A missing return produces None, annotations are not automatic validators, mutable inputs can be aliased, exceptions form part of the contract, and broad side effects hinder testing."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests.",
+      "A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it.",
+      "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A return annotation forces Python to return that type and a docstring makes invalid calls impossible."
+      }
+    ],
+    "textAlternative": "Starting artifact: A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests. Step 1, Observe. State: evidence: A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence.. Compare the observation with the correction and explain why the misconception fails: A return annotation forces Python to return that type and a docstring makes invalid calls impossible."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Function contracts and returns: direct language case”: state its starting evidence, apply the Function contracts and returns rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Function contracts and returns: direct language case.",
+        "Starting evidence: A normalize_score function documents an inclusive numeric range, returns a float, raises ValueError outside it, and has normal plus boundary tests.",
+        "Core rule: A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it.",
+        "Observable result: The example meets the atomic outcome because Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence.",
+        "Boundary check: Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A function that sorts a caller list is renamed and documented as mutating, or changed to return a new sorted list so its effect is not hidden.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Python function contract states accepted inputs, returned value, observable effects, and failure behavior; annotations and docstrings communicate the contract but runtime code and tests enforce it.",
+        "A missing return produces None, annotations are not automatic validators, mutable inputs can be aliased, exceptions form part of the contract, and broad side effects hinder testing."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Function contracts and returns, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Design, implement and test a function with a clear docstring contract.",
+        "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.functions.contracts.misconception",
+      "explanation": "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A function that sorts a caller list is renamed and documented as mutating, or changed to return a new sorted list so its effect is not hidden."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design, implement and test a function with a clear docstring contract. Keep this boundary in view: A missing return produces None, annotations are not automatic validators, mutable inputs can be aliased, exceptions form part of the contract, and broad side effects hinder testing.",
+    "retrievalPrompts": [
+      "Explain Function contracts and returns using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A return annotation forces Python to return that type and a docstring makes invalid calls impossible.",
+      "Predict this case from memory: A function that sorts a caller list is renamed and documented as mutating, or changed to return a new sorted list so its effect is not hidden."
+    ],
+    "nextReviewPrompt": "Next: continue to “Parameter kinds and argument binding”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

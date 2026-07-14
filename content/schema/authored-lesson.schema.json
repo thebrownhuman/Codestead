@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learncoding.local/schema/authored-lesson.schema.json",
+  "title": "Codestead authored lesson",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "format", "schemaVersion", "id", "courseId", "courseVersion", "moduleId", "skillId", "title", "publication", "sources", "canonicalExplanation", "scope", "outcomes", "examples", "misconceptions", "analogy", "trace", "practice", "remediation", "recap"],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "format": { "const": "authored-lesson" },
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "$ref": "#/$defs/id" },
+    "courseId": { "$ref": "#/$defs/id" },
+    "courseVersion": { "$ref": "#/$defs/semver" },
+    "moduleId": { "$ref": "#/$defs/id" },
+    "skillId": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 3 },
+    "publication": { "$ref": "#/$defs/publication" },
+    "sources": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["sourceRef", "locator", "claim"],
+        "properties": {
+          "sourceRef": { "$ref": "#/$defs/id" },
+          "locator": { "$ref": "#/$defs/meaningful" },
+          "claim": { "$ref": "#/$defs/meaningful" }
+        }
+      }
+    },
+    "canonicalExplanation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "sections"],
+      "properties": {
+        "summary": { "$ref": "#/$defs/meaningful" },
+        "sections": {
+          "type": "array", "minItems": 2,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["heading", "body"],
+            "properties": {
+              "heading": { "type": "string", "minLength": 3 },
+              "body": { "$ref": "#/$defs/meaningful" }
+            }
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["includes", "excludes"],
+      "properties": {
+        "includes": { "$ref": "#/$defs/nonEmptyStrings" },
+        "excludes": { "$ref": "#/$defs/nonEmptyStrings" }
+      }
+    },
+    "outcomes": { "$ref": "#/$defs/meaningfulStrings" },
+    "examples": {
+      "type": "array", "minItems": 2,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "title", "situation", "walkthrough", "result"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "title": { "type": "string", "minLength": 3 },
+          "situation": { "$ref": "#/$defs/meaningful" },
+          "walkthrough": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
+          "result": { "$ref": "#/$defs/meaningful" }
+        }
+      }
+    },
+    "misconceptions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "mistakenBelief", "correction", "diagnosticPrompt"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "mistakenBelief": { "$ref": "#/$defs/meaningful" },
+          "correction": { "$ref": "#/$defs/meaningful" },
+          "diagnosticPrompt": { "$ref": "#/$defs/meaningful" }
+        }
+      }
+    },
+    "analogy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["optional", "example", "usefulFor", "limitations", "canonicalExplanationStandsAlone"],
+      "properties": {
+        "optional": { "const": true },
+        "example": { "$ref": "#/$defs/meaningful" },
+        "usefulFor": { "$ref": "#/$defs/nonEmptyStrings" },
+        "limitations": { "$ref": "#/$defs/nonEmptyStrings" },
+        "canonicalExplanationStandsAlone": { "const": true }
+      }
+    },
+    "trace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact", "steps", "textAlternative"],
+      "properties": {
+        "artifact": { "$ref": "#/$defs/nonEmptyStrings" },
+        "steps": {
+          "type": "array", "minItems": 2,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["step", "focus", "state", "explanation"],
+            "properties": {
+              "step": { "type": "integer", "minimum": 1 },
+              "focus": { "type": "string", "minLength": 1 },
+              "state": { "type": "object", "additionalProperties": { "type": "string" } },
+              "explanation": { "$ref": "#/$defs/meaningful" }
+            }
+          }
+        },
+        "textAlternative": { "$ref": "#/$defs/meaningful" }
+      }
+    },
+    "practice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["faded", "nearTransfer", "farTransfer"],
+      "properties": {
+        "faded": { "$ref": "#/$defs/practice" },
+        "nearTransfer": { "$ref": "#/$defs/practice" },
+        "farTransfer": { "$ref": "#/$defs/practice" }
+      }
+    },
+    "remediation": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["misconceptionId", "explanation", "retryPrompt"],
+        "properties": {
+          "misconceptionId": { "$ref": "#/$defs/id" },
+          "explanation": { "$ref": "#/$defs/meaningful" },
+          "retryPrompt": { "$ref": "#/$defs/meaningful" }
+        }
+      }
+    },
+    "recap": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "retrievalPrompts", "nextReviewPrompt"],
+      "properties": {
+        "summary": { "$ref": "#/$defs/meaningful" },
+        "retrievalPrompts": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/meaningful" } },
+        "nextReviewPrompt": { "$ref": "#/$defs/meaningful" }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)*$" },
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "meaningful": { "type": "string", "minLength": 12 },
+    "nonEmptyStrings": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "meaningfulStrings": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/meaningful" } },
+    "contributor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "displayName", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["human", "ai-assisted"] }
+      }
+    },
+    "reviewer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "displayName", "kind", "reviewedAt", "reviewVersion"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "kind": { "const": "human" },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "reviewVersion": { "$ref": "#/$defs/semver" }
+      }
+    },
+    "publication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["stage", "author", "authoredAt", "aiAssisted", "reviewer", "changeSummary"],
+      "properties": {
+        "stage": { "enum": ["draft", "in-review", "approved", "published", "retired"] },
+        "author": { "$ref": "#/$defs/contributor" },
+        "authoredAt": { "type": "string", "format": "date-time" },
+        "aiAssisted": { "type": "boolean" },
+        "reviewer": { "oneOf": [{ "$ref": "#/$defs/reviewer" }, { "type": "null" }] },
+        "changeSummary": { "$ref": "#/$defs/meaningful" }
+      },
+      "allOf": [
+        { "if": { "properties": { "stage": { "enum": ["approved", "published", "retired"] } }, "required": ["stage"] }, "then": { "properties": { "reviewer": { "$ref": "#/$defs/reviewer" } } } },
+        { "if": { "properties": { "author": { "type": "object", "properties": { "kind": { "const": "ai-assisted" } }, "required": ["kind"] } }, "required": ["author"] }, "then": { "properties": { "aiAssisted": { "const": true } } } }
+      ]
+    },
+    "practice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["prompt", "scaffold", "expectedEvidence"],
+      "properties": {
+        "prompt": { "$ref": "#/$defs/meaningful" },
+        "scaffold": { "$ref": "#/$defs/nonEmptyStrings" },
+        "expectedEvidence": { "$ref": "#/$defs/nonEmptyStrings" }
+      }
+    }
+  }
+}

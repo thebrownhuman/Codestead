@@ -1,0 +1,59 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.computing.program.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.computing",
+  "skillId": "pf.computing.program",
+  "title": "Program, source, and algorithm checks",
+  "publication": {
+    "stage": "draft",
+    "author": { "id": "codex-assisted-draft", "displayName": "Codex-assisted pilot draft", "kind": "ai-assisted" },
+    "authoredAt": "2026-07-12T05:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic pilot items with answer evidence, explicitly blocked from formal exams until human review."
+  },
+  "sourceRefs": ["cs2023-sdf"],
+  "items": [
+    {
+      "id": "pf-program-mcq-classify",
+      "skillId": "pf.computing.program",
+      "title": "Classify the method",
+      "kind": "mcq",
+      "prompt": "A language-neutral list says: start with the first score, compare each remaining score, retain the larger value, and report the retained value. What is this artifact primarily?",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": { "eligible": false, "rationale": "The deterministic answer is drafted but has not received required human editorial approval." },
+      "hints": ["Ask whether the description depends on one programming language or whether it states a reusable solution method."],
+      "feedback": { "correct": "Correct: the list describes a reusable ordered method without committing to language syntax.", "incorrect": "Separate the solution method from a language-specific representation and from an actual execution." },
+      "rubric": { "passPoints": 4, "criteria": [{ "id": "classification", "description": "Selects the artifact role that matches a language-neutral finite problem-solving method.", "points": 4, "critical": true }] },
+      "privateAuthorNotes": ["Distractors target confusion among algorithm, source representation, execution, and input data."],
+      "options": [
+        { "id": "algorithm", "text": "An algorithm" },
+        { "id": "source-code", "text": "Source code in a specific language" },
+        { "id": "running-program", "text": "A running program process" },
+        { "id": "input-data", "text": "The input data" }
+      ],
+      "answer": { "correctOptionIds": ["algorithm"], "explanation": "The steps define a finite comparison method and contain no language-specific syntax or executing environment." }
+    },
+    {
+      "id": "pf-program-trace-pipeline",
+      "skillId": "pf.computing.program",
+      "title": "Trace artifacts from problem to output",
+      "kind": "trace",
+      "prompt": "Write the five role labels in order for the numbered artifacts: (1) scores 4, 9, 2; (2) the method retain the greatest seen; (3) Python text expressing that method; (4) that software executing; (5) displayed 9.",
+      "points": 5,
+      "evidenceLevel": "apply",
+      "examEligibility": { "eligible": false, "rationale": "The accepted trace is deterministic but still awaits independent human review." },
+      "hints": ["Use each of these roles once: input, algorithm, source code, program, and output."],
+      "feedback": { "correct": "Correct: the roles move from concrete data through method and representation to execution and result.", "incorrect": "Check whether you swapped the method with its Python expression or the file with the executing software." },
+      "rubric": { "passPoints": 5, "criteria": [{ "id": "ordered-roles", "description": "Provides all five artifact roles in the required order without exchanging method, source, or execution.", "points": 5, "critical": true }] },
+      "privateAuthorNotes": ["Normalization accepts comma-separated labels with optional spacing; do not accept reordered labels."],
+      "artifact": ["1. scores 4, 9, 2", "2. retain the greatest seen", "3. Python language text", "4. executing software", "5. displayed 9"],
+      "answer": { "acceptedTraces": ["input,algorithm,source code,program,output", "input, algorithm, source code, program, output"], "caseSensitive": false, "explanation": "The values enter as input, the language-neutral method is the algorithm, Python text is source, execution is the program in action, and 9 is output." }
+    }
+  ]
+}

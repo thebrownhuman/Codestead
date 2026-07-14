@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T18:57:08+05:30",
+  "scope": "LES-003 learner practice experience and ASM-002 deterministic persisted assistance authority",
+  "acceptance": {
+    "LES-003": "met for declared application behavior",
+    "ASM-002": "met for declared engine and security behavior"
+  },
+  "migration": {
+    "id": "0023_huge_sharon_ventura",
+    "firstApplication": "passed",
+    "secondNoOpApplication": "passed",
+    "schemaDiffAfterGeneration": "none"
+  },
+  "automatedEvidence": {
+    "focusedUnitRouteComponentTests": {
+      "files": 10,
+      "tests": 80,
+      "passed": 80
+    },
+    "fullPostgreSqlIntegrationSuite": {
+      "files": 19,
+      "tests": 87,
+      "passed": 87,
+      "database": "disposable PostgreSQL 17 Docker database",
+      "migrationChainAppliedTwice": true,
+      "externalCredentialsUsed": false
+    },
+    "compiledChromiumJourney": {
+      "files": 1,
+      "tests": 1,
+      "passed": 1,
+      "network": "deterministic route fixtures",
+      "externalCredentialsUsed": false
+    },
+    "authorizationMatrix": {
+      "routeFiles": 94,
+      "operations": 114,
+      "authenticatedOperations": 64,
+      "sessionUserOperations": 61,
+      "identifierContracts": 27,
+      "supportingProofs": 9,
+      "errors": 0
+    },
+    "authorizationBoundaryTests": {
+      "files": 3,
+      "tests": 3,
+      "passed": 3
+    },
+    "encodingScan": "passed"
+  },
+  "proved": [
+    "strict learner projection excludes graders, accepted answers, private notes, feedback keys, reference solutions, and hidden tests",
+    "draft, unreviewed, and unsupported activities fail closed",
+    "creation exposes help counts but not help content",
+    "authenticated owner-bound progressive help endpoint",
+    "durable assistance level, solution reveal, sequential help step, and append-only receipt",
+    "same-request idempotent replay and cross-attempt request conflict",
+    "concurrent help allocation produces distinct sequential steps",
+    "receipt failure rolls assistance state back",
+    "submission ignores forged upward and downward client assistance claims",
+    "solution reveal requires a fresh attempt for independent evidence",
+    "deterministic MCQ, exact, set, numeric, and fill-gap grading",
+    "I-don't-know, progressive help, feedback, remediation, retry, next action, and content-report UI",
+    "keyboard-accessible responsive practice states",
+    "placement route uses the same non-leaking learner projection"
+  ],
+  "contentReportPath": "/requests?kind=missing_topic&skillId=<skill>",
+  "remainingLimitations": [
+    "The 476 authored activity banks are draft, unreviewed, and exam-ineligible; real learner publication requires human review/materialization.",
+    "The browser proof uses deterministic API route fixtures; durable persistence and concurrency are proved separately in PostgreSQL integration tests.",
+    "Physical-device browser verification is outside this evidence run."
+  ]
+}

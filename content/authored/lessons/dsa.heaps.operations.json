@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.heaps.operations.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.heaps",
+  "skillId": "dsa.heaps.operations",
+  "title": "Heapify, insert and extract",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Heapify, insert and extract; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Heapify, insert and extract",
+      "claim": "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: After removing the minimum, the last element moves to root and sifts down toward the appropriate child. Your goal is to implement and test heap construction, insertion and root extraction. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Tree terminology and representation; Heap property and array layout; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Comparator consistency, index bounds, and mutable priorities can invalidate the structure. The draft therefore rejects: Building a heap by bottom-up sifting is O(n log n)."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Restore heap order upward or downward after structural changes.",
+      "Implement and test heap construction, insertion and root extraction.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "excludes": [
+      "Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+    ]
+  },
+  "outcomes": [
+    "Implement and test heap construction, insertion and root extraction."
+  ],
+  "examples": [
+    {
+      "id": "dsa.heaps.operations.example-a",
+      "title": "Heapify, insert and extract: language-neutral trace",
+      "situation": "After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+      ],
+      "result": "The conceptual result follows because Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+    },
+    {
+      "id": "dsa.heaps.operations.example-b",
+      "title": "Heapify, insert and extract: implementation transfer",
+      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Step 3 — Retest this boundary in the selected implementation: Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.heaps.operations.misconception",
+      "mistakenBelief": "Building a heap by bottom-up sifting is O(n log n).",
+      "correction": "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Building a heap by bottom-up sifting is O(n log n)."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Heapify, insert and extract, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
+      "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
+      "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "After removing the minimum, the last element moves to root and sifts down toward the appropriate child."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+        },
+        "explanation": "Verify the result and reject this misconception: Building a heap by bottom-up sifting is O(n log n)."
+      }
+    ],
+    "textAlternative": "Starting artifact: After removing the minimum, the last element moves to root and sifts down toward the appropriate child. Step 1, Specification. State: scenario: After removing the minimum, the last element moves to root and sifts down toward the appropriate child.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.. Verify the result and reject this misconception: Building a heap by bottom-up sifting is O(n log n)."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Heapify, insert and extract: language-neutral trace”: state its starting evidence, apply the Heapify, insert and extract rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Heapify, insert and extract: language-neutral trace.",
+        "Starting evidence: After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
+        "Core rule: Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
+        "Observable result: The conceptual result follows because Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
+        "Boundary check: Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Heapify, insert and extract case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement and test heap construction, insertion and root extraction.",
+        "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.heaps.operations.misconception",
+      "explanation": "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'O(n)', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test heap construction, insertion and root extraction. Keep this boundary in view: Comparator consistency, index bounds, and mutable priorities can invalidate the structure.",
+    "retrievalPrompts": [
+      "State the Heapify, insert and extract invariant and complexity without code.",
+      "Why is this claim false: Building a heap by bottom-up sifting is O(n log n).",
+      "Map checkpoint 'O(n)' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Priority queue applications”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

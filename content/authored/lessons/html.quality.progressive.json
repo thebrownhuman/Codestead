@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.quality.progressive.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.validation-project",
+  "skillId": "html.quality.progressive",
+  "title": "Progressive baseline",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Progressive baseline; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Progressive baseline",
+      "claim": "Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Progressive baseline",
+      "claim": "Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress. Your goal is to demonstrate the site with styles and scripts unavailable and document acceptable degradation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Metadata and accessibility audit; Images and media; Data tables; Forms and native controls; Semantic content review; Meaningful links. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery. This draft therefore rejects: Progressive enhancement means every advanced interaction must work identically with JavaScript disabled."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Ensure core content and navigation remain understandable before CSS and JavaScript load.",
+      "Demonstrate the site with styles and scripts unavailable and document acceptable degradation."
+    ],
+    "excludes": [
+      "Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery."
+    ]
+  },
+  "outcomes": [
+    "Demonstrate the site with styles and scripts unavailable and document acceptable degradation."
+  ],
+  "examples": [
+    {
+      "id": "html.quality.progressive.example-a",
+      "title": "Progressive baseline: concrete case",
+      "situation": "A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting."
+      ],
+      "result": "The result follows because Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting."
+    },
+    {
+      "id": "html.quality.progressive.example-b",
+      "title": "Progressive baseline: boundary case",
+      "situation": "Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Progressive enhancement means every advanced interaction must work identically with JavaScript disabled."
+      ],
+      "result": "The boundary requires this correction: Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.quality.progressive.misconception",
+      "mistakenBelief": "Progressive enhancement means every advanced interaction must work identically with JavaScript disabled.",
+      "correction": "Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Progressive enhancement means every advanced interaction must work identically with JavaScript disabled."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Progressive baseline, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Progressive baseline before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress.",
+      "Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation.",
+      "Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Progressive enhancement means every advanced interaction must work identically with JavaScript disabled."
+      }
+    ],
+    "textAlternative": "Starting artifact: A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress. Step 1, Artifact. State: evidence: A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting.. Check the result against the boundary and reject this misconception: Progressive enhancement means every advanced interaction must work identically with JavaScript disabled."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Progressive baseline: concrete case”: state its starting evidence, apply the Progressive baseline rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Progressive baseline: concrete case.",
+        "Starting evidence: A server-rendered course list remains readable and linked before JavaScript adds filtering and saved progress.",
+        "Core rule: Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation.",
+        "Observable result: The result follows because Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting.",
+        "Boundary check: Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Progressive enhancement begins with meaningful HTML and core actions, then adds CSS and JavaScript without removing baseline content or navigation.",
+        "Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Progressive baseline and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Demonstrate the site with styles and scripts unavailable and document acceptable degradation.",
+        "Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.quality.progressive.misconception",
+      "explanation": "Start from meaningful resilient HTML and define honest fallbacks or failure states for enhancements that require scripting.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'resilient HTML' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to demonstrate the site with styles and scripts unavailable and document acceptable degradation. Keep this boundary in view: Some applications require scripting, but loading, failure, and unsupported states still need intentional communication and recovery.",
+    "retrievalPrompts": [
+      "Explain Progressive baseline using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Progressive enhancement means every advanced interaction must work identically with JavaScript disabled.",
+      "Apply checkpoint 'resilient HTML' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Semantic multi-page site”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

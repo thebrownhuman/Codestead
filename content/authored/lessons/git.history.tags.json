@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.history.tags.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.history",
+  "skillId": "git.history.tags",
+  "title": "Tags and release points",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Tags and release points; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "git-docs",
+      "locator": "Git Reference Documentation; current stable accessed 2026-07; section applicable to Tags and release points",
+      "claim": "A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature."
+    },
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Tags and release points",
+      "claim": "A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly. Your goal is to create, inspect and verify a version tag on the intended commit. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Selective staging and first commit; Log, show and graph. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Tags can be moved or deleted, lightweight and annotated tags differ, and creating a local tag does not automatically publish it to a remote. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A tag is a read-only branch that automatically follows new commits and appears on every remote."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use annotated tags to name reviewed immutable release commits.",
+      "Create, inspect and verify a version tag on the intended commit."
+    ],
+    "excludes": [
+      "Tags can be moved or deleted, lightweight and annotated tags differ, and creating a local tag does not automatically publish it to a remote."
+    ]
+  },
+  "outcomes": [
+    "Create, inspect and verify a version tag on the intended commit."
+  ],
+  "examples": [
+    {
+      "id": "git.history.tags.example-a",
+      "title": "Tags and release points: direct case",
+      "situation": "An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+      ],
+      "result": "The case supports the declared outcome because Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+    },
+    {
+      "id": "git.history.tags.example-b",
+      "title": "Tags and release points: boundary case",
+      "situation": "A deployment resolves the tag's commit identity rather than assuming a same-named branch or latest main commit.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A deployment resolves the tag's commit identity rather than assuming a same-named branch or latest main commit.",
+        "Step 2 — Keep this boundary explicit: Tags can be moved or deleted, lightweight and annotated tags differ, and creating a local tag does not automatically publish it to a remote.",
+        "Step 3 — Reject the documented misconception: A tag is a read-only branch that automatically follows new commits and appears on every remote."
+      ],
+      "result": "This case demonstrates the declared outcome: Create, inspect and verify a version tag on the intended commit."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.history.tags.misconception",
+      "mistakenBelief": "A tag is a read-only branch that automatically follows new commits and appears on every remote.",
+      "correction": "Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A tag is a read-only branch that automatically follows new commits and appears on every remote."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A signed lab notebook can model Tags and release points: stable entries record why a change happened, named markers identify milestones, and comparisons expose differences.",
+    "usefulFor": [
+      "Inspecting immutable records, messages, selected versions, differences, and milestone names"
+    ],
+    "limitations": [
+      "Git history is a directed graph with movable references, merges, and content-addressed objects, not a single bound notebook.",
+      "Tags can be moved or deleted, lightweight and annotated tags differ, and creating a local tag does not automatically publish it to a remote."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly.",
+      "A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature.",
+      "Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature."
+        },
+        "explanation": "Apply the declared Tags and release points model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A tag is a read-only branch that automatically follows new commits and appears on every remote."
+      }
+    ],
+    "textAlternative": "Starting artifact: An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly. Step 1, Observe. State: evidence: An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature.. Apply the declared Tags and release points model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy.. Compare the observation with the correction and reject the misconception: A tag is a read-only branch that automatically follows new commits and appears on every remote."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Tags and release points: direct case”: state its starting evidence, apply the Tags and release points rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Tags and release points: direct case.",
+        "Starting evidence: An annotated v1.0.0 tag points to the tested release commit and records release context before that tag is pushed explicitly.",
+        "Core rule: A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature.",
+        "Observable result: The case supports the declared outcome because Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy.",
+        "Boundary check: Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A deployment resolves the tag's commit identity rather than assuming a same-named branch or latest main commit.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A tag gives a stable human-readable reference to a specific Git object, commonly a release commit; annotated tags also store message, tagger, and optional signature.",
+        "Tags can be moved or deleted, lightweight and annotated tags differ, and creating a local tag does not automatically publish it to a remote."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Tags and release points, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Create, inspect and verify a version tag on the intended commit.",
+        "Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.history.tags.misconception",
+      "explanation": "Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A deployment resolves the tag's commit identity rather than assuming a same-named branch or latest main commit."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create, inspect and verify a version tag on the intended commit. Keep this boundary in view: Tags can be moved or deleted, lightweight and annotated tags differ, and creating a local tag does not automatically publish it to a remote.",
+    "retrievalPrompts": [
+      "Explain Tags and release points without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A tag is a read-only branch that automatically follows new commits and appears on every remote.",
+      "Apply the model to this case from memory: A deployment resolves the tag's commit identity rather than assuming a same-named branch or latest main commit."
+    ],
+    "nextReviewPrompt": "Next: continue to “Branches as movable refs”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

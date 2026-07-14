@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.async.await.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.async-network",
+  "skillId": "javascript.async.await",
+  "title": "async and await",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for async and await; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to async and await",
+      "claim": "async functions return promises, and await pauses only that async continuation while other tasks can proceed."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to async and await",
+      "claim": "async functions return promises, and await pauses only that async continuation while other tasks can proceed."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization. Your goal is to refactor a promise workflow using async/await and justify its concurrency behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Call stack and event loop model; Closures and lifetime; Promises and chains; Parameters, rest and return contracts. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "async functions return promises, and await pauses only that async continuation while other tasks can proceed. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling. This draft therefore rejects: await blocks the browser thread until the promise settles."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Write structured asynchronous functions and distinguish sequential from intentional concurrent waits.",
+      "Refactor a promise workflow using async/await and justify its concurrency behavior."
+    ],
+    "excludes": [
+      "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling."
+    ]
+  },
+  "outcomes": [
+    "Refactor a promise workflow using async/await and justify its concurrency behavior."
+  ],
+  "examples": [
+    {
+      "id": "javascript.async.await.example-a",
+      "title": "async and await: concrete case",
+      "situation": "Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: await suspends the async function continuation, not the entire event loop."
+      ],
+      "result": "The result follows because await suspends the async function continuation, not the entire event loop."
+    },
+    {
+      "id": "javascript.async.await.example-b",
+      "title": "async and await: boundary case",
+      "situation": "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: await blocks the browser thread until the promise settles."
+      ],
+      "result": "The boundary requires this correction: await suspends the async function continuation, not the entire event loop."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.async.await.misconception",
+      "mistakenBelief": "await blocks the browser thread until the promise settles.",
+      "correction": "await suspends the async function continuation, not the entire event loop.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: await blocks the browser thread until the promise settles."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model async and await, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for async and await before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
+      "async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
+      "await suspends the async function continuation, not the entire event loop."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "async functions return promises, and await pauses only that async continuation while other tasks can proceed."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "await suspends the async function continuation, not the entire event loop."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: await blocks the browser thread until the promise settles."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization. Step 1, Artifact. State: evidence: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: async functions return promises, and await pauses only that async continuation while other tasks can proceed.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: await suspends the async function continuation, not the entire event loop.. Check the result against the boundary and reject this misconception: await blocks the browser thread until the promise settles."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “async and await: concrete case”: state its starting evidence, apply the async and await rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: async and await: concrete case.",
+        "Starting evidence: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
+        "Core rule: async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
+        "Observable result: The result follows because await suspends the async function continuation, not the entire event loop.",
+        "Boundary check: await suspends the async function continuation, not the entire event loop."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
+        "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for async and await and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Refactor a promise workflow using async/await and justify its concurrency behavior.",
+        "await suspends the async function continuation, not the entire event loop."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.async.await.misconception",
+      "explanation": "await suspends the async function continuation, not the entire event loop.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not the entire event loop' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to refactor a promise workflow using async/await and justify its concurrency behavior. Keep this boundary in view: Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
+    "retrievalPrompts": [
+      "Explain async and await using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: await blocks the browser thread until the promise settles.",
+      "Apply checkpoint 'not the entire event loop' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Fetch and HTTP responses”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

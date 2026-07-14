@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.context.services.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.routing-context",
+  "skillId": "react.context.services",
+  "title": "Context for stable global dependencies",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Context for stable global dependencies; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Context for stable global dependencies",
+      "claim": "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A TutorApi interface is provided once and replaced with a fake provider in component tests. Your goal is to design and test a narrow context provider with a documented default and consumer contract. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Remote data and asynchronous UI; javascript browser url; Reducer and context boundary; Component API design. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design. This draft therefore rejects: Importing a global singleton is always equivalent to a contextual service provider."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use context for theme, session or service boundaries without placing rapidly changing local state globally.",
+      "Design and test a narrow context provider with a documented default and consumer contract."
+    ],
+    "excludes": [
+      "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design."
+    ]
+  },
+  "outcomes": [
+    "Design and test a narrow context provider with a documented default and consumer contract."
+  ],
+  "examples": [
+    {
+      "id": "react.context.services.example-a",
+      "title": "Context for stable global dependencies: concrete case",
+      "situation": "A TutorApi interface is provided once and replaced with a fake provider in component tests.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A TutorApi interface is provided once and replaced with a fake provider in component tests.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+      ],
+      "result": "The result follows because Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+    },
+    {
+      "id": "react.context.services.example-b",
+      "title": "Context for stable global dependencies: boundary case",
+      "situation": "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Importing a global singleton is always equivalent to a contextual service provider."
+      ],
+      "result": "The boundary requires this correction: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.context.services.misconception",
+      "mistakenBelief": "Importing a global singleton is always equivalent to a contextual service provider.",
+      "correction": "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Importing a global singleton is always equivalent to a contextual service provider."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Context for stable global dependencies, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Context for stable global dependencies before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A TutorApi interface is provided once and replaced with a fake provider in component tests.",
+      "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
+      "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A TutorApi interface is provided once and replaced with a fake provider in component tests."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Importing a global singleton is always equivalent to a contextual service provider."
+      }
+    ],
+    "textAlternative": "Starting artifact: A TutorApi interface is provided once and replaced with a fake provider in component tests. Step 1, Artifact. State: evidence: A TutorApi interface is provided once and replaced with a fake provider in component tests.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.. Check the result against the boundary and reject this misconception: Importing a global singleton is always equivalent to a contextual service provider."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Context for stable global dependencies: concrete case”: state its starting evidence, apply the Context for stable global dependencies rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Context for stable global dependencies: concrete case.",
+        "Starting evidence: A TutorApi interface is provided once and replaced with a fake provider in component tests.",
+        "Core rule: Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
+        "Observable result: The result follows because Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.",
+        "Boundary check: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
+        "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Context for stable global dependencies and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Design and test a narrow context provider with a documented default and consumer contract.",
+        "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.context.services.misconception",
+      "explanation": "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'dependency and substitution explicit' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and test a narrow context provider with a documented default and consumer contract. Keep this boundary in view: Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
+    "retrievalPrompts": [
+      "Explain Context for stable global dependencies using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Importing a global singleton is always equivalent to a contextual service provider.",
+      "Apply checkpoint 'dependency and substitution explicit' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Semantic and keyboard-accessible components”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.supervised.classification.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.supervised",
+  "skillId": "ai.supervised.classification",
+  "title": "Classification and probabilities",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Classification and probabilities; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "sklearn",
+      "locator": "scikit-learn User Guide; 1.9.x target, accessed 2026-07; User Guide sections 1 and 3: supervised estimators, validation, thresholding, metrics, and learning curves; atomic topic: Classification and probabilities",
+      "claim": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone."
+    },
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning: supervised methods, model families, validation, and generalization; atomic topic: Classification and probabilities",
+      "claim": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves. Your goal is to train and evaluate a classifier under class imbalance and asymmetric error costs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Data and experimental workflow; Conditional probability and Bayes rule; Train, validation, test and leakage. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values. The learner must reject this overclaim: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Model categorical outcomes and distinguish class labels, scores and probability estimates.",
+      "Train and evaluate a classifier under class imbalance and asymmetric error costs."
+    ],
+    "excludes": [
+      "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values."
+    ]
+  },
+  "outcomes": [
+    "Train and evaluate a classifier under class imbalance and asymmetric error costs."
+  ],
+  "examples": [
+    {
+      "id": "ai.supervised.classification.example.direct",
+      "title": "Classification and probabilities: bounded direct case",
+      "situation": "A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+      ],
+      "result": "This example supports only the atomic outcome because Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+    },
+    {
+      "id": "ai.supervised.classification.example.stress",
+      "title": "Classification and probabilities: stress and transfer case",
+      "situation": "A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population.",
+        "Step 2 — Keep the non-claim visible: Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values.",
+        "Step 3 — Reject the tempting overclaim: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+      ],
+      "result": "This case demonstrates the declared outcome: Train and evaluate a classifier under class imbalance and asymmetric error costs."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.supervised.classification.misconception",
+      "mistakenBelief": "The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class.",
+      "correction": "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a measured prediction workshop that compares a simple baseline with several fitted rules on held-out outcomes can introduce Classification and probabilities only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "regression, classification, model assumptions, and generalization"
+    ],
+    "limitations": [
+      "prediction evidence does not establish causation, fairness, or unchanged performance after deployment",
+      "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
+      "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
+      "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+      }
+    ],
+    "textAlternative": "Starting artifact: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves. Step 1, Observe. State: boundedEvidence: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.. State what the evidence does not establish and reject the misconception: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Classification and probabilities: bounded direct case”: state its starting evidence, apply the Classification and probabilities rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Classification and probabilities: bounded direct case.",
+        "Starting evidence: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
+        "Core rule: Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
+        "Observable result: This example supports only the atomic outcome because Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.",
+        "Boundary check: Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
+        "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Classification and probabilities and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Train and evaluate a classifier under class imbalance and asymmetric error costs.",
+        "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.supervised.classification.misconception",
+      "explanation": "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to train and evaluate a classifier under class imbalance and asymmetric error costs. Keep this boundary in view: Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values.",
+    "retrievalPrompts": [
+      "Explain Classification and probabilities with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class.",
+      "Apply the boundary to: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population."
+    ],
+    "nextReviewPrompt": "Next: continue to “Linear, neighbor and tree models”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

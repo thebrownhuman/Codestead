@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.quality.unittest.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.quality",
+  "skillId": "python.quality.unittest",
+  "title": "Automated tests deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Automated tests; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-stdlib",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "python.quality.unittest.mcq.misconception",
+      "skillId": "python.quality.unittest",
+      "title": "Automated tests: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? More mocks always make a unit test better isolated and high coverage proves all contracts are tested.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures.",
+        "incorrect": "That choice preserves the misconception. Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+        },
+        {
+          "id": "misconception",
+          "text": "More mocks always make a unit test better isolated and high coverage proves all contracts are tested."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+      }
+    },
+    {
+      "id": "python.quality.unittest.fill.checkpoint",
+      "skillId": "python.quality.unittest",
+      "title": "Automated tests: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'public behavior'. Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures.",
+        "incorrect": "The phrase must preserve the exact language rule. Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Assert [[checkpoint]] with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "public behavior"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+      }
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.data.arrays.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.methods-data",
+  "skillId": "java.data.arrays",
+  "title": "Arrays and multidimensional arrays",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Arrays and multidimensional arrays; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Classes and Objects, Arrays, and String processing learning paths; atomic topic: Arrays and multidimensional arrays",
+      "claim": "A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§6.3, 8.4, chapter 10, and §§15.12, 15.18.1: scope, methods, arrays, invocation, and strings; atomic topic: Arrays and multidimensional arrays",
+      "claim": "A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end. Your goal is to implement and test one- and two-dimensional array processing without bounds errors. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and branching; pf abstraction calls. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Length cannot change, reference arrays start with null elements, covariance can fail at runtime, ragged rows have different lengths, and every access must satisfy its current row bound. The learner must reject this documented misconception: A two-dimensional Java array is one rectangular block, and every row always has the same length as the outer array."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create, index and traverse fixed-length arrays, including ragged two-dimensional structures.",
+      "Implement and test one- and two-dimensional array processing without bounds errors."
+    ],
+    "excludes": [
+      "Length cannot change, reference arrays start with null elements, covariance can fail at runtime, ragged rows have different lengths, and every access must satisfy its current row bound."
+    ]
+  },
+  "outcomes": [
+    "Implement and test one- and two-dimensional array processing without bounds errors."
+  ],
+  "examples": [
+    {
+      "id": "java.data.arrays.example.direct",
+      "title": "Arrays and multidimensional arrays: direct language case",
+      "situation": "A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length."
+      ],
+      "result": "The example meets the atomic outcome because Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length."
+    },
+    {
+      "id": "java.data.arrays.example.boundary",
+      "title": "Arrays and multidimensional arrays: boundary and transfer case",
+      "situation": "A ragged int[][] traversal checks matrix[row].length for each row rather than assuming a rectangle from matrix.length.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A ragged int[][] traversal checks matrix[row].length for each row rather than assuming a rectangle from matrix.length.",
+        "Step 2 — Keep the language boundary explicit: Length cannot change, reference arrays start with null elements, covariance can fail at runtime, ragged rows have different lengths, and every access must satisfy its current row bound.",
+        "Step 3 — Reject the tempting but incorrect rule: A two-dimensional Java array is one rectangular block, and every row always has the same length as the outer array."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and test one- and two-dimensional array processing without bounds errors."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.data.arrays.misconception",
+      "mistakenBelief": "A two-dimensional Java array is one rectangular block, and every row always has the same length as the outer array.",
+      "correction": "Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A two-dimensional Java array is one rectangular block, and every row always has the same length as the outer array."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a set of labeled workstations that accept copies of request values and process fixed trays or immutable text tickets can introduce Arrays and multidimensional arrays, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "reasoning about method contracts, scope, arrays, and strings"
+    ],
+    "limitations": [
+      "reference values can still alias mutable objects and Unicode or overload rules have no exact workstation equivalent",
+      "Length cannot change, reference arrays start with null elements, covariance can fail at runtime, ragged rows have different lengths, and every access must satisfy its current row bound."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end.",
+      "A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures.",
+      "Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A two-dimensional Java array is one rectangular block, and every row always has the same length as the outer array."
+      }
+    ],
+    "textAlternative": "Starting artifact: A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end. Step 1, Observe. State: evidence: A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length.. Compare the observation with the correction and explain why the misconception fails: A two-dimensional Java array is one rectangular block, and every row always has the same length as the outer array."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Arrays and multidimensional arrays: direct language case”: state its starting evidence, apply the Arrays and multidimensional arrays rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Arrays and multidimensional arrays: direct language case.",
+        "Starting evidence: A sum routine handles an empty int array and traverses indices strictly below values.length without reading one element past the end.",
+        "Core rule: A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures.",
+        "Observable result: The example meets the atomic outcome because Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length.",
+        "Boundary check: Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A ragged int[][] traversal checks matrix[row].length for each row rather than assuming a rectangle from matrix.length.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Java array is a fixed-length object with zero-based indexed elements, a runtime component type, and independently allocated rows for multidimensional array structures.",
+        "Length cannot change, reference arrays start with null elements, covariance can fail at runtime, ragged rows have different lengths, and every access must satisfy its current row bound."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Arrays and multidimensional arrays, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement and test one- and two-dimensional array processing without bounds errors.",
+        "Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.data.arrays.misconception",
+      "explanation": "Treat a multidimensional array as an array of row references, allocate and bound-check each row independently, and never infer column count from the outer length.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A ragged int[][] traversal checks matrix[row].length for each row rather than assuming a rectangle from matrix.length."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test one- and two-dimensional array processing without bounds errors. Keep this boundary in view: Length cannot change, reference arrays start with null elements, covariance can fail at runtime, ragged rows have different lengths, and every access must satisfy its current row bound.",
+    "retrievalPrompts": [
+      "Explain Arrays and multidimensional arrays using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A two-dimensional Java array is one rectangular block, and every row always has the same length as the outer array.",
+      "Predict this case from memory: A ragged int[][] traversal checks matrix[row].length for each row rather than assuming a rectangle from matrix.length."
+    ],
+    "nextReviewPrompt": "Next: continue to “String and text processing”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

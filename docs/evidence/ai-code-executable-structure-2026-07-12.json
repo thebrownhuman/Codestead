@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-14T07:59:55.628Z",
+  "scope": "AI course deterministic offline Python labs pinned-runtime evidence",
+  "status": "structure-only",
+  "counts": {
+    "declaredTasks": 24,
+    "selectedTasks": 24,
+    "executedCases": 0,
+    "passedCases": 0,
+    "failedCases": 0
+  },
+  "fullRuntimeRun": false,
+  "externalProviderCalls": 0,
+  "imageEvidence": {
+    "tag": "learncoding/runtime-python:local",
+    "expected": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+    "actual": null,
+    "matches": false
+  },
+  "results": [],
+  "limitations": [
+    "These are bounded deterministic offline labs, not live-model quality, safety, deployment, or provider evidence.",
+    "All items remain AI-assisted drafts with null human reviewer and zero formal-exam eligibility.",
+    "Local Docker image ID evidence does not replace production KVM/NUC and CVE verification."
+  ]
+}

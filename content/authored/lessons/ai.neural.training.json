@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.neural.training.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.neural",
+  "skillId": "ai.neural.training",
+  "title": "Loss, gradients and optimization",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Loss, gradients and optimization; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning and Neural Networks: units, optimization, generalization, and architecture families; atomic topic: Loss, gradients and optimization",
+      "claim": "Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically. Your goal is to trace a simple parameter update and diagnose learning-rate or scale problems. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Supervised learning; Data and experimental workflow; Units, layers and activations; Bias, variance and regularization. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "A gradient is local, lower training loss need not improve validation, learning rate can diverge or stall, stochastic batches add variance, nonconvex optimization lacks a global guarantee, and labels/objectives encode choices. The learner must reject this overclaim: Gradient descent always moves directly to the global best model and any positive learning rate eventually converges."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Explain how examples, loss and gradient-based updates change parameters without requiring full calculus derivations.",
+      "Trace a simple parameter update and diagnose learning-rate or scale problems."
+    ],
+    "excludes": [
+      "A gradient is local, lower training loss need not improve validation, learning rate can diverge or stall, stochastic batches add variance, nonconvex optimization lacks a global guarantee, and labels/objectives encode choices."
+    ]
+  },
+  "outcomes": [
+    "Trace a simple parameter update and diagnose learning-rate or scale problems."
+  ],
+  "examples": [
+    {
+      "id": "ai.neural.training.example.direct",
+      "title": "Loss, gradients and optimization: bounded direct case",
+      "situation": "For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic."
+      ],
+      "result": "This example supports only the atomic outcome because Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic."
+    },
+    {
+      "id": "ai.neural.training.example.stress",
+      "title": "Loss, gradients and optimization: stress and transfer case",
+      "situation": "A learning rate ten times larger overshoots and increases loss, showing that gradient direction alone does not choose a safe step size.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A learning rate ten times larger overshoots and increases loss, showing that gradient direction alone does not choose a safe step size.",
+        "Step 2 — Keep the non-claim visible: A gradient is local, lower training loss need not improve validation, learning rate can diverge or stall, stochastic batches add variance, nonconvex optimization lacks a global guarantee, and labels/objectives encode choices.",
+        "Step 3 — Reject the tempting overclaim: Gradient descent always moves directly to the global best model and any positive learning rate eventually converges."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace a simple parameter update and diagnose learning-rate or scale problems."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.neural.training.misconception",
+      "mistakenBelief": "Gradient descent always moves directly to the global best model and any positive learning rate eventually converges.",
+      "correction": "Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Gradient descent always moves directly to the global best model and any positive learning rate eventually converges."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a layered numeric circuit whose weights, biases, activations, loss, and updates can be traced on a tiny example can introduce Loss, gradients and optimization only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "forward passes, gradient updates, regularization evidence, and architectural roles"
+    ],
+    "limitations": [
+      "a toy circuit does not explain large-network representations, training data, emergent behavior, or deployment safety",
+      "A gradient is local, lower training loss need not improve validation, learning rate can diverge or stall, stochastic batches add variance, nonconvex optimization lacks a global guarantee, and labels/objectives encode choices."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically.",
+      "Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective.",
+      "Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Gradient descent always moves directly to the global best model and any positive learning rate eventually converges."
+      }
+    ],
+    "textAlternative": "Starting artifact: For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically. Step 1, Observe. State: boundedEvidence: For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic.. State what the evidence does not establish and reject the misconception: Gradient descent always moves directly to the global best model and any positive learning rate eventually converges."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Loss, gradients and optimization: bounded direct case”: state its starting evidence, apply the Loss, gradients and optimization rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Loss, gradients and optimization: bounded direct case.",
+        "Starting evidence: For one scalar linear prediction, the learner computes squared loss, its gradient, and one parameter update, then verifies the new loss numerically.",
+        "Core rule: Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective.",
+        "Observable result: This example supports only the atomic outcome because Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic.",
+        "Boundary check: Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A learning rate ten times larger overshoots and increases loss, showing that gradient direction alone does not choose a safe step size.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Neural training evaluates a loss on examples, computes gradients of that loss with respect to parameters, and applies an optimizer update whose scale depends on learning rate, features, batches, and objective.",
+        "A gradient is local, lower training loss need not improve validation, learning rate can diverge or stall, stochastic batches add variance, nonconvex optimization lacks a global guarantee, and labels/objectives encode choices."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Loss, gradients and optimization and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Trace a simple parameter update and diagnose learning-rate or scale problems.",
+        "Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.neural.training.misconception",
+      "explanation": "Treat gradients as local loss sensitivity and validate update scale, data, objective, and generalization; convergence and global optimality are not automatic.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A learning rate ten times larger overshoots and increases loss, showing that gradient direction alone does not choose a safe step size."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace a simple parameter update and diagnose learning-rate or scale problems. Keep this boundary in view: A gradient is local, lower training loss need not improve validation, learning rate can diverge or stall, stochastic batches add variance, nonconvex optimization lacks a global guarantee, and labels/objectives encode choices.",
+    "retrievalPrompts": [
+      "Explain Loss, gradients and optimization with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Gradient descent always moves directly to the global best model and any positive learning rate eventually converges.",
+      "Apply the boundary to: A learning rate ten times larger overshoots and increases loss, showing that gradient direction alone does not choose a safe step size."
+    ],
+    "nextReviewPrompt": "Next: continue to “Validation, regularization and reproducibility”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

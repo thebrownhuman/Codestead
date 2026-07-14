@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.toolchain.jshell.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.toolchain",
+  "skillId": "java.toolchain.jshell",
+  "title": "JShell experiments",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for JShell experiments; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Getting Started, Tools, JShell, and Launching Single-File Source-Code Programs; atomic topic: JShell experiments",
+      "claim": "JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test. Your goal is to test an expression or API behavior in JShell and transfer it into source code. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; JDK, JVM and Java language. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Snippet declaration order, imports, scratch state, startup configuration, and JShell conveniences can differ from a clean compiled application. The learner must reject this documented misconception: If an expression succeeds once in a long-running JShell session, the same text is automatically a complete reproducible Java program."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use the REPL for bounded experiments while knowing when a saved program is required.",
+      "Test an expression or API behavior in JShell and transfer it into source code."
+    ],
+    "excludes": [
+      "Snippet declaration order, imports, scratch state, startup configuration, and JShell conveniences can differ from a clean compiled application."
+    ]
+  },
+  "outcomes": [
+    "Test an expression or API behavior in JShell and transfer it into source code."
+  ],
+  "examples": [
+    {
+      "id": "java.toolchain.jshell.example.direct",
+      "title": "JShell experiments: direct language case",
+      "situation": "The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check."
+      ],
+      "result": "The example meets the atomic outcome because Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check."
+    },
+    {
+      "id": "java.toolchain.jshell.example.boundary",
+      "title": "JShell experiments: boundary and transfer case",
+      "situation": "A snippet works only because an earlier session imported a package, so a clean reset exposes the missing dependency before the idea moves into source code.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A snippet works only because an earlier session imported a package, so a clean reset exposes the missing dependency before the idea moves into source code.",
+        "Step 2 — Keep the language boundary explicit: Snippet declaration order, imports, scratch state, startup configuration, and JShell conveniences can differ from a clean compiled application.",
+        "Step 3 — Reject the tempting but incorrect rule: If an expression succeeds once in a long-running JShell session, the same text is automatically a complete reproducible Java program."
+      ],
+      "result": "This case demonstrates the declared outcome: Test an expression or API behavior in JShell and transfer it into source code."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.toolchain.jshell.misconception",
+      "mistakenBelief": "If an expression succeeds once in a long-running JShell session, the same text is automatically a complete reproducible Java program.",
+      "correction": "Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: If an expression succeeds once in a long-running JShell session, the same text is automatically a complete reproducible Java program."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a workshop that turns a checked design into a labeled machine part and then runs it on a compatible line can introduce JShell experiments, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "separating source rules, build tools, class files, and runtime execution"
+    ],
+    "limitations": [
+      "Java compatibility, verification, class loading, and diagnostics follow formal specifications rather than physical manufacturing",
+      "Snippet declaration order, imports, scratch state, startup configuration, and JShell conveniences can differ from a clean compiled application."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test.",
+      "JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs.",
+      "Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: If an expression succeeds once in a long-running JShell session, the same text is automatically a complete reproducible Java program."
+      }
+    ],
+    "textAlternative": "Starting artifact: The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test. Step 1, Observe. State: evidence: The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check.. Compare the observation with the correction and explain why the misconception fails: If an expression succeeds once in a long-running JShell session, the same text is automatically a complete reproducible Java program."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “JShell experiments: direct language case”: state its starting evidence, apply the JShell experiments rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: JShell experiments: direct language case.",
+        "Starting evidence: The learner evaluates Math.floorDiv(-7, 3) in JShell, records the result, then writes the verified call into a small source file and test.",
+        "Core rule: JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs.",
+        "Observable result: The example meets the atomic outcome because Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check.",
+        "Boundary check: Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A snippet works only because an earlier session imported a package, so a clean reset exposes the missing dependency before the idea moves into source code.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "JShell evaluates snippets in a persistent interactive state that is useful for small API and expression experiments, while saved source remains the reproducible artifact for multi-file programs.",
+        "Snippet declaration order, imports, scratch state, startup configuration, and JShell conveniences can differ from a clean compiled application."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of JShell experiments, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Test an expression or API behavior in JShell and transfer it into source code.",
+        "Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.toolchain.jshell.misconception",
+      "explanation": "Use JShell for a bounded experiment, then transfer the finding into saved source with explicit imports, declarations, inputs, and a repeatable check.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A snippet works only because an earlier session imported a package, so a clean reset exposes the missing dependency before the idea moves into source code."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to test an expression or API behavior in JShell and transfer it into source code. Keep this boundary in view: Snippet declaration order, imports, scratch state, startup configuration, and JShell conveniences can differ from a clean compiled application.",
+    "retrievalPrompts": [
+      "Explain JShell experiments using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: If an expression succeeds once in a long-running JShell session, the same text is automatically a complete reproducible Java program.",
+      "Predict this case from memory: A snippet works only because an earlier session imported a package, so a clean reset exposes the missing dependency before the idea moves into source code."
+    ],
+    "nextReviewPrompt": "Next: continue to “Compiler and runtime diagnostics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

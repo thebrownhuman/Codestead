@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.media.images.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.media",
+  "skillId": "html.media.images",
+  "title": "Images and alternative text",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Images and alternative text; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Images and alternative text",
+      "claim": "Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Images and alternative text",
+      "claim": "Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A chart image receives concise alt identifying its conclusion and a nearby detailed data table. Your goal is to choose and justify alternative text for informative, functional and decorative images. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Relative and absolute URLs; Paragraph and inline meaning. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes. This draft therefore rejects: Every image needs a long visual description in its alt attribute."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Write purpose-appropriate alt text or mark decoration empty without duplicating adjacent content.",
+      "Choose and justify alternative text for informative, functional and decorative images."
+    ],
+    "excludes": [
+      "Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes."
+    ]
+  },
+  "outcomes": [
+    "Choose and justify alternative text for informative, functional and decorative images."
+  ],
+  "examples": [
+    {
+      "id": "html.media.images.example-a",
+      "title": "Images and alternative text: concrete case",
+      "situation": "A chart image receives concise alt identifying its conclusion and a nearby detailed data table.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A chart image receives concise alt identifying its conclusion and a nearby detailed data table.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative."
+      ],
+      "result": "The result follows because Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative."
+    },
+    {
+      "id": "html.media.images.example-b",
+      "title": "Images and alternative text: boundary case",
+      "situation": "Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Every image needs a long visual description in its alt attribute."
+      ],
+      "result": "The boundary requires this correction: Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.media.images.misconception",
+      "mistakenBelief": "Every image needs a long visual description in its alt attribute.",
+      "correction": "Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Every image needs a long visual description in its alt attribute."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Images and alternative text, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Images and alternative text before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A chart image receives concise alt identifying its conclusion and a nearby detailed data table.",
+      "Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored.",
+      "Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A chart image receives concise alt identifying its conclusion and a nearby detailed data table."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Every image needs a long visual description in its alt attribute."
+      }
+    ],
+    "textAlternative": "Starting artifact: A chart image receives concise alt identifying its conclusion and a nearby detailed data table. Step 1, Artifact. State: evidence: A chart image receives concise alt identifying its conclusion and a nearby detailed data table.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative.. Check the result against the boundary and reject this misconception: Every image needs a long visual description in its alt attribute."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Images and alternative text: concrete case”: state its starting evidence, apply the Images and alternative text rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Images and alternative text: concrete case.",
+        "Starting evidence: A chart image receives concise alt identifying its conclusion and a nearby detailed data table.",
+        "Core rule: Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored.",
+        "Observable result: The result follows because Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative.",
+        "Boundary check: Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Image alternative text communicates the image's purpose in context, while decorative images use an empty alt so they are ignored.",
+        "Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Images and alternative text and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Choose and justify alternative text for informative, functional and decorative images.",
+        "Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.media.images.misconception",
+      "explanation": "Write purpose-based alt text for informative images and alt=\"\" for images that are purely decorative.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'alt=\"\"' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and justify alternative text for informative, functional and decorative images. Keep this boundary in view: Alt text depends on surrounding content; filenames, image of prefixes, and redundant captions are usually poor substitutes.",
+    "retrievalPrompts": [
+      "Explain Images and alternative text using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Every image needs a long visual description in its alt attribute.",
+      "Apply checkpoint 'alt=\"\"' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Figures and captions”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

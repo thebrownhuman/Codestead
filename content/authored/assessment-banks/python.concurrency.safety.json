@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.concurrency.safety.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.concurrency",
+  "skillId": "python.concurrency.safety",
+  "title": "Shared-state and cancellation safety deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Shared-state and cancellation safety; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-stdlib"
+  ],
+  "items": [
+    {
+      "id": "python.concurrency.safety.mcq.misconception",
+      "skillId": "python.concurrency.safety",
+      "title": "Shared-state and cancellation safety: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths.",
+        "incorrect": "That choice preserves the misconception. Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+        },
+        {
+          "id": "misconception",
+          "text": "Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+      }
+    },
+    {
+      "id": "python.concurrency.safety.fill.checkpoint",
+      "skillId": "python.concurrency.safety",
+      "title": "Shared-state and cancellation safety: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'entire invariant transition'. Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths.",
+        "incorrect": "The phrase must preserve the exact language rule. Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Protect the [[checkpoint]], minimize shared mutation, and place resource release in cancellation-safe context or finally paths.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "entire invariant transition"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+      }
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-07-13T07:54:58.918Z",
+  "images": [
+    {
+      "language": "c",
+      "tag": "learncoding/runtime-c:local",
+      "imageId": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "base": "alpine:3.22@sha256:7c8cb692ae09657cbc4a3f3cbd0e8d5a2690ba38386aaaf252dbb060bf5eb2e6",
+      "harness": {
+        "protocolVersion": 1,
+        "language": "c",
+        "compileThenRun": true,
+        "shell": false
+      },
+      "version": "gcc (Alpine 14.2.0) 14.2.0"
+    },
+    {
+      "language": "cpp",
+      "tag": "learncoding/runtime-cpp:local",
+      "imageId": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "base": "alpine:3.22@sha256:7c8cb692ae09657cbc4a3f3cbd0e8d5a2690ba38386aaaf252dbb060bf5eb2e6",
+      "harness": {
+        "protocolVersion": 1,
+        "language": "cpp",
+        "compileThenRun": true,
+        "shell": false
+      },
+      "version": "g++ (Alpine 14.2.0) 14.2.0"
+    },
+    {
+      "language": "java",
+      "tag": "learncoding/runtime-java:local",
+      "imageId": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "base": "alpine:3.23@sha256:1beb0dc0a51de7ff38e3b5274078a2e0b81113ba5c7535e1a03d5913a5edbda3",
+      "harness": {
+        "protocolVersion": 1,
+        "language": "java",
+        "compileThenRun": true,
+        "shell": false
+      },
+      "version": "openjdk version \"21.0.11\" 2026-04-21"
+    },
+    {
+      "language": "python",
+      "tag": "learncoding/runtime-python:local",
+      "imageId": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+      "base": "python:3.14-alpine3.23@sha256:e10f6e0f219a81c65c518e339e7e9bf2f8c63b6ba1bf112e1bb2d1e395ed0c17",
+      "harness": {
+        "protocolVersion": 1,
+        "language": "python",
+        "compileThenRun": true,
+        "shell": false
+      },
+      "version": "Python 3.14.6"
+    },
+    {
+      "language": "javascript",
+      "tag": "learncoding/runtime-javascript:local",
+      "imageId": "sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931",
+      "base": "node:22-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+      "harness": {
+        "protocolVersion": 1,
+        "language": "javascript",
+        "compileThenRun": true,
+        "shell": false
+      },
+      "version": "v22.23.1"
+    }
+  ]
+}

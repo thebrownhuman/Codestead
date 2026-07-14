@@ -1,0 +1,81 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.project.collaboration.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.ci-security-recovery",
+  "skillId": "git.project.collaboration",
+  "title": "Collaborative repository capstone deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Collaborative repository capstone; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "github-docs",
+    "cs2023-se",
+    "nist-ssdf"
+  ],
+  "items": [
+    {
+      "id": "git.project.collaboration.mcq.misconception",
+      "skillId": "git.project.collaboration",
+      "title": "Collaborative repository capstone: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Installing Git and granting repository access is enough to make collaboration predictable and safe.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes.",
+        "incorrect": "The selected statement preserves the documented misconception. Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Collaborative repository capstone instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Installing Git and granting repository access is enough to make collaboration predictable and safe."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+      }
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.runtime.devtools.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.runtime",
+  "skillId": "javascript.runtime.devtools",
+  "title": "Sources, console and debugger",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Sources, console and debugger; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Sources, console and debugger",
+      "claim": "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding. Your goal is to use developer tools to locate and explain a state-transition defect. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; html document skeleton; Scripts and console; pf tools debug test. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically. This draft therefore rejects: The console is only for printing and cannot alter application behavior."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Set breakpoints, inspect scope and distinguish logged values from live object views.",
+      "Use developer tools to locate and explain a state-transition defect."
+    ],
+    "excludes": [
+      "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically."
+    ]
+  },
+  "outcomes": [
+    "Use developer tools to locate and explain a state-transition defect."
+  ],
+  "examples": [
+    {
+      "id": "javascript.runtime.devtools.example-a",
+      "title": "Sources, console and debugger: concrete case",
+      "situation": "A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      ],
+      "result": "The result follows because Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+    },
+    {
+      "id": "javascript.runtime.devtools.example-b",
+      "title": "Sources, console and debugger: boundary case",
+      "situation": "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: The console is only for printing and cannot alter application behavior."
+      ],
+      "result": "The boundary requires this correction: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.runtime.devtools.misconception",
+      "mistakenBelief": "The console is only for printing and cannot alter application behavior.",
+      "correction": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: The console is only for printing and cannot alter application behavior."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Sources, console and debugger, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Sources, console and debugger before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
+      "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
+      "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A breakpoint confirms an event payload before code is changed and a regression test preserves the finding."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: The console is only for printing and cannot alter application behavior."
+      }
+    ],
+    "textAlternative": "Starting artifact: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding. Step 1, Artifact. State: evidence: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.. Check the result against the boundary and reject this misconception: The console is only for printing and cannot alter application behavior."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Sources, console and debugger: concrete case”: state its starting evidence, apply the Sources, console and debugger rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Sources, console and debugger: concrete case.",
+        "Starting evidence: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
+        "Core rule: Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
+        "Observable result: The result follows because Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.",
+        "Boundary check: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
+        "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Sources, console and debugger and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Use developer tools to locate and explain a state-transition defect.",
+        "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.runtime.devtools.misconception",
+      "explanation": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'can also mutate state' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to use developer tools to locate and explain a state-transition defect. Keep this boundary in view: Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
+    "retrievalPrompts": [
+      "Explain Sources, console and debugger using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: The console is only for printing and cannot alter application behavior.",
+      "Apply checkpoint 'can also mutate state' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Call stack and event loop model”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.branches.merge.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.branches",
+  "skillId": "git.branches.merge",
+  "title": "Fast-forward and three-way merge",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Fast-forward and three-way merge; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "git-docs",
+      "locator": "Git Reference Documentation; current stable accessed 2026-07; section applicable to Fast-forward and three-way merge",
+      "claim": "A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work."
+    },
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Fast-forward and three-way merge",
+      "claim": "A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit. Your goal is to perform and explain fast-forward and divergent merges in a disposable repository. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Commits and history; Short-lived feature branches. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Merge strategy, rename detection, binary files, generated artifacts, and semantic interactions can produce a textually clean merge that still breaks behavior. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A merge is successful and correct whenever Git reports no textual conflicts."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Predict when Git moves a ref or creates a merge commit and choose a repository policy deliberately.",
+      "Perform and explain fast-forward and divergent merges in a disposable repository."
+    ],
+    "excludes": [
+      "Merge strategy, rename detection, binary files, generated artifacts, and semantic interactions can produce a textually clean merge that still breaks behavior."
+    ]
+  },
+  "outcomes": [
+    "Perform and explain fast-forward and divergent merges in a disposable repository."
+  ],
+  "examples": [
+    {
+      "id": "git.branches.merge.example-a",
+      "title": "Fast-forward and three-way merge: direct case",
+      "situation": "When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+      ],
+      "result": "The case supports the declared outcome because After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+    },
+    {
+      "id": "git.branches.merge.example-b",
+      "title": "Fast-forward and three-way merge: boundary case",
+      "situation": "When both branches advanced, Git performs a three-way merge and tests reveal an API interaction even though no text conflict occurred.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: When both branches advanced, Git performs a three-way merge and tests reveal an API interaction even though no text conflict occurred.",
+        "Step 2 — Keep this boundary explicit: Merge strategy, rename detection, binary files, generated artifacts, and semantic interactions can produce a textually clean merge that still breaks behavior.",
+        "Step 3 — Reject the documented misconception: A merge is successful and correct whenever Git reports no textual conflicts."
+      ],
+      "result": "This case demonstrates the declared outcome: Perform and explain fast-forward and divergent merges in a disposable repository."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.branches.merge.misconception",
+      "mistakenBelief": "A merge is successful and correct whenever Git reports no textual conflicts.",
+      "correction": "After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A merge is successful and correct whenever Git reports no textual conflicts."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A route map can model Fast-forward and three-way merge: movable signposts identify current destinations, routes diverge, and integration reconnects selected paths.",
+    "usefulFor": [
+      "Visualizing references, divergence, ancestry, merge bases, and reconciled paths"
+    ],
+    "limitations": [
+      "Branches are lightweight references to commits, not copied roads or independent containers of files.",
+      "Merge strategy, rename detection, binary files, generated artifacts, and semantic interactions can produce a textually clean merge that still breaks behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit.",
+      "A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work.",
+      "After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work."
+        },
+        "explanation": "Apply the declared Fast-forward and three-way merge model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A merge is successful and correct whenever Git reports no textual conflicts."
+      }
+    ],
+    "textAlternative": "Starting artifact: When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit. Step 1, Observe. State: evidence: When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work.. Apply the declared Fast-forward and three-way merge model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers.. Compare the observation with the correction and reject the misconception: A merge is successful and correct whenever Git reports no textual conflicts."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Fast-forward and three-way merge: direct case”: state its starting evidence, apply the Fast-forward and three-way merge rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Fast-forward and three-way merge: direct case.",
+        "Starting evidence: When main has not advanced, merging feature fast-forwards main to the feature commit without creating an extra merge commit.",
+        "Core rule: A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work.",
+        "Observable result: The case supports the declared outcome because After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers.",
+        "Boundary check: After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: When both branches advanced, Git performs a three-way merge and tests reveal an API interaction even though no text conflict occurred.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A merge combines histories by finding ancestry and creating either a fast-forward reference move or a merge result that reconciles both lines of work.",
+        "Merge strategy, rename detection, binary files, generated artifacts, and semantic interactions can produce a textually clean merge that still breaks behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Fast-forward and three-way merge, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Perform and explain fast-forward and divergent merges in a disposable repository.",
+        "After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.branches.merge.misconception",
+      "explanation": "After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: When both branches advanced, Git performs a three-way merge and tests reveal an API interaction even though no text conflict occurred."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to perform and explain fast-forward and divergent merges in a disposable repository. Keep this boundary in view: Merge strategy, rename detection, binary files, generated artifacts, and semantic interactions can produce a textually clean merge that still breaks behavior.",
+    "retrievalPrompts": [
+      "Explain Fast-forward and three-way merge without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A merge is successful and correct whenever Git reports no textual conflicts.",
+      "Apply the model to this case from memory: When both branches advanced, Git performs a three-way merge and tests reveal an API interaction even though no text conflict occurred."
+    ],
+    "nextReviewPrompt": "Next: continue to “Conflict resolution”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

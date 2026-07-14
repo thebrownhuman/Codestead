@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.quality.content-review.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.validation-project",
+  "skillId": "html.quality.content-review",
+  "title": "Semantic content review",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Semantic content review; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Semantic content review",
+      "claim": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks."
+    },
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Semantic content review",
+      "claim": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym. Your goal is to produce a traceable review checklist and repair semantic inconsistencies. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Metadata and accessibility audit; Images and media; Data tables; Forms and native controls; Markup conformance; Keyboard and accessibility-tree audit. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements. This draft therefore rejects: Semantic elements automatically make the words inside them clear and accessible."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Review page purpose, outline, landmarks, link names, media alternatives, tables and forms together.",
+      "Produce a traceable review checklist and repair semantic inconsistencies."
+    ],
+    "excludes": [
+      "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements."
+    ]
+  },
+  "outcomes": [
+    "Produce a traceable review checklist and repair semantic inconsistencies."
+  ],
+  "examples": [
+    {
+      "id": "html.quality.content-review.example-a",
+      "title": "Semantic content review: concrete case",
+      "situation": "A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Review the actual language and task context; semantic markup supports but does not create understandable content."
+      ],
+      "result": "The result follows because Review the actual language and task context; semantic markup supports but does not create understandable content."
+    },
+    {
+      "id": "html.quality.content-review.example-b",
+      "title": "Semantic content review: boundary case",
+      "situation": "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Semantic elements automatically make the words inside them clear and accessible."
+      ],
+      "result": "The boundary requires this correction: Review the actual language and task context; semantic markup supports but does not create understandable content."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.quality.content-review.misconception",
+      "mistakenBelief": "Semantic elements automatically make the words inside them clear and accessible.",
+      "correction": "Review the actual language and task context; semantic markup supports but does not create understandable content.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Semantic elements automatically make the words inside them clear and accessible."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Semantic content review, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Semantic content review before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
+      "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
+      "Review the actual language and task context; semantic markup supports but does not create understandable content."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Review the actual language and task context; semantic markup supports but does not create understandable content."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Semantic elements automatically make the words inside them clear and accessible."
+      }
+    ],
+    "textAlternative": "Starting artifact: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym. Step 1, Artifact. State: evidence: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Review the actual language and task context; semantic markup supports but does not create understandable content.. Check the result against the boundary and reject this misconception: Semantic elements automatically make the words inside them clear and accessible."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Semantic content review: concrete case”: state its starting evidence, apply the Semantic content review rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Semantic content review: concrete case.",
+        "Starting evidence: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
+        "Core rule: Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
+        "Observable result: The result follows because Review the actual language and task context; semantic markup supports but does not create understandable content.",
+        "Boundary check: Review the actual language and task context; semantic markup supports but does not create understandable content."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
+        "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Semantic content review and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Produce a traceable review checklist and repair semantic inconsistencies.",
+        "Review the actual language and task context; semantic markup supports but does not create understandable content."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.quality.content-review.misconception",
+      "explanation": "Review the actual language and task context; semantic markup supports but does not create understandable content.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'actual language' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to produce a traceable review checklist and repair semantic inconsistencies. Keep this boundary in view: Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
+    "retrievalPrompts": [
+      "Explain Semantic content review using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Semantic elements automatically make the words inside them clear and accessible.",
+      "Apply checkpoint 'actual language' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Progressive baseline”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.concurrency.shared-state.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.runtime-concurrency",
+  "skillId": "java.concurrency.shared-state",
+  "title": "Race conditions and synchronization",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Race conditions and synchronization; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; JVM/runtime concepts, Concurrency, and Virtual Threads learning paths; atomic topic: Race conditions and synchronization",
+      "claim": "A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join. Your goal is to expose and repair a deterministic shared-state race in a teaching example. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Packages, builds and tests; List, Set, Map and Queue; Threads, tasks and executors; References, heap and garbage collection. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "volatile gives visibility and ordering but not atomicity for read-modify-write, synchronized locks by monitor identity, concurrent collections protect documented operations, and callbacks under locks can deadlock. The learner must reject this documented misconception: Declaring a counter volatile makes counter++ atomic and therefore protects every invariant that includes the counter."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Recognize non-atomic compound actions and prefer confinement or immutable messages over shared mutation.",
+      "Expose and repair a deterministic shared-state race in a teaching example."
+    ],
+    "excludes": [
+      "volatile gives visibility and ordering but not atomicity for read-modify-write, synchronized locks by monitor identity, concurrent collections protect documented operations, and callbacks under locks can deadlock."
+    ]
+  },
+  "outcomes": [
+    "Expose and repair a deterministic shared-state race in a teaching example."
+  ],
+  "examples": [
+    {
+      "id": "java.concurrency.shared-state.example.direct",
+      "title": "Race conditions and synchronization: direct language case",
+      "situation": "Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition."
+      ],
+      "result": "The example meets the atomic outcome because volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition."
+    },
+    {
+      "id": "java.concurrency.shared-state.example.boundary",
+      "title": "Race conditions and synchronization: boundary and transfer case",
+      "situation": "An AtomicInteger makes one counter increment atomic, while a multi-field account transfer still uses a lock around the complete invariant.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: An AtomicInteger makes one counter increment atomic, while a multi-field account transfer still uses a lock around the complete invariant.",
+        "Step 2 — Keep the language boundary explicit: volatile gives visibility and ordering but not atomicity for read-modify-write, synchronized locks by monitor identity, concurrent collections protect documented operations, and callbacks under locks can deadlock.",
+        "Step 3 — Reject the tempting but incorrect rule: Declaring a counter volatile makes counter++ atomic and therefore protects every invariant that includes the counter."
+      ],
+      "result": "This case demonstrates the declared outcome: Expose and repair a deterministic shared-state race in a teaching example."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.concurrency.shared-state.misconception",
+      "mistakenBelief": "Declaring a counter volatile makes counter++ atomic and therefore protects every invariant that includes the counter.",
+      "correction": "volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Declaring a counter volatile makes counter++ atomic and therefore protects every invariant that includes the counter."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a dispatch center that tracks reachable work orders and assigns bounded tasks while protecting shared ledgers can introduce Race conditions and synchronization, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "reachability, executors, races, and virtual-thread workload choice"
+    ],
+    "limitations": [
+      "memory visibility, scheduling, atomicity, cancellation, and garbage-collection timing cannot be inferred from human dispatch",
+      "volatile gives visibility and ordering but not atomicity for read-modify-write, synchronized locks by monitor identity, concurrent collections protect documented operations, and callbacks under locks can deadlock."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join.",
+      "A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant.",
+      "volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Declaring a counter volatile makes counter++ atomic and therefore protects every invariant that includes the counter."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join. Step 1, Observe. State: evidence: Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition.. Compare the observation with the correction and explain why the misconception fails: Declaring a counter volatile makes counter++ atomic and therefore protects every invariant that includes the counter."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Race conditions and synchronization: direct language case”: state its starting evidence, apply the Race conditions and synchronization rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Race conditions and synchronization: direct language case.",
+        "Starting evidence: Two threads increment a shared int and lose updates, so the design confines counts per task and combines results after join.",
+        "Core rule: A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant.",
+        "Observable result: The example meets the atomic outcome because volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition.",
+        "Boundary check: volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: An AtomicInteger makes one counter increment atomic, while a multi-field account transfer still uses a lock around the complete invariant.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Java data race occurs when threads access shared mutable state without the required ordering; compound actions need one synchronization or atomicity strategy that preserves the invariant.",
+        "volatile gives visibility and ordering but not atomicity for read-modify-write, synchronized locks by monitor identity, concurrent collections protect documented operations, and callbacks under locks can deadlock."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Race conditions and synchronization, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Expose and repair a deterministic shared-state race in a teaching example.",
+        "volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.concurrency.shared-state.misconception",
+      "explanation": "volatile does not make compound actions atomic; confine mutable state, use an appropriate atomic operation, or synchronize the entire invariant transition.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: An AtomicInteger makes one counter increment atomic, while a multi-field account transfer still uses a lock around the complete invariant."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to expose and repair a deterministic shared-state race in a teaching example. Keep this boundary in view: volatile gives visibility and ordering but not atomicity for read-modify-write, synchronized locks by monitor identity, concurrent collections protect documented operations, and callbacks under locks can deadlock.",
+    "retrievalPrompts": [
+      "Explain Race conditions and synchronization using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Declaring a counter volatile makes counter++ atomic and therefore protects every invariant that includes the counter.",
+      "Predict this case from memory: An AtomicInteger makes one counter increment atomic, while a multi-field account transfer still uses a lock around the complete invariant."
+    ],
+    "nextReviewPrompt": "Next: continue to “Virtual-thread use cases”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

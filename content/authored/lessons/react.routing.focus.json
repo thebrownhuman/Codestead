@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.routing.focus.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.routing-context",
+  "skillId": "react.routing.focus",
+  "title": "Route titles and focus management",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Route titles and focus management; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Route titles and focus management",
+      "claim": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view."
+    },
+    {
+      "sourceRef": "react-router",
+      "locator": "React Router Documentation; stable declarative mode accessed 2026-07; provisions applicable to Route titles and focus management",
+      "claim": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: After a course route changes, the main heading receives managed focus without trapping subsequent navigation. Your goal is to verify route changes are perceivable to keyboard and assistive-technology users. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Remote data and asynchronous UI; javascript browser url; Declarative routes and links; Refs and imperative escape hatches; html metadata title description. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations. This draft therefore rejects: Changing visible React components automatically announces a new page to assistive technology."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Update document context and move focus appropriately after client navigation.",
+      "Verify route changes are perceivable to keyboard and assistive-technology users."
+    ],
+    "excludes": [
+      "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations."
+    ]
+  },
+  "outcomes": [
+    "Verify route changes are perceivable to keyboard and assistive-technology users."
+  ],
+  "examples": [
+    {
+      "id": "react.routing.focus.example-a",
+      "title": "Route titles and focus management: concrete case",
+      "situation": "After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+      ],
+      "result": "The result follows because Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+    },
+    {
+      "id": "react.routing.focus.example-b",
+      "title": "Route titles and focus management: boundary case",
+      "situation": "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Changing visible React components automatically announces a new page to assistive technology."
+      ],
+      "result": "The boundary requires this correction: Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.routing.focus.misconception",
+      "mistakenBelief": "Changing visible React components automatically announces a new page to assistive technology.",
+      "correction": "Manage title and focus or announcements on client route changes; visual replacement alone may be silent.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Changing visible React components automatically announces a new page to assistive technology."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Route titles and focus management, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Route titles and focus management before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
+      "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
+      "Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "After a course route changes, the main heading receives managed focus without trapping subsequent navigation."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Changing visible React components automatically announces a new page to assistive technology."
+      }
+    ],
+    "textAlternative": "Starting artifact: After a course route changes, the main heading receives managed focus without trapping subsequent navigation. Step 1, Artifact. State: evidence: After a course route changes, the main heading receives managed focus without trapping subsequent navigation.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Manage title and focus or announcements on client route changes; visual replacement alone may be silent.. Check the result against the boundary and reject this misconception: Changing visible React components automatically announces a new page to assistive technology."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Route titles and focus management: concrete case”: state its starting evidence, apply the Route titles and focus management rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Route titles and focus management: concrete case.",
+        "Starting evidence: After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
+        "Core rule: Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
+        "Observable result: The result follows because Manage title and focus or announcements on client route changes; visual replacement alone may be silent.",
+        "Boundary check: Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
+        "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Route titles and focus management and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Verify route changes are perceivable to keyboard and assistive-technology users.",
+        "Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.routing.focus.misconception",
+      "explanation": "Manage title and focus or announcements on client route changes; visual replacement alone may be silent.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'Manage title and focus' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to verify route changes are perceivable to keyboard and assistive-technology users. Keep this boundary in view: Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
+    "retrievalPrompts": [
+      "Explain Route titles and focus management using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Changing visible React components automatically announces a new page to assistive technology.",
+      "Apply checkpoint 'Manage title and focus' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Context for stable global dependencies”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

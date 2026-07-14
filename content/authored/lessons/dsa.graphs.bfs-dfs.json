@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.graphs.bfs-dfs.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.graphs-core",
+  "skillId": "dsa.graphs.bfs-dfs",
+  "title": "Breadth-first and depth-first search",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Breadth-first and depth-first search; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Breadth-first and depth-first search",
+      "claim": "BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents. Your goal is to implement, trace and test BFS and DFS on disconnected and cyclic graphs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Stacks, queues and deques; Hash tables, sets and maps; Adjacency list and matrix; Stack ADT; Queue and circular buffer. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Visited state timing matters, recursion can overflow, and neighbor order changes traversal sequence but not reachability. The draft therefore rejects: BFS and DFS always find the same shortest unweighted path."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Maintain visited state and a queue or stack to traverse without infinite repetition.",
+      "Implement, trace and test BFS and DFS on disconnected and cyclic graphs.",
+      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+    ],
+    "excludes": [
+      "Visited state timing matters, recursion can overflow, and neighbor order changes traversal sequence but not reachability."
+    ]
+  },
+  "outcomes": [
+    "Implement, trace and test BFS and DFS on disconnected and cyclic graphs."
+  ],
+  "examples": [
+    {
+      "id": "dsa.graphs.bfs-dfs.example-a",
+      "title": "Breadth-first and depth-first search: language-neutral trace",
+      "situation": "BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee."
+      ],
+      "result": "The conceptual result follows because BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee."
+    },
+    {
+      "id": "dsa.graphs.bfs-dfs.example-b",
+      "title": "Breadth-first and depth-first search: implementation transfer",
+      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+        "Step 3 — Retest this boundary in the selected implementation: Visited state timing matters, recursion can overflow, and neighbor order changes traversal sequence but not reachability."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.graphs.bfs-dfs.misconception",
+      "mistakenBelief": "BFS and DFS always find the same shortest unweighted path.",
+      "correction": "BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: BFS and DFS always find the same shortest unweighted path."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Breadth-first and depth-first search, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Visited state timing matters, recursion can overflow, and neighbor order changes traversal sequence but not reachability."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents.",
+      "BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack.",
+      "BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee.",
+      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee."
+        },
+        "explanation": "Verify the result and reject this misconception: BFS and DFS always find the same shortest unweighted path."
+      }
+    ],
+    "textAlternative": "Starting artifact: BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents. Step 1, Specification. State: scenario: BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee.. Verify the result and reject this misconception: BFS and DFS always find the same shortest unweighted path."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Breadth-first and depth-first search: language-neutral trace”: state its starting evidence, apply the Breadth-first and depth-first search rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Breadth-first and depth-first search: language-neutral trace.",
+        "Starting evidence: BFS marks a vertex when enqueued so it is not added repeatedly by multiple parents.",
+        "Core rule: BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack.",
+        "Observable result: The conceptual result follows because BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee.",
+        "Boundary check: BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: BFS explores unweighted distance layers with a queue, while DFS explores depth with recursion or a stack.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+        "Visited state timing matters, recursion can overflow, and neighbor order changes traversal sequence but not reachability."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Breadth-first and depth-first search case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement, trace and test BFS and DFS on disconnected and cyclic graphs.",
+        "BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.graphs.bfs-dfs.misconception",
+      "explanation": "BFS gives shortest edge-count paths in unweighted graphs; DFS does not generally provide that guarantee.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'shortest edge-count paths', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement, trace and test BFS and DFS on disconnected and cyclic graphs. Keep this boundary in view: Visited state timing matters, recursion can overflow, and neighbor order changes traversal sequence but not reachability.",
+    "retrievalPrompts": [
+      "State the Breadth-first and depth-first search invariant and complexity without code.",
+      "Why is this claim false: BFS and DFS always find the same shortest unweighted path.",
+      "Map checkpoint 'shortest edge-count paths' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Components and cycle detection”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

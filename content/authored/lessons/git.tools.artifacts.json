@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.tools.artifacts.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.tools-build",
+  "skillId": "git.tools.artifacts",
+  "title": "Generated artifacts and releases",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Generated artifacts and releases; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "github-docs",
+      "locator": "GitHub Documentation; accessed 2026-07; section applicable to Generated artifacts and releases",
+      "claim": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files."
+    },
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Generated artifacts and releases",
+      "claim": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch. Your goal is to define and test an artifact policy for a small project. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Ignore policy; Commits and history; Build and task commands; Tags and release points. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish reproducible outputs from source and attach verified artifacts to versioned releases rather than ordinary commits.",
+      "Define and test an artifact policy for a small project."
+    ],
+    "excludes": [
+      "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance."
+    ]
+  },
+  "outcomes": [
+    "Define and test an artifact policy for a small project."
+  ],
+  "examples": [
+    {
+      "id": "git.tools.artifacts.example-a",
+      "title": "Generated artifacts and releases: direct case",
+      "situation": "A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+      ],
+      "result": "The case supports the declared outcome because Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+    },
+    {
+      "id": "git.tools.artifacts.example-b",
+      "title": "Generated artifacts and releases: boundary case",
+      "situation": "A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema.",
+        "Step 2 — Keep this boundary explicit: Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance.",
+        "Step 3 — Reject the documented misconception: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+      ],
+      "result": "This case demonstrates the declared outcome: Define and test an artifact policy for a small project."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.tools.artifacts.misconception",
+      "mistakenBelief": "Every generated file should be ignored, or alternatively every build output should be committed so users can find it.",
+      "correction": "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A recipe and packing line can model Generated artifacts and releases: declared ingredients resolve to exact supplies, controlled steps produce an artifact, and labels preserve provenance.",
+    "usefulFor": [
+      "Understanding dependency resolution, configuration, repeatable builds, and generated artifacts"
+    ],
+    "limitations": [
+      "Software supply chains include executable dependencies, caches, signatures, platform variance, and secret handling beyond a kitchen process.",
+      "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
+      "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
+      "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files."
+        },
+        "explanation": "Apply the declared Generated artifacts and releases model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+      }
+    ],
+    "textAlternative": "Starting artifact: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch. Step 1, Observe. State: evidence: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.. Apply the declared Generated artifacts and releases model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.. Compare the observation with the correction and reject the misconception: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Generated artifacts and releases: direct case”: state its starting evidence, apply the Generated artifacts and releases rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Generated artifacts and releases: direct case.",
+        "Starting evidence: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
+        "Core rule: Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
+        "Observable result: The case supports the declared outcome because Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.",
+        "Boundary check: Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
+        "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Generated artifacts and releases, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Define and test an artifact policy for a small project.",
+        "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.tools.artifacts.misconception",
+      "explanation": "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to define and test an artifact policy for a small project. Keep this boundary in view: Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance.",
+    "retrievalPrompts": [
+      "Explain Generated artifacts and releases without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Every generated file should be ignored, or alternatively every build output should be committed so users can find it.",
+      "Apply the model to this case from memory: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema."
+    ],
+    "nextReviewPrompt": "Next: continue to “Debugger workflow”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

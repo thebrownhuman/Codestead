@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.components.conditionals.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.components-jsx",
+  "skillId": "react.components.conditionals",
+  "title": "Conditional rendering",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Conditional rendering; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Conditional rendering",
+      "claim": "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A count check uses count > 0 && so zero does not appear as stray content. Your goal is to implement and test complete conditional UI states. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Declarative UI and re-rendering; html semantics; JSX expressions and attributes; javascript control selection. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity. This draft therefore rejects: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Render explicit loading, empty, success and conditional branches without leaking falsey values accidentally.",
+      "Implement and test complete conditional UI states."
+    ],
+    "excludes": [
+      "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity."
+    ]
+  },
+  "outcomes": [
+    "Implement and test complete conditional UI states."
+  ],
+  "examples": [
+    {
+      "id": "react.components.conditionals.example-a",
+      "title": "Conditional rendering: concrete case",
+      "situation": "A count check uses count > 0 && so zero does not appear as stray content.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A count check uses count > 0 && so zero does not appear as stray content.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+      ],
+      "result": "The result follows because Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+    },
+    {
+      "id": "react.components.conditionals.example-b",
+      "title": "Conditional rendering: boundary case",
+      "situation": "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+      ],
+      "result": "The boundary requires this correction: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.components.conditionals.misconception",
+      "mistakenBelief": "value && <Panel/> always renders nothing for every falsy value without displaying that value.",
+      "correction": "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Conditional rendering, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Conditional rendering before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A count check uses count > 0 && so zero does not appear as stray content.",
+      "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
+      "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A count check uses count > 0 && so zero does not appear as stray content."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+      }
+    ],
+    "textAlternative": "Starting artifact: A count check uses count > 0 && so zero does not appear as stray content. Step 1, Artifact. State: evidence: A count check uses count > 0 && so zero does not appear as stray content.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.. Check the result against the boundary and reject this misconception: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Conditional rendering: concrete case”: state its starting evidence, apply the Conditional rendering rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Conditional rendering: concrete case.",
+        "Starting evidence: A count check uses count > 0 && so zero does not appear as stray content.",
+        "Core rule: Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
+        "Observable result: The result follows because Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.",
+        "Boundary check: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
+        "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Conditional rendering and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test complete conditional UI states.",
+        "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.components.conditionals.misconception",
+      "explanation": "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'explicit Boolean condition' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test complete conditional UI states. Keep this boundary in view: Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
+    "retrievalPrompts": [
+      "Explain Conditional rendering using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: value && <Panel/> always renders nothing for every falsy value without displaying that value.",
+      "Apply checkpoint 'explicit Boolean condition' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Lists and stable keys”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

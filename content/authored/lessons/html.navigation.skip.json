@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.navigation.skip.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.navigation",
+  "skillId": "html.navigation.skip",
+  "title": "Keyboard navigation and skip links",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Keyboard navigation and skip links; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Keyboard navigation and skip links",
+      "claim": "A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused."
+    },
+    {
+      "sourceRef": "wai-aria",
+      "locator": "WAI-ARIA Authoring Practices Guide; living guide accessed 2026-07; provisions applicable to Keyboard navigation and skip links",
+      "claim": "A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu. Your goal is to implement and verify a functional skip link and logical keyboard traversal order. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Sections and landmarks; pf tools files; Meaningful links. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order. This draft therefore rejects: Landmarks make skip links unnecessary for every keyboard user."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Preserve source order and provide bypass mechanisms for repeated navigation.",
+      "Implement and verify a functional skip link and logical keyboard traversal order."
+    ],
+    "excludes": [
+      "Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order."
+    ]
+  },
+  "outcomes": [
+    "Implement and verify a functional skip link and logical keyboard traversal order."
+  ],
+  "examples": [
+    {
+      "id": "html.navigation.skip.example-a",
+      "title": "Keyboard navigation and skip links: concrete case",
+      "situation": "Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure."
+      ],
+      "result": "The result follows because Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure."
+    },
+    {
+      "id": "html.navigation.skip.example-b",
+      "title": "Keyboard navigation and skip links: boundary case",
+      "situation": "Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Landmarks make skip links unnecessary for every keyboard user."
+      ],
+      "result": "The boundary requires this correction: Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.navigation.skip.misconception",
+      "mistakenBelief": "Landmarks make skip links unnecessary for every keyboard user.",
+      "correction": "Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Landmarks make skip links unnecessary for every keyboard user."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Keyboard navigation and skip links, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Keyboard navigation and skip links before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu.",
+      "A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused.",
+      "Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Landmarks make skip links unnecessary for every keyboard user."
+      }
+    ],
+    "textAlternative": "Starting artifact: Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu. Step 1, Artifact. State: evidence: Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure.. Check the result against the boundary and reject this misconception: Landmarks make skip links unnecessary for every keyboard user."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Keyboard navigation and skip links: concrete case”: state its starting evidence, apply the Keyboard navigation and skip links rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Keyboard navigation and skip links: concrete case.",
+        "Starting evidence: Pressing Tab first reveals Skip to main content and activating it moves navigation past a long site menu.",
+        "Core rule: A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused.",
+        "Observable result: The result follows because Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure.",
+        "Boundary check: Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A skip link is the first practical keyboard shortcut to the primary content target and becomes visible when focused.",
+        "Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Keyboard navigation and skip links and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and verify a functional skip link and logical keyboard traversal order.",
+        "Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.navigation.skip.misconception",
+      "explanation": "Provide a visible-on-focus skip link to the main content target alongside correct landmarks and heading structure.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'skip link' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and verify a functional skip link and logical keyboard traversal order. Keep this boundary in view: Its target must exist and receive usable focus or scroll behavior, and it does not replace sensible landmarks and heading order.",
+    "retrievalPrompts": [
+      "Explain Keyboard navigation and skip links using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Landmarks make skip links unnecessary for every keyboard user.",
+      "Apply checkpoint 'skip link' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Images and alternative text”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

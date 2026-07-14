@@ -1,0 +1,135 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define TASK __TASK__
+#define MAXN 128
+#define INF 0x3fffffffffffffffLL
+
+static int cmp_ll(const void *a, const void *b) {
+    long long x = *(const long long *)a, y = *(const long long *)b;
+    return (x > y) - (x < y);
+}
+static void print_values(const long long *a, int n) {
+    for (int i = 0; i < n; ++i) printf("%s%lld", i ? " " : "", a[i]);
+    putchar('\n');
+}
+static long long fib(int n) { return n < 2 ? n : fib(n - 1) + fib(n - 2); }
+static long long gcd_ll(long long a, long long b) {
+    if (a < 0) a = -a; if (b < 0) b = -b;
+    while (b) { long long t = a % b; a = b; b = t; }
+    return a;
+}
+static int parent[MAXN], size_set[MAXN];
+static int find_set(int x) { return parent[x] == x ? x : (parent[x] = find_set(parent[x])); }
+static int unite(int a, int b) {
+    a = find_set(a); b = find_set(b); if (a == b) return 0;
+    if (size_set[a] < size_set[b]) { int t = a; a = b; b = t; }
+    parent[b] = a; size_set[a] += size_set[b]; return 1;
+}
+static int tree_height(const long long *a, int n, int i) {
+    if (i >= n || a[i] == -999) return 0;
+    int l = tree_height(a, n, 2 * i + 1), r = tree_height(a, n, 2 * i + 2);
+    return 1 + (l > r ? l : r);
+}
+static void preorder(const long long *a, int n, int i, long long *out, int *count) {
+    if (i >= n || a[i] == -999) return;
+    out[(*count)++] = a[i]; preorder(a, n, 2 * i + 1, out, count); preorder(a, n, 2 * i + 2, out, count);
+}
+static int bst_valid(const long long *a, int n, int i, long long low, long long high) {
+    if (i >= n || a[i] == -999) return 1;
+    if (a[i] <= low || a[i] >= high) return 0;
+    return bst_valid(a, n, 2 * i + 1, low, a[i]) && bst_valid(a, n, 2 * i + 2, a[i], high);
+}
+static void heap_down(long long *a, int n, int i) {
+    for (;;) {
+        int best = i, l = 2 * i + 1, r = l + 1;
+        if (l < n && a[l] > a[best]) best = l;
+        if (r < n && a[r] > a[best]) best = r;
+        if (best == i) return;
+        long long t = a[i]; a[i] = a[best]; a[best] = t; i = best;
+    }
+}
+
+int main(void) {
+    long long t[512]; int count = 0;
+    while (count < 512 && scanf("%lld", &t[count]) == 1) ++count;
+    const int group = TASK / 4, variant = TASK % 4;
+    long long out[256]; int outn = 0;
+
+    if (group == 0) {
+        int n = count ? (int)t[0] : 0;
+        if (variant == 0) { long long s = 0; for (int i = 0; i < n; ++i) s += t[1 + i]; printf("%lld\n", s); }
+        else if (variant == 1) { int c = 0; for (int i = 0; i < n; ++i) if (t[1 + i] > 0) ++c; printf("%d\n", c); }
+        else if (variant == 2) { int p = -1; for (int i = 1; i < n; ++i) if (t[i] > t[i + 1]) { p = i; break; } printf("%d\n", p); }
+        else printf("%lld\n", (long long)n * (n - 1) / 2);
+    } else if (group == 1) {
+        if (variant == 0) { int n = (int)t[0], at = (int)t[1]; for (int i = 0; i < n; ++i) if (i != at) out[outn++] = t[2 + i]; print_values(out, outn); }
+        else if (variant == 1) { int r = (int)t[0], c = (int)t[1], m = r < c ? r : c; long long s = 0; for (int i = 0; i < m; ++i) s += t[2 + i * c + i]; printf("%lld\n", s); }
+        else if (variant == 2) { int n = (int)t[0], ok = 1; for (int i = 0; i < n / 2; ++i) if (t[1 + i] != t[n - i]) ok = 0; printf("%d\n", ok); }
+        else { int n = (int)t[0], l = (int)t[1], r = (int)t[2]; long long s = 0; for (int i = l; i <= r && i < n; ++i) s += t[3 + i]; printf("%lld\n", s); }
+    } else if (group == 2) {
+        if (variant == 0) { int n = (int)t[0]; long long s = 0; for (int i = 0; i < n; ++i) s += t[1 + i]; printf("%lld\n", s); }
+        else if (variant == 1) { int n = (int)t[0], ins = (int)t[1], del = (int)t[3]; long long x = t[2]; for (int i = 0; i <= n; ++i) { long long value = i == ins ? x : t[4 + i - (i > ins)]; if (i != del) out[outn++] = value; } print_values(out, outn); }
+        else if (variant == 2) { int n = (int)t[0]; long long f = 0, r = 0; for (int i = 0; i < n; ++i) { f += (i + 1) * t[1 + i]; r += (i + 1) * t[n - i]; } printf("%lld %lld\n", f, r); }
+        else { int n = (int)t[0], slow = 0, fast = 0, cycle = 0; while (fast >= 0 && fast < n) { fast = (int)t[1 + fast]; if (fast < 0 || fast >= n) break; fast = (int)t[1 + fast]; slow = (int)t[1 + slow]; if (fast == slow) { cycle = 1; break; } } printf("%d\n", cycle); }
+    } else if (group == 3) {
+        int n = (int)t[0];
+        if (variant == 0) { long long stack[MAXN]; int top = 0; for (int i = 0; i < n; ++i) { long long x = t[1 + i]; if (x == 0) { if (top) --top; } else stack[top++] = x; } printf("%lld\n", top ? stack[top - 1] : -999LL); }
+        else if (variant == 1) { long long q[MAXN]; int head = 0, tail = 0; for (int i = 0; i < n; ++i) { long long x = t[1 + i]; if (x == 0) { if (head < tail) ++head; } else q[tail++] = x; } if (head == tail) puts("-999 -999"); else printf("%lld %lld\n", q[head], q[tail - 1]); }
+        else if (variant == 2) { int ok = 1; for (int i = 0; i < n / 2; ++i) if (t[1 + i] != t[n - i]) ok = 0; printf("%d\n", ok); }
+        else { int balance = 0, ok = 1; for (int i = 0; i < n; ++i) { balance += (int)t[1 + i]; if (balance < 0) ok = 0; } printf("%d\n", ok && balance == 0); }
+    } else if (group == 4) {
+        if (variant == 0) { int n = (int)t[0], ok = 1; for (int i = 0; i < n; ++i) for (int j = i + 1; j < n; ++j) if (t[1 + 2*i] == t[1 + 2*j] && t[2 + 2*i] != t[2 + 2*j]) ok = 0; printf("%d\n", ok); }
+        else if (variant == 1) { int cap = (int)t[0], n = (int)t[1], used[MAXN] = {0}, collisions = 0; for (int i = 0; i < n; ++i) { int p = (int)((t[2+i] % cap + cap) % cap); while (used[p]) { ++collisions; p = (p + 1) % cap; } used[p] = 1; } printf("%d\n", collisions); }
+        else if (variant == 2) { long long cap = t[0], n = t[1]; while (n * 4 > cap * 3) cap *= 2; printf("%lld\n", cap); }
+        else { int n = (int)t[0], best = 0; long long bestv = 0; for (int i = 0; i < n; ++i) { int c = 0; for (int j = 0; j < n; ++j) if (t[1+i] == t[1+j]) ++c; if (c > best || (c == best && t[1+i] < bestv)) { best = c; bestv = t[1+i]; } } printf("%lld\n", bestv); }
+    } else if (group == 5) {
+        int n = (int)t[0];
+        if (variant == 0) { long long target = t[1]; int lo = 0, hi = n, ans = -1; while (lo < hi) { int m = (lo + hi) / 2; if (t[2+m] >= target) hi = m; else lo = m + 1; } if (lo < n && t[2+lo] == target) ans = lo; printf("%d\n", ans); }
+        else { int offset = variant == 3 ? 2 : 1, k = variant == 3 ? (int)t[1] : 0; for (int i = 0; i < n; ++i) out[i] = t[offset+i]; qsort(out, n, sizeof(long long), cmp_ll); if (variant == 3) printf("%lld\n", out[k]); else print_values(out, n); }
+    } else if (group == 6) {
+        if (variant == 0) printf("%lld\n", gcd_ll(t[0], t[1]));
+        else if (variant == 1) printf("%lld\n", t[0] + 1);
+        else if (variant == 2) printf("%lld\n", fib((int)t[0]));
+        else { int n = (int)t[0]; long long best = t[1]; for (int i = 1; i < n; ++i) if (t[1+i] > best) best = t[1+i]; printf("%lld\n", best); }
+    } else if (group == 7) {
+        if (variant == 3) { int n = (int)t[0], digits = (int)t[1], c = 0; long long p10 = 1; while (digits >= p10) p10 *= 10; for (int i = 0; i < n; ++i) { long long x = t[2+i]; while (x >= p10) x /= 10; if (x == digits) ++c; } printf("%d\n", c); }
+        else { int n = (int)t[0]; if (variant == 0) printf("%d\n", tree_height(t+1, n, 0)); else if (variant == 1) { preorder(t+1, n, 0, out, &outn); print_values(out, outn); } else printf("%d\n", bst_valid(t+1, n, 0, -INF, INF)); }
+    } else if (group == 8) {
+        int n = (int)t[0], offset = variant == 2 ? 2 : 1, k = variant == 2 ? (int)t[1] : 0; for (int i = 0; i < n; ++i) out[i] = t[offset+i];
+        if (variant == 0) { int ok = 1; for (int i = 1; i < n; ++i) if (out[(i-1)/2] < out[i]) ok = 0; printf("%d\n", ok); }
+        else if (variant == 1) { for (int i = n/2-1; i >= 0; --i) heap_down(out,n,i); print_values(out,n); }
+        else { qsort(out,n,sizeof(long long),cmp_ll); if (variant == 2) { for (int i = 0; i < k; ++i) printf("%s%lld",i?" ":"",out[n-1-i]); putchar('\n'); } else print_values(out,n); }
+    } else if (group == 9 || group == 10 || group == 14 && variant == 3) {
+        int n = (int)t[0], m = (int)t[1], weighted = group == 10 && variant > 0 || group == 14;
+        long long d[MAXN][MAXN]; for (int i=0;i<n;++i) for(int j=0;j<n;++j) d[i][j]=i==j?0:INF;
+        int pos=2; for(int e=0;e<m;++e){int u=(int)t[pos++],v=(int)t[pos++];long long w=weighted?t[pos++]:1; if(w<d[u][v])d[u][v]=w; if(group==10&&variant==2 && w<d[v][u])d[v][u]=w; if(group==9 && variant!=0 && w<d[v][u])d[v][u]=w;}
+        if (group == 9 && variant == 0) printf("%d %d\n", n, m);
+        else if (group == 9 && variant == 1) { for(int i=0;i<n;++i){long long deg=0;for(int j=0;j<n;++j)if(d[i][j]<INF&&i!=j)++deg;out[outn++]=deg;}print_values(out,outn); }
+        else if (group == 9 && variant == 2) { long long dist[MAXN];int q[MAXN],h=0,z=0;for(int i=0;i<n;++i)dist[i]=-1;dist[0]=0;q[z++]=0;while(h<z){int u=q[h++];for(int v=0;v<n;++v)if(d[u][v]<INF&&u!=v&&dist[v]<0){dist[v]=dist[u]+1;q[z++]=v;}}print_values(dist,n); }
+        else if (group == 9) { for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;}int comps=n,cycles=0;for(int u=0;u<n;++u)for(int v=u+1;v<n;++v)if(d[u][v]<INF){if(unite(u,v))--comps;else ++cycles;}printf("%d %d\n",comps,cycles); }
+        else if (group == 10 && variant == 0) { int indeg[MAXN]={0},used[MAXN]={0};for(int u=0;u<n;++u)for(int v=0;v<n;++v)if(u!=v&&d[u][v]<INF)++indeg[v];for(int z=0;z<n;++z){int u=-1;for(int i=0;i<n;++i)if(!used[i]&&indeg[i]==0){u=i;break;}if(u<0){puts("cycle");return 0;}used[u]=1;out[outn++]=u;for(int v=0;v<n;++v)if(u!=v&&d[u][v]<INF)--indeg[v];}print_values(out,outn); }
+        else if (group == 10 && variant == 2) { for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;} long long total=0;int edges=0; while(edges<n-1){long long best=INF;int bu=-1,bv=-1;for(int u=0;u<n;++u)for(int v=u+1;v<n;++v)if(d[u][v]<best&&find_set(u)!=find_set(v)){best=d[u][v];bu=u;bv=v;}if(bu<0)break;unite(bu,bv);total+=best;++edges;}printf("%lld\n",edges==n-1?total:-1LL); }
+        else { for(int k=0;k<n;++k)for(int i=0;i<n;++i)for(int j=0;j<n;++j)if(d[i][k]<INF&&d[k][j]<INF&&d[i][k]+d[k][j]<d[i][j])d[i][j]=d[i][k]+d[k][j];int s=(int)t[pos],target=(int)t[pos+1];printf("%lld\n",d[s][target]>=INF?-1LL:d[s][target]); }
+    } else if (group == 11) {
+        int n=(int)t[0],m=(int)t[1],pos=2,cycles=0;for(int i=0;i<n;++i){parent[i]=i;size_set[i]=1;}for(int i=0;i<m;++i){int a=(int)t[pos++],b=(int)t[pos++];if(!unite(a,b))++cycles;}int comps=0,best=0;for(int i=0;i<n;++i)if(find_set(i)==i){++comps;if(size_set[i]>best)best=size_set[i];}if(variant==0)printf("%d\n",comps);else if(variant==1)printf("%d\n",best);else if(variant==2){int depth=0;for(int i=0;i<n;++i)if(parent[i]!=i)depth=1;printf("%d\n",depth);}else printf("%d\n",cycles);
+    } else if (group == 12) {
+        if(variant==0){int n=(int)t[0];long long pairs[MAXN][2];for(int i=0;i<n;++i){pairs[i][0]=t[1+2*i];pairs[i][1]=t[2+2*i];}for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(pairs[j][1]<pairs[i][1]){long long a=pairs[i][0],b=pairs[i][1];pairs[i][0]=pairs[j][0];pairs[i][1]=pairs[j][1];pairs[j][0]=a;pairs[j][1]=b;}int c=0;long long end=-INF;for(int i=0;i<n;++i)if(pairs[i][0]>=end){++c;end=pairs[i][1];}printf("%d\n",c);}
+        else if(variant==1){int n=(int)t[0],target=(int)t[1],possible[2048]={0};possible[0]=1;for(int i=0;i<n;++i)for(int s=target;s>=t[2+i];--s)if(possible[s-t[2+i]])possible[s]=1;printf("%d\n",possible[target]);}
+        else if(variant==2)printf("%lld\n",fib((int)t[0]));
+        else{int n=(int)t[0],target=(int)t[1],dp[2048];for(int s=0;s<=target;++s)dp[s]=s?9999:0;for(int s=1;s<=target;++s)for(int i=0;i<n;++i)if(t[2+i]<=s&&dp[s-(int)t[2+i]]+1<dp[s])dp[s]=dp[s-(int)t[2+i]]+1;printf("%d\n",dp[target]>=9999?-1:dp[target]);}
+    } else if (group == 13) {
+        int n=(int)t[0];
+        if(variant==0){long long target=t[1];int ok=0;for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(t[2+i]+t[2+j]==target)ok=1;printf("%d\n",ok);}
+        else if(variant==1){int k=(int)t[1];long long best=-INF;for(int i=0;i+k<=n;++i){long long s=0;for(int j=0;j<k;++j)s+=t[2+i+j];if(s>best)best=s;}printf("%lld\n",best);}
+        else if(variant==2){for(int i=0;i<n;++i){long long next=-1;for(int j=i+1;j<n;++j)if(t[1+j]>t[1+i]){next=t[1+j];break;}out[outn++]=next;}print_values(out,outn);}
+        else{long long p[MAXN][2];for(int i=0;i<n;++i){p[i][0]=t[1+2*i];p[i][1]=t[2+2*i];}for(int i=0;i<n;++i)for(int j=i+1;j<n;++j)if(p[j][0]<p[i][0]){long long a=p[i][0],b=p[i][1];p[i][0]=p[j][0];p[i][1]=p[j][1];p[j][0]=a;p[j][1]=b;}int merged=0;long long end=-INF;for(int i=0;i<n;++i)if(!merged||p[i][0]>end){++merged;end=p[i][1];}else if(p[i][1]>end)end=p[i][1];printf("%d\n",merged);}
+    } else if (group == 14) {
+        int n=(int)t[0];
+        if(variant==0){int best=0;long long bestv=0;for(int i=0;i<n;++i){int c=0;for(int j=0;j<n;++j)if(t[1+i]==t[1+j])++c;if(c>best||(c==best&&t[1+i]<bestv)){best=c;bestv=t[1+i];}}printf("%lld\n",bestv);}
+        else if(variant==1){long long q[MAXN];int h=0,z=0;for(int i=0;i<n;++i){long long x=t[1+i];if(x==0){if(h<z)++h;}else q[z++]=x;}if(h==z)puts("-999 -999");else printf("%lld %lld\n",q[h],q[z-1]);}
+        else{int sorted=1,dup=0;long long mn=n?t[1]:0,mx=mn;for(int i=0;i<n;++i){if(i&&t[i]>t[i+1])sorted=0;for(int j=0;j<i;++j)if(t[1+j]==t[1+i])dup=1;if(t[1+i]<mn)mn=t[1+i];if(t[1+i]>mx)mx=t[1+i];}printf("%d %d %lld %lld\n",sorted,dup,mn,mx);}
+    }
+    return 0;
+}

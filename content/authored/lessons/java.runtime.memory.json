@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.runtime.memory.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.runtime-concurrency",
+  "skillId": "java.runtime.memory",
+  "title": "References, heap and garbage collection",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for References, heap and garbage collection; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; JVM/runtime concepts, Concurrency, and Virtual Threads learning paths; atomic topic: References, heap and garbage collection",
+      "claim": "Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§12.6 and 17.4: object finalization/reachability context and memory-model happens-before rules; atomic topic: References, heap and garbage collection",
+      "claim": "Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection. Your goal is to diagnose a retention or aliasing problem using a reachability model. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Packages, builds and tests; List, Set, Map and Queue; References, identity and equality. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Collection timing is unspecified, finalization is not reliable cleanup, a reachable object can still be a logical leak, weak reference types have special semantics, and native resources need explicit closure. The learner must reject this documented misconception: Java cannot leak memory because garbage collection frees every object that the application no longer intends to use."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Explain reachability and managed reclamation without assuming collection timing or absence of leaks.",
+      "Diagnose a retention or aliasing problem using a reachability model."
+    ],
+    "excludes": [
+      "Collection timing is unspecified, finalization is not reliable cleanup, a reachable object can still be a logical leak, weak reference types have special semantics, and native resources need explicit closure."
+    ]
+  },
+  "outcomes": [
+    "Diagnose a retention or aliasing problem using a reachability model."
+  ],
+  "examples": [
+    {
+      "id": "java.runtime.memory.example.direct",
+      "title": "References, heap and garbage collection: direct language case",
+      "situation": "A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly."
+      ],
+      "result": "The example meets the atomic outcome because Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly."
+    },
+    {
+      "id": "java.runtime.memory.example.boundary",
+      "title": "References, heap and garbage collection: boundary and transfer case",
+      "situation": "Two local variables alias one mutable list; changing through either reference affects the same heap object even though both variables are later reassigned independently.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: Two local variables alias one mutable list; changing through either reference affects the same heap object even though both variables are later reassigned independently.",
+        "Step 2 — Keep the language boundary explicit: Collection timing is unspecified, finalization is not reliable cleanup, a reachable object can still be a logical leak, weak reference types have special semantics, and native resources need explicit closure.",
+        "Step 3 — Reject the tempting but incorrect rule: Java cannot leak memory because garbage collection frees every object that the application no longer intends to use."
+      ],
+      "result": "This case demonstrates the declared outcome: Diagnose a retention or aliasing problem using a reachability model."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.runtime.memory.misconception",
+      "mistakenBelief": "Java cannot leak memory because garbage collection frees every object that the application no longer intends to use.",
+      "correction": "Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Java cannot leak memory because garbage collection frees every object that the application no longer intends to use."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a dispatch center that tracks reachable work orders and assigns bounded tasks while protecting shared ledgers can introduce References, heap and garbage collection, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "reachability, executors, races, and virtual-thread workload choice"
+    ],
+    "limitations": [
+      "memory visibility, scheduling, atomicity, cancellation, and garbage-collection timing cannot be inferred from human dispatch",
+      "Collection timing is unspecified, finalization is not reliable cleanup, a reachable object can still be a logical leak, weak reference types have special semantics, and native resources need explicit closure."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection.",
+      "Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally.",
+      "Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Java cannot leak memory because garbage collection frees every object that the application no longer intends to use."
+      }
+    ],
+    "textAlternative": "Starting artifact: A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection. Step 1, Observe. State: evidence: A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly.. Compare the observation with the correction and explain why the misconception fails: Java cannot leak memory because garbage collection frees every object that the application no longer intends to use."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “References, heap and garbage collection: direct language case”: state its starting evidence, apply the References, heap and garbage collection rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: References, heap and garbage collection: direct language case.",
+        "Starting evidence: A static cache retains every request object through a map, so bounded eviction removes the unwanted root path rather than forcing a collection.",
+        "Core rule: Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally.",
+        "Observable result: The example meets the atomic outcome because Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly.",
+        "Boundary check: Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: Two local variables alias one mutable list; changing through either reference affects the same heap object even though both variables are later reassigned independently.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java objects remain reachable through roots and reference chains; garbage collection may reclaim unreachable storage later, while aliases and long-lived references can retain objects unintentionally.",
+        "Collection timing is unspecified, finalization is not reliable cleanup, a reachable object can still be a logical leak, weak reference types have special semantics, and native resources need explicit closure."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of References, heap and garbage collection, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Diagnose a retention or aliasing problem using a reachability model.",
+        "Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.runtime.memory.misconception",
+      "explanation": "Garbage collection reclaims only unreachable objects on its own schedule; diagnose logical retention by tracing reachability from roots and release non-memory resources explicitly.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Two local variables alias one mutable list; changing through either reference affects the same heap object even though both variables are later reassigned independently."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to diagnose a retention or aliasing problem using a reachability model. Keep this boundary in view: Collection timing is unspecified, finalization is not reliable cleanup, a reachable object can still be a logical leak, weak reference types have special semantics, and native resources need explicit closure.",
+    "retrievalPrompts": [
+      "Explain References, heap and garbage collection using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Java cannot leak memory because garbage collection frees every object that the application no longer intends to use.",
+      "Predict this case from memory: Two local variables alias one mutable list; changing through either reference affects the same heap object even though both variables are later reassigned independently."
+    ],
+    "nextReviewPrompt": "Next: continue to “Threads, tasks and executors”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

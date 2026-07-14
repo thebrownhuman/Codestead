@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.dp.tabulation.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.strategies",
+  "skillId": "dsa.dp.tabulation",
+  "title": "Tabulation and state reconstruction",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Tabulation and state reconstruction; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Tabulation and state reconstruction",
+      "claim": "Tabulation orders subproblems bottom-up so dependencies are available before each state is computed."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Tabulation orders subproblems bottom-up so dependencies are available before each state is computed.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts. Your goal is to design and implement one- and two-dimensional dynamic programs with explanation of state and transition. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Recursion and divide-and-conquer; Hash tables, sets and maps; Overlapping subproblems and memoization; Two-dimensional arrays and matrices. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Tabulation orders subproblems bottom-up so dependencies are available before each state is computed. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Iteration order, base initialization, impossible states, and memory compression depend on the recurrence graph. The draft therefore rejects: Dynamic-programming table order never matters because all cells are eventually filled."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Order subproblems bottom-up, optimize storage when justified and reconstruct a chosen solution.",
+      "Design and implement one- and two-dimensional dynamic programs with explanation of state and transition.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "excludes": [
+      "Iteration order, base initialization, impossible states, and memory compression depend on the recurrence graph."
+    ]
+  },
+  "outcomes": [
+    "Design and implement one- and two-dimensional dynamic programs with explanation of state and transition."
+  ],
+  "examples": [
+    {
+      "id": "dsa.dp.tabulation.example-a",
+      "title": "Tabulation and state reconstruction: language-neutral trace",
+      "situation": "A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Fill states only after their dependencies; derive loop order from the recurrence, not table appearance."
+      ],
+      "result": "The conceptual result follows because Fill states only after their dependencies; derive loop order from the recurrence, not table appearance."
+    },
+    {
+      "id": "dsa.dp.tabulation.example-b",
+      "title": "Tabulation and state reconstruction: implementation transfer",
+      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "Step 3 — Retest this boundary in the selected implementation: Iteration order, base initialization, impossible states, and memory compression depend on the recurrence graph."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.dp.tabulation.misconception",
+      "mistakenBelief": "Dynamic-programming table order never matters because all cells are eventually filled.",
+      "correction": "Fill states only after their dependencies; derive loop order from the recurrence, not table appearance.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Dynamic-programming table order never matters because all cells are eventually filled."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Tabulation and state reconstruction, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Iteration order, base initialization, impossible states, and memory compression depend on the recurrence graph."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts.",
+      "Tabulation orders subproblems bottom-up so dependencies are available before each state is computed.",
+      "Fill states only after their dependencies; derive loop order from the recurrence, not table appearance.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Tabulation orders subproblems bottom-up so dependencies are available before each state is computed."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Fill states only after their dependencies; derive loop order from the recurrence, not table appearance."
+        },
+        "explanation": "Verify the result and reject this misconception: Dynamic-programming table order never matters because all cells are eventually filled."
+      }
+    ],
+    "textAlternative": "Starting artifact: A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts. Step 1, Specification. State: scenario: A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Tabulation orders subproblems bottom-up so dependencies are available before each state is computed.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: Fill states only after their dependencies; derive loop order from the recurrence, not table appearance.. Verify the result and reject this misconception: Dynamic-programming table order never matters because all cells are eventually filled."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Tabulation and state reconstruction: language-neutral trace”: state its starting evidence, apply the Tabulation and state reconstruction rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Tabulation and state reconstruction: language-neutral trace.",
+        "Starting evidence: A coin-change table initializes zero amount and fills larger amounts from previously solved smaller amounts.",
+        "Core rule: Tabulation orders subproblems bottom-up so dependencies are available before each state is computed.",
+        "Observable result: The conceptual result follows because Fill states only after their dependencies; derive loop order from the recurrence, not table appearance.",
+        "Boundary check: Fill states only after their dependencies; derive loop order from the recurrence, not table appearance."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Tabulation orders subproblems bottom-up so dependencies are available before each state is computed.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "Iteration order, base initialization, impossible states, and memory compression depend on the recurrence graph."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Tabulation and state reconstruction case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Design and implement one- and two-dimensional dynamic programs with explanation of state and transition.",
+        "Fill states only after their dependencies; derive loop order from the recurrence, not table appearance."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.dp.tabulation.misconception",
+      "explanation": "Fill states only after their dependencies; derive loop order from the recurrence, not table appearance.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'after their dependencies', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and implement one- and two-dimensional dynamic programs with explanation of state and transition. Keep this boundary in view: Iteration order, base initialization, impossible states, and memory compression depend on the recurrence graph.",
+    "retrievalPrompts": [
+      "State the Tabulation and state reconstruction invariant and complexity without code.",
+      "Why is this claim false: Dynamic-programming table order never matters because all cells are eventually filled.",
+      "Map checkpoint 'after their dependencies' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Two-pointer and partition scans”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

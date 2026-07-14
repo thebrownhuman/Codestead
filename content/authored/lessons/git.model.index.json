@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.model.index.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.model",
+  "skillId": "git.model.index",
+  "title": "Working tree, index and HEAD",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Working tree, index and HEAD; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "git-docs",
+      "locator": "Git Reference Documentation; current stable accessed 2026-07; section applicable to Working tree, index and HEAD",
+      "claim": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit."
+    },
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Working tree, index and HEAD",
+      "claim": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff. Your goal is to use status and diff variants to explain every changed path before committing. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Filesystem and terminal fluency; Repository and working tree. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Predict differences among unstaged, staged and committed snapshots.",
+      "Use status and diff variants to explain every changed path before committing."
+    ],
+    "excludes": [
+      "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames."
+    ]
+  },
+  "outcomes": [
+    "Use status and diff variants to explain every changed path before committing."
+  ],
+  "examples": [
+    {
+      "id": "git.model.index.example-a",
+      "title": "Working tree, index and HEAD: direct case",
+      "situation": "Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+      ],
+      "result": "The case supports the declared outcome because Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+    },
+    {
+      "id": "git.model.index.example-b",
+      "title": "Working tree, index and HEAD: boundary case",
+      "situation": "A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated.",
+        "Step 2 — Keep this boundary explicit: Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames.",
+        "Step 3 — Reject the documented misconception: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+      ],
+      "result": "This case demonstrates the declared outcome: Use status and diff variants to explain every changed path before committing."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.model.index.misconception",
+      "mistakenBelief": "Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot.",
+      "correction": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A photo studio can model Working tree, index and HEAD: the set is the working tree, a selected proof is the index, and an archived photograph is a commit snapshot.",
+    "usefulFor": [
+      "Separating working changes, staged content, committed snapshots, and repository metadata"
+    ],
+    "limitations": [
+      "Git stores content-addressed objects and references rather than physical photographs or one linear album.",
+      "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
+      "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
+      "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit."
+        },
+        "explanation": "Apply the declared Working tree, index and HEAD model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+      }
+    ],
+    "textAlternative": "Starting artifact: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff. Step 1, Observe. State: evidence: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.. Apply the declared Working tree, index and HEAD model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.. Compare the observation with the correction and reject the misconception: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Working tree, index and HEAD: direct case”: state its starting evidence, apply the Working tree, index and HEAD rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Working tree, index and HEAD: direct case.",
+        "Starting evidence: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
+        "Core rule: The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
+        "Observable result: The case supports the declared outcome because Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.",
+        "Boundary check: Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
+        "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Working tree, index and HEAD, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Use status and diff variants to explain every changed path before committing.",
+        "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.model.index.misconception",
+      "explanation": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to use status and diff variants to explain every changed path before committing. Keep this boundary in view: Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames.",
+    "retrievalPrompts": [
+      "Explain Working tree, index and HEAD without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot.",
+      "Apply the model to this case from memory: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated."
+    ],
+    "nextReviewPrompt": "Next: continue to “Ignore policy”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

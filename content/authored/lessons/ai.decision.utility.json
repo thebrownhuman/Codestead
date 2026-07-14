@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.decision.utility.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.planning-decision",
+  "skillId": "ai.decision.utility",
+  "title": "Utility and expected decisions",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Utility and expected decisions; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Planning Systems, Constraint Satisfaction, Decision Making, and Reinforcement Learning foundations; atomic topic: Utility and expected decisions",
+      "claim": "Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Map and Measure outcomes for context, impacts, human values, and risk tolerances; atomic topic: Utility and expected decisions",
+      "claim": "Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate. Your goal is to compute an expected-utility choice and critique sensitivity to its assumptions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: State-space and adversarial search; Knowledge representation and uncertainty; Conditional probability and Bayes rule. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Utility is stakeholder-dependent, probabilities can be poorly estimated, rare severe harms can dominate, expected value can hide distribution and fairness, and constraints may rule out an otherwise high score. The learner must reject this overclaim: The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Compare actions by outcome utility and probability while making value choices explicit.",
+      "Compute an expected-utility choice and critique sensitivity to its assumptions."
+    ],
+    "excludes": [
+      "Utility is stakeholder-dependent, probabilities can be poorly estimated, rare severe harms can dominate, expected value can hide distribution and fairness, and constraints may rule out an otherwise high score."
+    ]
+  },
+  "outcomes": [
+    "Compute an expected-utility choice and critique sensitivity to its assumptions."
+  ],
+  "examples": [
+    {
+      "id": "ai.decision.utility.example.direct",
+      "title": "Utility and expected decisions: bounded direct case",
+      "situation": "Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+      ],
+      "result": "This example supports only the atomic outcome because Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+    },
+    {
+      "id": "ai.decision.utility.example.stress",
+      "title": "Utility and expected decisions: stress and transfer case",
+      "situation": "An action with slightly higher expected utility is rejected because it violates an explicit safety constraint for one affected group.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: An action with slightly higher expected utility is rejected because it violates an explicit safety constraint for one affected group.",
+        "Step 2 — Keep the non-claim visible: Utility is stakeholder-dependent, probabilities can be poorly estimated, rare severe harms can dominate, expected value can hide distribution and fairness, and constraints may rule out an otherwise high score.",
+        "Step 3 — Reject the tempting overclaim: The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context."
+      ],
+      "result": "This case demonstrates the declared outcome: Compute an expected-utility choice and critique sensitivity to its assumptions."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.decision.utility.misconception",
+      "mistakenBelief": "The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context.",
+      "correction": "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a bounded operations desk that checks action preconditions, resource constraints, uncertain outcomes, and proxy rewards before acting can introduce Utility and expected decisions only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "planning, constraints, expected utility, and sequential decisions"
+    ],
+    "limitations": [
+      "real preferences, uncertainty, stakeholders, safety constraints, and dynamics exceed one plan or reward score",
+      "Utility is stakeholder-dependent, probabilities can be poorly estimated, rare severe harms can dominate, expected value can hide distribution and fairness, and constraints may rule out an otherwise high score."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate.",
+      "Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions.",
+      "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate. Step 1, Observe. State: boundedEvidence: Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values.. State what the evidence does not establish and reject the misconception: The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Utility and expected decisions: bounded direct case”: state its starting evidence, apply the Utility and expected decisions rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Utility and expected decisions: bounded direct case.",
+        "Starting evidence: Two treatments are compared using benefit, side-effect utility, and calibrated scenario probabilities, followed by a sensitivity range for the uncertain harm rate.",
+        "Core rule: Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions.",
+        "Observable result: This example supports only the atomic outcome because Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values.",
+        "Boundary check: Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: An action with slightly higher expected utility is rejected because it violates an explicit safety constraint for one affected group.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Expected utility compares actions by summing each modeled outcome's utility weighted by its probability, exposing value judgments, uncertainty, and sensitivity to assumptions.",
+        "Utility is stakeholder-dependent, probabilities can be poorly estimated, rare severe harms can dominate, expected value can hide distribution and fairness, and constraints may rule out an otherwise high score."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Utility and expected decisions and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Compute an expected-utility choice and critique sensitivity to its assumptions.",
+        "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.decision.utility.misconception",
+      "explanation": "Make outcome utilities, probabilities, stakeholders, constraints, and sensitivity explicit; expected utility supports a bounded choice rather than neutralizing values.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: An action with slightly higher expected utility is rejected because it violates an explicit safety constraint for one affected group."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to compute an expected-utility choice and critique sensitivity to its assumptions. Keep this boundary in view: Utility is stakeholder-dependent, probabilities can be poorly estimated, rare severe harms can dominate, expected value can hide distribution and fairness, and constraints may rule out an otherwise high score.",
+    "retrievalPrompts": [
+      "Explain Utility and expected decisions with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: The action with the largest expected monetary value is objectively rational for every stakeholder and ethical context.",
+      "Apply the boundary to: An action with slightly higher expected utility is rejected because it violates an explicit safety constraint for one affected group."
+    ],
+    "nextReviewPrompt": "Next: continue to “Sequential decision and reinforcement concepts”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

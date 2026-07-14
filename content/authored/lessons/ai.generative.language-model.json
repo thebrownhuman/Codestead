@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.generative.language-model.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.generative",
+  "skillId": "ai.generative.language-model",
+  "title": "Tokens, next-token modeling and context",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Tokens, next-token modeling and context; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Natural Language Processing and contemporary generative-system foundations as bounded by the 2023 curriculum; atomic topic: Tokens, next-token modeling and context",
+      "claim": "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions."
+    },
+    {
+      "sourceRef": "transformers",
+      "locator": "Transformers Documentation; 5.x target, accessed 2026-07; Transformers Tokenizers and Text Generation documentation: tokens, context inputs, decoding, and retrieval-related components; atomic topic: Tokens, next-token modeling and context",
+      "claim": "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions."
+    },
+    {
+      "sourceRef": "nist-genai",
+      "locator": "NIST AI 600-1 Generative AI Profile; July 2024; NIST AI 600-1 risk sections and suggested actions for confabulation, information integrity, security, privacy, and misuse; atomic topic: Tokens, next-token modeling and context",
+      "claim": "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations. Your goal is to trace a toy token-generation example and identify unsupported capability claims. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Convolution, sequence and attention roles; Natural-language processing. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Tokenization is model-specific, context is finite, probabilities are not truth scores, training data is not a queryable citation database, decoding changes variability, and fluent continuation does not prove reasoning or understanding. The learner must reject this overclaim: An LLM retrieves the most relevant stored sentence and its next-token probability measures whether the resulting claim is true."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Explain LLM generation as conditional token prediction with finite context rather than database retrieval or understanding proof.",
+      "Trace a toy token-generation example and identify unsupported capability claims."
+    ],
+    "excludes": [
+      "Tokenization is model-specific, context is finite, probabilities are not truth scores, training data is not a queryable citation database, decoding changes variability, and fluent continuation does not prove reasoning or understanding."
+    ]
+  },
+  "outcomes": [
+    "Trace a toy token-generation example and identify unsupported capability claims."
+  ],
+  "examples": [
+    {
+      "id": "ai.generative.language-model.example.direct",
+      "title": "Tokens, next-token modeling and context: bounded direct case",
+      "situation": "A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth."
+      ],
+      "result": "This example supports only the atomic outcome because Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth."
+    },
+    {
+      "id": "ai.generative.language-model.example.stress",
+      "title": "Tokens, next-token modeling and context: stress and transfer case",
+      "situation": "The model confidently states an unsupported date because plausible token continuation is not evidence retrieval or source verification.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: The model confidently states an unsupported date because plausible token continuation is not evidence retrieval or source verification.",
+        "Step 2 — Keep the non-claim visible: Tokenization is model-specific, context is finite, probabilities are not truth scores, training data is not a queryable citation database, decoding changes variability, and fluent continuation does not prove reasoning or understanding.",
+        "Step 3 — Reject the tempting overclaim: An LLM retrieves the most relevant stored sentence and its next-token probability measures whether the resulting claim is true."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace a toy token-generation example and identify unsupported capability claims."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.generative.language-model.misconception",
+      "mistakenBelief": "An LLM retrieves the most relevant stored sentence and its next-token probability measures whether the resulting claim is true.",
+      "correction": "Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: An LLM retrieves the most relevant stored sentence and its next-token probability measures whether the resulting claim is true."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a bounded document desk that predicts tokens, validates structured drafts, retrieves cited passages, and exposes only authorized tools can introduce Tokens, next-token modeling and context only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "language-model context, output validation, RAG stages, and API/tool security"
+    ],
+    "limitations": [
+      "generation, retrieval, prompting, and provider trust remain fallible and cannot receive secrets or autonomous authority",
+      "Tokenization is model-specific, context is finite, probabilities are not truth scores, training data is not a queryable citation database, decoding changes variability, and fluent continuation does not prove reasoning or understanding."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations.",
+      "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions.",
+      "Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: An LLM retrieves the most relevant stored sentence and its next-token probability measures whether the resulting claim is true."
+      }
+    ],
+    "textAlternative": "Starting artifact: A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations. Step 1, Observe. State: boundedEvidence: A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth.. State what the evidence does not establish and reject the misconception: An LLM retrieves the most relevant stored sentence and its next-token probability measures whether the resulting claim is true."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Tokens, next-token modeling and context: bounded direct case”: state its starting evidence, apply the Tokens, next-token modeling and context rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Tokens, next-token modeling and context: bounded direct case.",
+        "Starting evidence: A toy bigram table assigns different next-token probabilities after one context token and greedy versus sampled decoding produces different valid continuations.",
+        "Core rule: A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions.",
+        "Observable result: This example supports only the atomic outcome because Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth.",
+        "Boundary check: Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: The model confidently states an unsupported date because plausible token continuation is not evidence retrieval or source verification.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A language model represents text as tokens and estimates a conditional distribution for the next token from finite context; decoding repeatedly samples or selects from those distributions.",
+        "Tokenization is model-specific, context is finite, probabilities are not truth scores, training data is not a queryable citation database, decoding changes variability, and fluent continuation does not prove reasoning or understanding."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Tokens, next-token modeling and context and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Trace a toy token-generation example and identify unsupported capability claims.",
+        "Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.generative.language-model.misconception",
+      "explanation": "Interpret generation as conditional token prediction within finite context; verify factual claims against authorized sources and do not treat model probability as truth.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: The model confidently states an unsupported date because plausible token continuation is not evidence retrieval or source verification."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace a toy token-generation example and identify unsupported capability claims. Keep this boundary in view: Tokenization is model-specific, context is finite, probabilities are not truth scores, training data is not a queryable citation database, decoding changes variability, and fluent continuation does not prove reasoning or understanding.",
+    "retrievalPrompts": [
+      "Explain Tokens, next-token modeling and context with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: An LLM retrieves the most relevant stored sentence and its next-token probability measures whether the resulting claim is true.",
+      "Apply the boundary to: The model confidently states an unsupported date because plausible token continuation is not evidence retrieval or source verification."
+    ],
+    "nextReviewPrompt": "Next: continue to “Prompts and constrained outputs”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

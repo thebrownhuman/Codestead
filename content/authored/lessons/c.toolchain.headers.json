@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.toolchain.headers.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.toolchain",
+  "skillId": "c.toolchain.headers",
+  "title": "Library headers and declarations",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Library headers and declarations; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to Library headers and declarations",
+      "claim": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Library headers and declarations",
+      "claim": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Library headers and declarations",
+      "claim": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function. Your goal is to select required headers and explain the danger of missing or incompatible declarations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Translation unit and main. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations. Therefore the draft explicitly rejects this beginner failure model: Including a header automatically links a library implementation and makes every declared function definition available."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Include the header that declares each standard-library facility and respect its contract.",
+      "Select required headers and explain the danger of missing or incompatible declarations."
+    ],
+    "excludes": [
+      "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations."
+    ]
+  },
+  "outcomes": [
+    "Select required headers and explain the danger of missing or incompatible declarations."
+  ],
+  "examples": [
+    {
+      "id": "c.toolchain.headers.example-a",
+      "title": "Library headers and declarations: defined case",
+      "situation": "A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+      ],
+      "result": "The defined result follows because A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+    },
+    {
+      "id": "c.toolchain.headers.example-b",
+      "title": "Library headers and declarations: boundary case",
+      "situation": "An include guard prevents repeated declarations when two headers include the same shared type header through different paths.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: An include guard prevents repeated declarations when two headers include the same shared type header through different paths.",
+        "Step 2 — Keep this standard boundary visible: Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations.",
+        "Step 3 — Reject the tempting rule: Including a header automatically links a library implementation and makes every declared function definition available."
+      ],
+      "result": "This case demonstrates the declared outcome: Select required headers and explain the danger of missing or incompatible declarations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.toolchain.headers.misconception",
+      "mistakenBelief": "Including a header automatically links a library implementation and makes every declared function definition available.",
+      "correction": "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Including a header automatically links a library implementation and makes every declared function definition available."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Library headers and declarations: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
+      "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
+      "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Including a header automatically links a library implementation and makes every declared function definition available."
+      }
+    ],
+    "textAlternative": "Starting artifact: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function. Step 1, Source and state. State: evidence: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.. Check the conclusion against the boundary and reject this misconception: Including a header automatically links a library implementation and makes every declared function definition available."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Library headers and declarations: defined case”: state its starting evidence, apply the Library headers and declarations rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Library headers and declarations: defined case.",
+        "Starting evidence: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
+        "Core rule: A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
+        "Observable result: The defined result follows because A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.",
+        "Boundary check: A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: An include guard prevents repeated declarations when two headers include the same shared type header through different paths.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
+        "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Library headers and declarations, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Select required headers and explain the danger of missing or incompatible declarations.",
+        "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.toolchain.headers.misconception",
+      "explanation": "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compile-time declarations' and state the decisive evidence: An include guard prevents repeated declarations when two headers include the same shared type header through different paths."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to select required headers and explain the danger of missing or incompatible declarations. Keep this boundary in view: Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations.",
+    "retrievalPrompts": [
+      "Explain Library headers and declarations using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: Including a header automatically links a library implementation and makes every declared function definition available.",
+      "Apply the checkpoint 'compile-time declarations' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Scalar types and declarations”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

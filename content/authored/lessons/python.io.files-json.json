@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.io.files-json.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.errors-io",
+  "skillId": "python.io.files-json",
+  "title": "Files, paths and JSON",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Files, paths and JSON; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 7-8: input/output, files, JSON, exceptions, and cleanup; atomic topic: Files, paths and JSON",
+      "claim": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data."
+    },
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; pathlib, io, json, contextlib, and built-in exception documentation; atomic topic: Files, paths and JSON",
+      "claim": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data. Your goal is to implement file persistence that handles missing, malformed and permission-failure cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Function contracts and returns; Unicode text and formatting; Exception handling and propagation; Dictionaries and sets. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds. The learner must reject this documented misconception: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Read and write text with explicit encoding and validate structured JSON data.",
+      "Implement file persistence that handles missing, malformed and permission-failure cases."
+    ],
+    "excludes": [
+      "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds."
+    ]
+  },
+  "outcomes": [
+    "Implement file persistence that handles missing, malformed and permission-failure cases."
+  ],
+  "examples": [
+    {
+      "id": "python.io.files-json.example.direct",
+      "title": "Files, paths and JSON: direct language case",
+      "situation": "A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+      ],
+      "result": "The example meets the atomic outcome because Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+    },
+    {
+      "id": "python.io.files-json.example.boundary",
+      "title": "Files, paths and JSON: boundary and transfer case",
+      "situation": "A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic.",
+        "Step 2 — Keep the language boundary explicit: Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds.",
+        "Step 3 — Reject the tempting but incorrect rule: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement file persistence that handles missing, malformed and permission-failure cases."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.io.files-json.misconception",
+      "mistakenBelief": "json.load validates application fields and open automatically chooses UTF-8 and the script directory.",
+      "correction": "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a records office that escalates named failures, validates decoded forms, and returns borrowed resources on every exit can introduce Files, paths and JSON, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "exceptions, custom failure categories, files, JSON, and contexts"
+    ],
+    "limitations": [
+      "exception chaining, suppression, path resolution, encoding, partial writes, and protocol methods are software rules",
+      "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
+      "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
+      "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+      }
+    ],
+    "textAlternative": "Starting artifact: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data. Step 1, Observe. State: evidence: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.. Compare the observation with the correction and explain why the misconception fails: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Files, paths and JSON: direct language case”: state its starting evidence, apply the Files, paths and JSON rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Files, paths and JSON: direct language case.",
+        "Starting evidence: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
+        "Core rule: Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
+        "Observable result: The example meets the atomic outcome because Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.",
+        "Boundary check: Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
+        "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Files, paths and JSON, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement file persistence that handles missing, malformed and permission-failure cases.",
+        "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.io.files-json.misconception",
+      "explanation": "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement file persistence that handles missing, malformed and permission-failure cases. Keep this boundary in view: Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds.",
+    "retrievalPrompts": [
+      "Explain Files, paths and JSON using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: json.load validates application fields and open automatically chooses UTF-8 and the script directory.",
+      "Predict this case from memory: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic."
+    ],
+    "nextReviewPrompt": "Next: continue to “Context managers”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

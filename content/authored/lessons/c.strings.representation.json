@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.strings.representation.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.arrays-strings",
+  "skillId": "c.strings.representation",
+  "title": "C string representation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for C string representation; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to C string representation",
+      "claim": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to C string representation",
+      "claim": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat. Your goal is to trace string length, storage capacity and termination in memory. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: while, do and for; Parameters and return values; One-dimensional arrays. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences. Therefore the draft explicitly rejects this beginner failure model: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Treat strings as character arrays terminated by a null character with finite capacity.",
+      "Trace string length, storage capacity and termination in memory."
+    ],
+    "excludes": [
+      "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences."
+    ]
+  },
+  "outcomes": [
+    "Trace string length, storage capacity and termination in memory."
+  ],
+  "examples": [
+    {
+      "id": "c.strings.representation.example-a",
+      "title": "C string representation: defined case",
+      "situation": "The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+      ],
+      "result": "The defined result follows because Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+    },
+    {
+      "id": "c.strings.representation.example-b",
+      "title": "C string representation: boundary case",
+      "situation": "char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits.",
+        "Step 2 — Keep this standard boundary visible: Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences.",
+        "Step 3 — Reject the tempting rule: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace string length, storage capacity and termination in memory."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.strings.representation.misconception",
+      "mistakenBelief": "Every char array is automatically null-terminated and safe to pass to strlen or printf with %s.",
+      "correction": "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model C string representation: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
+      "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
+      "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+      }
+    ],
+    "textAlternative": "Starting artifact: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat. Step 1, Source and state. State: evidence: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.. Check the conclusion against the boundary and reject this misconception: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “C string representation: defined case”: state its starting evidence, apply the C string representation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: C string representation: defined case.",
+        "Starting evidence: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
+        "Core rule: A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
+        "Observable result: The defined result follows because Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.",
+        "Boundary check: Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
+        "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for C string representation, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace string length, storage capacity and termination in memory.",
+        "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.strings.representation.misconception",
+      "explanation": "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'null terminator' and state the decisive evidence: char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace string length, storage capacity and termination in memory. Keep this boundary in view: Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences.",
+    "retrievalPrompts": [
+      "Explain C string representation using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s.",
+      "Apply the checkpoint 'null terminator' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Bounded string processing”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

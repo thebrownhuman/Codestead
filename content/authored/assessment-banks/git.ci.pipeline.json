@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.ci.pipeline.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.ci-security-recovery",
+  "skillId": "git.ci.pipeline",
+  "title": "Continuous integration pipeline deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Continuous integration pipeline; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "github-docs",
+    "nist-ssdf"
+  ],
+  "items": [
+    {
+      "id": "git.ci.pipeline.mcq.misconception",
+      "skillId": "git.ci.pipeline",
+      "title": "Continuous integration pipeline: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? A green pipeline proves the software is correct and secure for every environment and remains valid after later commits.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes.",
+        "incorrect": "The selected statement preserves the documented misconception. Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Continuous integration pipeline instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "A green pipeline proves the software is correct and secure for every environment and remains valid after later commits."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+      }
+    }
+  ]
+}

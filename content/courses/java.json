@@ -1,0 +1,173 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "java",
+  "title": "Java: Beginner to Intermediate",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A JDK 21 LTS course from first execution through object modeling, interfaces, generics, collections, exceptions, I/O, streams, testing, builds and concurrency basics.",
+  "audience": {
+    "level": "beginner to intermediate",
+    "assumed_knowledge": ["Programming Foundations or equivalent diagnostic mastery"],
+    "target_capability": "Independently design, build, test and debug a packaged Java application using clear object models, generic collections, explicit error handling and standard build conventions."
+  },
+  "scope": {
+    "includes": ["JDK 21 LTS language and core APIs", "Compilation, bytecode, JVM and JShell", "Types, control flow, methods, arrays and strings", "Classes, records, interfaces, inheritance and polymorphism", "Generics and collections", "Exceptions, files and resource management", "Lambdas, streams and optionals", "Packages, Maven builds and JUnit tests", "Concurrency and virtual-thread concepts"],
+    "non_goals": ["Spring or Spring Boot", "Android development", "Jakarta EE", "Advanced JVM tuning or bytecode engineering", "Reflection-heavy framework design", "Every JDK API"]
+  },
+  "authoritative_sources": [
+    { "id": "dev-java", "title": "Learn Java", "url": "https://dev.java/learn/", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "jls21", "title": "Java Language Specification, Java SE 21", "url": "https://docs.oracle.com/javase/specs/jls/se21/html/", "type": "specification", "version_or_date": "Java SE 21" },
+    { "id": "junit5", "title": "JUnit 5 User Guide", "url": "https://junit.org/junit5/docs/current/user-guide/", "type": "official-docs", "version_or_date": "current accessed 2026-07" },
+    { "id": "maven", "title": "Apache Maven Getting Started Guide", "url": "https://maven.apache.org/guides/getting-started/", "type": "official-docs", "version_or_date": "current accessed 2026-07" },
+    { "id": "cs2023-sdf", "title": "CS2023 Software Development Fundamentals", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SDF-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" }
+  ],
+  "runtime": {
+    "kind": "programming-language",
+    "language": "Java",
+    "standard": "Java SE 21 LTS; preview features disabled",
+    "toolchain": ["OpenJDK 21", "javac --release 21 and java", "JShell", "Maven", "JUnit 5"],
+    "execution_environment": "Isolated Linux container with deterministic memory, CPU and time limits",
+    "file_extensions": [".java"],
+    "notes": ["Simple source files may introduce execution, but traditional classes, packages and main entry points remain required.", "Third-party framework content is kept in separately versioned extensions."]
+  },
+  "modules": [
+    {
+      "id": "java.toolchain",
+      "title": "Java platform and first programs",
+      "description": "Run, compile and diagnose Java source while distinguishing language, JDK and JVM.",
+      "required": true,
+      "prerequisites": ["pf.computing.execution", "pf.tools.terminal-editor"],
+      "skills": [
+        { "id": "java.toolchain.platform", "title": "JDK, JVM and Java language", "description": "Distinguish source-language rules, development tools, bytecode and runtime services.", "outcomes": ["Trace a Java source file through compilation and JVM execution."], "prerequisites": ["pf.computing.execution"], "evidence_types": ["visual", "explain", "concept-check"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.toolchain.first-program", "title": "First source and main", "description": "Write, compile and run a source file with a conventional application entry point.", "outcomes": ["Build and explain a minimal Java application from the command line."], "prerequisites": ["java.toolchain.platform"], "evidence_types": ["code", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.toolchain.jshell", "title": "JShell experiments", "description": "Use the REPL for bounded experiments while knowing when a saved program is required.", "outcomes": ["Test an expression or API behavior in JShell and transfer it into source code."], "prerequisites": ["java.toolchain.platform"], "evidence_types": ["performance", "artifact", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] },
+        { "id": "java.toolchain.diagnostics", "title": "Compiler and runtime diagnostics", "description": "Separate compile errors, exceptions and logic failures and use stack-trace locations.", "outcomes": ["Classify and repair representative compile-time and runtime failures."], "prerequisites": ["java.toolchain.first-program"], "evidence_types": ["debug", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "java.fundamentals",
+      "title": "Types, expressions and control flow",
+      "description": "Represent values and implement reliable decisions and iteration.",
+      "required": true,
+      "prerequisites": ["java.toolchain.first-program", "pf.state.expressions"],
+      "skills": [
+        { "id": "java.fundamentals.primitives", "title": "Primitive types and variables", "description": "Declare initialized primitive values, constants and inferred local variables with appropriate types.", "outcomes": ["Choose and use primitive types while explaining range, precision and default-value differences."], "prerequisites": ["java.toolchain.first-program"], "evidence_types": ["code", "concept-check", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.fundamentals.expressions", "title": "Operators and conversions", "description": "Evaluate arithmetic, relational, logical and conditional expressions including promotion and narrowing.", "outcomes": ["Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations."], "prerequisites": ["java.fundamentals.primitives", "pf.state.expressions"], "evidence_types": ["trace", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.fundamentals.selection", "title": "if and switch", "description": "Use statements and expressions for complete, readable decisions.", "outcomes": ["Implement and test boundary-complete branching including enum or string cases."], "prerequisites": ["java.fundamentals.expressions"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.fundamentals.iteration", "title": "Loops and branching", "description": "Use while, do, for and enhanced-for loops with deliberate termination and bounded access.", "outcomes": ["Implement and debug counted, sentinel and collection traversals."], "prerequisites": ["java.fundamentals.selection"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] }
+      ]
+    },
+    {
+      "id": "java.methods-data",
+      "title": "Methods, arrays and strings",
+      "description": "Decompose behavior and process core fixed and textual data representations.",
+      "required": true,
+      "prerequisites": ["java.fundamentals.iteration", "pf.abstraction.calls"],
+      "skills": [
+        { "id": "java.methods.contracts", "title": "Method contracts and parameters", "description": "Design static methods with cohesive purpose, typed parameters, return values and effects.", "outcomes": ["Implement and test methods while explaining Java's value-passing semantics."], "prerequisites": ["java.fundamentals.primitives", "pf.abstraction.functions"], "evidence_types": ["design", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.methods.overload-scope", "title": "Overloading and local scope", "description": "Create unambiguous overloads and reason about local, parameter and class-level names.", "outcomes": ["Resolve overload selection and repair shadowing or scope defects."], "prerequisites": ["java.methods.contracts", "java.fundamentals.expressions"], "evidence_types": ["trace", "debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.data.arrays", "title": "Arrays and multidimensional arrays", "description": "Create, index and traverse fixed-length arrays, including ragged two-dimensional structures.", "outcomes": ["Implement and test one- and two-dimensional array processing without bounds errors."], "prerequisites": ["java.fundamentals.iteration"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.data.strings", "title": "String and text processing", "description": "Use immutable strings, builders and Unicode-aware operations appropriately.", "outcomes": ["Implement text parsing and construction while avoiding reference-equality and concatenation pitfalls."], "prerequisites": ["java.methods.contracts", "java.data.arrays"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] }
+      ]
+    },
+    {
+      "id": "java.objects",
+      "title": "Classes, objects and records",
+      "description": "Model valid entities and values using encapsulation and clear construction.",
+      "required": true,
+      "prerequisites": ["java.methods.contracts", "pf.data.records"],
+      "skills": [
+        { "id": "java.objects.class", "title": "Classes, fields and methods", "description": "Encapsulate state and behavior behind a minimal public interface.", "outcomes": ["Design and implement a class with private representation and cohesive methods."], "prerequisites": ["java.methods.contracts", "pf.data.records"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.objects.constructors", "title": "Constructors and invariants", "description": "Initialize all required state, validate arguments and chain constructors deliberately.", "outcomes": ["Implement constructors that prevent invalid observable object state."], "prerequisites": ["java.objects.class"], "evidence_types": ["code", "test", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.objects.identity", "title": "References, identity and equality", "description": "Distinguish object references, null, identity, value equality and hashing contracts.", "outcomes": ["Implement and test equality and hashing for a value-like class."], "prerequisites": ["java.objects.constructors", "java.data.strings"], "evidence_types": ["trace", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.objects.records", "title": "Records and immutable data", "description": "Use records for transparent immutable carriers and classes when behavior or hidden representation dominates.", "outcomes": ["Choose and implement a record or class for a stated domain model and justify the choice."], "prerequisites": ["java.objects.identity"], "evidence_types": ["design", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] }
+      ]
+    },
+    {
+      "id": "java.abstraction",
+      "title": "Interfaces, inheritance and polymorphism",
+      "description": "Separate contracts from implementations and use inheritance with substitution discipline.",
+      "required": true,
+      "prerequisites": ["java.objects.constructors"],
+      "skills": [
+        { "id": "java.abstraction.interfaces", "title": "Interfaces", "description": "Define behavioral contracts and implement them with unrelated classes.", "outcomes": ["Design and use a focused interface with at least two conforming implementations."], "prerequisites": ["java.objects.class"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.abstraction.inheritance", "title": "Class inheritance", "description": "Extend a base class only for a valid substitution relationship and initialize base state correctly.", "outcomes": ["Evaluate and implement a small inheritance hierarchy without exposing mutable representation."], "prerequisites": ["java.abstraction.interfaces", "java.objects.constructors"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.abstraction.dispatch", "title": "Overriding and dynamic dispatch", "description": "Predict runtime method selection and distinguish overriding from overloading and hiding.", "outcomes": ["Trace polymorphic calls and repair an accidental non-override."], "prerequisites": ["java.abstraction.inheritance", "java.methods.overload-scope"], "evidence_types": ["trace", "debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.abstraction.composition", "title": "Composition over inheritance", "description": "Delegate to owned collaborators when reuse does not require subtype substitution.", "outcomes": ["Refactor a fragile hierarchy into composed collaborators with testable interfaces."], "prerequisites": ["java.abstraction.dispatch"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] }
+      ]
+    },
+    {
+      "id": "java.generics-collections",
+      "title": "Generics and collections",
+      "description": "Use parameterized APIs and select collection abstractions by behavior and cost.",
+      "required": true,
+      "prerequisites": ["java.abstraction.interfaces", "java.data.arrays"],
+      "skills": [
+        { "id": "java.generics.types", "title": "Generic types and methods", "description": "Parameterize reusable APIs and avoid raw types and unnecessary casts.", "outcomes": ["Implement and use a small generic class and generic method safely."], "prerequisites": ["java.abstraction.interfaces", "java.methods.contracts"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.generics.bounds", "title": "Bounds and wildcards", "description": "Express producer, consumer and subtype constraints without assuming invariant generic types are covariant.", "outcomes": ["Choose extends, super or a type parameter for a collection-processing API and explain why."], "prerequisites": ["java.generics.types", "java.abstraction.inheritance"], "evidence_types": ["design", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.collections.core", "title": "List, Set, Map and Queue", "description": "Use collection interfaces and choose implementations by ordering, uniqueness, lookup and mutation needs.", "outcomes": ["Select and use an appropriate collection for a stated problem and justify its trade-offs."], "prerequisites": ["java.generics.types", "pf.data.selection"], "evidence_types": ["code", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] },
+        { "id": "java.collections.iteration", "title": "Iteration, mutation and immutability", "description": "Traverse safely, avoid concurrent modification and use immutable views or copies intentionally.", "outcomes": ["Repair an unsafe collection mutation and document ownership of the resulting collection."], "prerequisites": ["java.collections.core", "java.generics.bounds"], "evidence_types": ["code", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] }
+      ]
+    },
+    {
+      "id": "java.errors-io",
+      "title": "Exceptions, resources and I/O",
+      "description": "Represent failures explicitly and persist data using safe resource boundaries.",
+      "required": true,
+      "prerequisites": ["java.objects.constructors", "java.data.strings"],
+      "skills": [
+        { "id": "java.errors.exceptions", "title": "Exception flow and stack traces", "description": "Throw, propagate and catch exceptions at responsible abstraction boundaries.", "outcomes": ["Trace exception propagation and preserve useful cause and context."], "prerequisites": ["java.methods.contracts", "java.toolchain.diagnostics"], "evidence_types": ["trace", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.errors.checked", "title": "Checked and unchecked exception design", "description": "Choose failure contracts without swallowing errors or using exceptions for normal flow.", "outcomes": ["Design and justify exception types and handling policy for a small API."], "prerequisites": ["java.errors.exceptions", "java.objects.class"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.io.files", "title": "Paths, files and text I/O", "description": "Read and write text with explicit charset, path and failure handling.", "outcomes": ["Implement tested file persistence using modern path and file APIs."], "prerequisites": ["java.errors.checked", "java.data.strings"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] },
+        { "id": "java.io.resources", "title": "Resource management and serialization boundaries", "description": "Use try-with-resources and prefer explicit data formats over unsafe native object deserialization.", "outcomes": ["Implement a failure-safe resource workflow and explain its cleanup behavior."], "prerequisites": ["java.io.files", "java.errors.exceptions"], "evidence_types": ["code", "trace", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] }
+      ]
+    },
+    {
+      "id": "java.functional",
+      "title": "Lambdas, streams and optionals",
+      "description": "Process collections declaratively while keeping effects and absence explicit.",
+      "required": true,
+      "prerequisites": ["java.collections.iteration", "java.abstraction.interfaces"],
+      "skills": [
+        { "id": "java.functional.lambdas", "title": "Functional interfaces and lambdas", "description": "Implement single-abstract-method behavior with method references and captured values.", "outcomes": ["Write and trace lambdas while avoiding mutable captured-state surprises."], "prerequisites": ["java.abstraction.interfaces", "java.collections.iteration"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.functional.streams", "title": "Stream pipelines", "description": "Use source, intermediate and terminal operations for finite in-memory processing.", "outcomes": ["Build and explain map-filter-reduce style pipelines without reusing consumed streams."], "prerequisites": ["java.functional.lambdas", "java.collections.core"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] },
+        { "id": "java.functional.collectors", "title": "Reduction and collectors", "description": "Aggregate values using associative reductions and standard collectors.", "outcomes": ["Choose and implement a reduction or collector with correct identity and combination behavior."], "prerequisites": ["java.functional.streams"], "evidence_types": ["code", "test", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] },
+        { "id": "java.functional.optional", "title": "Optional and explicit absence", "description": "Use Optional for return-value absence without replacing every nullable field or parameter.", "outcomes": ["Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract."], "prerequisites": ["java.functional.lambdas", "java.objects.identity"], "evidence_types": ["code", "design", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] }
+      ]
+    },
+    {
+      "id": "java.packaging-quality",
+      "title": "Packages, builds and tests",
+      "description": "Organize and verify a reproducible Java application.",
+      "required": true,
+      "prerequisites": ["java.errors-io", "java.functional"],
+      "skills": [
+        { "id": "java.packages.access", "title": "Packages and access control", "description": "Organize types and minimize public surface using language access levels.", "outcomes": ["Create a coherent package structure and justify each exposed type or member."], "prerequisites": ["java.objects.class", "java.abstraction.interfaces"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.build.maven", "title": "Maven project lifecycle", "description": "Declare coordinates, source layout, dependencies, plugins and reproducible test execution.", "outcomes": ["Build, test and package a multi-package application with Maven."], "prerequisites": ["java.packages.access", "java.toolchain.platform"], "evidence_types": ["artifact", "debug", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["maven"] },
+        { "id": "java.testing.junit", "title": "JUnit tests", "description": "Write isolated assertions, parameterized cases and exception tests with readable fixtures.", "outcomes": ["Create a deterministic unit test suite covering normal, boundary and failure behavior."], "prerequisites": ["java.build.maven", "java.errors.exceptions"], "evidence_types": ["test", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["junit5", "cs2023-sdf"] },
+        { "id": "java.quality.debug", "title": "Debugging, logging and final project", "description": "Use debugger state and structured logging without leaking secrets or replacing error handling.", "outcomes": ["Deliver and explain a tested multi-package CLI application with reproducible build output."], "prerequisites": ["java.testing.junit", "java.io.resources", "java.functional.collectors"], "evidence_types": ["debug", "project", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "java.runtime-concurrency",
+      "title": "Runtime and concurrency basics",
+      "description": "Reason about managed memory and safely coordinate modest concurrent tasks.",
+      "required": true,
+      "prerequisites": ["java.packaging-quality", "java.collections.core"],
+      "skills": [
+        { "id": "java.runtime.memory", "title": "References, heap and garbage collection", "description": "Explain reachability and managed reclamation without assuming collection timing or absence of leaks.", "outcomes": ["Diagnose a retention or aliasing problem using a reachability model."], "prerequisites": ["java.objects.identity", "java.collections.core"], "evidence_types": ["visual", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java", "jls21"] },
+        { "id": "java.concurrency.tasks", "title": "Threads, tasks and executors", "description": "Express units of work and manage execution through structured executor boundaries.", "outcomes": ["Run independent tasks and collect results while shutting down resources correctly."], "prerequisites": ["java.errors.exceptions", "java.functional.lambdas"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] },
+        { "id": "java.concurrency.shared-state", "title": "Race conditions and synchronization", "description": "Recognize non-atomic compound actions and prefer confinement or immutable messages over shared mutation.", "outcomes": ["Expose and repair a deterministic shared-state race in a teaching example."], "prerequisites": ["java.concurrency.tasks", "java.runtime.memory"], "evidence_types": ["trace", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] },
+        { "id": "java.concurrency.virtual", "title": "Virtual-thread use cases", "description": "Use virtual threads for numerous blocking tasks while distinguishing them from CPU parallelism.", "outcomes": ["Choose between sequential, platform-thread, virtual-thread and stream-based execution for a stated workload."], "prerequisites": ["java.concurrency.tasks", "java.concurrency.shared-state"], "evidence_types": ["design", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["dev-java"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Build and diagnose a reproducible multi-package Java application on JDK 21 LTS.",
+    "Model domain behavior with classes, records, interfaces, composition and justified inheritance.",
+    "Use generics, collections, streams, exceptions and modern file APIs with explicit contracts and tests.",
+    "Explain JVM execution, managed memory and basic task concurrency while avoiding unsafe shared state."
+  ],
+  "coverage_summary": { "required_skills": 40, "elective_skills": 0, "total_skills": 40, "covered": 40, "partial": 0, "planned": 0 }
+}

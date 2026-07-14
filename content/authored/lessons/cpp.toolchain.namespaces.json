@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.toolchain.namespaces.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.toolchain",
+  "skillId": "cpp.toolchain.namespaces",
+  "title": "Namespaces and qualified names",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Namespaces and qualified names; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to Namespaces and qualified names",
+      "claim": "Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope."
+    },
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Namespaces and qualified names",
+      "claim": "Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function. Your goal is to resolve and correct ambiguous or hidden names using explicit qualification. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Program structure and main. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Argument-dependent lookup, inline and anonymous namespaces, aliases, and broad using directives can change lookup or linkage in non-obvious ways. Therefore the draft explicitly rejects this beginner failure model: using namespace creates a copy of that namespace's objects and is harmless in public headers."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use namespaces to organize APIs and avoid broad using-directives in headers.",
+      "Resolve and correct ambiguous or hidden names using explicit qualification."
+    ],
+    "excludes": [
+      "Argument-dependent lookup, inline and anonymous namespaces, aliases, and broad using directives can change lookup or linkage in non-obvious ways."
+    ]
+  },
+  "outcomes": [
+    "Resolve and correct ambiguous or hidden names using explicit qualification."
+  ],
+  "examples": [
+    {
+      "id": "cpp.toolchain.namespaces.example-a",
+      "title": "Namespaces and qualified names: defined case",
+      "situation": "A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations."
+      ],
+      "result": "The defined result follows because A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations."
+    },
+    {
+      "id": "cpp.toolchain.namespaces.example-b",
+      "title": "Namespaces and qualified names: boundary case",
+      "situation": "A header avoids using namespace std because it would inject many names into every including translation unit.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A header avoids using namespace std because it would inject many names into every including translation unit.",
+        "Step 2 — Keep this standard boundary visible: Argument-dependent lookup, inline and anonymous namespaces, aliases, and broad using directives can change lookup or linkage in non-obvious ways.",
+        "Step 3 — Reject the tempting rule: using namespace creates a copy of that namespace's objects and is harmless in public headers."
+      ],
+      "result": "This case demonstrates the declared outcome: Resolve and correct ambiguous or hidden names using explicit qualification."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.toolchain.namespaces.misconception",
+      "mistakenBelief": "using namespace creates a copy of that namespace's objects and is harmless in public headers.",
+      "correction": "A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: using namespace creates a copy of that namespace's objects and is harmless in public headers."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Namespaces and qualified names: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "Argument-dependent lookup, inline and anonymous namespaces, aliases, and broad using directives can change lookup or linkage in non-obvious ways."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function.",
+      "Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope.",
+      "A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: using namespace creates a copy of that namespace's objects and is harmless in public headers."
+      }
+    ],
+    "textAlternative": "Starting artifact: A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function. Step 1, Source and state. State: evidence: A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations.. Check the conclusion against the boundary and reject this misconception: using namespace creates a copy of that namespace's objects and is harmless in public headers."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Namespaces and qualified names: defined case”: state its starting evidence, apply the Namespaces and qualified names rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Namespaces and qualified names: defined case.",
+        "Starting evidence: A library exposes learn::parse and the caller uses the qualified name, avoiding collision with another parse function.",
+        "Core rule: Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope.",
+        "Observable result: The defined result follows because A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations.",
+        "Boundary check: A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A header avoids using namespace std because it would inject many names into every including translation unit.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Namespaces organize names and control lookup without creating runtime objects; qualified names make ownership explicit and using declarations import selected names into a scope.",
+        "Argument-dependent lookup, inline and anonymous namespaces, aliases, and broad using directives can change lookup or linkage in non-obvious ways."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Namespaces and qualified names, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Resolve and correct ambiguous or hidden names using explicit qualification.",
+        "A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.toolchain.namespaces.misconception",
+      "explanation": "A using directive affects name lookup, not object creation; avoid broad directives in headers and prefer qualification or narrow using declarations.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'name lookup' and state the decisive evidence: A header avoids using namespace std because it would inject many names into every including translation unit."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to resolve and correct ambiguous or hidden names using explicit qualification. Keep this boundary in view: Argument-dependent lookup, inline and anonymous namespaces, aliases, and broad using directives can change lookup or linkage in non-obvious ways.",
+    "retrievalPrompts": [
+      "Explain Namespaces and qualified names using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: using namespace creates a copy of that namespace's objects and is harmless in public headers.",
+      "Apply the checkpoint 'name lookup' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Warnings and diagnostics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

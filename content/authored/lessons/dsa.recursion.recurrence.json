@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.recursion.recurrence.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.recursion-divide",
+  "skillId": "dsa.recursion.recurrence",
+  "title": "Recurrence reasoning",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Recurrence reasoning; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Recurrence reasoning",
+      "claim": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound."
+    },
+    {
+      "sourceRef": "cs2023-msf",
+      "locator": "CS2023 Mathematical and Statistical Foundations; August 2023; material applicable to Recurrence reasoning",
+      "claim": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions. Your goal is to derive and solve or bound simple decrease-by-one and divide-by-factor recurrences. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations; Call stack and resource cost; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments. The draft therefore rejects: Dropping the recursive term and keeping only local work gives the total complexity."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Express recursive work as a recurrence and estimate common growth patterns.",
+      "Derive and solve or bound simple decrease-by-one and divide-by-factor recurrences.",
+      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+    ],
+    "excludes": [
+      "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+    ]
+  },
+  "outcomes": [
+    "Derive and solve or bound simple decrease-by-one and divide-by-factor recurrences."
+  ],
+  "examples": [
+    {
+      "id": "dsa.recursion.recurrence.example-a",
+      "title": "Recurrence reasoning: language-neutral trace",
+      "situation": "T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Include every recursive subproblem and combine level work across the recursion tree."
+      ],
+      "result": "The conceptual result follows because Include every recursive subproblem and combine level work across the recursion tree."
+    },
+    {
+      "id": "dsa.recursion.recurrence.example-b",
+      "title": "Recurrence reasoning: implementation transfer",
+      "situation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+        "Step 3 — Retest this boundary in the selected implementation: Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.recursion.recurrence.misconception",
+      "mistakenBelief": "Dropping the recursive term and keeping only local work gives the total complexity.",
+      "correction": "Include every recursive subproblem and combine level work across the recursion tree.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Dropping the recursive term and keeping only local work gives the total complexity."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Recurrence reasoning, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
+      "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
+      "Include every recursive subproblem and combine level work across the recursion tree.",
+      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Include every recursive subproblem and combine level work across the recursion tree."
+        },
+        "explanation": "Verify the result and reject this misconception: Dropping the recursive term and keeping only local work gives the total complexity."
+      }
+    ],
+    "textAlternative": "Starting artifact: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions. Step 1, Specification. State: scenario: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input. Step 4, Conclusion. State: correction: Include every recursive subproblem and combine level work across the recursion tree.. Verify the result and reject this misconception: Dropping the recursive term and keeping only local work gives the total complexity."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Recurrence reasoning: language-neutral trace”: state its starting evidence, apply the Recurrence reasoning rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Recurrence reasoning: language-neutral trace.",
+        "Starting evidence: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
+        "Core rule: A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
+        "Observable result: The conceptual result follows because Include every recursive subproblem and combine level work across the recursion tree.",
+        "Boundary check: Include every recursive subproblem and combine level work across the recursion tree."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+        "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Recurrence reasoning case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Derive and solve or bound simple decrease-by-one and divide-by-factor recurrences.",
+        "Include every recursive subproblem and combine level work across the recursion tree."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.recursion.recurrence.misconception",
+      "explanation": "Include every recursive subproblem and combine level work across the recursion tree.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'recursion tree', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to derive and solve or bound simple decrease-by-one and divide-by-factor recurrences. Keep this boundary in view: Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments.",
+    "retrievalPrompts": [
+      "State the Recurrence reasoning invariant and complexity without code.",
+      "Why is this claim false: Dropping the recursive term and keeping only local work gives the total complexity.",
+      "Map checkpoint 'recursion tree' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Divide-and-conquer strategy”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

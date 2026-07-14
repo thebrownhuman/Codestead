@@ -1,0 +1,230 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.entry.language-readiness.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.entry-analysis",
+  "skillId": "dsa.entry.language-readiness",
+  "title": "Selected-language readiness",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Selected-language readiness; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; material applicable to Selected-language readiness",
+      "claim": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; material applicable to Selected-language readiness",
+      "claim": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language."
+    },
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; accessed 2026-07; material applicable to Selected-language readiness",
+      "claim": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language."
+    },
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; material applicable to Selected-language readiness",
+      "claim": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language."
+    },
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; material applicable to Selected-language readiness",
+      "claim": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it. Your goal is to pass an implementation diagnostic or receive a targeted prerequisite remediation map. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf problem pseudocode; pf tools debug test; pf abstraction recursion. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch. The draft therefore rejects: Knowing DSA concepts removes the need for implementation-language prerequisites."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Demonstrate functions, sequences, recursion, testing and debugging in the selected language before DSA implementation.",
+      "Pass an implementation diagnostic or receive a targeted prerequisite remediation map.",
+      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+    ],
+    "excludes": [
+      "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+    ]
+  },
+  "outcomes": [
+    "Pass an implementation diagnostic or receive a targeted prerequisite remediation map."
+  ],
+  "examples": [
+    {
+      "id": "dsa.entry.language-readiness.example-a",
+      "title": "Selected-language readiness: language-neutral trace",
+      "situation": "A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+      ],
+      "result": "The conceptual result follows because Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+    },
+    {
+      "id": "dsa.entry.language-readiness.example-b",
+      "title": "Selected-language readiness: implementation transfer",
+      "situation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+        "Step 3 — Retest this boundary in the selected implementation: Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.entry.language-readiness.misconception",
+      "mistakenBelief": "Knowing DSA concepts removes the need for implementation-language prerequisites.",
+      "correction": "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Knowing DSA concepts removes the need for implementation-language prerequisites."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Selected-language readiness, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
+      "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
+      "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
+      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+        },
+        "explanation": "Verify the result and reject this misconception: Knowing DSA concepts removes the need for implementation-language prerequisites."
+      }
+    ],
+    "textAlternative": "Starting artifact: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it. Step 1, Specification. State: scenario: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics. Step 4, Conclusion. State: correction: Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.. Verify the result and reject this misconception: Knowing DSA concepts removes the need for implementation-language prerequisites."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Selected-language readiness: language-neutral trace”: state its starting evidence, apply the Selected-language readiness rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Selected-language readiness: language-neutral trace.",
+        "Starting evidence: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
+        "Core rule: DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
+        "Observable result: The conceptual result follows because Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
+        "Boundary check: Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+        "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Selected-language readiness case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Pass an implementation diagnostic or receive a targeted prerequisite remediation map.",
+        "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.entry.language-readiness.misconception",
+      "explanation": "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'implementation readiness', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to pass an implementation diagnostic or receive a targeted prerequisite remediation map. Keep this boundary in view: Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch.",
+    "retrievalPrompts": [
+      "State the Selected-language readiness invariant and complexity without code.",
+      "Why is this claim false: Knowing DSA concepts removes the need for implementation-language prerequisites.",
+      "Map checkpoint 'implementation readiness' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Algorithm specification and invariants”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

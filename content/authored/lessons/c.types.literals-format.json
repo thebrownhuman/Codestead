@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.types.literals-format.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.types",
+  "skillId": "c.types.literals-format",
+  "title": "Literals and formatted I/O types",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Literals and formatted I/O types; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Literals and formatted I/O types",
+      "claim": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Literals and formatted I/O types",
+      "claim": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target. Your goal is to repair mismatched literals and formatted I/O conversions without invoking undefined behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Translation unit and main; pf state expressions; Scalar types and declarations. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior. Therefore the draft explicitly rejects this beginner failure model: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Match literal forms, suffixes and format specifiers to types.",
+      "Repair mismatched literals and formatted I/O conversions without invoking undefined behavior."
+    ],
+    "excludes": [
+      "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior."
+    ]
+  },
+  "outcomes": [
+    "Repair mismatched literals and formatted I/O conversions without invoking undefined behavior."
+  ],
+  "examples": [
+    {
+      "id": "c.types.literals-format.example-a",
+      "title": "Literals and formatted I/O types: defined case",
+      "situation": "A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+      ],
+      "result": "The defined result follows because Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+    },
+    {
+      "id": "c.types.literals-format.example-b",
+      "title": "Literals and formatted I/O types: boundary case",
+      "situation": "A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required.",
+        "Step 2 — Keep this standard boundary visible: Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior.",
+        "Step 3 — Reject the tempting rule: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+      ],
+      "result": "This case demonstrates the declared outcome: Repair mismatched literals and formatted I/O conversions without invoking undefined behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.types.literals-format.misconception",
+      "mistakenBelief": "Any integer can safely be printed with %d because printf converts numeric argument types automatically.",
+      "correction": "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Literals and formatted I/O types: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
+      "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
+      "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+      }
+    ],
+    "textAlternative": "Starting artifact: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target. Step 1, Source and state. State: evidence: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.. Check the conclusion against the boundary and reject this misconception: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Literals and formatted I/O types: defined case”: state its starting evidence, apply the Literals and formatted I/O types rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Literals and formatted I/O types: defined case.",
+        "Starting evidence: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
+        "Core rule: Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
+        "Observable result: The defined result follows because Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.",
+        "Boundary check: Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
+        "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Literals and formatted I/O types, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Repair mismatched literals and formatted I/O conversions without invoking undefined behavior.",
+        "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.types.literals-format.misconception",
+      "explanation": "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint '%zu' and state the decisive evidence: A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair mismatched literals and formatted I/O conversions without invoking undefined behavior. Keep this boundary in view: Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior.",
+    "retrievalPrompts": [
+      "Explain Literals and formatted I/O types using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: Any integer can safely be printed with %d because printf converts numeric argument types automatically.",
+      "Apply the checkpoint '%zu' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Operators and precedence”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

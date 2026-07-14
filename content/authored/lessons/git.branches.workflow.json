@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.branches.workflow.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.branches",
+  "skillId": "git.branches.workflow",
+  "title": "Short-lived feature branches",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Short-lived feature branches; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Short-lived feature branches",
+      "claim": "A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Short-lived feature branches",
+      "claim": "A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A short feature branch begins from current main, contains one tested concern, and opens a review before merging back. Your goal is to complete an isolated feature branch and verify the base and tip before integration. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Commits and history; Branches as movable refs; Commit messages and scope. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Long-lived divergence, stacked branches, release branches, and protected targets require project-specific update and integration rules. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create, switch, update and delete branches around one coherent change.",
+      "Complete an isolated feature branch and verify the base and tip before integration."
+    ],
+    "excludes": [
+      "Long-lived divergence, stacked branches, release branches, and protected targets require project-specific update and integration rules."
+    ]
+  },
+  "outcomes": [
+    "Complete an isolated feature branch and verify the base and tip before integration."
+  ],
+  "examples": [
+    {
+      "id": "git.branches.workflow.example-a",
+      "title": "Short-lived feature branches: direct case",
+      "situation": "A short feature branch begins from current main, contains one tested concern, and opens a review before merging back.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A short feature branch begins from current main, contains one tested concern, and opens a review before merging back.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+      ],
+      "result": "The case supports the declared outcome because Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+    },
+    {
+      "id": "git.branches.workflow.example-b",
+      "title": "Short-lived feature branches: boundary case",
+      "situation": "Before new work, the learner verifies the active branch and clean status so changes do not accidentally land on main.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: Before new work, the learner verifies the active branch and clean status so changes do not accidentally land on main.",
+        "Step 2 — Keep this boundary explicit: Long-lived divergence, stacked branches, release branches, and protected targets require project-specific update and integration rules.",
+        "Step 3 — Reject the documented misconception: Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target."
+      ],
+      "result": "This case demonstrates the declared outcome: Complete an isolated feature branch and verify the base and tip before integration."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.branches.workflow.misconception",
+      "mistakenBelief": "Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target.",
+      "correction": "Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A route map can model Short-lived feature branches: movable signposts identify current destinations, routes diverge, and integration reconnects selected paths.",
+    "usefulFor": [
+      "Visualizing references, divergence, ancestry, merge bases, and reconciled paths"
+    ],
+    "limitations": [
+      "Branches are lightweight references to commits, not copied roads or independent containers of files.",
+      "Long-lived divergence, stacked branches, release branches, and protected targets require project-specific update and integration rules."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A short feature branch begins from current main, contains one tested concern, and opens a review before merging back.",
+      "A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration.",
+      "Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A short feature branch begins from current main, contains one tested concern, and opens a review before merging back."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration."
+        },
+        "explanation": "Apply the declared Short-lived feature branches model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target."
+      }
+    ],
+    "textAlternative": "Starting artifact: A short feature branch begins from current main, contains one tested concern, and opens a review before merging back. Step 1, Observe. State: evidence: A short feature branch begins from current main, contains one tested concern, and opens a review before merging back.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration.. Apply the declared Short-lived feature branches model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process.. Compare the observation with the correction and reject the misconception: Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Short-lived feature branches: direct case”: state its starting evidence, apply the Short-lived feature branches rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Short-lived feature branches: direct case.",
+        "Starting evidence: A short feature branch begins from current main, contains one tested concern, and opens a review before merging back.",
+        "Core rule: A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration.",
+        "Observable result: The case supports the declared outcome because Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process.",
+        "Boundary check: Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: Before new work, the learner verifies the active branch and clean status so changes do not accidentally land on main.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A branch workflow isolates a coherent change, starts from an intentional base, incorporates reviewable commits, and synchronizes with the target branch before integration.",
+        "Long-lived divergence, stacked branches, release branches, and protected targets require project-specific update and integration rules."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Short-lived feature branches, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Complete an isolated feature branch and verify the base and tip before integration.",
+        "Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.branches.workflow.misconception",
+      "explanation": "Branches provide named isolation, but developers must choose the base, keep scope coherent, update deliberately, test, and integrate through the agreed process.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Before new work, the learner verifies the active branch and clean status so changes do not accidentally land on main."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to complete an isolated feature branch and verify the base and tip before integration. Keep this boundary in view: Long-lived divergence, stacked branches, release branches, and protected targets require project-specific update and integration rules.",
+    "retrievalPrompts": [
+      "Explain Short-lived feature branches without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Creating many branches automatically prevents conflicts and guarantees changes are based on the latest target.",
+      "Apply the model to this case from memory: Before new work, the learner verifies the active branch and clean status so changes do not accidentally land on main."
+    ],
+    "nextReviewPrompt": "Next: continue to “Fast-forward and three-way merge”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

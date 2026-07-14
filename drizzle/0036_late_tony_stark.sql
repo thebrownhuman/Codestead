@@ -1,0 +1,4 @@
+ALTER TABLE "assessment_regrade_job" ADD COLUMN "runner_request_generation" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "exam_finalization_job" ADD COLUMN "runner_request_generation" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "assessment_regrade_job" ADD CONSTRAINT "assessment_regrade_job_runner_generation" CHECK ("assessment_regrade_job"."runner_request_generation" >= 1);--> statement-breakpoint
+ALTER TABLE "exam_finalization_job" ADD CONSTRAINT "exam_finalization_job_runner_generation_check" CHECK ("exam_finalization_job"."runner_request_generation" >= 1);

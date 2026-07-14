@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.practice.feedback.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.learning-practice",
+  "skillId": "pf.practice.feedback",
+  "title": "Using feedback deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Using feedback; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "ies-learning"
+  ],
+  "items": [
+    {
+      "id": "pf.practice.feedback.mcq.misconception",
+      "skillId": "pf.practice.feedback",
+      "title": "Using feedback: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Once the correct answer is shown, recognizing it means the underlying skill has been learned.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.",
+        "incorrect": "The selected statement preserves the documented misconception. Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Using feedback instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+      }
+    }
+  ]
+}

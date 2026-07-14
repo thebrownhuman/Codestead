@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.grid.tracks.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.flex-grid",
+  "skillId": "css.grid.tracks",
+  "title": "Grid tracks and placement",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Grid tracks and placement; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Grid tracks and placement",
+      "claim": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Grid tracks and placement",
+      "claim": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns. Your goal is to implement and inspect a two-dimensional page or component grid. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Normal flow and display; Intrinsic sizing and constraints. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order. This draft therefore rejects: 1fr means one equal fraction of the entire container before content minimums are considered."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Define explicit and implicit tracks with repeat, minmax, lines and named areas.",
+      "Implement and inspect a two-dimensional page or component grid."
+    ],
+    "excludes": [
+      "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order."
+    ]
+  },
+  "outcomes": [
+    "Implement and inspect a two-dimensional page or component grid."
+  ],
+  "examples": [
+    {
+      "id": "css.grid.tracks.example-a",
+      "title": "Grid tracks and placement: concrete case",
+      "situation": "A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+      ],
+      "result": "The result follows because Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+    },
+    {
+      "id": "css.grid.tracks.example-b",
+      "title": "Grid tracks and placement: boundary case",
+      "situation": "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: 1fr means one equal fraction of the entire container before content minimums are considered."
+      ],
+      "result": "The boundary requires this correction: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.grid.tracks.misconception",
+      "mistakenBelief": "1fr means one equal fraction of the entire container before content minimums are considered.",
+      "correction": "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: 1fr means one equal fraction of the entire container before content minimums are considered."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Grid tracks and placement, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Grid tracks and placement before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
+      "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
+      "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: 1fr means one equal fraction of the entire container before content minimums are considered."
+      }
+    ],
+    "textAlternative": "Starting artifact: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns. Step 1, Artifact. State: evidence: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.. Check the result against the boundary and reject this misconception: 1fr means one equal fraction of the entire container before content minimums are considered."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Grid tracks and placement: concrete case”: state its starting evidence, apply the Grid tracks and placement rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Grid tracks and placement: concrete case.",
+        "Starting evidence: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
+        "Core rule: Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
+        "Observable result: The result follows because Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.",
+        "Boundary check: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
+        "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Grid tracks and placement and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and inspect a two-dimensional page or component grid.",
+        "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.grid.tracks.misconception",
+      "explanation": "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'leftover space' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and inspect a two-dimensional page or component grid. Keep this boundary in view: Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
+    "retrievalPrompts": [
+      "Explain Grid tracks and placement using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: 1fr means one equal fraction of the entire container before content minimums are considered.",
+      "Apply checkpoint 'leftover space' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Intrinsic responsive grids”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.backtracking.search.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.strategies",
+  "skillId": "dsa.backtracking.search",
+  "title": "Backtracking search",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Backtracking search; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Backtracking search",
+      "claim": "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails. Your goal is to implement and test a permutation, subset or constraint-placement solver with pruning. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Recursion and divide-and-conquer; Hash tables, sets and maps; Recursive problem design; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly. The draft therefore rejects: Backtracking becomes polynomial whenever one pruning condition is added."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose, recurse, undo and prune a decision tree while preserving candidate state.",
+      "Implement and test a permutation, subset or constraint-placement solver with pruning.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "excludes": [
+      "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+    ]
+  },
+  "outcomes": [
+    "Implement and test a permutation, subset or constraint-placement solver with pruning."
+  ],
+  "examples": [
+    {
+      "id": "dsa.backtracking.search.example-a",
+      "title": "Backtracking search: language-neutral trace",
+      "situation": "A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+      ],
+      "result": "The conceptual result follows because Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+    },
+    {
+      "id": "dsa.backtracking.search.example-b",
+      "title": "Backtracking search: implementation transfer",
+      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "Step 3 — Retest this boundary in the selected implementation: Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.backtracking.search.misconception",
+      "mistakenBelief": "Backtracking becomes polynomial whenever one pruning condition is added.",
+      "correction": "Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Backtracking becomes polynomial whenever one pruning condition is added."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Backtracking search, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
+      "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
+      "Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
+      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+        },
+        "explanation": "Verify the result and reject this misconception: Backtracking becomes polynomial whenever one pruning condition is added."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails. Step 1, Specification. State: scenario: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: Pruning can reduce explored states but does not automatically change exponential worst-case complexity.. Verify the result and reject this misconception: Backtracking becomes polynomial whenever one pruning condition is added."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Backtracking search: language-neutral trace”: state its starting evidence, apply the Backtracking search rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Backtracking search: language-neutral trace.",
+        "Starting evidence: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
+        "Core rule: Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
+        "Observable result: The conceptual result follows because Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
+        "Boundary check: Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+        "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Backtracking search case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement and test a permutation, subset or constraint-placement solver with pruning.",
+        "Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.backtracking.search.misconception",
+      "explanation": "Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'exponential worst-case', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test a permutation, subset or constraint-placement solver with pruning. Keep this boundary in view: Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly.",
+    "retrievalPrompts": [
+      "State the Backtracking search invariant and complexity without code.",
+      "Why is this claim false: Backtracking becomes polynomial whenever one pruning condition is added.",
+      "Map checkpoint 'exponential worst-case' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Overlapping subproblems and memoization”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

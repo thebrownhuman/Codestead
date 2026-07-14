@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.state.expressions.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.state",
+  "skillId": "pf.state.expressions",
+  "title": "Expressions and evaluation deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Expressions and evaluation; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.state.expressions.mcq.misconception",
+      "skillId": "pf.state.expressions",
+      "title": "Expressions and evaluation: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.",
+        "incorrect": "The selected statement preserves the documented misconception. Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Expressions and evaluation instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+      }
+    }
+  ]
+}
