@@ -24,8 +24,11 @@ vi.mock("@/lib/storage/quota-store", () => ({
 
 import { GET, POST } from "../route";
 
+const originalUploadsEnabled = process.env.UPLOADS_ENABLED;
+
 describe("learner file API integrity metadata boundary", () => {
   beforeEach(async () => {
+    process.env.UPLOADS_ENABLED = "true";
     vi.clearAllMocks();
     mocks.root = await mkdtemp(path.join(tmpdir(), "learncoding-file-route-test-"));
     mocks.requireAuth.mockResolvedValue({
@@ -36,6 +39,8 @@ describe("learner file API integrity metadata boundary", () => {
   });
 
   afterEach(async () => {
+    if (originalUploadsEnabled === undefined) delete process.env.UPLOADS_ENABLED;
+    else process.env.UPLOADS_ENABLED = originalUploadsEnabled;
     await rm(mocks.root, { recursive: true, force: true });
   });
 
@@ -63,6 +68,7 @@ describe("learner file API integrity metadata boundary", () => {
     expect(firstProjection).not.toHaveProperty("sha256");
     const body = await response.json();
     expect(body.files[0]).toMatchObject({ id: "file-1", name: "main.py", sizeBytes: 5 });
+    expect(body.uploadsEnabled).toBe(true);
     expect(JSON.stringify(body)).not.toContain("sha256");
     expect(response.headers.get("cache-control")).toContain("no-store");
   });
@@ -84,5 +90,21 @@ describe("learner file API integrity metadata boundary", () => {
     expect(body.file).toMatchObject({ name: "main.py", sizeBytes: 5 });
     expect(body.file).not.toHaveProperty("sha256");
     expect(JSON.stringify(body)).not.toContain("sha256");
+  });
+
+  it("rejects disabled uploads before reading the request body", async () => {
+    process.env.UPLOADS_ENABLED = "false";
+    const formData = vi.fn(async () => {
+      throw new Error("body was parsed");
+    });
+    const response = await POST({ formData } as unknown as NextRequest);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      code: "UPLOADS_DISABLED",
+      error: "Project file uploads are disabled during the private pilot.",
+    });
+    expect(formData).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(response.headers.get("cache-control")).toContain("no-store");
   });
 });

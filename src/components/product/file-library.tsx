@@ -18,6 +18,7 @@ type StoredFile = {
 
 type FileLibraryResponse = {
   readonly files: readonly StoredFile[];
+  readonly uploadsEnabled: boolean;
   readonly quota: { readonly usedBytes: number; readonly limitBytes: number };
 };
 
@@ -122,21 +123,30 @@ export function FileLibrary() {
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {message && <p aria-live="polite" className={styles.success} role="status">{message}</p>}
-      <div className={styles.fileUploadRow}>
-        <label>
-          <span className="sr-only">Choose a project file</span>
-          <input
-            accept=".c,.h,.cpp,.cc,.cxx,.hpp,.java,.py,.pyi,.js,.mjs,.ts,.tsx,.jsx,.html,.css,.json,.md,.txt,.csv,.sql,.pdf,.png,.jpg,.jpeg,.gif,.webp"
-            disabled={busy}
-            ref={inputRef}
-            type="file"
-          />
-        </label>
-        <button className="button button-secondary" disabled={busy} onClick={() => void upload()} type="button">
-          <FileUp size={15} /> Upload
-        </button>
-      </div>
-      <p className={styles.fileSafety}><ShieldCheck size={14} /> Executables and archives are rejected. Files remain quarantined until the isolated malware scanner marks them safe.</p>
+      {library?.uploadsEnabled ? (
+        <>
+          <div className={styles.fileUploadRow}>
+            <label>
+              <span className="sr-only">Choose a project file</span>
+              <input
+                accept=".c,.h,.cpp,.cc,.cxx,.hpp,.java,.py,.pyi,.js,.mjs,.ts,.tsx,.jsx,.html,.css,.json,.md,.txt,.csv,.sql,.pdf,.png,.jpg,.jpeg,.gif,.webp"
+                disabled={busy}
+                ref={inputRef}
+                type="file"
+              />
+            </label>
+            <button className="button button-secondary" disabled={busy} onClick={() => void upload()} type="button">
+              <FileUp size={15} /> Upload
+            </button>
+          </div>
+          <p className={styles.fileSafety}><ShieldCheck size={14} /> Executables and archives are rejected. Files remain quarantined until the isolated malware scanner marks them safe.</p>
+        </>
+      ) : (
+        <p className={styles.fileSafety}>
+          <ShieldCheck size={14} />
+          Uploads are disabled during the private pilot. Existing safe files remain available.
+        </p>
+      )}
       {!library ? (
         <p className={styles.fileEmpty}>Loading private file metadata…</p>
       ) : library.files.length === 0 ? (

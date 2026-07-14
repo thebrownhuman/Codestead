@@ -18,6 +18,7 @@ import {
   reserveStoredObject,
   StorageQuotaExceededError,
 } from "@/lib/storage/quota-store";
+import { uploadsEnabled } from "@/lib/storage/upload-feature";
 
 const MEDIA_TYPES: Readonly<Record<string, string>> = {
   ".pdf": "application/pdf",
@@ -61,6 +62,7 @@ export async function GET() {
   const activeFiles = files.filter((file) => file.scanStatus !== "deleted");
   return NextResponse.json({
     files: activeFiles,
+    uploadsEnabled: uploadsEnabled(),
     quota: {
       usedBytes: activeFiles.reduce((sum, file) => sum + file.sizeBytes, 0),
       limitBytes: profile?.quota ?? DEFAULT_STORAGE_QUOTA_BYTES,
@@ -71,6 +73,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const authz = await requireAuth({ closedBookCapability: "learner_files" });
   if (!authz.session) return authz.response;
+  if (!uploadsEnabled()) {
+    return NextResponse.json(
+      {
+        code: "UPLOADS_DISABLED",
+        error: "Project file uploads are disabled during the private pilot.",
+      },
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
   return withRateLimit(
     { policy: "file_upload_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {

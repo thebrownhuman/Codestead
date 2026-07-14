@@ -12,6 +12,7 @@ function json(body: unknown, init: ResponseInit = {}) {
 }
 
 const populated = {
+  uploadsEnabled: true,
   files: [
     { id: "safe-1", name: "solution.py", mediaType: "text/plain", sizeBytes: 1200, scanStatus: "safe", createdAt: "2026-07-12T00:00:00Z" },
     { id: "pending-1", name: "diagram.png", mediaType: "image/png", sizeBytes: 2400, scanStatus: "pending", createdAt: "2026-07-12T00:00:00Z" },
@@ -46,7 +47,11 @@ describe("learner project file library", () => {
       calls.push({ url, method, body: init?.body });
       if (url === "/api/files" && method === "GET") {
         getCount += 1;
-        return json(getCount === 1 ? populated : { files: [], quota: { usedBytes: 0, limitBytes: 2 * 1024 ** 3 } });
+        return json(getCount === 1 ? populated : {
+          uploadsEnabled: true,
+          files: [],
+          quota: { usedBytes: 0, limitBytes: 2 * 1024 ** 3 },
+        });
       }
       if (url === "/api/files" && method === "POST") return json({ file: { id: "new" } }, { status: 201 });
       if (url === "/api/files/safe-1" && method === "DELETE") return new Response(null, { status: 204 });
@@ -83,5 +88,18 @@ describe("learner project file library", () => {
     await user.click(screen.getByRole("button", { name: "Confirm delete" }));
     await screen.findByText(/quota reservation released/i);
     expect(fetchMock).toHaveBeenCalledWith("/api/files/safe-1", { method: "DELETE" });
+  });
+
+  it("keeps existing files usable while pilot uploads are disabled", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json({
+      ...populated,
+      uploadsEnabled: false,
+    })));
+    render(<FileLibrary />);
+    expect(await screen.findByText("solution.py")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Choose a project file")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Uploads are disabled during the private pilot/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Download/i })).toBeInTheDocument();
   });
 });
