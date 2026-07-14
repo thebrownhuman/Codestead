@@ -31,6 +31,7 @@ export interface ProductionMigrationOptions {
   drizzle?: (client: MigrationClient) => unknown;
   migrationsFolder?: string;
   lockOptions?: MigrationLockOptions;
+  unlockTimeoutMs?: number;
 }
 
 export function acquireMigrationLock(
