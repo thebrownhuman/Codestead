@@ -124,7 +124,9 @@ export function buildLocalRunnerEnvironment(input: {
   tempRoot: string;
   lockFd: number;
 }): NodeJS.ProcessEnv {
-  const childEnv: NodeJS.ProcessEnv = {};
+  const childEnv: NodeJS.ProcessEnv = {
+    NODE_ENV: input.inheritedEnv.NODE_ENV ?? "production",
+  };
   for (const key of HOST_ENV_KEYS) copyIfPresent(childEnv, input.inheritedEnv, key);
   // Windows commonly exposes this entry as `Path`; normalize it without
   // copying the rest of the parent environment into the isolated service.

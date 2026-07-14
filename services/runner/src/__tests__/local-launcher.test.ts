@@ -64,6 +64,7 @@ describe("development-only local runner launcher", () => {
     });
 
     expect(env).toMatchObject({
+      NODE_ENV: "production",
       PATH: "C:\\tools",
       RUNNER_SHARED_SECRET: "local-runner-secret-with-at-least-32-bytes",
       RUNNER_HOST: "127.0.0.1",

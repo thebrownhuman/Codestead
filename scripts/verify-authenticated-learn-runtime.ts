@@ -29,8 +29,10 @@ let appPool: { end(): Promise<void> } | null = null;
 let containerStarted = false;
 let cleanupPromise: Promise<void> | null = null;
 
-function commandEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
-  const environment: NodeJS.ProcessEnv = {};
+function commandEnvironment(overrides: Partial<NodeJS.ProcessEnv> = {}): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = {
+    NODE_ENV: process.env.NODE_ENV ?? "test",
+  };
   for (const key of [
     "PATH",
     "Path",
