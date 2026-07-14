@@ -28,6 +28,7 @@
 
 # logs and editor files
 *.log
+.superpowers/sdd/
 .DS_Store
 Thumbs.db
 .idea
