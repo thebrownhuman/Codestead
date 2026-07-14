@@ -116,10 +116,16 @@ jobs:
             }
       - run: npm run runtime:build
         working-directory: services/runner
+      - run: npm run runtime:inspect
+        working-directory: services/runner
+      - run: npm run runtime:record
+        working-directory: services/runner
+      - run: npx playwright install --with-deps chromium
       - run: npm run dsa:parity:verify
       - run: npm run c-cpp:executable:verify
       - run: npm run java-python:executable:verify
       - run: npm run ai-code:executable:verify
+      - run: npm run web:executable:verify
 
   browser:
     needs: application
@@ -133,5 +139,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npm run web:executable:verify
+      - run: npm run sync:monaco
       - run: npm run test:e2e

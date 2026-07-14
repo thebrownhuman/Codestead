@@ -203,13 +203,17 @@ function assertBankDraft(bank: AssessmentBank): void {
 }
 
 async function main(): Promise<void> {
+  const structureOnly = process.argv.includes("--structure-only");
+  const runtimeEvidenceRoot = structureOnly
+    ? path.join(root, "docs", "evidence", "container-security", "runner")
+    : path.join(root, "services", "runner", "dist");
   const repository = new ContentRepository({ contentRoot: path.join(root, "content") });
   const [cCourse, cppCourse, authored, runtimeImages, runtimeInspection] = await Promise.all([
     repository.getCourse("c"),
     repository.getCourse("cpp"),
     repository.getAuthoredContentSet(),
-    readFile(path.join(root, "services", "runner", "dist", "runtime-images.json"), "utf8").then((value) => JSON.parse(value) as RuntimeImages),
-    readFile(path.join(root, "services", "runner", "dist", "runtime-inspection.json"), "utf8").then((value) => JSON.parse(value) as RuntimeInspection),
+    readFile(path.join(runtimeEvidenceRoot, "runtime-images.json"), "utf8").then((value) => JSON.parse(value) as RuntimeImages),
+    readFile(path.join(runtimeEvidenceRoot, "runtime-inspection.json"), "utf8").then((value) => JSON.parse(value) as RuntimeInspection),
   ]);
   if (!cCourse || !cppCourse) throw new Error("C or C++ course is missing.");
   const courses = [cCourse, cppCourse];
@@ -282,7 +286,6 @@ async function main(): Promise<void> {
   if (skillCoverage.length !== declaredSkills.length) throw new Error("Skill coverage report is incomplete.");
   if (banks.length !== declaredSkills.length) throw new Error("Unexpected C/C++ authored bank count.");
 
-  const structureOnly = process.argv.includes("--structure-only");
   const limitArgument = process.argv.find((argument) => argument.startsWith("--limit="));
   const limit = limitArgument ? Number.parseInt(limitArgument.split("=")[1]!, 10) : codeItems.length;
   if (!Number.isInteger(limit) || limit < 1) throw new Error("--limit must be a positive integer.");

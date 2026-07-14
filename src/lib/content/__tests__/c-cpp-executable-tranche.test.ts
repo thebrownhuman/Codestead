@@ -65,7 +65,10 @@ describe("C and C++ executable tranche", () => {
   it("pins all 66 reference tasks and their 199 exact visible/hidden cases", async () => {
     const { banks } = await loadTranche();
     const runtimeImages = JSON.parse(
-      await readFile(path.resolve("services/runner/dist/runtime-images.json"), "utf8"),
+      await readFile(
+        path.resolve("docs/evidence/container-security/runner/runtime-images.json"),
+        "utf8",
+      ),
     ) as { records: Array<{ language: string; digest: string }> };
     const digestByLanguage = new Map(
       runtimeImages.records.map((record) => [record.language, record.digest]),
