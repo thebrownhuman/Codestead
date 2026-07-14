@@ -41,7 +41,8 @@ Install a reviewed release at `/opt/learncoding`. Do not deploy a developer work
 ```bash
 sudo install -d -o root -g root -m 0755 /opt/learncoding
 sudo install -d -o root -g root -m 0750 /etc/learncoding /etc/learncoding/cloudflare
-sudo install -d -o root -g root -m 0700 /etc/learncoding/secrets
+sudo groupadd --system --gid 2000 codestead-secrets
+sudo install -d -o root -g codestead-secrets -m 0750 /etc/learncoding/secrets
 sudo install -d -o root -g root -m 0750 /srv/learncoding
 sudo install -d -o root -g root -m 0700 /srv/learncoding/postgres
 sudo install -d -o 1000 -g 1000 -m 0750 /srv/learncoding/next-cache /srv/learncoding/app-data
@@ -57,7 +58,9 @@ sudo install -o root -g root -m 0600 infra/env/backup.env.example /etc/learncodi
 sudo install -o root -g root -m 0644 infra/cloudflare/config.example.yml /etc/learncoding/cloudflare/config.yml
 ```
 
-Set the real HTTPS origin, private runner address, and immutable image references in `compose.env`. `POSTGRES_IMAGE`, `CLOUDFLARED_IMAGE`, and `CLAMAV_IMAGE` must end in `@sha256:` plus a reviewed 64-character digest. Use a reviewed version-specific `clamav/clamav:<version>_base` image with the persistent signature volume; floating tags, including `latest` and `stable`, are rejected by runtime validation. The reference reserves 4 GB for clamd because the official guidance warns that 2 GB may be insufficient after loading signatures.
+Set the real HTTPS origin, private runner address, and immutable image references in `compose.env`. `POSTGRES_IMAGE`, `CLOUDFLARED_IMAGE`, and all seven `APP_*_IMAGE` values must use a non-empty image name ending in `@sha256:` plus a reviewed 64-character digest. Keep `SECRETS_GID=2000`.
+
+Pilot mode is exactly `UPLOADS_ENABLED=false` with no `uploads` token in `COMPOSE_PROFILES`; it may use the inactive `clamav/clamav:pilot-disabled` sentinel because no ClamAV service is rendered. Enabling uploads requires exactly the `uploads` profile token, `UPLOADS_ENABLED=true`, and a reviewed version-specific `CLAMAV_IMAGE=clamav/clamav:<version>_base@sha256:<64-hex-digest>`. Floating ClamAV tags, including `latest` and `stable`, are rejected whenever uploads are active. The reference reserves 4 GB for clamd because the official guidance warns that 2 GB may be insufficient after loading signatures.
 
 The reference NUC target is `linux/amd64`. Keep `DEPLOY_PLATFORM=linux/amd64`; the Dockerfile deliberately pins the architecture-specific Node image manifest, not just a floating or wrong-architecture digest. An ARM development machine may build the NUC image through Docker emulation. A native ARM server needs a separate application/build and image-digest review.
 
@@ -74,13 +77,15 @@ printf 'postgresql://learncoding:%s@postgres:5432/learncoding\n' "$db_password" 
 unset db_password
 openssl rand -base64 48 > /etc/learncoding/secrets/better_auth_secret
 openssl rand -base64 48 > /etc/learncoding/secrets/lost_device_proof_key
+openssl rand -base64 48 > /etc/learncoding/secrets/deletion_tombstone_key
 openssl rand -base64 32 > /etc/learncoding/secrets/credential_master_key
 openssl rand -base64 48 > /etc/learncoding/secrets/runner_shared_secret
 : > /etc/learncoding/secrets/google_client_secret
 : > /etc/learncoding/secrets/gmail_client_id
 : > /etc/learncoding/secrets/gmail_client_secret
 : > /etc/learncoding/secrets/gmail_refresh_token
-chmod 0400 /etc/learncoding/secrets/*
+chown root:codestead-secrets /etc/learncoding/secrets/*
+chmod 0440 /etc/learncoding/secrets/*
 exit
 ```
 
@@ -88,7 +93,30 @@ Copy `runner_shared_secret` once over a secure admin channel to `/etc/learncodin
 
 If Google login is enabled, set the OAuth client ID in `compose.env`, place only the client secret in `google_client_secret`, and register the exact production callback origin in Google Cloud. If it is disabled, keep both the client ID and secret empty.
 
-The Cloudflare tunnel credentials JSON must be issued by Cloudflare and installed directly as `/etc/learncoding/secrets/cloudflare_tunnel_credentials.json` with mode `0400`. It must never enter Git, an image layer, a backup archive, or a support message.
+The Cloudflare tunnel credentials JSON must be issued by Cloudflare and installed directly as `/etc/learncoding/secrets/cloudflare_tunnel_credentials.json`, owned by `root:codestead-secrets` with mode `0440`. It must never enter Git, an image layer, a backup archive, or a support message. After adding or replacing any secret, restore the complete inventory to the exact metadata expected by preflight:
+
+```bash
+sudo chown root:codestead-secrets /etc/learncoding/secrets/*
+sudo chmod 0440 /etc/learncoding/secrets/*
+```
+
+For the initial administrator only, set `BOOTSTRAP_ADMIN_EMAIL` in `compose.env` and create a temporary independent password. The validator requires at least 16 non-whitespace characters; the following generates more than that without printing it:
+
+```bash
+sudo -H bash
+umask 077
+openssl rand -base64 24 > /etc/learncoding/secrets/bootstrap_admin_password
+chown root:codestead-secrets /etc/learncoding/secrets/bootstrap_admin_password
+chmod 0440 /etc/learncoding/secrets/bootstrap_admin_password
+exit
+sudo VALIDATION_MODE=operations REPO_ROOT=/opt/learncoding \
+  COMPOSE_ENV_FILE=/etc/learncoding/compose.env \
+  bash /opt/learncoding/infra/ops/validate-runtime.sh
+sudo docker compose --env-file /etc/learncoding/compose.env \
+  -f /opt/learncoding/compose.yaml --profile operations run --rm admin-bootstrap
+```
+
+Retain the non-secret successful exit status and `bootstrap_admin.created` event as bootstrap evidence. Process the verification email, sign in, change the temporary password, and enroll TOTP. Only after those steps succeed, remove the temporary file with `sudo rm /etc/learncoding/secrets/bootstrap_admin_password`. `VALIDATION_MODE=operations` is a caller-selected preflight mode independent of the Compose `operations` profile; ordinary startup and recurring lifecycle/retention runs use pilot validation after the password file is removed.
 
 ## Configure Cloudflare Tunnel
 

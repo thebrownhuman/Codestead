@@ -114,6 +114,14 @@ for (const [modelName, config] of Object.entries(models)) {
     config.services?.app?.environment?.UPLOADS_ENABLED === (modelName === "uploads" || modelName === "combined" ? "true" : "false"),
     `${modelName} app must receive UPLOADS_ENABLED`,
   );
+  for (const [name, service] of Object.entries(config.services ?? {})) {
+    const consumesSecrets = (service.secrets?.length ?? 0) > 0;
+    const expectedGroups = consumesSecrets ? ["2000"] : [];
+    expect(
+      same((service.group_add ?? []).map(String), expectedGroups),
+      `${modelName} ${name} supplemental groups must exactly match secret consumption`,
+    );
+  }
 }
 
 const config = models.combined;
@@ -407,5 +415,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "Semantic Compose validation passed (profiles, images, operations, network, capability, mount, and secret allowlists).",
+  "Semantic Compose validation passed (profiles, images, operations, network, capability, mount, secret, and supplemental-group allowlists).",
 );

@@ -31,6 +31,8 @@ services:
       POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF8
     secrets:
       - postgres_password
+    group_add:
+      - $SECRETS_GID
     volumes:
       - type: bind
         source: ${LEARN_DATA_ROOT:-/srv/learncoding}/postgres
@@ -65,6 +67,8 @@ services:
       DATABASE_URL_FILE: /run/secrets/database_url
     secrets:
       - database_url
+    group_add:
+      - $SECRETS_GID
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,6 +123,8 @@ services:
       - credential_master_key
       - google_client_secret
       - runner_shared_secret
+    group_add:
+      - $SECRETS_GID
     volumes:
       - type: bind
         source: ${LEARN_DATA_ROOT:-/srv/learncoding}/next-cache
@@ -172,6 +178,8 @@ services:
       - gmail_client_id
       - gmail_client_secret
       - gmail_refresh_token
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -202,6 +210,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     secrets:
       - database_url
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -234,6 +244,8 @@ services:
     secrets:
       - database_url
       - runner_shared_secret
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -268,6 +280,8 @@ services:
     secrets:
       - database_url
       - runner_shared_secret
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -301,6 +315,8 @@ services:
     secrets:
       - database_url
       - runner_shared_secret
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -330,6 +346,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     secrets:
       - database_url
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -413,6 +431,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     secrets:
       - database_url
+    group_add:
+      - $SECRETS_GID
     volumes:
       - type: bind
         source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
@@ -457,6 +477,8 @@ services:
       OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
     secrets:
       - database_url
+    group_add:
+      - $SECRETS_GID
     volumes:
       - type: bind
         source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
@@ -487,6 +509,8 @@ services:
       DATABASE_URL_FILE: /run/secrets/database_url
     secrets:
       - database_url
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -520,6 +544,8 @@ services:
       - database_url
       - better_auth_secret
       - bootstrap_admin_password
+    group_add:
+      - $SECRETS_GID
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -545,6 +571,8 @@ services:
     secrets:
       - source: cloudflare_tunnel_credentials
         target: cloudflare_tunnel_credentials
+    group_add:
+      - $SECRETS_GID
     depends_on:
       app:
         condition: service_healthy
