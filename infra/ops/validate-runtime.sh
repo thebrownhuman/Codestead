@@ -17,6 +17,8 @@ readonly validation_mode="${VALIDATION_MODE:-pilot}"
 
 readonly trusted_stat_bin="/usr/bin/stat"
 [[ -x "$trusted_stat_bin" ]] || fatal "trusted stat is missing: $trusted_stat_bin"
+readonly trusted_realpath_bin="/usr/bin/realpath"
+[[ -x "$trusted_realpath_bin" ]] || fatal "trusted realpath is missing: $trusted_realpath_bin"
 
 compose_env_metadata="$("$trusted_stat_bin" -c '%u:%g:%a' -- "$compose_env")"
 [[ "$compose_env_metadata" == "0:0:640" ]] || {
@@ -107,12 +109,29 @@ case "${UPLOADS_ENABLED:-}" in
     ;;
 esac
 
-secrets_dir="${SECRETS_DIR:-/etc/learncoding/secrets}"
-while [[ "$secrets_dir" != "/" && "$secrets_dir" == */ ]]; do
-  secrets_dir="${secrets_dir%/}"
-done
+raw_secrets_dir="${SECRETS_DIR:-/etc/learncoding/secrets}"
+[[ "$raw_secrets_dir" == /* ]] || fatal "secrets directory path must be absolute"
+secrets_dir="$("$trusted_realpath_bin" --canonicalize-missing --no-symlinks -- "$raw_secrets_dir" 2>/dev/null)" || {
+  fatal "secrets directory path is invalid"
+}
+[[ -n "$secrets_dir" ]] || fatal "secrets directory path is invalid"
 readonly secrets_dir
-[[ ! -L "$secrets_dir" ]] || fatal "secrets directory must not be a symlink: $secrets_dir"
+
+reject_symlinked_path_components() {
+  local path="$1"
+  local component
+  local current=
+  local -a components=()
+
+  IFS='/' read -r -a components <<<"$path"
+  for component in "${components[@]}"; do
+    [[ -n "$component" ]] || continue
+    current="$current/$component"
+    [[ ! -L "$current" ]] || fatal "secrets directory must not be a symlink: $path"
+  done
+}
+
+reject_symlinked_path_components "$secrets_dir"
 [[ -d "$secrets_dir" ]] || fatal "secrets directory missing: $secrets_dir"
 
 secrets_dir_metadata="$("$trusted_stat_bin" -c '%u:%g:%a' -- "$secrets_dir")"

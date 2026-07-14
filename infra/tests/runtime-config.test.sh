@@ -265,6 +265,38 @@ expect_failure \
   'symlinked secrets directory with a trailing slash' \
   "fatal: secrets directory must not be a symlink: $secrets"
 
+make_fixture directory-symlink-dot-alias
+mv "$secrets" "$case_dir/secrets.real"
+ln -s "$case_dir/secrets.real" "$secrets"
+set_config SECRETS_DIR "$secrets/."
+expect_failure \
+  'symlinked secrets directory with a dot alias' \
+  "fatal: secrets directory must not be a symlink: $secrets"
+
+make_fixture directory-nested-symlink
+ln -s "$case_dir" "$case_dir/path-alias"
+nested_secrets_dir="$case_dir/path-alias/secrets"
+set_config SECRETS_DIR "$nested_secrets_dir"
+expect_failure \
+  'secrets directory below a symlinked path component' \
+  "fatal: secrets directory must not be a symlink: $nested_secrets_dir"
+
+make_fixture directory-parent-alias
+mkdir "$case_dir/path-segment"
+ln -s "$case_dir" "$case_dir/path-alias"
+parent_alias_secrets_dir="$case_dir/path-segment/../path-alias/secrets"
+canonical_parent_alias_secrets_dir="$case_dir/path-alias/secrets"
+set_config SECRETS_DIR "$parent_alias_secrets_dir"
+expect_failure \
+  'parent alias cannot hide a symlinked path component' \
+  "fatal: secrets directory must not be a symlink: $canonical_parent_alias_secrets_dir"
+
+make_fixture directory-relative-path
+set_config SECRETS_DIR relative/secrets
+expect_failure \
+  'relative secrets directory path' \
+  'fatal: secrets directory path must be absolute'
+
 make_fixture directory-mode
 chmod 0700 "$secrets"
 expect_failure \
