@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.html.project.site.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.validation-project",
+  "skillId": "html.project.site",
+  "title": "Semantic multi-page site deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because A coherent multi-page site requires multi-file navigation, content-quality, and human usability review rather than one isolated code item."
+  },
+  "sourceRefs": [
+    "whatwg-html",
+    "wcag22"
+  ],
+  "items": [
+    {
+      "skillId": "html.project.site",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.project.site.mcq.misconception",
+      "title": "Semantic multi-page site: reject the invalid model",
+      "prompt": "Which statement correctly resolves this HTML: Semantic and Accessible Web Documents misconception? If each page validates alone, the complete site's navigation and user journeys are automatically correct.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows.",
+        "incorrect": "That preserves the misconception. Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked HTML: Semantic and Accessible Web Documents correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+        },
+        {
+          "id": "misconception",
+          "text": "If each page validates alone, the complete site's navigation and user journeys are automatically correct."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+      }
+    },
+    {
+      "skillId": "html.project.site",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.project.site.fill.checkpoint",
+      "title": "Semantic multi-page site: complete the rule",
+      "prompt": "Complete the missing HTML: Semantic and Accessible Web Documents checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: complete deployed site.",
+        "incorrect": "Recheck the exact rule. Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Verify the {{key-rule}}, including cross-page navigation, paths, consistency, content, and task flows.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "complete deployed site"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+      }
+    }
+  ]
+}

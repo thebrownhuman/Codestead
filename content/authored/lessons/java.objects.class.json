@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.objects.class.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.objects",
+  "skillId": "java.objects.class",
+  "title": "Classes, fields and methods",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Classes, fields and methods; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Classes and Objects, Inheritance, Records, and Object methods learning paths; atomic topic: Classes, fields and methods",
+      "claim": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§8.1-8.10 and 15.21.3: classes, constructors, records, and reference equality; atomic topic: Classes, fields and methods",
+      "claim": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals. Your goal is to design and implement a class with private representation and cohesive methods. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Method contracts and parameters; pf data records. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count. The learner must reject this documented misconception: A class is encapsulated as long as every field has a public getter and setter."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Encapsulate state and behavior behind a minimal public interface.",
+      "Design and implement a class with private representation and cohesive methods."
+    ],
+    "excludes": [
+      "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count."
+    ]
+  },
+  "outcomes": [
+    "Design and implement a class with private representation and cohesive methods."
+  ],
+  "examples": [
+    {
+      "id": "java.objects.class.example.direct",
+      "title": "Classes, fields and methods: direct language case",
+      "situation": "A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+      ],
+      "result": "The example meets the atomic outcome because Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+    },
+    {
+      "id": "java.objects.class.example.boundary",
+      "title": "Classes, fields and methods: boundary and transfer case",
+      "situation": "A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers.",
+        "Step 2 — Keep the language boundary explicit: Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count.",
+        "Step 3 — Reject the tempting but incorrect rule: A class is encapsulated as long as every field has a public getter and setter."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and implement a class with private representation and cohesive methods."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.objects.class.misconception",
+      "mistakenBelief": "A class is encapsulated as long as every field has a public getter and setter.",
+      "correction": "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A class is encapsulated as long as every field has a public getter and setter."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a secured service object whose constructor admits only valid state and whose public desk exposes approved behavior can introduce Classes, fields and methods, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "understanding encapsulation, construction, identity, equality, and records"
+    ],
+    "limitations": [
+      "object references, hashing, shallow immutability, and garbage collection are not physical ownership rules",
+      "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
+      "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
+      "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A class is encapsulated as long as every field has a public getter and setter."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals. Step 1, Observe. State: evidence: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.. Compare the observation with the correction and explain why the misconception fails: A class is encapsulated as long as every field has a public getter and setter."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Classes, fields and methods: direct language case”: state its starting evidence, apply the Classes, fields and methods rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Classes, fields and methods: direct language case.",
+        "Starting evidence: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
+        "Core rule: A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
+        "Observable result: The example meets the atomic outcome because Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.",
+        "Boundary check: Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
+        "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Classes, fields and methods, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Design and implement a class with private representation and cohesive methods.",
+        "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.objects.class.misconception",
+      "explanation": "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and implement a class with private representation and cohesive methods. Keep this boundary in view: Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count.",
+    "retrievalPrompts": [
+      "Explain Classes, fields and methods using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A class is encapsulated as long as every field has a public getter and setter.",
+      "Predict this case from memory: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers."
+    ],
+    "nextReviewPrompt": "Next: continue to “Constructors and invariants”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

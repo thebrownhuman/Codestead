@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.toolchain.first-program.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.toolchain",
+  "skillId": "java.toolchain.first-program",
+  "title": "First source and main",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for First source and main; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Getting Started, Tools, JShell, and Launching Single-File Source-Code Programs; atomic topic: First source and main",
+      "claim": "A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§7.6, 12, and 13: compilation units, execution, and binary compatibility; atomic topic: First source and main",
+      "claim": "A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main. Your goal is to build and explain a minimal Java application from the command line. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; JDK, JVM and Java language. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Source-file launch modes and newer compact entry forms exist, but a beginner must still understand class names, file paths, compilation output, class paths, and process exit behavior. The learner must reject this documented misconception: Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Write, compile and run a source file with a conventional application entry point.",
+      "Build and explain a minimal Java application from the command line."
+    ],
+    "excludes": [
+      "Source-file launch modes and newer compact entry forms exist, but a beginner must still understand class names, file paths, compilation output, class paths, and process exit behavior."
+    ]
+  },
+  "outcomes": [
+    "Build and explain a minimal Java application from the command line."
+  ],
+  "examples": [
+    {
+      "id": "java.toolchain.first-program.example.direct",
+      "title": "First source and main: direct language case",
+      "situation": "Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+      ],
+      "result": "The example meets the atomic outcome because For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+    },
+    {
+      "id": "java.toolchain.first-program.example.boundary",
+      "title": "First source and main: boundary and transfer case",
+      "situation": "The compiler rejects a public class named App stored in Main.java, so the learner repairs the file/class contract instead of changing the runtime command randomly.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: The compiler rejects a public class named App stored in Main.java, so the learner repairs the file/class contract instead of changing the runtime command randomly.",
+        "Step 2 — Keep the language boundary explicit: Source-file launch modes and newer compact entry forms exist, but a beginner must still understand class names, file paths, compilation output, class paths, and process exit behavior.",
+        "Step 3 — Reject the tempting but incorrect rule: Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched."
+      ],
+      "result": "This case demonstrates the declared outcome: Build and explain a minimal Java application from the command line."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.toolchain.first-program.misconception",
+      "mistakenBelief": "Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched.",
+      "correction": "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a workshop that turns a checked design into a labeled machine part and then runs it on a compatible line can introduce First source and main, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "separating source rules, build tools, class files, and runtime execution"
+    ],
+    "limitations": [
+      "Java compatibility, verification, class loading, and diagnostics follow formal specifications rather than physical manufacturing",
+      "Source-file launch modes and newer compact entry forms exist, but a beginner must still understand class names, file paths, compilation output, class paths, and process exit behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main.",
+      "A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name.",
+      "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched."
+      }
+    ],
+    "textAlternative": "Starting artifact: Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main. Step 1, Observe. State: evidence: Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name.. Compare the observation with the correction and explain why the misconception fails: Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “First source and main: direct language case”: state its starting evidence, apply the First source and main rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: First source and main: direct language case.",
+        "Starting evidence: Main.java declares public class Main with public static void main(String[] args), prints one line, compiles with javac, and runs with java Main.",
+        "Core rule: A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name.",
+        "Observable result: The example meets the atomic outcome because For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name.",
+        "Boundary check: For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: The compiler rejects a public class named App stored in Main.java, so the learner repairs the file/class contract instead of changing the runtime command randomly.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A conventional Java application places a correctly named class in a source file, declares a supported static main entry point, compiles it, and launches the resulting class by binary name.",
+        "Source-file launch modes and newer compact entry forms exist, but a beginner must still understand class names, file paths, compilation output, class paths, and process exit behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of First source and main, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Build and explain a minimal Java application from the command line.",
+        "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.toolchain.first-program.misconception",
+      "explanation": "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: The compiler rejects a public class named App stored in Main.java, so the learner repairs the file/class contract instead of changing the runtime command randomly."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to build and explain a minimal Java application from the command line. Keep this boundary in view: Source-file launch modes and newer compact entry forms exist, but a beginner must still understand class names, file paths, compilation output, class paths, and process exit behavior.",
+    "retrievalPrompts": [
+      "Explain First source and main using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched.",
+      "Predict this case from memory: The compiler rejects a public class named App stored in Main.java, so the learner repairs the file/class contract instead of changing the runtime command randomly."
+    ],
+    "nextReviewPrompt": "Next: continue to “JShell experiments”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

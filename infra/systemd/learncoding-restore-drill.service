@@ -1,0 +1,19 @@
+[Unit]
+Description=LearnCoding supervised isolated restore drill
+Documentation=/opt/learncoding/docs/runbooks/backup-and-restore.md
+After=learncoding-compose.service
+Requires=learncoding-compose.service
+OnFailure=learncoding-alert@%n.service
+
+# This unit is intentionally manual: attach the offline age identity, set
+# AGE_IDENTITY_FILE in /etc/learncoding/backup.env, then start it explicitly.
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/bash /opt/learncoding/scripts/backup/restore-drill.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+UMask=0077
+TimeoutStartSec=4h

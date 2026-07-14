@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.practice.feedback.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.learning-practice",
+  "skillId": "pf.practice.feedback",
+  "title": "Using feedback",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Using feedback; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ies-learning",
+      "locator": "Organizing Instruction and Study to Improve Student Learning; 2007; section applicable to Using feedback",
+      "claim": "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem. Your goal is to explain why an answer failed and demonstrate a corrected transfer attempt. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Debugging and testing loop; Reading before writing. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Convert correctness feedback into a diagnosis, correction and new test.",
+      "Explain why an answer failed and demonstrate a corrected transfer attempt."
+    ],
+    "excludes": [
+      "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context."
+    ]
+  },
+  "outcomes": [
+    "Explain why an answer failed and demonstrate a corrected transfer attempt."
+  ],
+  "examples": [
+    {
+      "id": "pf.practice.feedback.example-a",
+      "title": "Using feedback: direct case",
+      "situation": "After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+      ],
+      "result": "The case supports the declared outcome because Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+    },
+    {
+      "id": "pf.practice.feedback.example-b",
+      "title": "Using feedback: boundary case",
+      "situation": "A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior.",
+        "Step 2 — Keep this boundary explicit: Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context.",
+        "Step 3 — Reject the documented misconception: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+      ],
+      "result": "This case demonstrates the declared outcome: Explain why an answer failed and demonstrate a corrected transfer attempt."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.practice.feedback.misconception",
+      "mistakenBelief": "Once the correct answer is shown, recognizing it means the underlying skill has been learned.",
+      "correction": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "Sports coaching can model Using feedback: study a play, attempt it, use specific feedback, retry independently, and credit the people or material that helped.",
+    "usefulFor": [
+      "Connecting explanation, feedback, independent transfer, assistance, and integrity"
+    ],
+    "limitations": [
+      "Learning evidence and reuse permissions are governed by explicit course and software rules, not only informal coaching norms.",
+      "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
+      "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
+      "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer."
+        },
+        "explanation": "Apply the declared Using feedback model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+      }
+    ],
+    "textAlternative": "Starting artifact: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem. Step 1, Observe. State: evidence: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.. Apply the declared Using feedback model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.. Compare the observation with the correction and reject the misconception: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Using feedback: direct case”: state its starting evidence, apply the Using feedback rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Using feedback: direct case.",
+        "Starting evidence: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
+        "Core rule: Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
+        "Observable result: The case supports the declared outcome because Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.",
+        "Boundary check: Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
+        "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Using feedback, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Explain why an answer failed and demonstrate a corrected transfer attempt.",
+        "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.practice.feedback.misconception",
+      "explanation": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to explain why an answer failed and demonstrate a corrected transfer attempt. Keep this boundary in view: Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context.",
+    "retrievalPrompts": [
+      "Explain Using feedback without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Once the correct answer is shown, recognizing it means the underlying skill has been learned.",
+      "Apply the model to this case from memory: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior."
+    ],
+    "nextReviewPrompt": "Next: continue to “Documentation and AI assistance”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

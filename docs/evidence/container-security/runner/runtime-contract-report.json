@@ -1,0 +1,97 @@
+{
+  "generatedAt": "2026-07-13T09:40:32.059Z",
+  "images": {
+    "c": "learncoding/runtime-c:local",
+    "cpp": "learncoding/runtime-cpp:local",
+    "java": "learncoding/runtime-java:local",
+    "python": "learncoding/runtime-python:local",
+    "javascript": "learncoding/runtime-javascript:local"
+  },
+  "results": [
+    {
+      "name": "c: compile and run",
+      "status": "passed",
+      "durationMs": 865
+    },
+    {
+      "name": "c: compile error",
+      "status": "passed",
+      "durationMs": 365
+    },
+    {
+      "name": "cpp: compile and run",
+      "status": "passed",
+      "durationMs": 1846
+    },
+    {
+      "name": "cpp: compile error",
+      "status": "passed",
+      "durationMs": 406
+    },
+    {
+      "name": "java: compile and run",
+      "status": "passed",
+      "durationMs": 3077
+    },
+    {
+      "name": "java: compile error",
+      "status": "passed",
+      "durationMs": 1051
+    },
+    {
+      "name": "python: compile and run",
+      "status": "passed",
+      "durationMs": 1182
+    },
+    {
+      "name": "python: compile error",
+      "status": "passed",
+      "durationMs": 642
+    },
+    {
+      "name": "javascript: compile and run",
+      "status": "passed",
+      "durationMs": 960
+    },
+    {
+      "name": "javascript: compile error",
+      "status": "passed",
+      "durationMs": 394
+    },
+    {
+      "name": "python: read-only root and writable ephemeral work",
+      "status": "passed",
+      "durationMs": 608
+    },
+    {
+      "name": "python: network egress blocked",
+      "status": "passed",
+      "durationMs": 594
+    },
+    {
+      "name": "python: hidden environment absent",
+      "status": "passed",
+      "durationMs": 591
+    },
+    {
+      "name": "python: cross-job work cleanup",
+      "status": "passed",
+      "durationMs": 1385
+    },
+    {
+      "name": "python: wall timeout",
+      "status": "passed",
+      "durationMs": 1408
+    },
+    {
+      "name": "python: combined output cap",
+      "status": "passed",
+      "durationMs": 686
+    },
+    {
+      "name": "python: process limit",
+      "status": "passed",
+      "durationMs": 583
+    }
+  ]
+}

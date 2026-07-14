@@ -1,0 +1,2 @@
+ALTER TABLE "plan_revision" ADD COLUMN "request_hash" text;--> statement-breakpoint
+ALTER TABLE "plan_revision" ADD CONSTRAINT "plan_revision_request_hash_check" CHECK ("plan_revision"."request_hash" IS NULL OR "plan_revision"."request_hash" ~ '^[0-9a-f]{64}$');

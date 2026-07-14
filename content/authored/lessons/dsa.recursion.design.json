@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.recursion.design.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.recursion-divide",
+  "skillId": "dsa.recursion.design",
+  "title": "Recursive problem design",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Recursive problem design; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Recursive problem design",
+      "claim": "Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination."
+    },
+    {
+      "sourceRef": "cs2023-msf",
+      "locator": "CS2023 Mathematical and Statistical Foundations; August 2023; material applicable to Recursive problem design",
+      "claim": "Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise. Your goal is to design and implement a terminating recursive algorithm from a recursive structure. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations; Selected-language readiness; pf abstraction recursion. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Overlapping work, deep recursion, mutable shared state, and incorrect base coverage can make a valid-looking recurrence fail. The draft therefore rejects: Any recursive call with a numerically smaller argument guarantees correctness."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Identify a base case, smaller subproblem, combination step and progress measure.",
+      "Design and implement a terminating recursive algorithm from a recursive structure.",
+      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+    ],
+    "excludes": [
+      "Overlapping work, deep recursion, mutable shared state, and incorrect base coverage can make a valid-looking recurrence fail."
+    ]
+  },
+  "outcomes": [
+    "Design and implement a terminating recursive algorithm from a recursive structure."
+  ],
+  "examples": [
+    {
+      "id": "dsa.recursion.design.example-a",
+      "title": "Recursive problem design: language-neutral trace",
+      "situation": "Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule."
+      ],
+      "result": "The conceptual result follows because Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule."
+    },
+    {
+      "id": "dsa.recursion.design.example-b",
+      "title": "Recursive problem design: implementation transfer",
+      "situation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+        "Step 3 — Retest this boundary in the selected implementation: Overlapping work, deep recursion, mutable shared state, and incorrect base coverage can make a valid-looking recurrence fail."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.recursion.design.misconception",
+      "mistakenBelief": "Any recursive call with a numerically smaller argument guarantees correctness.",
+      "correction": "Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Any recursive call with a numerically smaller argument guarantees correctness."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Recursive problem design, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Overlapping work, deep recursion, mutable shared state, and incorrect base coverage can make a valid-looking recurrence fail."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise.",
+      "Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination.",
+      "Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule.",
+      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule."
+        },
+        "explanation": "Verify the result and reject this misconception: Any recursive call with a numerically smaller argument guarantees correctness."
+      }
+    ],
+    "textAlternative": "Starting artifact: Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise. Step 1, Specification. State: scenario: Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input. Step 4, Conclusion. State: correction: Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule.. Verify the result and reject this misconception: Any recursive call with a numerically smaller argument guarantees correctness."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Recursive problem design: language-neutral trace”: state its starting evidence, apply the Recursive problem design rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Recursive problem design: language-neutral trace.",
+        "Starting evidence: Tree height returns zero for empty and one plus the maximum height of child subtrees otherwise.",
+        "Core rule: Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination.",
+        "Observable result: The conceptual result follows because Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule.",
+        "Boundary check: Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Recursive design identifies a base case, smaller subproblem, combination rule, and progress measure that reaches termination.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+        "Overlapping work, deep recursion, mutable shared state, and incorrect base coverage can make a valid-looking recurrence fail."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Recursive problem design case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Design and implement a terminating recursive algorithm from a recursive structure.",
+        "Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.recursion.design.misconception",
+      "explanation": "Prove the subproblem is structurally valid and progresses to a base case, then prove the combination rule.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'combination rule', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and implement a terminating recursive algorithm from a recursive structure. Keep this boundary in view: Overlapping work, deep recursion, mutable shared state, and incorrect base coverage can make a valid-looking recurrence fail.",
+    "retrievalPrompts": [
+      "State the Recursive problem design invariant and complexity without code.",
+      "Why is this claim false: Any recursive call with a numerically smaller argument guarantees correctness.",
+      "Map checkpoint 'combination rule' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Call stack and resource cost”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

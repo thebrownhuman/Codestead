@@ -1,0 +1,241 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "dsa",
+  "title": "Data Structures and Algorithms",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A comprehensive shared DSA curriculum with conceptual mastery preserved across C, C++, Java and Python and implementation mastery assessed separately in the learner-selected language.",
+  "audience": {
+    "level": "language-fluent beginner to intermediate computer-science learner",
+    "assumed_knowledge": ["Functions, arrays or sequences, loops, recursion basics, testing and debugging in one supported language", "Programming Foundations"],
+    "target_capability": "Select, implement, analyze, test and explain core data structures and algorithmic strategies in C, C++, Java or Python and transfer conceptual mastery when switching languages."
+  },
+  "scope": {
+    "includes": ["Language-readiness diagnostic and implementation remapping", "Algorithm specification, correctness and asymptotic analysis", "Arrays, strings and two-dimensional arrays", "Linked lists, stacks, queues, deques and hashing", "Search and sorting", "Recursion and divide-and-conquer", "Trees, BSTs, tries, heaps and priority queues", "Graph representation, traversal, topological order, shortest paths and spanning trees", "Disjoint sets", "Greedy, backtracking and dynamic programming", "Common sequence and range problem patterns", "Cross-language implementation, testing and trade-off comparison"],
+    "non_goals": ["Network flow algorithms", "Suffix arrays or suffix trees", "Computational geometry", "Approximation and randomized algorithms", "Parallel algorithms", "Competitive-programming trick catalogs without underlying reasoning"]
+  },
+  "authoritative_sources": [
+    { "id": "cs2023-al", "title": "CS2023 Algorithmic Foundations", "url": "https://csed.acm.org/wp-content/uploads/2023/09/AL-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" },
+    { "id": "cs2023-sdf", "title": "CS2023 Software Development Fundamentals", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SDF-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" },
+    { "id": "cs2023-msf", "title": "CS2023 Mathematical and Statistical Foundations", "url": "https://csed.acm.org/wp-content/uploads/2023/09/MSF-Version-Gamma-V3.pdf", "type": "curriculum", "version_or_date": "August 2023" },
+    { "id": "gnu-c", "title": "GNU C Language Introduction and Reference Manual", "url": "https://www.gnu.org/software/c-intro-and-ref/manual/html_node/index.html", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "cpp-core", "title": "C++ Core Guidelines", "url": "https://isocpp.org/guidelines", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "dev-java", "title": "Learn Java", "url": "https://dev.java/learn/", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "py-tutorial", "title": "The Python Tutorial", "url": "https://docs.python.org/3.14/tutorial/index.html", "type": "official-docs", "version_or_date": "Python 3.14" }
+  ],
+  "runtime": {
+    "kind": "multi-language",
+    "language": "Learner-selected C, C++, Java or Python",
+    "standard": "C23; C++20 baseline; Java SE 21 LTS; Python 3.14",
+    "toolchain": ["Pinned compiler or interpreter from the selected language manifest", "Deterministic unit-test harness", "Operation-count and timing visualizer", "Memory sanitizer for C and C++"],
+    "execution_environment": "Isolated Linux runners with equivalent black-box tests and language-appropriate structural and safety checks",
+    "file_extensions": [".c", ".cpp", ".hpp", ".java", ".py"],
+    "notes": ["Conceptual mastery is stored independently from language implementation mastery.", "A language switch preserves concept evidence but retests required syntax, library, ownership and test-harness skills.", "Failed switch diagnostics reopen the failed implementation prerequisite subgraph, not conceptual DSA from lesson one."]
+  },
+  "modules": [
+    {
+      "id": "dsa.entry-analysis",
+      "title": "Readiness, algorithms and analysis",
+      "description": "Establish implementation readiness and a precise model for correctness and cost.",
+      "required": true,
+      "prerequisites": ["pf.problem.pseudocode", "pf.tools.debug-test"],
+      "skills": [
+        { "id": "dsa.entry.language-readiness", "title": "Selected-language readiness", "description": "Demonstrate functions, sequences, recursion, testing and debugging in the selected language before DSA implementation.", "outcomes": ["Pass an implementation diagnostic or receive a targeted prerequisite remediation map."], "prerequisites": ["pf.tools.debug-test", "pf.abstraction.recursion"], "evidence_types": ["code", "debug", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf", "gnu-c", "cpp-core", "dev-java", "py-tutorial"] },
+        { "id": "dsa.analysis.specification", "title": "Algorithm specification and invariants", "description": "State inputs, outputs, preconditions, postconditions and a useful loop or structure invariant.", "outcomes": ["Specify and trace an algorithm using a contract and invariant."], "prerequisites": ["dsa.entry.language-readiness", "pf.problem.io"], "evidence_types": ["design", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] },
+        { "id": "dsa.analysis.correctness", "title": "Correctness and counterexamples", "description": "Use cases, invariants and counterexamples to distinguish plausible code from a correct algorithm.", "outcomes": ["Find a counterexample to an incorrect algorithm and explain a corrected invariant."], "prerequisites": ["dsa.analysis.specification", "pf.problem.examples"], "evidence_types": ["test", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] },
+        { "id": "dsa.analysis.asymptotic", "title": "Time, space and asymptotic growth", "description": "Count dominant operations and use O, Omega and Theta to compare growth independent of one machine.", "outcomes": ["Derive and compare time and auxiliary-space bounds for iterative and nested algorithms."], "prerequisites": ["dsa.analysis.correctness", "pf.control.nested"], "evidence_types": ["trace", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] }
+      ]
+    },
+    {
+      "id": "dsa.arrays-strings",
+      "title": "Arrays, strings and matrices",
+      "description": "Master contiguous indexed data and two-dimensional traversal patterns.",
+      "required": true,
+      "prerequisites": ["dsa.entry-analysis"],
+      "skills": [
+        { "id": "dsa.arrays.operations", "title": "Array representation and operations", "description": "Analyze indexed access, traversal, insertion, deletion, resizing and copying costs.", "outcomes": ["Implement and test core array operations and explain their complexity."], "prerequisites": ["dsa.analysis.asymptotic", "dsa.entry.language-readiness"], "evidence_types": ["code", "trace", "explain", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] },
+        { "id": "dsa.arrays.two-dimensional", "title": "Two-dimensional arrays and matrices", "description": "Traverse rectangular and ragged grids by row, column, neighborhood, diagonal and boundary.", "outcomes": ["Implement and test a matrix or grid transformation with correct dimensions and bounds."], "prerequisites": ["dsa.arrays.operations", "pf.control.nested"], "evidence_types": ["code", "visual", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] },
+        { "id": "dsa.strings.algorithms", "title": "String traversal and matching basics", "description": "Process character sequences and implement naive substring, palindrome and frequency algorithms with encoding caveats labeled.", "outcomes": ["Implement and analyze a text-processing algorithm in the selected language."], "prerequisites": ["dsa.arrays.operations"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] },
+        { "id": "dsa.arrays.prefix-difference", "title": "Prefix and difference representations", "description": "Precompute cumulative information or range deltas to answer or apply repeated interval operations efficiently.", "outcomes": ["Recognize, implement and analyze one-dimensional and two-dimensional prefix-sum problems."], "prerequisites": ["dsa.arrays.two-dimensional", "dsa.analysis.asymptotic"], "evidence_types": ["code", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.linked-lists",
+      "title": "Linked lists",
+      "description": "Reason about node links, ownership, edge cases and operation costs.",
+      "required": true,
+      "prerequisites": ["dsa.arrays.operations"],
+      "skills": [
+        { "id": "dsa.lists.singly", "title": "Singly linked representation", "description": "Model head, node value, next link and empty or singleton states.", "outcomes": ["Draw, traverse and implement a singly linked list representation in the selected language."], "prerequisites": ["dsa.arrays.operations", "dsa.entry.language-readiness"], "evidence_types": ["visual", "code", "trace"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.lists.insert-delete", "title": "Insertion and deletion", "description": "Update links correctly at head, middle and tail while preserving ownership and size invariants.", "outcomes": ["Implement, debug and test list insertion and deletion across empty, singleton and multi-node cases."], "prerequisites": ["dsa.lists.singly", "dsa.analysis.correctness"], "evidence_types": ["code", "debug", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.lists.doubly-circular", "title": "Doubly and circular lists", "description": "Maintain bidirectional or cyclic invariants and compare added flexibility with added update risk.", "outcomes": ["Implement and test a doubly linked operation and explain circular termination conditions."], "prerequisites": ["dsa.lists.insert-delete"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.lists.pointer-patterns", "title": "Two-pointer list patterns", "description": "Use slow-fast and predecessor-current pointers for reversal, midpoint and cycle detection.", "outcomes": ["Implement, prove informally and test reversal and cycle detection."], "prerequisites": ["dsa.lists.insert-delete", "dsa.analysis.correctness"], "evidence_types": ["code", "trace", "explain", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.linear-adts",
+      "title": "Stacks, queues and deques",
+      "description": "Implement and apply restricted-access linear abstract data types.",
+      "required": true,
+      "prerequisites": ["dsa.arrays.operations", "dsa.linked-lists"],
+      "skills": [
+        { "id": "dsa.stack.adt", "title": "Stack ADT", "description": "Specify and implement push, pop, peek and empty behavior using an appropriate backing store.", "outcomes": ["Implement and test a stack and explain each operation's complexity."], "prerequisites": ["dsa.arrays.operations", "dsa.lists.singly"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] },
+        { "id": "dsa.queue.adt", "title": "Queue and circular buffer", "description": "Specify FIFO behavior and implement a bounded or dynamically backed queue without shifting every item.", "outcomes": ["Implement and test enqueue, dequeue and wraparound behavior."], "prerequisites": ["dsa.arrays.operations", "dsa.lists.insert-delete"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] },
+        { "id": "dsa.deque.adt", "title": "Deque ADT", "description": "Support insertion and removal at both ends and identify deque-suitable problems.", "outcomes": ["Use or implement a deque and justify it over a stack, queue or list."], "prerequisites": ["dsa.queue.adt", "dsa.lists.doubly-circular"], "evidence_types": ["code", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.linear.applications", "title": "Stack and queue applications", "description": "Apply stacks to nesting or evaluation and queues to buffering or breadth-first work.", "outcomes": ["Implement a delimiter checker and one queue-driven simulation with tests."], "prerequisites": ["dsa.stack.adt", "dsa.queue.adt"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.hashing",
+      "title": "Hash tables, sets and maps",
+      "description": "Use and understand hash-based lookup, collision handling and key contracts.",
+      "required": true,
+      "prerequisites": ["dsa.arrays.operations", "dsa.linked-lists"],
+      "skills": [
+        { "id": "dsa.hashing.contract", "title": "Hash and equality contract", "description": "Map equal keys to equal hashes and keep keys stable while stored.", "outcomes": ["Design and test a key equality and hashing policy in the selected language."], "prerequisites": ["dsa.analysis.correctness", "dsa.arrays.operations"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.hashing.collisions", "title": "Collision resolution", "description": "Explain chaining and open addressing with load factor, probing and clustering trade-offs.", "outcomes": ["Trace insert, find and delete through collisions in a teaching hash table."], "prerequisites": ["dsa.hashing.contract", "dsa.lists.singly"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.hashing.resize", "title": "Resizing and expected complexity", "description": "Relate capacity and load factor to amortized expected operations and adversarial caveats.", "outcomes": ["Implement or simulate rehashing and derive its amortized effect."], "prerequisites": ["dsa.hashing.collisions", "dsa.analysis.asymptotic"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.hashing.patterns", "title": "Frequency and lookup patterns", "description": "Use sets and maps for membership, counting, indexing and complements without unnecessary nested scans.", "outcomes": ["Recognize and solve lookup and frequency problems with justified expected complexity."], "prerequisites": ["dsa.hashing.resize"], "evidence_types": ["code", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "dsa.search-sort",
+      "title": "Searching and sorting",
+      "description": "Implement, compare and select fundamental search and ordering algorithms.",
+      "required": true,
+      "prerequisites": ["dsa.arrays-strings", "dsa.analysis.asymptotic"],
+      "skills": [
+        { "id": "dsa.search.linear-binary", "title": "Linear and binary search", "description": "Search unsorted or sorted ranges with correct invariants and boundary updates.", "outcomes": ["Implement, trace and test linear and binary search including empty and duplicate cases."], "prerequisites": ["dsa.arrays.operations", "dsa.analysis.correctness"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.sort.elementary", "title": "Selection and insertion sort", "description": "Use elementary sorts to practice invariants, stability and quadratic growth.", "outcomes": ["Implement, trace and compare selection and insertion sort on representative inputs."], "prerequisites": ["dsa.arrays.operations", "dsa.analysis.asymptotic"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.sort.merge-quick", "title": "Merge sort and quicksort", "description": "Apply divide-and-conquer to stable merging and partition-based sorting with worst-case awareness.", "outcomes": ["Implement and test merge sort and partition logic and compare their space and case behavior."], "prerequisites": ["dsa.sort.elementary", "dsa.recursion.divide-conquer"], "evidence_types": ["code", "trace", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.sort.selection", "title": "Sorting properties and selection", "description": "Compare stability, adaptiveness, in-place behavior, bounds and library guarantees.", "outcomes": ["Select a sorting strategy for a real requirement and justify algorithm versus library use."], "prerequisites": ["dsa.sort.merge-quick", "dsa.analysis.asymptotic"], "evidence_types": ["design", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.recursion-divide",
+      "title": "Recursion and divide-and-conquer",
+      "description": "Design recursive solutions, derive recurrences and control resource use.",
+      "required": true,
+      "prerequisites": ["dsa.entry-analysis", "dsa.arrays.operations"],
+      "skills": [
+        { "id": "dsa.recursion.design", "title": "Recursive problem design", "description": "Identify a base case, smaller subproblem, combination step and progress measure.", "outcomes": ["Design and implement a terminating recursive algorithm from a recursive structure."], "prerequisites": ["dsa.entry.language-readiness", "pf.abstraction.recursion"], "evidence_types": ["design", "code", "trace"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] },
+        { "id": "dsa.recursion.stack", "title": "Call stack and resource cost", "description": "Trace frames and relate recursion depth to auxiliary space and failure risk.", "outcomes": ["Visualize calls and convert a deeply linear recursion to iteration when appropriate."], "prerequisites": ["dsa.recursion.design", "dsa.analysis.asymptotic"], "evidence_types": ["visual", "trace", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] },
+        { "id": "dsa.recursion.recurrence", "title": "Recurrence reasoning", "description": "Express recursive work as a recurrence and estimate common growth patterns.", "outcomes": ["Derive and solve or bound simple decrease-by-one and divide-by-factor recurrences."], "prerequisites": ["dsa.recursion.stack", "dsa.analysis.asymptotic"], "evidence_types": ["explain", "trace", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] },
+        { "id": "dsa.recursion.divide-conquer", "title": "Divide-and-conquer strategy", "description": "Divide independent subproblems, solve recursively and combine with controlled duplication.", "outcomes": ["Design and analyze a divide-and-conquer solution beyond a memorized sorting example."], "prerequisites": ["dsa.recursion.recurrence", "dsa.arrays.operations"], "evidence_types": ["design", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.trees",
+      "title": "Trees, search trees and tries",
+      "description": "Represent hierarchical data and maintain ordered-tree invariants.",
+      "required": true,
+      "prerequisites": ["dsa.recursion.design", "dsa.linked-lists"],
+      "skills": [
+        { "id": "dsa.trees.structure", "title": "Tree terminology and representation", "description": "Use root, parent, child, leaf, depth, height and subtree accurately for binary and n-ary trees.", "outcomes": ["Represent and annotate a tree and compute node depths and tree height."], "prerequisites": ["dsa.recursion.design", "dsa.lists.singly"], "evidence_types": ["visual", "concept-check", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] },
+        { "id": "dsa.trees.traversal", "title": "Depth and breadth traversals", "description": "Implement preorder, inorder, postorder and level-order traversals iteratively or recursively.", "outcomes": ["Choose, implement and test a traversal for a stated hierarchical task."], "prerequisites": ["dsa.trees.structure", "dsa.stack.adt", "dsa.queue.adt"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.trees.bst", "title": "Binary search tree operations", "description": "Maintain ordering through search, insertion and deletion and relate shape to cost.", "outcomes": ["Implement and test BST operations including zero-, one- and two-child deletion."], "prerequisites": ["dsa.trees.traversal", "dsa.search.linear-binary"], "evidence_types": ["code", "visual", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.trees.balance-trie", "title": "Balanced trees and tries", "description": "Explain balance guarantees and implement trie insert, lookup and prefix traversal.", "outcomes": ["Compare balanced BST and trie suitability and implement a tested trie."], "prerequisites": ["dsa.trees.bst", "dsa.strings.algorithms"], "evidence_types": ["code", "design", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.heaps",
+      "title": "Heaps and priority queues",
+      "description": "Maintain partial order for repeated minimum or maximum selection.",
+      "required": true,
+      "prerequisites": ["dsa.arrays.operations", "dsa.trees.structure"],
+      "skills": [
+        { "id": "dsa.heaps.property", "title": "Heap property and array layout", "description": "Map complete binary tree relationships to array indexes and distinguish heap from sorted order.", "outcomes": ["Trace parent-child indexes and validate a min- or max-heap."], "prerequisites": ["dsa.arrays.operations", "dsa.trees.structure"], "evidence_types": ["visual", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.heaps.operations", "title": "Heapify, insert and extract", "description": "Restore heap order upward or downward after structural changes.", "outcomes": ["Implement and test heap construction, insertion and root extraction."], "prerequisites": ["dsa.heaps.property", "dsa.analysis.correctness"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.heaps.priority-queue", "title": "Priority queue applications", "description": "Use prioritized removal for scheduling, top-k selection and graph frontiers with stable tie policy when required.", "outcomes": ["Solve and analyze a priority-driven problem with the selected language's library or implementation."], "prerequisites": ["dsa.heaps.operations"], "evidence_types": ["code", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.heaps.heapsort", "title": "Heapsort and selection", "description": "Use heap structure for in-place comparison sorting and repeated extreme selection.", "outcomes": ["Implement or trace heapsort and compare it with merge sort and quicksort."], "prerequisites": ["dsa.heaps.operations", "dsa.sort.merge-quick"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.graphs-core",
+      "title": "Graph representation and traversal",
+      "description": "Model relationships and explore reachable structure systematically.",
+      "required": true,
+      "prerequisites": ["dsa.linear-adts", "dsa.hashing"],
+      "skills": [
+        { "id": "dsa.graphs.model", "title": "Graph terminology and models", "description": "Distinguish directed, undirected, weighted, cyclic, connected and simple graph properties.", "outcomes": ["Model a real relationship problem as vertices and edges with justified graph properties."], "prerequisites": ["dsa.analysis.specification", "pf.data.selection"], "evidence_types": ["design", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-msf"] },
+        { "id": "dsa.graphs.representation", "title": "Adjacency list and matrix", "description": "Choose representation by graph density, required operations and memory cost.", "outcomes": ["Implement and compare list and matrix representations, including a two-dimensional matrix."], "prerequisites": ["dsa.graphs.model", "dsa.arrays.two-dimensional", "dsa.hashing.patterns"], "evidence_types": ["code", "design", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.graphs.bfs-dfs", "title": "Breadth-first and depth-first search", "description": "Maintain visited state and a queue or stack to traverse without infinite repetition.", "outcomes": ["Implement, trace and test BFS and DFS on disconnected and cyclic graphs."], "prerequisites": ["dsa.graphs.representation", "dsa.stack.adt", "dsa.queue.adt"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.graphs.components-cycles", "title": "Components and cycle detection", "description": "Apply traversal state to connected components and directed or undirected cycle detection.", "outcomes": ["Implement and test component counting and one appropriate cycle detector."], "prerequisites": ["dsa.graphs.bfs-dfs"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.graphs-advanced",
+      "title": "Directed and weighted graph algorithms",
+      "description": "Order dependencies and optimize path or connection costs under stated assumptions.",
+      "required": true,
+      "prerequisites": ["dsa.graphs-core", "dsa.heaps.priority-queue"],
+      "skills": [
+        { "id": "dsa.graphs.topological", "title": "Topological ordering", "description": "Order a directed acyclic graph and detect when dependencies contain a cycle.", "outcomes": ["Implement and test Kahn or DFS topological sorting on valid and cyclic inputs."], "prerequisites": ["dsa.graphs.bfs-dfs", "dsa.graphs.components-cycles"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.graphs.shortest-path", "title": "Unweighted and Dijkstra shortest paths", "description": "Use BFS for unit edges and Dijkstra for nonnegative weights with priority updates and predecessor reconstruction.", "outcomes": ["Select, implement and test a shortest-path algorithm while stating invalid weight assumptions."], "prerequisites": ["dsa.graphs.bfs-dfs", "dsa.heaps.priority-queue"], "evidence_types": ["code", "design", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.graphs.mst", "title": "Minimum spanning trees", "description": "Use Prim or Kruskal to connect an undirected weighted graph with minimum total edge cost.", "outcomes": ["Implement and test one MST algorithm and distinguish MST from shortest-path trees."], "prerequisites": ["dsa.graphs.shortest-path", "dsa.disjoint-set.adt"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.graphs.all-pairs", "title": "All-pairs path reasoning", "description": "Use Floyd-Warshall dynamic programming for small dense graphs and interpret unreachable or negative-cycle cases.", "outcomes": ["Implement and trace all-pairs shortest paths over an adjacency matrix."], "prerequisites": ["dsa.arrays.two-dimensional", "dsa.dp.tabulation", "dsa.graphs.shortest-path"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.disjoint-set",
+      "title": "Disjoint sets",
+      "description": "Maintain dynamic partitions for connectivity and Kruskal-style algorithms.",
+      "required": true,
+      "prerequisites": ["dsa.trees.structure", "dsa.arrays.operations"],
+      "skills": [
+        { "id": "dsa.disjoint-set.adt", "title": "Make, find and union", "description": "Represent disjoint components and query or combine their representatives.", "outcomes": ["Implement and test a basic parent-array disjoint-set structure."], "prerequisites": ["dsa.arrays.operations", "dsa.trees.structure"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.disjoint-set.rank", "title": "Union by rank or size", "description": "Attach smaller or shallower trees to control height.", "outcomes": ["Implement and trace union by rank or size while preserving representatives."], "prerequisites": ["dsa.disjoint-set.adt"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.disjoint-set.compression", "title": "Path compression", "description": "Shorten find paths while preserving component identity and explain its amortized benefit conceptually.", "outcomes": ["Implement path compression and compare operation traces before and after optimization."], "prerequisites": ["dsa.disjoint-set.rank", "dsa.analysis.asymptotic"], "evidence_types": ["code", "trace", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.disjoint-set.applications", "title": "Connectivity applications", "description": "Use disjoint sets for incremental connectivity, cycle checks and spanning-tree construction.", "outcomes": ["Solve and test a connectivity problem using the disjoint-set API."], "prerequisites": ["dsa.disjoint-set.compression", "dsa.graphs.model"], "evidence_types": ["code", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.strategies",
+      "title": "Greedy, backtracking and dynamic programming",
+      "description": "Recognize and justify major algorithm-design strategies rather than memorizing solutions.",
+      "required": true,
+      "prerequisites": ["dsa.recursion-divide", "dsa.hashing"],
+      "skills": [
+        { "id": "dsa.greedy.strategy", "title": "Greedy choice and counterexamples", "description": "Make locally optimal choices only when exchange or structural reasoning supports global correctness.", "outcomes": ["Design a greedy solution, state its ordering and produce a counterexample when the property fails."], "prerequisites": ["dsa.analysis.correctness", "dsa.sort.selection"], "evidence_types": ["design", "explain", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.backtracking.search", "title": "Backtracking search", "description": "Choose, recurse, undo and prune a decision tree while preserving candidate state.", "outcomes": ["Implement and test a permutation, subset or constraint-placement solver with pruning."], "prerequisites": ["dsa.recursion.design", "dsa.analysis.asymptotic"], "evidence_types": ["code", "visual", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.dp.memoization", "title": "Overlapping subproblems and memoization", "description": "Identify repeated state, define a recurrence and cache results with a complete state key.", "outcomes": ["Convert an exponential recursive solution into a tested memoized solution."], "prerequisites": ["dsa.recursion.recurrence", "dsa.hashing.patterns"], "evidence_types": ["code", "trace", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.dp.tabulation", "title": "Tabulation and state reconstruction", "description": "Order subproblems bottom-up, optimize storage when justified and reconstruct a chosen solution.", "outcomes": ["Design and implement one- and two-dimensional dynamic programs with explanation of state and transition."], "prerequisites": ["dsa.dp.memoization", "dsa.arrays.two-dimensional"], "evidence_types": ["design", "code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.problem-patterns",
+      "title": "Sequence and range problem patterns",
+      "description": "Apply reusable reasoning patterns while still deriving correctness and complexity.",
+      "required": true,
+      "prerequisites": ["dsa.arrays-strings", "dsa.hashing", "dsa.linear-adts"],
+      "skills": [
+        { "id": "dsa.patterns.two-pointer", "title": "Two-pointer and partition scans", "description": "Move coordinated indexes under a monotonic or partition invariant.", "outcomes": ["Recognize, implement and justify a two-pointer sequence solution."], "prerequisites": ["dsa.arrays.operations", "dsa.analysis.correctness"], "evidence_types": ["code", "trace", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.patterns.sliding-window", "title": "Sliding windows", "description": "Maintain an incremental fixed or variable range summary instead of recomputing each interval.", "outcomes": ["Implement and analyze fixed and variable sliding-window problems."], "prerequisites": ["dsa.patterns.two-pointer", "dsa.hashing.patterns"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.patterns.monotonic", "title": "Monotonic stack and queue", "description": "Discard dominated candidates while preserving ordered potential answers.", "outcomes": ["Implement and explain a next-greater or range-extreme problem with a monotonic structure."], "prerequisites": ["dsa.stack.adt", "dsa.deque.adt", "dsa.analysis.correctness"], "evidence_types": ["code", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] },
+        { "id": "dsa.patterns.interval", "title": "Intervals and sweep ordering", "description": "Sort interval events to merge, select or count overlaps under explicit boundary semantics.", "outcomes": ["Implement and test interval merging or scheduling with touching-boundary cases."], "prerequisites": ["dsa.sort.selection", "dsa.greedy.strategy"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al"] }
+      ]
+    },
+    {
+      "id": "dsa.transfer-quality",
+      "title": "Cross-language implementation and mastery",
+      "description": "Separate conceptual skill from implementation details and demonstrate robust transfer.",
+      "required": true,
+      "prerequisites": ["dsa.strategies", "dsa.graphs-advanced", "dsa.problem-patterns"],
+      "skills": [
+        { "id": "dsa.transfer.language-map", "title": "Language representation map", "description": "Map conceptual arrays, nodes, maps, sets, queues, heaps and graphs to idiomatic selected-language facilities.", "outcomes": ["Explain representation and ownership differences for one structure across two supported languages."], "prerequisites": ["dsa.entry.language-readiness", "dsa.hashing.patterns", "dsa.heaps.priority-queue"], "evidence_types": ["explain", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cpp-core", "dev-java", "py-tutorial"] },
+        { "id": "dsa.transfer.switch-diagnostic", "title": "Language-switch diagnostic", "description": "Retest implementation prerequisites after a switch while preserving independent conceptual evidence.", "outcomes": ["Complete equivalent implementation, test and debug tasks or receive a targeted remediation path."], "prerequisites": ["dsa.transfer.language-map", "dsa.entry.language-readiness"], "evidence_types": ["code", "debug", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf", "gnu-c", "cpp-core", "dev-java", "py-tutorial"] },
+        { "id": "dsa.quality.adversarial-tests", "title": "Adversarial and property tests", "description": "Test empty, singleton, duplicate, sorted, reverse, disconnected, cyclic, malformed and size-boundary inputs as applicable.", "outcomes": ["Create a reusable test matrix that distinguishes algorithm correctness from a few passing examples."], "prerequisites": ["dsa.analysis.correctness", "dsa.graphs.components-cycles", "dsa.dp.tabulation"], "evidence_types": ["test", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] },
+        { "id": "dsa.quality.capstone", "title": "Comparative DSA capstone", "description": "Solve an integrated problem with multiple candidate structures or strategies and defend the final choice.", "outcomes": ["Deliver, test and explain a selected-language solution with correctness argument, complexity analysis and alternative comparison."], "prerequisites": ["dsa.transfer.switch-diagnostic", "dsa.quality.adversarial-tests", "dsa.graphs.all-pairs", "dsa.patterns.interval"], "evidence_types": ["project", "code", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-al", "cs2023-sdf"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Specify, implement and test core linear, associative, hierarchical and graph data structures in the selected language.",
+    "Derive time and auxiliary-space complexity and use invariants or counterexamples to reason about correctness.",
+    "Select and justify search, sort, traversal, greedy, backtracking, divide-and-conquer or dynamic-programming strategies.",
+    "Solve array, string, two-dimensional grid, list, tree, heap and graph problems using appropriate reusable patterns.",
+    "Switch supported implementation language without losing conceptual mastery and remediate only failed language-specific prerequisites."
+  ],
+  "coverage_summary": { "required_skills": 60, "elective_skills": 0, "total_skills": 60, "covered": 60, "partial": 0, "planned": 0 }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.selectors.core.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.selectors-system",
+  "skillId": "css.selectors.core",
+  "title": "Type, class, attribute and combinator selectors",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Type, class, attribute and combinator selectors; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Type, class, attribute and combinator selectors",
+      "claim": "Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Type, class, attribute and combinator selectors",
+      "claim": "Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A .card__title class targets the component role without depending on three wrapper levels. Your goal is to choose selectors that are specific enough without coupling to incidental nesting. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Specificity and source order; html semantics; Rules, declarations and values; html document dom. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure. This draft therefore rejects: A selector describes how the browser should create or rearrange HTML elements."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Select elements by stable semantic hooks and structural relationships.",
+      "Choose selectors that are specific enough without coupling to incidental nesting."
+    ],
+    "excludes": [
+      "Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure."
+    ]
+  },
+  "outcomes": [
+    "Choose selectors that are specific enough without coupling to incidental nesting."
+  ],
+  "examples": [
+    {
+      "id": "css.selectors.core.example-a",
+      "title": "Type, class, attribute and combinator selectors: concrete case",
+      "situation": "A .card__title class targets the component role without depending on three wrapper levels.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A .card__title class targets the component role without depending on three wrapper levels.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth."
+      ],
+      "result": "The result follows because Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth."
+    },
+    {
+      "id": "css.selectors.core.example-b",
+      "title": "Type, class, attribute and combinator selectors: boundary case",
+      "situation": "Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A selector describes how the browser should create or rearrange HTML elements."
+      ],
+      "result": "The boundary requires this correction: Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.selectors.core.misconception",
+      "mistakenBelief": "A selector describes how the browser should create or rearrange HTML elements.",
+      "correction": "Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A selector describes how the browser should create or rearrange HTML elements."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Type, class, attribute and combinator selectors, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Type, class, attribute and combinator selectors before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A .card__title class targets the component role without depending on three wrapper levels.",
+      "Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure.",
+      "Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A .card__title class targets the component role without depending on three wrapper levels."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A selector describes how the browser should create or rearrange HTML elements."
+      }
+    ],
+    "textAlternative": "Starting artifact: A .card__title class targets the component role without depending on three wrapper levels. Step 1, Artifact. State: evidence: A .card__title class targets the component role without depending on three wrapper levels.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth.. Check the result against the boundary and reject this misconception: A selector describes how the browser should create or rearrange HTML elements."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Type, class, attribute and combinator selectors: concrete case”: state its starting evidence, apply the Type, class, attribute and combinator selectors rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Type, class, attribute and combinator selectors: concrete case.",
+        "Starting evidence: A .card__title class targets the component role without depending on three wrapper levels.",
+        "Core rule: Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure.",
+        "Observable result: The result follows because Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth.",
+        "Boundary check: Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Selectors match elements by type, class, id, attribute, and relationship, and combinators express ancestry or sibling structure.",
+        "Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Type, class, attribute and combinator selectors and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Choose selectors that are specific enough without coupling to incidental nesting.",
+        "Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.selectors.core.misconception",
+      "explanation": "Selectors match existing elements; use stable semantic classes and relationships without coupling to unnecessary wrapper depth.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'match existing elements' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose selectors that are specific enough without coupling to incidental nesting. Keep this boundary in view: Overly structural selectors break when markup changes, ids create high specificity, and selector matching does not alter DOM structure.",
+    "retrievalPrompts": [
+      "Explain Type, class, attribute and combinator selectors using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: A selector describes how the browser should create or rearrange HTML elements.",
+      "Apply checkpoint 'match existing elements' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Pseudo-classes and pseudo-elements”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

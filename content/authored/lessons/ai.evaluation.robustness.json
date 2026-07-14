@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.evaluation.robustness.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.evaluation-risk",
+  "skillId": "ai.evaluation.robustness",
+  "title": "Robustness, drift and adversarial cases",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Robustness, drift and adversarial cases; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Core: Govern, Map, Measure, and Manage functions and trustworthiness characteristics; atomic topic: Robustness, drift and adversarial cases",
+      "claim": "Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score."
+    },
+    {
+      "sourceRef": "nist-genai",
+      "locator": "NIST AI 600-1 Generative AI Profile; July 2024; NIST AI 600-1 measurement, red-teaming, incident, content provenance, and monitoring suggested actions; atomic topic: Robustness, drift and adversarial cases",
+      "claim": "Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas. Your goal is to design and execute a stress-test matrix and specify monitoring triggers. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Supervised learning; Generative AI, LLMs and retrieval; Metrics, thresholds and baselines; Sampling, labels and data quality. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "No finite test proves robustness, adversaries adapt, synthetic perturbations may be unrealistic, drift labels arrive late, monitoring can miss silent harms, and recovery controls need exercises. The learner must reject this overclaim: Passing a standard adversarial test suite certifies robustness against future shifts and attacks."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Evaluate distribution shifts, malformed inputs, rare cases, abuse and changing performance after deployment.",
+      "Design and execute a stress-test matrix and specify monitoring triggers."
+    ],
+    "excludes": [
+      "No finite test proves robustness, adversaries adapt, synthetic perturbations may be unrealistic, drift labels arrive late, monitoring can miss silent harms, and recovery controls need exercises."
+    ]
+  },
+  "outcomes": [
+    "Design and execute a stress-test matrix and specify monitoring triggers."
+  ],
+  "examples": [
+    {
+      "id": "ai.evaluation.robustness.example.direct",
+      "title": "Robustness, drift and adversarial cases: bounded direct case",
+      "situation": "A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents."
+      ],
+      "result": "This example supports only the atomic outcome because Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents."
+    },
+    {
+      "id": "ai.evaluation.robustness.example.stress",
+      "title": "Robustness, drift and adversarial cases: stress and transfer case",
+      "situation": "After a source/version change, a monitoring trigger detects calibration drift and routes decisions to review while retraining evidence is gathered.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: After a source/version change, a monitoring trigger detects calibration drift and routes decisions to review while retraining evidence is gathered.",
+        "Step 2 — Keep the non-claim visible: No finite test proves robustness, adversaries adapt, synthetic perturbations may be unrealistic, drift labels arrive late, monitoring can miss silent harms, and recovery controls need exercises.",
+        "Step 3 — Reject the tempting overclaim: Passing a standard adversarial test suite certifies robustness against future shifts and attacks."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and execute a stress-test matrix and specify monitoring triggers."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.evaluation.robustness.misconception",
+      "mistakenBelief": "Passing a standard adversarial test suite certifies robustness against future shifts and attacks.",
+      "correction": "Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Passing a standard adversarial test suite certifies robustness against future shifts and attacks."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an evidence and risk register linking metrics, stress cases, affected slices, accountable owners, controls, monitors, and stop decisions can introduce Robustness, drift and adversarial cases only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "evaluation, robustness, fairness, explanations, and lifecycle governance"
+    ],
+    "limitations": [
+      "no metric suite or framework checklist certifies safety, fairness, causality, or future robustness",
+      "No finite test proves robustness, adversaries adapt, synthetic perturbations may be unrealistic, drift labels arrive late, monitoring can miss silent harms, and recovery controls need exercises."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas.",
+      "Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score.",
+      "Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Passing a standard adversarial test suite certifies robustness against future shifts and attacks."
+      }
+    ],
+    "textAlternative": "Starting artifact: A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas. Step 1, Observe. State: boundedEvidence: A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents.. State what the evidence does not establish and reject the misconception: Passing a standard adversarial test suite certifies robustness against future shifts and attacks."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Robustness, drift and adversarial cases: bounded direct case”: state its starting evidence, apply the Robustness, drift and adversarial cases rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Robustness, drift and adversarial cases: bounded direct case.",
+        "Starting evidence: A text classifier is stressed with empty, long, misspelled, multilingual, duplicated, and prompt-like inputs, with explicit reject behavior and slice deltas.",
+        "Core rule: Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score.",
+        "Observable result: This example supports only the atomic outcome because Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents.",
+        "Boundary check: Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: After a source/version change, a monitoring trigger detects calibration drift and routes decisions to review while retraining evidence is gathered.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Robustness evaluation defines plausible shifts, malformed inputs, rare conditions, abuse cases, adversarial manipulations, and monitoring triggers, then measures degradation and safe failure rather than one in-distribution score.",
+        "No finite test proves robustness, adversaries adapt, synthetic perturbations may be unrealistic, drift labels arrive late, monitoring can miss silent harms, and recovery controls need exercises."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Robustness, drift and adversarial cases and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Design and execute a stress-test matrix and specify monitoring triggers.",
+        "Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.evaluation.robustness.misconception",
+      "explanation": "Maintain a living threat- and shift-based stress matrix, quantify degradation, define safe fallback and monitoring triggers, and update tests after incidents.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: After a source/version change, a monitoring trigger detects calibration drift and routes decisions to review while retraining evidence is gathered."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and execute a stress-test matrix and specify monitoring triggers. Keep this boundary in view: No finite test proves robustness, adversaries adapt, synthetic perturbations may be unrealistic, drift labels arrive late, monitoring can miss silent harms, and recovery controls need exercises.",
+    "retrievalPrompts": [
+      "Explain Robustness, drift and adversarial cases with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Passing a standard adversarial test suite certifies robustness against future shifts and attacks.",
+      "Apply the boundary to: After a source/version change, a monitoring trigger detects calibration drift and routes decisions to review while retraining evidence is gathered."
+    ],
+    "nextReviewPrompt": "Next: continue to “Fairness and explainability”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

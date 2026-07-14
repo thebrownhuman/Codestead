@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.system.custom-properties.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.selectors-system",
+  "skillId": "css.system.custom-properties",
+  "title": "Custom properties and design tokens",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Custom properties and design tokens; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Custom properties and design tokens",
+      "claim": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Custom properties and design tokens",
+      "claim": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value. Your goal is to create a small color, spacing and typography token layer and trace an override. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Specificity and source order; html semantics; Inheritance, initial and computed values. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design. This draft therefore rejects: Custom properties are globally fixed constants evaluated before the cascade."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Define inheriting reusable values with local overrides and safe fallbacks.",
+      "Create a small color, spacing and typography token layer and trace an override."
+    ],
+    "excludes": [
+      "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design."
+    ]
+  },
+  "outcomes": [
+    "Create a small color, spacing and typography token layer and trace an override."
+  ],
+  "examples": [
+    {
+      "id": "css.system.custom-properties.example-a",
+      "title": "Custom properties and design tokens: concrete case",
+      "situation": "A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+      ],
+      "result": "The result follows because Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+    },
+    {
+      "id": "css.system.custom-properties.example-b",
+      "title": "Custom properties and design tokens: boundary case",
+      "situation": "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Custom properties are globally fixed constants evaluated before the cascade."
+      ],
+      "result": "The boundary requires this correction: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.system.custom-properties.misconception",
+      "mistakenBelief": "Custom properties are globally fixed constants evaluated before the cascade.",
+      "correction": "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Custom properties are globally fixed constants evaluated before the cascade."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Custom properties and design tokens, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Custom properties and design tokens before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
+      "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
+      "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Custom properties are globally fixed constants evaluated before the cascade."
+      }
+    ],
+    "textAlternative": "Starting artifact: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value. Step 1, Artifact. State: evidence: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.. Check the result against the boundary and reject this misconception: Custom properties are globally fixed constants evaluated before the cascade."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Custom properties and design tokens: concrete case”: state its starting evidence, apply the Custom properties and design tokens rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Custom properties and design tokens: concrete case.",
+        "Starting evidence: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
+        "Core rule: Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
+        "Observable result: The result follows because Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.",
+        "Boundary check: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
+        "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Custom properties and design tokens and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Create a small color, spacing and typography token layer and trace an override.",
+        "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.system.custom-properties.misconception",
+      "explanation": "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'participate in the cascade' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a small color, spacing and typography token layer and trace an override. Keep this boundary in view: They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
+    "retrievalPrompts": [
+      "Explain Custom properties and design tokens using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Custom properties are globally fixed constants evaluated before the cascade.",
+      "Apply checkpoint 'participate in the cascade' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Stylesheet organization”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,2 @@
+ALTER TABLE "community_operation_receipt" DROP CONSTRAINT "community_operation_receipt_action_check";--> statement-breakpoint
+ALTER TABLE "community_operation_receipt" ADD CONSTRAINT "community_operation_receipt_action_check" CHECK ("community_operation_receipt"."action" IN ('create_group','add_member','create_post','reply','moderate'));

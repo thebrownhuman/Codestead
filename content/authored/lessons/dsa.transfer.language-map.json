@@ -1,0 +1,225 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.transfer.language-map.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.transfer-quality",
+  "skillId": "dsa.transfer.language-map",
+  "title": "Language representation map",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Language representation map; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; material applicable to Language representation map",
+      "claim": "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules."
+    },
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; accessed 2026-07; material applicable to Language representation map",
+      "claim": "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules."
+    },
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; material applicable to Language representation map",
+      "claim": "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules."
+    },
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; material applicable to Language representation map",
+      "claim": "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C. Your goal is to explain representation and ownership differences for one structure across two supported languages. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Greedy, backtracking and dynamic programming; Directed and weighted graph algorithms; Sequence and range problem patterns; Selected-language readiness; Frequency and lookup patterns; Priority queue applications. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Library names can look equivalent while invalidation, mutability, overflow, recursion, and complexity guarantees differ. The draft therefore rejects: Translating syntax line by line preserves every data-structure guarantee across languages."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Map conceptual arrays, nodes, maps, sets, queues, heaps and graphs to idiomatic selected-language facilities.",
+      "Explain representation and ownership differences for one structure across two supported languages.",
+      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+    ],
+    "excludes": [
+      "Library names can look equivalent while invalidation, mutability, overflow, recursion, and complexity guarantees differ."
+    ]
+  },
+  "outcomes": [
+    "Explain representation and ownership differences for one structure across two supported languages."
+  ],
+  "examples": [
+    {
+      "id": "dsa.transfer.language-map.example-a",
+      "title": "Language representation map: language-neutral trace",
+      "situation": "A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Map the abstract operations and guarantees first, then implement them with each language's actual semantics."
+      ],
+      "result": "The conceptual result follows because Map the abstract operations and guarantees first, then implement them with each language's actual semantics."
+    },
+    {
+      "id": "dsa.transfer.language-map.example-b",
+      "title": "Language representation map: implementation transfer",
+      "situation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+        "Step 3 — Retest this boundary in the selected implementation: Library names can look equivalent while invalidation, mutability, overflow, recursion, and complexity guarantees differ."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.transfer.language-map.misconception",
+      "mistakenBelief": "Translating syntax line by line preserves every data-structure guarantee across languages.",
+      "correction": "Map the abstract operations and guarantees first, then implement them with each language's actual semantics.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Translating syntax line by line preserves every data-structure guarantee across languages."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Language representation map, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Library names can look equivalent while invalidation, mutability, overflow, recursion, and complexity guarantees differ."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C.",
+      "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules.",
+      "Map the abstract operations and guarantees first, then implement them with each language's actual semantics.",
+      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Map the abstract operations and guarantees first, then implement them with each language's actual semantics."
+        },
+        "explanation": "Verify the result and reject this misconception: Translating syntax line by line preserves every data-structure guarantee across languages."
+      }
+    ],
+    "textAlternative": "Starting artifact: A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C. Step 1, Specification. State: scenario: A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence. Step 4, Conclusion. State: correction: Map the abstract operations and guarantees first, then implement them with each language's actual semantics.. Verify the result and reject this misconception: Translating syntax line by line preserves every data-structure guarantee across languages."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Language representation map: language-neutral trace”: state its starting evidence, apply the Language representation map rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Language representation map: language-neutral trace.",
+        "Starting evidence: A dynamic sequence maps to vector in C++, ArrayList in Java, list in Python, and an explicit buffer policy in C.",
+        "Core rule: A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules.",
+        "Observable result: The conceptual result follows because Map the abstract operations and guarantees first, then implement them with each language's actual semantics.",
+        "Boundary check: Map the abstract operations and guarantees first, then implement them with each language's actual semantics."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A DSA concept keeps one abstract contract while implementations map operations to each language's types, libraries, ownership, and equality rules.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+        "Library names can look equivalent while invalidation, mutability, overflow, recursion, and complexity guarantees differ."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Language representation map case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Explain representation and ownership differences for one structure across two supported languages.",
+        "Map the abstract operations and guarantees first, then implement them with each language's actual semantics."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.transfer.language-map.misconception",
+      "explanation": "Map the abstract operations and guarantees first, then implement them with each language's actual semantics.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'abstract operations and guarantees', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to explain representation and ownership differences for one structure across two supported languages. Keep this boundary in view: Library names can look equivalent while invalidation, mutability, overflow, recursion, and complexity guarantees differ.",
+    "retrievalPrompts": [
+      "State the Language representation map invariant and complexity without code.",
+      "Why is this claim false: Translating syntax line by line preserves every data-structure guarantee across languages.",
+      "Map checkpoint 'abstract operations and guarantees' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Language-switch diagnostic”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

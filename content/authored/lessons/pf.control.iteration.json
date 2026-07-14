@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.control.iteration.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.control",
+  "skillId": "pf.control.iteration",
+  "title": "Iteration",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Iteration; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Iteration",
+      "claim": "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length. Your goal is to design and trace loops while identifying initialization, condition, update and termination. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Expressions and evaluation; Selection. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use counted and condition-controlled repetition with correct progress.",
+      "Design and trace loops while identifying initialization, condition, update and termination."
+    ],
+    "excludes": [
+      "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage."
+    ]
+  },
+  "outcomes": [
+    "Design and trace loops while identifying initialization, condition, update and termination."
+  ],
+  "examples": [
+    {
+      "id": "pf.control.iteration.example-a",
+      "title": "Iteration: direct case",
+      "situation": "A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+      ],
+      "result": "The case supports the declared outcome because Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+    },
+    {
+      "id": "pf.control.iteration.example-b",
+      "title": "Iteration: boundary case",
+      "situation": "A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path.",
+        "Step 2 — Keep this boundary explicit: Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage.",
+        "Step 3 — Reject the documented misconception: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and trace loops while identifying initialization, condition, update and termination."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.control.iteration.misconception",
+      "mistakenBelief": "A loop terminates automatically once its body has run enough times, even if the condition never changes.",
+      "correction": "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A route with ordered checkpoints, forks, and repeated laps can model Iteration while each decision uses the current conditions.",
+    "usefulFor": [
+      "Visualizing order, branching, repetition, progress, and nested routes"
+    ],
+    "limitations": [
+      "Real control flow can include calls, exceptions, concurrency, and evaluation rules absent from a physical route.",
+      "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
+      "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
+      "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops."
+        },
+        "explanation": "Apply the declared Iteration model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+      }
+    ],
+    "textAlternative": "Starting artifact: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length. Step 1, Observe. State: evidence: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.. Apply the declared Iteration model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.. Compare the observation with the correction and reject the misconception: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Iteration: direct case”: state its starting evidence, apply the Iteration rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Iteration: direct case.",
+        "Starting evidence: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
+        "Core rule: A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
+        "Observable result: The case supports the declared outcome because Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.",
+        "Boundary check: Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
+        "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Iteration, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Design and trace loops while identifying initialization, condition, update and termination.",
+        "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.control.iteration.misconception",
+      "explanation": "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and trace loops while identifying initialization, condition, update and termination. Keep this boundary in view: Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage.",
+    "retrievalPrompts": [
+      "Explain Iteration without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A loop terminates automatically once its body has run enough times, even if the condition never changes.",
+      "Apply the model to this case from memory: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path."
+    ],
+    "nextReviewPrompt": "Next: continue to “Nested control and tables”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

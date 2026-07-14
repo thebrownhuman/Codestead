@@ -1,0 +1,221 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.computing.program.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.computing",
+  "skillId": "pf.computing.program",
+  "title": "Program, source code, and algorithm",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted pilot draft",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T05:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific pilot lesson awaiting accuracy, pedagogy, and accessibility review by a human editor. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "Software Development Fundamentals knowledge area, introductory programming concepts",
+      "claim": "Beginners should distinguish problem-solving procedures, source representations, and executing software artifacts."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An algorithm is a finite method for solving a class of problems; source code expresses such a method in a programming language; a program is the complete executable software artifact and its required context.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A class has the scores 62, 91, and 74, and the required output is the largest score. Your goal is to classify concrete artifacts as an algorithm, source code, a running program, an input, or an output and justify the classification. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "This skill has no declared earlier lesson. The course assumes: Basic reading and arithmetic; Ability to use a keyboard and web browser. You can continue when those ideas feel familiar."
+      },
+      {
+        "heading": "Three related objects",
+        "body": "The algorithm describes what steps solve the problem without depending on one particular spelling. Source code is text written under a language's syntax and meaning rules. A program is what runs: translated or interpreted instructions together with the data and environment they require."
+      },
+      {
+        "heading": "Why the distinction matters",
+        "body": "One algorithm can be expressed in several languages, and one source file can be only one part of a larger program. When a result is wrong, naming the layer helps: the algorithm may be flawed, the source may mistranslate it, or the running program may receive unexpected input or environment state."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Classifying algorithms, source code, programs, inputs, and outputs",
+      "Relating one algorithm to multiple possible source-code expressions"
+    ],
+    "excludes": [
+      "Compiler internals and machine-code formats",
+      "Formal mathematical proofs of algorithm correctness"
+    ]
+  },
+  "outcomes": [
+    "Classify concrete artifacts as an algorithm, source code, a running program, an input, or an output and justify the classification."
+  ],
+  "examples": [
+    {
+      "id": "program-example-largest",
+      "title": "Finding the largest score",
+      "situation": "A class has the scores 62, 91, and 74, and the required output is the largest score.",
+      "walkthrough": [
+        "Step 1 — The algorithm keeps a current largest value and compares each remaining score with it.",
+        "Step 2 — Python or Java source code can express those same comparisons using different syntax.",
+        "Step 3 — When that source is executed with the three scores as input, the program produces 91 as output."
+      ],
+      "result": "The comparison method is the algorithm, the language text is source code, and the executing artifact that prints 91 is the program."
+    },
+    {
+      "id": "program-example-route",
+      "title": "Choosing the shorter route",
+      "situation": "A navigation feature receives two route distances and must display the shorter one.",
+      "walkthrough": [
+        "Step 1 — The reusable algorithm compares two distances and selects the smaller value.",
+        "Step 2 — The source contains a concrete conditional expression plus code for reading and displaying values.",
+        "Step 3 — The running program combines that source's behavior with a device, an operating environment, and the actual distance input."
+      ],
+      "result": "The same comparison algorithm can appear in a phone app or command-line program without becoming the source code itself."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "program-misconception-file",
+      "mistakenBelief": "Every source file is automatically a complete program that can run by itself.",
+      "correction": "A source file may be incomplete, may depend on other files or libraries, and may need translation before any program can execute.",
+      "diagnosticPrompt": "A file contains one helper function but no entry point or caller; is it source code, a complete runnable program, both, or neither, and why?"
+    },
+    {
+      "id": "program-misconception-algorithm-language",
+      "mistakenBelief": "Changing from Python syntax to Java syntax necessarily creates a different algorithm.",
+      "correction": "Different source expressions can implement the same ordered method, although implementation details can affect behavior or performance.",
+      "diagnosticPrompt": "Two snippets both scan every score and retain the greatest value; what evidence would show they implement the same algorithm?"
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A recipe's method resembles an algorithm, the written recipe resembles source code, and a cook carrying it out with real ingredients resembles a running program.",
+    "usefulFor": [
+      "Separating a reusable procedure from one written representation and one execution"
+    ],
+    "limitations": [
+      "Computers follow formal language rules more literally than cooks follow recipes",
+      "A deployed program can contain many source files, libraries, generated assets, and environmental dependencies"
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "INPUT scores = [62, 91, 74]",
+      "ALGORITHM scan values and retain the greatest",
+      "SOURCE one concrete language expression",
+      "PROGRAM execute with scores",
+      "OUTPUT 91"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Problem",
+        "state": {
+          "input": "[62, 91, 74]",
+          "output": "unknown"
+        },
+        "explanation": "The problem first declares actual input and the observable result that is required."
+      },
+      {
+        "step": 2,
+        "focus": "Algorithm",
+        "state": {
+          "method": "scan and retain greatest",
+          "language": "none"
+        },
+        "explanation": "The ordered solution method is described without committing to a programming-language spelling."
+      },
+      {
+        "step": 3,
+        "focus": "Source code",
+        "state": {
+          "method": "scan and retain greatest",
+          "language": "chosen"
+        },
+        "explanation": "Source code expresses the method using one language's syntax, types, and control structures."
+      },
+      {
+        "step": 4,
+        "focus": "Program execution",
+        "state": {
+          "input": "[62, 91, 74]",
+          "output": "91"
+        },
+        "explanation": "The program runs the expressed method in a real environment and produces the observable output 91."
+      }
+    ],
+    "textAlternative": "Starting artifact: INPUT scores = [62, 91, 74] Step 1, Problem. State: input: [62, 91, 74]; output: unknown. The problem first declares actual input and the observable result that is required. Step 2, Algorithm. State: method: scan and retain greatest; language: none. The ordered solution method is described without committing to a programming-language spelling. Step 3, Source code. State: method: scan and retain greatest; language: chosen. Source code expresses the method using one language's syntax, types, and control structures. Step 4, Program execution. State: input: [62, 91, 74]; output: 91. The program runs the expressed method in a real environment and produces the observable output 91."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Finding the largest score”: state its starting evidence, apply the Program, source code, and algorithm rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Finding the largest score.",
+        "Starting evidence: A class has the scores 62, 91, and 74, and the required output is the largest score.",
+        "Core rule: An algorithm is a finite method for solving a class of problems; source code expresses such a method in a programming language; a program is the complete executable software artifact and its required context.",
+        "Observable result: The comparison method is the algorithm, the language text is source code, and the executing artifact that prints 91 is the program.",
+        "Boundary check: A source file may be incomplete, may depend on other files or libraries, and may need translation before any program can execute."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Classify a pseudocode procedure, a Python file, a running Python process, keyboard text, and displayed text in a word-count scenario.",
+      "scaffold": [
+        "Ask whether each artifact is a method, representation, execution, incoming data, or outgoing data"
+      ],
+      "expectedEvidence": [
+        "Each artifact receives one justified classification",
+        "The learner distinguishes the file from its executing process"
+      ]
+    },
+    "farTransfer": {
+      "prompt": "A spreadsheet formula and a web service both calculate loan interest. Explain what could be the shared algorithm and what counts as source and program in each environment.",
+      "scaffold": [
+        "Ignore surface appearance and identify the ordered calculation",
+        "Name environment dependencies separately"
+      ],
+      "expectedEvidence": [
+        "The shared calculation is stated independently of either tool",
+        "The explanation recognizes two different implementations and execution environments"
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "program-misconception-file",
+      "explanation": "Classify by role, not filename: readable language text is source, while a runnable program needs a valid entry path and every required dependency.",
+      "retryPrompt": "Classify a library file containing reusable functions and explain what is still needed before its behavior can execute."
+    },
+    {
+      "misconceptionId": "program-misconception-algorithm-language",
+      "explanation": "Compare the sequence of decisions and state changes first; syntax is the expression layer, while those abstract operations identify the algorithm.",
+      "retryPrompt": "Describe one maximum-finding algorithm, then name two visibly different source-code forms that could implement it."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to classify concrete artifacts as an algorithm, source code, a running program, an input, or an output and justify the classification. Keep this boundary in view: Compiler internals and machine-code formats",
+    "retrievalPrompts": [
+      "Without using the recipe analogy, distinguish an algorithm from source code.",
+      "Why might one source file fail to be a complete runnable program?",
+      "Give one input and one output for a program that implements a maximum-finding algorithm."
+    ],
+    "nextReviewPrompt": "Next: continue to “Hardware and software roles”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

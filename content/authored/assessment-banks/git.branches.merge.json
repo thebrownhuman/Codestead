@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.branches.merge.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.branches",
+  "skillId": "git.branches.merge",
+  "title": "Fast-forward and three-way merge deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Fast-forward and three-way merge; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.branches.merge.mcq.misconception",
+      "skillId": "git.branches.merge",
+      "title": "Fast-forward and three-way merge: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? A merge is successful and correct whenever Git reports no textual conflicts.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers.",
+        "incorrect": "The selected statement preserves the documented misconception. After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Fast-forward and three-way merge instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "A merge is successful and correct whenever Git reports no textual conflicts."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "After reconciling history, inspect the combined diff and run relevant builds and tests because semantic incompatibilities can remain without conflict markers."
+      }
+    }
+  ]
+}

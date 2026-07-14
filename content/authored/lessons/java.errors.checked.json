@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.errors.checked.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.errors-io",
+  "skillId": "java.errors.checked",
+  "title": "Checked and unchecked exception design",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Checked and unchecked exception design; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Exceptions and Java I/O learning paths; atomic topic: Checked and unchecked exception design",
+      "claim": "Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS chapter 11: exception kinds, checking, causes, and abrupt completion; atomic topic: Checked and unchecked exception design",
+      "claim": "Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException. Your goal is to design and justify exception types and handling policy for a small API. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and invariants; String and text processing; Exception flow and stack traces; Classes, fields and methods. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "The checked/unchecked choice is an API design decision rather than severity, wrapping everything loses useful distinctions, and exceptions should not encode expected branch flow. The learner must reject this documented misconception: Checked means serious and unchecked means harmless, so every important failure should extend Exception directly."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose failure contracts without swallowing errors or using exceptions for normal flow.",
+      "Design and justify exception types and handling policy for a small API."
+    ],
+    "excludes": [
+      "The checked/unchecked choice is an API design decision rather than severity, wrapping everything loses useful distinctions, and exceptions should not encode expected branch flow."
+    ]
+  },
+  "outcomes": [
+    "Design and justify exception types and handling policy for a small API."
+  ],
+  "examples": [
+    {
+      "id": "java.errors.checked.example.direct",
+      "title": "Checked and unchecked exception design: direct language case",
+      "situation": "A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives."
+      ],
+      "result": "The example meets the atomic outcome because Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives."
+    },
+    {
+      "id": "java.errors.checked.example.boundary",
+      "title": "Checked and unchecked exception design: boundary and transfer case",
+      "situation": "A domain parse method returns an explicit result for common absence but throws a named exception when malformed input prevents a promised conversion.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A domain parse method returns an explicit result for common absence but throws a named exception when malformed input prevents a promised conversion.",
+        "Step 2 — Keep the language boundary explicit: The checked/unchecked choice is an API design decision rather than severity, wrapping everything loses useful distinctions, and exceptions should not encode expected branch flow.",
+        "Step 3 — Reject the tempting but incorrect rule: Checked means serious and unchecked means harmless, so every important failure should extend Exception directly."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and justify exception types and handling policy for a small API."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.errors.checked.misconception",
+      "mistakenBelief": "Checked means serious and unchecked means harmless, so every important failure should extend Exception directly.",
+      "correction": "Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Checked means serious and unchecked means harmless, so every important failure should extend Exception directly."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a document desk that records a failure chain, handles only recoverable cases, and always closes borrowed equipment can introduce Checked and unchecked exception design, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "exception boundaries, paths, text encodings, and resource cleanup"
+    ],
+    "limitations": [
+      "suppressed exceptions, stack unwinding, filesystem semantics, and serialization attacks need exact technical treatment",
+      "The checked/unchecked choice is an API design decision rather than severity, wrapping everything loses useful distinctions, and exceptions should not encode expected branch flow."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException.",
+      "Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures.",
+      "Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Checked means serious and unchecked means harmless, so every important failure should extend Exception directly."
+      }
+    ],
+    "textAlternative": "Starting artifact: A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException. Step 1, Observe. State: evidence: A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives.. Compare the observation with the correction and explain why the misconception fails: Checked means serious and unchecked means harmless, so every important failure should extend Exception directly."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Checked and unchecked exception design: direct language case”: state its starting evidence, apply the Checked and unchecked exception design rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Checked and unchecked exception design: direct language case.",
+        "Starting evidence: A file-loading API declares IOException because callers can choose retry, alternate input, or escalation, while an invalid negative argument throws IllegalArgumentException.",
+        "Core rule: Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures.",
+        "Observable result: The example meets the atomic outcome because Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives.",
+        "Boundary check: Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A domain parse method returns an explicit result for common absence but throws a named exception when malformed input prevents a promised conversion.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Checked exceptions make selected recoverable conditions part of a method's compile-time contract, while unchecked exceptions commonly report programming, invariant, or caller-contract failures.",
+        "The checked/unchecked choice is an API design decision rather than severity, wrapping everything loses useful distinctions, and exceptions should not encode expected branch flow."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Checked and unchecked exception design, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Design and justify exception types and handling policy for a small API.",
+        "Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.errors.checked.misconception",
+      "explanation": "Choose checked or unchecked from caller recovery and contract needs, not severity; document the failure policy and avoid exceptions for routine alternatives.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A domain parse method returns an explicit result for common absence but throws a named exception when malformed input prevents a promised conversion."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and justify exception types and handling policy for a small API. Keep this boundary in view: The checked/unchecked choice is an API design decision rather than severity, wrapping everything loses useful distinctions, and exceptions should not encode expected branch flow.",
+    "retrievalPrompts": [
+      "Explain Checked and unchecked exception design using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Checked means serious and unchecked means harmless, so every important failure should extend Exception directly.",
+      "Predict this case from memory: A domain parse method returns an explicit result for common absence but throws a named exception when malformed input prevents a promised conversion."
+    ],
+    "nextReviewPrompt": "Next: continue to “Paths, files and text I/O”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

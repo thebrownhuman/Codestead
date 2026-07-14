@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.data.splits-leakage.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.data-workflow",
+  "skillId": "ai.data.splits-leakage",
+  "title": "Train, validation, test and leakage deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Train, validation, test and leakage; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "sklearn",
+    "nist-ai-rmf"
+  ],
+  "items": [
+    {
+      "id": "ai.data.splits-leakage.mcq.misconception",
+      "skillId": "ai.data.splits-leakage",
+      "title": "Train, validation, test and leakage: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? Any random 80/20 split prevents leakage as long as the target column is removed from model inputs.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure.",
+        "incorrect": "That option preserves the overclaim. Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+        },
+        {
+          "id": "overclaim",
+          "text": "Any random 80/20 split prevents leakage as long as the target column is removed from model inputs."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+      }
+    },
+    {
+      "id": "ai.data.splits-leakage.fill.checkpoint",
+      "skillId": "ai.data.splits-leakage",
+      "title": "Train, validation, test and leakage: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'deployment unit'. Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Split by the [[checkpoint]] and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "deployment unit"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+      }
+    },
+    {
+      "id": "ai.data.splits-leakage.code.offline",
+      "skillId": "ai.data.splits-leakage",
+      "title": "Train, validation, test and leakage: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read entity,split rows and print sorted entity ids appearing in more than one split, or clean.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.data.splits-leakage.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "p1,train\np2,test\np1,test\n",
+          "expectedStdout": "p1",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.data.splits-leakage.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "p1,train\np2,test\n",
+          "expectedStdout": "clean",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    memberships: dict[str, set[str]] = {}\n    for line in data.splitlines():\n        if not line.strip():\n            continue\n        entity, split = line.split(',', 1)\n        memberships.setdefault(entity, set()).add(split)\n    leaked = sorted(entity for entity, splits in memberships.items() if len(splits) > 1)\n    return ' '.join(leaked) if leaked else 'clean'\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "Grouping by deployment entity exposes row-level leakage across train, validation, and test partitions."
+      }
+    }
+  ]
+}

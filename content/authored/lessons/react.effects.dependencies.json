@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.effects.dependencies.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.effects-refs",
+  "skillId": "react.effects.dependencies",
+  "title": "Dependencies and reactive values",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Dependencies and reactive values; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Dependencies and reactive values",
+      "claim": "Effect dependencies list every reactive value read so synchronization is reapplied when those values change."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Effect dependencies list every reactive value read so synchronization is reapplied when those values change.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A chat connection effect depends on roomId and serverUrl because both determine the external connection. Your goal is to repair stale-closure and runaway-effect defects with correct dependencies. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: State and events; javascript async network; When an effect is needed; javascript scope closures. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Effect dependencies list every reactive value read so synchronization is reapplied when those values change. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency. This draft therefore rejects: An empty dependency array makes any effect safe to run once with permanently current values."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Declare every reactive dependency and restructure code instead of suppressing the hooks linter.",
+      "Repair stale-closure and runaway-effect defects with correct dependencies."
+    ],
+    "excludes": [
+      "Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency."
+    ]
+  },
+  "outcomes": [
+    "Repair stale-closure and runaway-effect defects with correct dependencies."
+  ],
+  "examples": [
+    {
+      "id": "react.effects.dependencies.example-a",
+      "title": "Dependencies and reactive values: concrete case",
+      "situation": "A chat connection effect depends on roomId and serverUrl because both determine the external connection.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A chat connection effect depends on roomId and serverUrl because both determine the external connection.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Dependencies must match reactive reads; an empty array can capture stale initial values."
+      ],
+      "result": "The result follows because Dependencies must match reactive reads; an empty array can capture stale initial values."
+    },
+    {
+      "id": "react.effects.dependencies.example-b",
+      "title": "Dependencies and reactive values: boundary case",
+      "situation": "Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: An empty dependency array makes any effect safe to run once with permanently current values."
+      ],
+      "result": "The boundary requires this correction: Dependencies must match reactive reads; an empty array can capture stale initial values."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.effects.dependencies.misconception",
+      "mistakenBelief": "An empty dependency array makes any effect safe to run once with permanently current values.",
+      "correction": "Dependencies must match reactive reads; an empty array can capture stale initial values.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: An empty dependency array makes any effect safe to run once with permanently current values."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Dependencies and reactive values, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Dependencies and reactive values before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A chat connection effect depends on roomId and serverUrl because both determine the external connection.",
+      "Effect dependencies list every reactive value read so synchronization is reapplied when those values change.",
+      "Dependencies must match reactive reads; an empty array can capture stale initial values."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A chat connection effect depends on roomId and serverUrl because both determine the external connection."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Effect dependencies list every reactive value read so synchronization is reapplied when those values change."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Dependencies must match reactive reads; an empty array can capture stale initial values."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: An empty dependency array makes any effect safe to run once with permanently current values."
+      }
+    ],
+    "textAlternative": "Starting artifact: A chat connection effect depends on roomId and serverUrl because both determine the external connection. Step 1, Artifact. State: evidence: A chat connection effect depends on roomId and serverUrl because both determine the external connection.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Effect dependencies list every reactive value read so synchronization is reapplied when those values change.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Dependencies must match reactive reads; an empty array can capture stale initial values.. Check the result against the boundary and reject this misconception: An empty dependency array makes any effect safe to run once with permanently current values."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Dependencies and reactive values: concrete case”: state its starting evidence, apply the Dependencies and reactive values rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Dependencies and reactive values: concrete case.",
+        "Starting evidence: A chat connection effect depends on roomId and serverUrl because both determine the external connection.",
+        "Core rule: Effect dependencies list every reactive value read so synchronization is reapplied when those values change.",
+        "Observable result: The result follows because Dependencies must match reactive reads; an empty array can capture stale initial values.",
+        "Boundary check: Dependencies must match reactive reads; an empty array can capture stale initial values."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Effect dependencies list every reactive value read so synchronization is reapplied when those values change.",
+        "Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Dependencies and reactive values and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Repair stale-closure and runaway-effect defects with correct dependencies.",
+        "Dependencies must match reactive reads; an empty array can capture stale initial values."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.effects.dependencies.misconception",
+      "explanation": "Dependencies must match reactive reads; an empty array can capture stale initial values.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'reactive reads' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair stale-closure and runaway-effect defects with correct dependencies. Keep this boundary in view: Object identity can retrigger effects, suppressing lint hides stale closures, and updater forms can remove a read dependency.",
+    "retrievalPrompts": [
+      "Explain Dependencies and reactive values using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: An empty dependency array makes any effect safe to run once with permanently current values.",
+      "Apply checkpoint 'reactive reads' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Cleanup and race prevention”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

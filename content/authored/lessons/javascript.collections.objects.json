@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.collections.objects.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.collections",
+  "skillId": "javascript.collections.objects",
+  "title": "Object records and property access",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Object records and property access; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Object records and property access",
+      "claim": "Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Object records and property access",
+      "claim": "Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain. Your goal is to model and validate a small domain record with property shorthand and safe access. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Control flow and functions; pf data selection; let, const and binding; pf data records. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes. This draft therefore rejects: The in operator checks only an object's own properties."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create record-like objects, use computed properties and distinguish missing from undefined values.",
+      "Model and validate a small domain record with property shorthand and safe access."
+    ],
+    "excludes": [
+      "Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes."
+    ]
+  },
+  "outcomes": [
+    "Model and validate a small domain record with property shorthand and safe access."
+  ],
+  "examples": [
+    {
+      "id": "javascript.collections.objects.example-a",
+      "title": "Object records and property access: concrete case",
+      "situation": "Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid."
+      ],
+      "result": "The result follows because The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid."
+    },
+    {
+      "id": "javascript.collections.objects.example-b",
+      "title": "Object records and property access: boundary case",
+      "situation": "Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: The in operator checks only an object's own properties."
+      ],
+      "result": "The boundary requires this correction: The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.collections.objects.misconception",
+      "mistakenBelief": "The in operator checks only an object's own properties.",
+      "correction": "The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: The in operator checks only an object's own properties."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Object records and property access, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Object records and property access before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain.",
+      "Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup.",
+      "The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: The in operator checks only an object's own properties."
+      }
+    ],
+    "textAlternative": "Starting artifact: Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain. Step 1, Artifact. State: evidence: Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid.. Check the result against the boundary and reject this misconception: The in operator checks only an object's own properties."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Object records and property access: concrete case”: state its starting evidence, apply the Object records and property access rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Object records and property access: concrete case.",
+        "Starting evidence: Object.hasOwn distinguishes an own configuration key from one inherited through the prototype chain.",
+        "Core rule: Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup.",
+        "Observable result: The result follows because The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid.",
+        "Boundary check: The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Objects associate property keys with values through own and inherited properties, descriptors, and prototype lookup.",
+        "Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Object records and property access and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Model and validate a small domain record with property shorthand and safe access.",
+        "The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.collections.objects.misconception",
+      "explanation": "The in operator includes inherited properties; use Object.hasOwn when only direct ownership is valid.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'includes inherited properties' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to model and validate a small domain record with property shorthand and safe access. Keep this boundary in view: Enumeration order has rules, symbols are separate keys, spreading is shallow, and untrusted keys can affect prototypes.",
+    "retrievalPrompts": [
+      "Explain Object records and property access using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: The in operator checks only an object's own properties.",
+      "Apply checkpoint 'includes inherited properties' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Map, Set and structured copying”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

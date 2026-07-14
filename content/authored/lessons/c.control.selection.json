@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.control.selection.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.control-io",
+  "skillId": "c.control.selection",
+  "title": "if and switch",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for if and switch; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to if and switch",
+      "claim": "C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries. Your goal is to implement and test boundary-complete if and switch logic. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Operators and precedence; pf control iteration. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Floating comparisons, fallthrough, duplicate or unreachable cases, dangling else layout, and side effects in conditions can make branches surprising. Therefore the draft explicitly rejects this beginner failure model: Every switch case stops automatically when its statements finish, even without break or another control transfer."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Express decisions with Boolean conditions and integral dispatch.",
+      "Implement and test boundary-complete if and switch logic."
+    ],
+    "excludes": [
+      "Floating comparisons, fallthrough, duplicate or unreachable cases, dangling else layout, and side effects in conditions can make branches surprising."
+    ]
+  },
+  "outcomes": [
+    "Implement and test boundary-complete if and switch logic."
+  ],
+  "examples": [
+    {
+      "id": "c.control.selection.example-a",
+      "title": "if and switch: defined case",
+      "situation": "An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+      ],
+      "result": "The defined result follows because A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+    },
+    {
+      "id": "c.control.selection.example-b",
+      "title": "if and switch: boundary case",
+      "situation": "A switch groups two case labels intentionally and uses break to prevent execution from falling into the next unrelated action.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A switch groups two case labels intentionally and uses break to prevent execution from falling into the next unrelated action.",
+        "Step 2 — Keep this standard boundary visible: Floating comparisons, fallthrough, duplicate or unreachable cases, dangling else layout, and side effects in conditions can make branches surprising.",
+        "Step 3 — Reject the tempting rule: Every switch case stops automatically when its statements finish, even without break or another control transfer."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and test boundary-complete if and switch logic."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.control.selection.misconception",
+      "mistakenBelief": "Every switch case stops automatically when its statements finish, even without break or another control transfer.",
+      "correction": "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Every switch case stops automatically when its statements finish, even without break or another control transfer."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model if and switch: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Floating comparisons, fallthrough, duplicate or unreachable cases, dangling else layout, and side effects in conditions can make branches surprising."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries.",
+      "C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path.",
+      "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Every switch case stops automatically when its statements finish, even without break or another control transfer."
+      }
+    ],
+    "textAlternative": "Starting artifact: An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries. Step 1, Source and state. State: evidence: An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended.. Check the conclusion against the boundary and reject this misconception: Every switch case stops automatically when its statements finish, even without break or another control transfer."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “if and switch: defined case”: state its starting evidence, apply the if and switch rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: if and switch: defined case.",
+        "Starting evidence: An if/else-if chain handles negative, zero, and positive values in mutually exclusive branches and tests both boundaries.",
+        "Core rule: C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path.",
+        "Observable result: The defined result follows because A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended.",
+        "Boundary check: A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A switch groups two case labels intentionally and uses break to prevent execution from falling into the next unrelated action.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C selection uses scalar conditions where zero is false and nonzero is true, with if/else binding and switch case labels determining one control path.",
+        "Floating comparisons, fallthrough, duplicate or unreachable cases, dangling else layout, and side effects in conditions can make branches surprising."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for if and switch, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test boundary-complete if and switch logic.",
+        "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.control.selection.misconception",
+      "explanation": "A switch continues into following labels unless control transfers; use break or an explicit documented fallthrough when that behavior is intended.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'break' and state the decisive evidence: A switch groups two case labels intentionally and uses break to prevent execution from falling into the next unrelated action."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test boundary-complete if and switch logic. Keep this boundary in view: Floating comparisons, fallthrough, duplicate or unreachable cases, dangling else layout, and side effects in conditions can make branches surprising.",
+    "retrievalPrompts": [
+      "Explain if and switch using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: Every switch case stops automatically when its statements finish, even without break or another control transfer.",
+      "Apply the checkpoint 'break' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “while, do and for”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

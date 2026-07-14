@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.collections.dict-set.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.collections",
+  "skillId": "python.collections.dict-set",
+  "title": "Dictionaries and sets",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Dictionaries and sets; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapter 5: lists, tuples, sets, dictionaries, looping, and sequence comparison; atomic topic: Dictionaries and sets",
+      "claim": "A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Data Model plus expression sections for containers, subscriptions, slicing, membership, and comparisons; atomic topic: Dictionaries and sets",
+      "claim": "A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step. Your goal is to choose and use a dictionary or set for counting, indexing and deduplication problems. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: for, while and loop control; pf data selection; Lists, tuples and slicing; pf data set map. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Keys need stable equality and hashing, a missing subscript raises KeyError, set iteration order is not an API contract, mutable containers are unhashable, and dict order is not sorting. The learner must reject this documented misconception: Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use key-value lookup and unique membership with hashable keys.",
+      "Choose and use a dictionary or set for counting, indexing and deduplication problems."
+    ],
+    "excludes": [
+      "Keys need stable equality and hashing, a missing subscript raises KeyError, set iteration order is not an API contract, mutable containers are unhashable, and dict order is not sorting."
+    ]
+  },
+  "outcomes": [
+    "Choose and use a dictionary or set for counting, indexing and deduplication problems."
+  ],
+  "examples": [
+    {
+      "id": "python.collections.dict-set.example.direct",
+      "title": "Dictionaries and sets: direct language case",
+      "situation": "A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+      ],
+      "result": "The example meets the atomic outcome because Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+    },
+    {
+      "id": "python.collections.dict-set.example.boundary",
+      "title": "Dictionaries and sets: boundary and transfer case",
+      "situation": "A tuple of immutable fields is used as a composite key, but a list is rejected because mutation would make hashing unstable.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A tuple of immutable fields is used as a composite key, but a list is rejected because mutation would make hashing unstable.",
+        "Step 2 — Keep the language boundary explicit: Keys need stable equality and hashing, a missing subscript raises KeyError, set iteration order is not an API contract, mutable containers are unhashable, and dict order is not sorting.",
+        "Step 3 — Reject the tempting but incorrect rule: Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose and use a dictionary or set for counting, indexing and deduplication problems."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.collections.dict-set.misconception",
+      "mistakenBelief": "Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key.",
+      "correction": "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a flexible storeroom with ordered shelves, fixed labels, unique membership, lookup indexes, and shared nested containers can introduce Dictionaries and sets, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "lists, tuples, dictionaries, sets, aliasing, and text processing"
+    ],
+    "limitations": [
+      "hashability, shallow copying, Unicode normalization, and object identity require Python's exact data model",
+      "Keys need stable equality and hashing, a missing subscript raises KeyError, set iteration order is not an API contract, mutable containers are unhashable, and dict order is not sorting."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step.",
+      "A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise.",
+      "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key."
+      }
+    ],
+    "textAlternative": "Starting artifact: A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step. Step 1, Observe. State: evidence: A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault.. Compare the observation with the correction and explain why the misconception fails: Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Dictionaries and sets: direct language case”: state its starting evidence, apply the Dictionaries and sets rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Dictionaries and sets: direct language case.",
+        "Starting evidence: A frequency table uses dict.get to update counts, while a set removes duplicate identifiers before a separate sorted presentation step.",
+        "Core rule: A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise.",
+        "Observable result: The example meets the atomic outcome because Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault.",
+        "Boundary check: Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A tuple of immutable fields is used as a composite key, but a list is rejected because mutation would make hashing unstable.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A dict maps hashable keys to values and preserves insertion order, while a set stores unique hashable elements for membership and set algebra without a sorted-order promise.",
+        "Keys need stable equality and hashing, a missing subscript raises KeyError, set iteration order is not an API contract, mutable containers are unhashable, and dict order is not sorting."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Dictionaries and sets, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Choose and use a dictionary or set for counting, indexing and deduplication problems.",
+        "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.collections.dict-set.misconception",
+      "explanation": "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A tuple of immutable fields is used as a composite key, but a list is rejected because mutation would make hashing unstable."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and use a dictionary or set for counting, indexing and deduplication problems. Keep this boundary in view: Keys need stable equality and hashing, a missing subscript raises KeyError, set iteration order is not an API contract, mutable containers are unhashable, and dict order is not sorting.",
+    "retrievalPrompts": [
+      "Explain Dictionaries and sets using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key.",
+      "Predict this case from memory: A tuple of immutable fields is used as a composite key, but a list is rejected because mutation would make hashing unstable."
+    ],
+    "nextReviewPrompt": "Next: continue to “Mutability, aliases and copying”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

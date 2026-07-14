@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.shell.paths.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.shell-files",
+  "skillId": "git.shell.paths",
+  "title": "Paths and project trees",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Paths and project trees; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Paths and project trees",
+      "claim": "Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist. Your goal is to navigate and explain a nested project tree without relying on the current GUI location. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf tools files. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Windows and POSIX roots, separators, case rules, quoting, links, and permission behavior differ, so a path valid on one machine may not identify the same location elsewhere. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Every relative path starts from the repository root, regardless of the terminal's current working directory."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Resolve absolute, relative, parent and home paths and account for spaces and case behavior.",
+      "Navigate and explain a nested project tree without relying on the current GUI location."
+    ],
+    "excludes": [
+      "Windows and POSIX roots, separators, case rules, quoting, links, and permission behavior differ, so a path valid on one machine may not identify the same location elsewhere."
+    ]
+  },
+  "outcomes": [
+    "Navigate and explain a nested project tree without relying on the current GUI location."
+  ],
+  "examples": [
+    {
+      "id": "git.shell.paths.example-a",
+      "title": "Paths and project trees: direct case",
+      "situation": "From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+      ],
+      "result": "The case supports the declared outcome because Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+    },
+    {
+      "id": "git.shell.paths.example-b",
+      "title": "Paths and project trees: boundary case",
+      "situation": "A directory name containing spaces is passed as one quoted argument instead of being split into several shell words.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A directory name containing spaces is passed as one quoted argument instead of being split into several shell words.",
+        "Step 2 — Keep this boundary explicit: Windows and POSIX roots, separators, case rules, quoting, links, and permission behavior differ, so a path valid on one machine may not identify the same location elsewhere.",
+        "Step 3 — Reject the documented misconception: Every relative path starts from the repository root, regardless of the terminal's current working directory."
+      ],
+      "result": "This case demonstrates the declared outcome: Navigate and explain a nested project tree without relying on the current GUI location."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.shell.paths.misconception",
+      "mistakenBelief": "Every relative path starts from the repository root, regardless of the terminal's current working directory.",
+      "correction": "Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Every relative path starts from the repository root, regardless of the terminal's current working directory."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled filing room can model Paths and project trees: current location changes how relative directions resolve, and moving differs from copying a folder.",
+    "usefulFor": [
+      "Reasoning about exact locations, inspection, file operations, and destructive scope"
+    ],
+    "limitations": [
+      "Shell expansion, permissions, links, filesystem rules, and command execution can behave unlike physical folders.",
+      "Windows and POSIX roots, separators, case rules, quoting, links, and permission behavior differ, so a path valid on one machine may not identify the same location elsewhere."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist.",
+      "Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations.",
+      "Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations."
+        },
+        "explanation": "Apply the declared Paths and project trees model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Every relative path starts from the repository root, regardless of the terminal's current working directory."
+      }
+    ],
+    "textAlternative": "Starting artifact: From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist. Step 1, Observe. State: evidence: From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations.. Apply the declared Paths and project trees model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules.. Compare the observation with the correction and reject the misconception: Every relative path starts from the repository root, regardless of the terminal's current working directory."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Paths and project trees: direct case”: state its starting evidence, apply the Paths and project trees rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Paths and project trees: direct case.",
+        "Starting evidence: From repo/src, ../README.md resolves to the README in repo, while ./README.md looks inside src and may not exist.",
+        "Core rule: Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations.",
+        "Observable result: The case supports the declared outcome because Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules.",
+        "Boundary check: Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A directory name containing spaces is passed as one quoted argument instead of being split into several shell words.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Shell commands resolve relative paths from the current working directory, while absolute paths begin at a filesystem root; dot and dot-dot name current and parent locations.",
+        "Windows and POSIX roots, separators, case rules, quoting, links, and permission behavior differ, so a path valid on one machine may not identify the same location elsewhere."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Paths and project trees, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Navigate and explain a nested project tree without relying on the current GUI location.",
+        "Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.shell.paths.misconception",
+      "explanation": "Inspect the working directory first, resolve each segment from that location, and quote paths as data according to the active shell's rules.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A directory name containing spaces is passed as one quoted argument instead of being split into several shell words."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to navigate and explain a nested project tree without relying on the current GUI location. Keep this boundary in view: Windows and POSIX roots, separators, case rules, quoting, links, and permission behavior differ, so a path valid on one machine may not identify the same location elsewhere.",
+    "retrievalPrompts": [
+      "Explain Paths and project trees without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Every relative path starts from the repository root, regardless of the terminal's current working directory.",
+      "Apply the model to this case from memory: A directory name containing spaces is passed as one quoted argument instead of being split into several shell words."
+    ],
+    "nextReviewPrompt": "Next: continue to “List, read and search”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

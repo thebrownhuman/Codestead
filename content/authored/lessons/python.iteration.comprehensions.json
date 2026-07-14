@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.iteration.comprehensions.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.iteration-functional",
+  "skillId": "python.iteration.comprehensions",
+  "title": "Comprehensions",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Comprehensions; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial §§4.7 and 5.1-5.6: iteration, range, comprehensions, and sequence techniques; atomic topic: Comprehensions",
+      "claim": "Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop. Your goal is to choose between a comprehension and explicit loop and justify readability and memory implications. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; Functions, scope and recursion; Dictionaries and sets; for, while and loop control. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Comprehensions allocate their result, nested clauses can become unreadable, side effects obscure intent, assignment-expression scope needs care, and generator expressions are the lazy alternative. The learner must reject this documented misconception: A comprehension is always faster and more memory-efficient than a loop, regardless of result size or complexity."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use list, set and dictionary comprehensions for bounded, readable transformations.",
+      "Choose between a comprehension and explicit loop and justify readability and memory implications."
+    ],
+    "excludes": [
+      "Comprehensions allocate their result, nested clauses can become unreadable, side effects obscure intent, assignment-expression scope needs care, and generator expressions are the lazy alternative."
+    ]
+  },
+  "outcomes": [
+    "Choose between a comprehension and explicit loop and justify readability and memory implications."
+  ],
+  "examples": [
+    {
+      "id": "python.iteration.comprehensions.example.direct",
+      "title": "Comprehensions: direct language case",
+      "situation": "A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required."
+      ],
+      "result": "The example meets the atomic outcome because Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required."
+    },
+    {
+      "id": "python.iteration.comprehensions.example.boundary",
+      "title": "Comprehensions: boundary and transfer case",
+      "situation": "A complex transformation with error handling remains an explicit loop because compressing it would hide branches and diagnostics.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A complex transformation with error handling remains an explicit loop because compressing it would hide branches and diagnostics.",
+        "Step 2 — Keep the language boundary explicit: Comprehensions allocate their result, nested clauses can become unreadable, side effects obscure intent, assignment-expression scope needs care, and generator expressions are the lazy alternative.",
+        "Step 3 — Reject the tempting but incorrect rule: A comprehension is always faster and more memory-efficient than a loop, regardless of result size or complexity."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose between a comprehension and explicit loop and justify readability and memory implications."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.iteration.comprehensions.misconception",
+      "mistakenBelief": "A comprehension is always faster and more memory-efficient than a loop, regardless of result size or complexity.",
+      "correction": "Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A comprehension is always faster and more memory-efficient than a loop, regardless of result size or complexity."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass production route that can build a bounded result, expose an iterator, pause lazily, or wrap a callable can introduce Comprehensions, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "comprehensions, iterators, generators, and decorators"
+    ],
+    "limitations": [
+      "StopIteration, suspension, close behavior, metadata, wrapper order, and memory allocation require exact Python semantics",
+      "Comprehensions allocate their result, nested clauses can become unreadable, side effects obscure intent, assignment-expression scope needs care, and generator expressions are the lazy alternative."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop.",
+      "Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops.",
+      "Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A comprehension is always faster and more memory-efficient than a loop, regardless of result size or complexity."
+      }
+    ],
+    "textAlternative": "Starting artifact: A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop. Step 1, Observe. State: evidence: A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required.. Compare the observation with the correction and explain why the misconception fails: A comprehension is always faster and more memory-efficient than a loop, regardless of result size or complexity."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Comprehensions: direct language case”: state its starting evidence, apply the Comprehensions rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Comprehensions: direct language case.",
+        "Starting evidence: A dict comprehension maps valid names to normalized lengths with one readable filter, replacing a three-line append/update loop.",
+        "Core rule: Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops.",
+        "Observable result: The example meets the atomic outcome because Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required.",
+        "Boundary check: Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A complex transformation with error handling remains an explicit loop because compressing it would hide branches and diagnostics.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python comprehensions build list, set, or dict results from an iterable with expression and filter clauses whose nesting order follows the equivalent explicit loops.",
+        "Comprehensions allocate their result, nested clauses can become unreadable, side effects obscure intent, assignment-expression scope needs care, and generator expressions are the lazy alternative."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Comprehensions, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Choose between a comprehension and explicit loop and justify readability and memory implications.",
+        "Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.iteration.comprehensions.misconception",
+      "explanation": "Use a comprehension for a bounded readable transformation; choose an explicit loop for complex effects and a generator expression when lazy consumption is required.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A complex transformation with error handling remains an explicit loop because compressing it would hide branches and diagnostics."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose between a comprehension and explicit loop and justify readability and memory implications. Keep this boundary in view: Comprehensions allocate their result, nested clauses can become unreadable, side effects obscure intent, assignment-expression scope needs care, and generator expressions are the lazy alternative.",
+    "retrievalPrompts": [
+      "Explain Comprehensions using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A comprehension is always faster and more memory-efficient than a loop, regardless of result size or complexity.",
+      "Predict this case from memory: A complex transformation with error handling remains an explicit loop because compressing it would hide branches and diagnostics."
+    ],
+    "nextReviewPrompt": "Next: continue to “Iterable and iterator protocols”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

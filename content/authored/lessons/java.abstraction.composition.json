@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.abstraction.composition.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.abstraction",
+  "skillId": "java.abstraction.composition",
+  "title": "Composition over inheritance",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Composition over inheritance; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Interfaces, Inheritance, Polymorphism, and composition guidance; atomic topic: Composition over inheritance",
+      "claim": "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity. Your goal is to refactor a fragile hierarchy into composed collaborators with testable interfaces. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and invariants; Overriding and dynamic dispatch. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination. The learner must reject this documented misconception: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Delegate to owned collaborators when reuse does not require subtype substitution.",
+      "Refactor a fragile hierarchy into composed collaborators with testable interfaces."
+    ],
+    "excludes": [
+      "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination."
+    ]
+  },
+  "outcomes": [
+    "Refactor a fragile hierarchy into composed collaborators with testable interfaces."
+  ],
+  "examples": [
+    {
+      "id": "java.abstraction.composition.example.direct",
+      "title": "Composition over inheritance: direct language case",
+      "situation": "A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      ],
+      "result": "The example meets the atomic outcome because Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+    },
+    {
+      "id": "java.abstraction.composition.example.boundary",
+      "title": "Composition over inheritance: boundary and transfer case",
+      "situation": "A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract.",
+        "Step 2 — Keep the language boundary explicit: Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination.",
+        "Step 3 — Reject the tempting but incorrect rule: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+      ],
+      "result": "This case demonstrates the declared outcome: Refactor a fragile hierarchy into composed collaborators with testable interfaces."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.abstraction.composition.misconception",
+      "mistakenBelief": "Composition means copying another class's methods into a wrapper and exposing all of them unchanged.",
+      "correction": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a plug-and-socket system in which contracts describe compatible behavior while components hide their implementation can introduce Composition over inheritance, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "interfaces, substitution, dispatch, and composition"
+    ],
+    "limitations": [
+      "overload resolution, method hiding, constructor order, and multiple interface defaults require Java-specific rules",
+      "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
+      "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
+      "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+      }
+    ],
+    "textAlternative": "Starting artifact: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity. Step 1, Observe. State: evidence: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.. Compare the observation with the correction and explain why the misconception fails: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Composition over inheritance: direct language case”: state its starting evidence, apply the Composition over inheritance rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Composition over inheritance: direct language case.",
+        "Starting evidence: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
+        "Core rule: Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
+        "Observable result: The example meets the atomic outcome because Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
+        "Boundary check: Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
+        "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Composition over inheritance, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Refactor a fragile hierarchy into composed collaborators with testable interfaces.",
+        "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.abstraction.composition.misconception",
+      "explanation": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to refactor a fragile hierarchy into composed collaborators with testable interfaces. Keep this boundary in view: Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination.",
+    "retrievalPrompts": [
+      "Explain Composition over inheritance using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Composition means copying another class's methods into a wrapper and exposing all of them unchanged.",
+      "Predict this case from memory: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract."
+    ],
+    "nextReviewPrompt": "Next: continue to “Generic types and methods”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

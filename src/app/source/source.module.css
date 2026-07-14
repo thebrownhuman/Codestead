@@ -1,0 +1,10 @@
+.page { min-height: 100vh; padding: clamp(22px, 5vw, 72px); background: var(--canvas); }
+.page > header { display: flex; width: min(900px, 100%); align-items: center; justify-content: space-between; margin: 0 auto 34px; }
+.page > header a { color: var(--brand); font-size: .78rem; font-weight: 800; }
+.card { width: min(900px, 100%); margin: 0 auto; padding: clamp(24px, 5vw, 56px); border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-soft); }
+.eyebrow { color: var(--brand); font-size: .72rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.card h1 { max-width: 720px; margin: 12px 0 20px; font-size: clamp(2.2rem, 6vw, 4.5rem); letter-spacing: -.055em; line-height: 1; }
+.card p { max-width: 760px; color: var(--ink-soft); line-height: 1.7; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 28px 0; }
+.missing { padding: 11px 14px; border-radius: 10px; color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); font-size: .75rem; }
+.note { padding: 16px; border-left: 3px solid var(--brand); background: var(--brand-soft); font-size: .76rem; }

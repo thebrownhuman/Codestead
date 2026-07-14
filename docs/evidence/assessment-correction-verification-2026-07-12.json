@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T17:20:00+05:30",
+  "scope": "faulty deterministic formal-exam test/form correction and automatic regrading",
+  "migration": {
+    "ids": ["0018_wealthy_loners", "0020_melted_dreadnoughts"],
+    "firstApplication": "passed",
+    "secondNoOpApplication": "passed",
+    "appendOnlyTriggerChecks": "passed",
+    "schemaDiffAfterGeneration": "none"
+  },
+  "automatedEvidence": {
+    "focusedUnitRouteComponentTests": {
+      "files": 4,
+      "tests": 19,
+      "passed": 19
+    },
+    "focusedCorrectionLifecyclePrivacyTests": {
+      "files": 12,
+      "tests": 73,
+      "passed": 73
+    },
+    "focusedCorrectionPostgreSqlSuite": {
+      "files": 1,
+      "tests": 9,
+      "passed": 9,
+      "database": "disposable PostgreSQL 17 Docker database",
+      "externalCredentialsUsed": false
+    },
+    "latestFullPostgreSqlSuite": {
+      "files": 19,
+      "tests": 87,
+      "passed": 87,
+      "correctionTests": 9,
+      "correctionTestsPassed": 9,
+      "unrelatedFailures": 0,
+      "supersedingEvidence": "docs/evidence/asm-002-les-003-practice-2026-07-12.json",
+      "database": "disposable PostgreSQL 17 Docker database",
+      "externalCredentialsUsed": false
+    },
+    "securityApiSurface": {
+      "routeFiles": 86,
+      "operations": 102,
+      "errors": 0,
+      "snapshotScope": "correction-slice verification at generation time"
+    },
+    "finalAuthorizationMatrixFollowup": {
+      "routeFiles": 94,
+      "operations": 114,
+      "matrixRows": 114,
+      "identifierOwnershipContracts": 27,
+      "supportingOwnershipContracts": 9,
+      "errors": 0,
+      "evidence": "docs/evidence/api-authorization-matrix-2026-07-12.json"
+    },
+    "secretScan": "passed",
+    "staticDeploymentValidation": "passed"
+  },
+  "workerImage": {
+    "tag": "learncoding-regrade-worker:verification",
+    "digest": "sha256:0e4dcd955fc3d325295b7232517e54071d48f03db3fa2c06f558dba4476b1201",
+    "sizeBytes": 271217228,
+    "platform": "linux/amd64",
+    "user": "node",
+    "entrypoint": "/usr/local/bin/learncoding-entrypoint",
+    "failClosedWithoutDatabaseUrl": true
+  },
+  "finalBuildFollowup": {
+    "status": "supersedes the slice-time worker image above",
+    "tag": "learncoding-verify-regrade:20260712",
+    "localImageId": "sha256:8934fb165522f3252505006fbcf2ef4958fd82633328dfaa1e68c87b7cb1e436",
+    "sizeBytes": 271360698,
+    "platform": "linux/amd64",
+    "user": "node",
+    "inventory": "docs/evidence/final-container-image-inventory-2026-07-12.json",
+    "limitation": "Build success is not a zero-HIGH/CRITICAL scan, deployed-KVM run, or signed registry digest."
+  },
+  "provedInPostgreSql": [
+    "exact course/module/item/content/bundle/test-hash targeting",
+    "near-match exclusion",
+    "idempotent request replay and mismatch rejection",
+    "two-worker lease serialization",
+    "complete-form deterministic regrading",
+    "strict runtime image digest rejection and bounded retry",
+    "fail-closed rollback when 501 or more affected attempts are discovered",
+    "retry-exhaustion rejection without a queued correction that has zero runnable jobs",
+    "original attempt, result, form, answer, and badge-award preservation",
+    "append-only superseding result and mastery award/revoke adjustment",
+    "effective exam, administrator aggregate, leaderboard, and badge projection reconciliation",
+    "canonical conceptual context for Python and cpp-runner to dsa:c++/C++-enrollment normalization for DSA",
+    "exact course-version/module/concept/enrollment/language mastery projection",
+    "durable unresolved mastery projection when exact mapping cannot be proven, with correction completion and appeal closure blocked",
+    "historic original-mastery effective result and badge revocation while unsafe concept subtraction remains explicitly unresolved",
+    "learner notification and email outbox creation",
+    "appeal closure only after all impacts succeed and every mastery repair is applied"
+  ],
+  "notProvedHere": [
+    "live correction execution against the deployed KVM runner VM",
+    "standalone practice/code-submission correction",
+    "project-review corrective re-analysis",
+    "mixed-runtime form correction",
+    "automatic aggregate rebuild after intervening independent mastery evidence; the correction evidence is revoked and the repair remains visibly unresolved",
+    "automatic concept-evidence rebuild for historic formal exams that never wrote correction-owned concept provenance; revocation remains explicitly unresolved until a reviewed rebuild exists",
+    "full browser appeal-to-correction journey on physical devices"
+  ]
+}

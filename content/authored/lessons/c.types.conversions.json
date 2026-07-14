@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.types.conversions.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.types",
+  "skillId": "c.types.conversions",
+  "title": "Conversions and numeric boundaries",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Conversions and numeric boundaries; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to Conversions and numeric boundaries",
+      "claim": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Conversions and numeric boundaries",
+      "claim": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Conversions and numeric boundaries",
+      "claim": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering. Your goal is to predict and test conversion results while guarding values that cannot be represented. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Translation unit and main; pf state expressions; Operators and precedence. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules. Therefore the draft explicitly rejects this beginner failure model: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Reason about promotions, signedness, narrowing, overflow and floating-point approximation.",
+      "Predict and test conversion results while guarding values that cannot be represented."
+    ],
+    "excludes": [
+      "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules."
+    ]
+  },
+  "outcomes": [
+    "Predict and test conversion results while guarding values that cannot be represented."
+  ],
+  "examples": [
+    {
+      "id": "c.types.conversions.example-a",
+      "title": "Conversions and numeric boundaries: defined case",
+      "situation": "Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+      ],
+      "result": "The defined result follows because Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+    },
+    {
+      "id": "c.types.conversions.example-b",
+      "title": "Conversions and numeric boundaries: boundary case",
+      "situation": "Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division.",
+        "Step 2 — Keep this standard boundary visible: Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules.",
+        "Step 3 — Reject the tempting rule: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+      ],
+      "result": "This case demonstrates the declared outcome: Predict and test conversion results while guarding values that cannot be represented."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.types.conversions.misconception",
+      "mistakenBelief": "The destination variable's type controls how the entire right-hand expression is evaluated from the beginning.",
+      "correction": "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Conversions and numeric boundaries: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
+      "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
+      "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+      }
+    ],
+    "textAlternative": "Starting artifact: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering. Step 1, Source and state. State: evidence: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.. Check the conclusion against the boundary and reject this misconception: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Conversions and numeric boundaries: defined case”: state its starting evidence, apply the Conversions and numeric boundaries rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Conversions and numeric boundaries: defined case.",
+        "Starting evidence: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
+        "Core rule: C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
+        "Observable result: The defined result follows because Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.",
+        "Boundary check: Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
+        "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Conversions and numeric boundaries, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Predict and test conversion results while guarding values that cannot be represented.",
+        "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.types.conversions.misconception",
+      "explanation": "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'integer promotions' and state the decisive evidence: Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to predict and test conversion results while guarding values that cannot be represented. Keep this boundary in view: Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules.",
+    "retrievalPrompts": [
+      "Explain Conversions and numeric boundaries using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning.",
+      "Apply the checkpoint 'integer promotions' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “if and switch”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

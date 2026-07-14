@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.shell.create-move.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.shell-files",
+  "skillId": "git.shell.create-move",
+  "title": "Create, copy, move and rename deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Create, copy, move and rename; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.shell.create-move.mcq.misconception",
+      "skillId": "git.shell.create-move",
+      "title": "Create, copy, move and rename: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Move and copy are interchangeable because both make the file appear at the destination.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.",
+        "incorrect": "The selected statement preserves the documented misconception. Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Create, copy, move and rename instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Move and copy are interchangeable because both make the file appear at the destination."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+      }
+    }
+  ]
+}

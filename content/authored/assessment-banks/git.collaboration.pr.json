@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.collaboration.pr.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.collaboration",
+  "skillId": "git.collaboration.pr",
+  "title": "Pull request narrative deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Pull request narrative; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "github-docs",
+    "cs2023-se"
+  ],
+  "items": [
+    {
+      "id": "git.collaboration.pr.mcq.misconception",
+      "skillId": "git.collaboration.pr",
+      "title": "Pull request narrative: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes.",
+        "incorrect": "The selected statement preserves the documented misconception. Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Pull request narrative instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+      }
+    }
+  ]
+}

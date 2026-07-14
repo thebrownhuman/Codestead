@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.data.records.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.data",
+  "skillId": "pf.data.records",
+  "title": "Records and entities",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Records and entities; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Records and entities",
+      "claim": "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields. Your goal is to design a record representation and justify its fields and types. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Values and types. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Group related named fields that describe one conceptual entity.",
+      "Design a record representation and justify its fields and types."
+    ],
+    "excludes": [
+      "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent."
+    ]
+  },
+  "outcomes": [
+    "Design a record representation and justify its fields and types."
+  ],
+  "examples": [
+    {
+      "id": "pf.data.records.example-a",
+      "title": "Records and entities: direct case",
+      "situation": "A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+      ],
+      "result": "The case supports the declared outcome because Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+    },
+    {
+      "id": "pf.data.records.example-b",
+      "title": "Records and entities: boundary case",
+      "situation": "A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions.",
+        "Step 2 — Keep this boundary explicit: Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent.",
+        "Step 3 — Reject the documented misconception: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+      ],
+      "result": "This case demonstrates the declared outcome: Design a record representation and justify its fields and types."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.data.records.misconception",
+      "mistakenBelief": "Any values frequently used together should be copied into one record, including every derived and unrelated field.",
+      "correction": "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "An organized storeroom can model Records and entities: shelves preserve order, labeled bins group fields, membership lists avoid duplicates, and indexes locate values.",
+    "usefulFor": [
+      "Comparing organization by order, name, membership, lookup, and update needs"
+    ],
+    "limitations": [
+      "Physical storage hides concrete complexity, equality, hashing, mutation, allocation, and concurrency guarantees.",
+      "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
+      "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
+      "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule."
+        },
+        "explanation": "Apply the declared Records and entities model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+      }
+    ],
+    "textAlternative": "Starting artifact: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields. Step 1, Observe. State: evidence: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.. Apply the declared Records and entities model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.. Compare the observation with the correction and reject the misconception: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Records and entities: direct case”: state its starting evidence, apply the Records and entities rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Records and entities: direct case.",
+        "Starting evidence: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
+        "Core rule: A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
+        "Observable result: The case supports the declared outcome because Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.",
+        "Boundary check: Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
+        "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Records and entities, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Design a record representation and justify its fields and types.",
+        "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.data.records.misconception",
+      "explanation": "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design a record representation and justify its fields and types. Keep this boundary in view: Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent.",
+    "retrievalPrompts": [
+      "Explain Records and entities without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Any values frequently used together should be copied into one record, including every derived and unrelated field.",
+      "Apply the model to this case from memory: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions."
+    ],
+    "nextReviewPrompt": "Next: continue to “Sets and maps”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

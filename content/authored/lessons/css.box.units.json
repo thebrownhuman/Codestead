@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.box.units.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.box",
+  "skillId": "css.box.units",
+  "title": "Lengths, percentages and viewport units",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Lengths, percentages and viewport units; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Lengths, percentages and viewport units",
+      "claim": "CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Lengths, percentages and viewport units",
+      "claim": "CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice. Your goal is to select and justify units for readable text, spacing and responsive dimensions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Rules, declarations and values; Content, padding, border and margin. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size. This draft therefore rejects: rem and em always resolve to the same font-size reference."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose relative or absolute units based on typography, container and viewport relationships.",
+      "Select and justify units for readable text, spacing and responsive dimensions."
+    ],
+    "excludes": [
+      "Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size."
+    ]
+  },
+  "outcomes": [
+    "Select and justify units for readable text, spacing and responsive dimensions."
+  ],
+  "examples": [
+    {
+      "id": "css.box.units.example-a",
+      "title": "Lengths, percentages and viewport units: concrete case",
+      "situation": "Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: rem references the root font size while em depends on the relevant element font size or property context."
+      ],
+      "result": "The result follows because rem references the root font size while em depends on the relevant element font size or property context."
+    },
+    {
+      "id": "css.box.units.example-b",
+      "title": "Lengths, percentages and viewport units: boundary case",
+      "situation": "Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: rem and em always resolve to the same font-size reference."
+      ],
+      "result": "The boundary requires this correction: rem references the root font size while em depends on the relevant element font size or property context."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.box.units.misconception",
+      "mistakenBelief": "rem and em always resolve to the same font-size reference.",
+      "correction": "rem references the root font size while em depends on the relevant element font size or property context.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: rem and em always resolve to the same font-size reference."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Lengths, percentages and viewport units, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Lengths, percentages and viewport units before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice.",
+      "CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property.",
+      "rem references the root font size while em depends on the relevant element font size or property context."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "rem references the root font size while em depends on the relevant element font size or property context."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: rem and em always resolve to the same font-size reference."
+      }
+    ],
+    "textAlternative": "Starting artifact: Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice. Step 1, Artifact. State: evidence: Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: rem references the root font size while em depends on the relevant element font size or property context.. Check the result against the boundary and reject this misconception: rem and em always resolve to the same font-size reference."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Lengths, percentages and viewport units: concrete case”: state its starting evidence, apply the Lengths, percentages and viewport units rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Lengths, percentages and viewport units: concrete case.",
+        "Starting evidence: Body text uses rem for user-scalable sizing while a border uses px for a stable one-device-pixel-like design choice.",
+        "Core rule: CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property.",
+        "Observable result: The result follows because rem references the root font size while em depends on the relevant element font size or property context.",
+        "Boundary check: rem references the root font size while em depends on the relevant element font size or property context."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "CSS units express absolute, font-relative, viewport, container, and percentage relationships whose reference depends on the property.",
+        "Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Lengths, percentages and viewport units and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Select and justify units for readable text, spacing and responsive dimensions.",
+        "rem references the root font size while em depends on the relevant element font size or property context."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.box.units.misconception",
+      "explanation": "rem references the root font size while em depends on the relevant element font size or property context.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'root font size' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to select and justify units for readable text, spacing and responsive dimensions. Keep this boundary in view: Viewport units can interact with browser UI, percentages resolve differently by property, and rem does not follow component-local font size.",
+    "retrievalPrompts": [
+      "Explain Lengths, percentages and viewport units using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: rem and em always resolve to the same font-size reference.",
+      "Apply checkpoint 'root font size' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Intrinsic sizing and constraints”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

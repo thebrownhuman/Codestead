@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.iteration.decorator.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.iteration-functional",
+  "skillId": "python.iteration.decorator",
+  "title": "Decorator basics",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Decorator basics; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Data Model iterator protocol plus yield expressions, generator functions, and decorators; atomic topic: Decorator basics",
+      "claim": "A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps."
+    },
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; itertools, functools.wraps, and collections.abc iterator documentation; atomic topic: Decorator basics",
+      "claim": "A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata. Your goal is to implement and explain a small function decorator with correct argument forwarding. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; Functions, scope and recursion; Scope and closures; Parameter kinds and argument binding. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Decoration normally occurs at definition/import time, wrapper signatures and descriptors matter, state can be shared across calls, async/generator functions need compatible wrappers, and order changes composition. The learner must reject this documented misconception: A decorator runs only when the function is called and functools.wraps automatically forwards arguments and results."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Wrap callables while preserving metadata and making behavior changes explicit.",
+      "Implement and explain a small function decorator with correct argument forwarding."
+    ],
+    "excludes": [
+      "Decoration normally occurs at definition/import time, wrapper signatures and descriptors matter, state can be shared across calls, async/generator functions need compatible wrappers, and order changes composition."
+    ]
+  },
+  "outcomes": [
+    "Implement and explain a small function decorator with correct argument forwarding."
+  ],
+  "examples": [
+    {
+      "id": "python.iteration.decorator.example.direct",
+      "title": "Decorator basics: direct language case",
+      "situation": "A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata."
+      ],
+      "result": "The example meets the atomic outcome because Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata."
+    },
+    {
+      "id": "python.iteration.decorator.example.boundary",
+      "title": "Decorator basics: boundary and transfer case",
+      "situation": "Two decorators are applied in documented order, and a test proves exceptions and return values pass through unchanged.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: Two decorators are applied in documented order, and a test proves exceptions and return values pass through unchanged.",
+        "Step 2 — Keep the language boundary explicit: Decoration normally occurs at definition/import time, wrapper signatures and descriptors matter, state can be shared across calls, async/generator functions need compatible wrappers, and order changes composition.",
+        "Step 3 — Reject the tempting but incorrect rule: A decorator runs only when the function is called and functools.wraps automatically forwards arguments and results."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and explain a small function decorator with correct argument forwarding."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.iteration.decorator.misconception",
+      "mistakenBelief": "A decorator runs only when the function is called and functools.wraps automatically forwards arguments and results.",
+      "correction": "Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A decorator runs only when the function is called and functools.wraps automatically forwards arguments and results."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass production route that can build a bounded result, expose an iterator, pause lazily, or wrap a callable can introduce Decorator basics, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "comprehensions, iterators, generators, and decorators"
+    ],
+    "limitations": [
+      "StopIteration, suspension, close behavior, metadata, wrapper order, and memory allocation require exact Python semantics",
+      "Decoration normally occurs at definition/import time, wrapper signatures and descriptors matter, state can be shared across calls, async/generator functions need compatible wrappers, and order changes composition."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata.",
+      "A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps.",
+      "Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A decorator runs only when the function is called and functools.wraps automatically forwards arguments and results."
+      }
+    ],
+    "textAlternative": "Starting artifact: A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata. Step 1, Observe. State: evidence: A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata.. Compare the observation with the correction and explain why the misconception fails: A decorator runs only when the function is called and functools.wraps automatically forwards arguments and results."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Decorator basics: direct language case”: state its starting evidence, apply the Decorator basics rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Decorator basics: direct language case.",
+        "Starting evidence: A timing decorator uses @wraps, accepts *args and **kwargs, returns the wrapped result, and records only safe duration metadata.",
+        "Core rule: A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps.",
+        "Observable result: The example meets the atomic outcome because Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata.",
+        "Boundary check: Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: Two decorators are applied in documented order, and a test proves exceptions and return values pass through unchanged.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A function decorator receives a callable and returns a replacement callable, usually forwarding arbitrary arguments and preserving metadata with functools.wraps.",
+        "Decoration normally occurs at definition/import time, wrapper signatures and descriptors matter, state can be shared across calls, async/generator functions need compatible wrappers, and order changes composition."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Decorator basics, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement and explain a small function decorator with correct argument forwarding.",
+        "Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.iteration.decorator.misconception",
+      "explanation": "Decoration replaces the callable at definition time; the wrapper must explicitly forward arguments, result, and failure behavior, while functools.wraps preserves metadata.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Two decorators are applied in documented order, and a test proves exceptions and return values pass through unchanged."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and explain a small function decorator with correct argument forwarding. Keep this boundary in view: Decoration normally occurs at definition/import time, wrapper signatures and descriptors matter, state can be shared across calls, async/generator functions need compatible wrappers, and order changes composition.",
+    "retrievalPrompts": [
+      "Explain Decorator basics using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A decorator runs only when the function is called and functools.wraps automatically forwards arguments and results.",
+      "Predict this case from memory: Two decorators are applied in documented order, and a test proves exceptions and return values pass through unchanged."
+    ],
+    "nextReviewPrompt": "Next: continue to “Type hints and static checking concepts”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

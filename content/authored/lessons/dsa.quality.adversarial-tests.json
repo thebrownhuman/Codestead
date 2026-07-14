@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.quality.adversarial-tests.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.transfer-quality",
+  "skillId": "dsa.quality.adversarial-tests",
+  "title": "Adversarial and property tests",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Adversarial and property tests; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Adversarial and property tests",
+      "claim": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; material applicable to Adversarial and property tests",
+      "claim": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input. Your goal is to create a reusable test matrix that distinguishes algorithm correctness from a few passing examples. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Greedy, backtracking and dynamic programming; Directed and weighted graph algorithms; Sequence and range problem patterns; Correctness and counterexamples; Components and cycle detection; Tabulation and state reconstruction. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks. The draft therefore rejects: Large random inputs alone cover every important algorithm boundary."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Test empty, singleton, duplicate, sorted, reverse, disconnected, cyclic, malformed and size-boundary inputs as applicable.",
+      "Create a reusable test matrix that distinguishes algorithm correctness from a few passing examples.",
+      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+    ],
+    "excludes": [
+      "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+    ]
+  },
+  "outcomes": [
+    "Create a reusable test matrix that distinguishes algorithm correctness from a few passing examples."
+  ],
+  "examples": [
+    {
+      "id": "dsa.quality.adversarial-tests.example-a",
+      "title": "Adversarial and property tests: language-neutral trace",
+      "situation": "A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+      ],
+      "result": "The conceptual result follows because Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+    },
+    {
+      "id": "dsa.quality.adversarial-tests.example-b",
+      "title": "Adversarial and property tests: implementation transfer",
+      "situation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+        "Step 3 — Retest this boundary in the selected implementation: Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.quality.adversarial-tests.misconception",
+      "mistakenBelief": "Large random inputs alone cover every important algorithm boundary.",
+      "correction": "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Large random inputs alone cover every important algorithm boundary."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Adversarial and property tests, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
+      "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
+      "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
+      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+        },
+        "explanation": "Verify the result and reject this misconception: Large random inputs alone cover every important algorithm boundary."
+      }
+    ],
+    "textAlternative": "Starting artifact: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input. Step 1, Specification. State: scenario: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence. Step 4, Conclusion. State: correction: Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.. Verify the result and reject this misconception: Large random inputs alone cover every important algorithm boundary."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Adversarial and property tests: language-neutral trace”: state its starting evidence, apply the Adversarial and property tests rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Adversarial and property tests: language-neutral trace.",
+        "Starting evidence: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
+        "Core rule: Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
+        "Observable result: The conceptual result follows because Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
+        "Boundary check: Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+        "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Adversarial and property tests case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Create a reusable test matrix that distinguishes algorithm correctness from a few passing examples.",
+        "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.quality.adversarial-tests.misconception",
+      "explanation": "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'invariants and failure modes', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a reusable test matrix that distinguishes algorithm correctness from a few passing examples. Keep this boundary in view: Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks.",
+    "retrievalPrompts": [
+      "State the Adversarial and property tests invariant and complexity without code.",
+      "Why is this claim false: Large random inputs alone cover every important algorithm boundary.",
+      "Map checkpoint 'invariants and failure modes' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Comparative DSA capstone”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.motion.transitions.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.responsive-motion",
+  "skillId": "css.motion.transitions",
+  "title": "Transforms, transitions and animations",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Transforms, transitions and animations; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Transforms, transitions and animations",
+      "claim": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Transforms, transitions and animations",
+      "claim": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately. Your goal is to implement purposeful state motion and explain its start, end and interruption behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Flexbox and Grid; Typography, color and visual treatment; Pseudo-classes and pseudo-elements; Stacking contexts and z-order. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction. This draft therefore rejects: transition: all is the safest way to animate every visual change consistently."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Animate composite-friendly properties for feedback without making content inaccessible or disorienting.",
+      "Implement purposeful state motion and explain its start, end and interruption behavior."
+    ],
+    "excludes": [
+      "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction."
+    ]
+  },
+  "outcomes": [
+    "Implement purposeful state motion and explain its start, end and interruption behavior."
+  ],
+  "examples": [
+    {
+      "id": "css.motion.transitions.example-a",
+      "title": "Transforms, transitions and animations: concrete case",
+      "situation": "A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+      ],
+      "result": "The result follows because Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+    },
+    {
+      "id": "css.motion.transitions.example-b",
+      "title": "Transforms, transitions and animations: boundary case",
+      "situation": "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: transition: all is the safest way to animate every visual change consistently."
+      ],
+      "result": "The boundary requires this correction: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.motion.transitions.misconception",
+      "mistakenBelief": "transition: all is the safest way to animate every visual change consistently.",
+      "correction": "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: transition: all is the safest way to animate every visual change consistently."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Transforms, transitions and animations, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Transforms, transitions and animations before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
+      "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
+      "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: transition: all is the safest way to animate every visual change consistently."
+      }
+    ],
+    "textAlternative": "Starting artifact: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately. Step 1, Artifact. State: evidence: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.. Check the result against the boundary and reject this misconception: transition: all is the safest way to animate every visual change consistently."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Transforms, transitions and animations: concrete case”: state its starting evidence, apply the Transforms, transitions and animations rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Transforms, transitions and animations: concrete case.",
+        "Starting evidence: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
+        "Core rule: Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
+        "Observable result: The result follows because Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.",
+        "Boundary check: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
+        "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Transforms, transitions and animations and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement purposeful state motion and explain its start, end and interruption behavior.",
+        "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.motion.transitions.misconception",
+      "explanation": "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'deliberate properties' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement purposeful state motion and explain its start, end and interruption behavior. Keep this boundary in view: Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
+    "retrievalPrompts": [
+      "Explain Transforms, transitions and animations using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: transition: all is the safest way to animate every visual change consistently.",
+      "Apply checkpoint 'deliberate properties' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Reduced motion and input preferences”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

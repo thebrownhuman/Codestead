@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.java.toolchain.first-program.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.toolchain",
+  "skillId": "java.toolchain.first-program",
+  "title": "First source and main deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for First source and main; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "dev-java",
+    "jls21"
+  ],
+  "items": [
+    {
+      "id": "java.toolchain.first-program.mcq.misconception",
+      "skillId": "java.toolchain.first-program",
+      "title": "First source and main: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Java: Beginner to Intermediate and corrects this misconception? Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name.",
+        "incorrect": "That choice preserves the misconception. For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+        },
+        {
+          "id": "misconception",
+          "text": "Java executes any method named main regardless of its declaring class, modifiers, parameter type, or how the class is launched."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+      }
+    },
+    {
+      "id": "java.toolchain.first-program.fill.checkpoint",
+      "skillId": "java.toolchain.first-program",
+      "title": "First source and main: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Java: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'public static void main'. For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name.",
+        "incorrect": "The phrase must preserve the exact language rule. For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "For the conventional entry contract, declare [[checkpoint]](String[] args) and launch the containing class by its binary name.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "public static void main"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "For the conventional entry contract, declare public static void main(String[] args) and launch the containing class by its binary name."
+      }
+    }
+  ]
+}

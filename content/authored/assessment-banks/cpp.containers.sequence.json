@@ -1,0 +1,214 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.cpp.containers.sequence.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.containers",
+  "skillId": "cpp.containers.sequence",
+  "title": "string, array and vector deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Added digest-pinned deterministic executable evidence for string, array and vector; AI-assisted draft remains human-unreviewed and exam-ineligible."
+  },
+  "sourceRefs": [
+    "isocpp-tour",
+    "cpp-core"
+  ],
+  "items": [
+    {
+      "skillId": "cpp.containers.sequence",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.containers.sequence.mcq.misconception",
+      "title": "string, array and vector: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this CPP misconception? All standard sequence containers support the same iterator stability and random-access operations.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Choose from required operations and verify that container's invalidation and complexity guarantees before retaining iterators or references.",
+        "incorrect": "That option preserves the documented misconception. Choose from required operations and verify that container's invalidation and complexity guarantees before retaining iterators or references."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned CPP correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Choose from required operations and verify that container's invalidation and complexity guarantees before retaining iterators or references."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "All standard sequence containers support the same iterator stability and random-access operations."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Choose from required operations and verify that container's invalidation and complexity guarantees before retaining iterators or references."
+      }
+    },
+    {
+      "skillId": "cpp.containers.sequence",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.containers.sequence.fill.checkpoint",
+      "title": "string, array and vector: complete the language rule",
+      "prompt": "Complete the missing CPP checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: All standard sequence containers support the same iterator stability and random-access operations."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'invalidation'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Choose from required operations and verify that container's invalidation and complexity guarantees before retaining iterators or references."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact CPP token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Choose from required operations and verify that container's {{key-rule}} and complexity guarantees before retaining iterators or references.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "invalidation"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Choose from required operations and verify that container's invalidation and complexity guarantees before retaining iterators or references."
+      }
+    },
+    {
+      "id": "cpp.containers.sequence.code.apply",
+      "skillId": "cpp.containers.sequence",
+      "title": "string, array and vector: executable application",
+      "kind": "code",
+      "prompt": "Read a count from zero to 100 followed by that many integers into a std::vector, then print the values in reverse order separated by single spaces and end with a newline.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards, security, and assessment review."
+      },
+      "hints": [
+        "Start from input validation and the declared observable output, then apply only the target language rule before considering optimization."
+      ],
+      "feedback": {
+        "correct": "All visible and hidden deterministic behavior checks passed for the bounded source task.",
+        "incorrect": "At least one deterministic behavior check failed; inspect bounds, input state, and the target rule without exposing hidden cases."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "behavior",
+            "description": "Compiles in the pinned runtime and passes every normal and boundary behavior test.",
+            "points": 7,
+            "critical": true
+          },
+          {
+            "id": "target-rule",
+            "description": "Applies string, array and vector without undefined behavior or an out-of-scope workaround.",
+            "points": 3,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "AI-assisted and human-unreviewed: formal exam eligibility is prohibited until independent technical and assessment approval.",
+        "Reference verification uses the digest-pinned local container with network=none, no package installation, a read-only source mount, and deterministic stdin/stdout.",
+        "Executable facet: existing bounded executable application retained from the authored language tranche"
+      ],
+      "starterCode": "#include <iostream>\n#include <vector>\n\nint main() {\n    std::size_t count{};\n    if (!(std::cin >> count) || count > 100) return 1;\n    std::vector<int> values(count);\n    // read and print in reverse\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "cpp",
+        "version": "C++20 / G++ 14.2.0",
+        "imageDigest": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+        "entrypoint": "main.cpp",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "cpp-sequence-visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "4\n1 2 3 4\n",
+          "expectedStdout": "4 3 2 1\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "cpp-sequence-hidden-empty",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0\n",
+          "expectedStdout": "\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "cpp-sequence-hidden-single",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "1\n-3\n",
+          "expectedStdout": "-3\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "#include <iostream>\n#include <vector>\n\nint main() {\n    std::size_t count{};\n    if (!(std::cin >> count) || count > 100) return 1;\n    std::vector<int> values(count);\n    for (int& value : values) if (!(std::cin >> value)) return 1;\n    for (std::size_t i = values.size(); i > 0; --i) {\n        if (i != values.size()) std::cout << ' ';\n        std::cout << values[i - 1];\n    }\n    std::cout << '\\n';\n}\n",
+        "explanation": "The reference solution exercises existing bounded executable application retained from the authored language tranche under the bounded deterministic contract; it remains an AI-assisted draft pending human review."
+      }
+    }
+  ]
+}

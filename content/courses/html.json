@@ -1,0 +1,146 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "html",
+  "title": "HTML: Semantic and Accessible Web Documents",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A comprehensive HTML foundation covering document structure, semantic content, navigation, media, tables, forms, metadata, accessibility and validation.",
+  "audience": {
+    "level": "absolute beginner to intermediate web author",
+    "assumed_knowledge": ["Basic browser and file use"],
+    "target_capability": "Independently author, validate and explain a multi-page semantic HTML site that works with keyboard and assistive-technology semantics before styling or scripting."
+  },
+  "scope": {
+    "includes": ["HTML Living Standard document structure", "Semantic text and page landmarks", "Links, URLs and navigation", "Responsive images, audio and video", "Tables for tabular data", "Accessible forms and native validation", "Metadata and resource hints basics", "WCAG-informed semantics, keyboard behavior and validation"],
+    "non_goals": ["Visual styling beyond browser defaults", "JavaScript application behavior", "Server-side templating", "Search-engine ranking guarantees", "Replacing native semantics with custom ARIA widgets"]
+  },
+  "authoritative_sources": [
+    { "id": "whatwg-html", "title": "HTML Living Standard", "url": "https://html.spec.whatwg.org/", "type": "standard", "version_or_date": "living standard accessed 2026-07" },
+    { "id": "mdn-html", "title": "MDN HTML Guide", "url": "https://developer.mozilla.org/en-US/docs/Web/HTML", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "wcag22", "title": "Web Content Accessibility Guidelines 2.2", "url": "https://www.w3.org/TR/WCAG22/", "type": "accessibility-standard", "version_or_date": "W3C Recommendation 2023" },
+    { "id": "wai-aria", "title": "WAI-ARIA Authoring Practices Guide", "url": "https://www.w3.org/WAI/ARIA/apg/", "type": "accessibility-standard", "version_or_date": "living guide accessed 2026-07" }
+  ],
+  "runtime": {
+    "kind": "markup",
+    "language": "HTML",
+    "standard": "WHATWG HTML Living Standard",
+    "toolchain": ["Standards-mode browser", "WHATWG-compatible conformance checker", "Accessibility tree inspector", "Keyboard-only review"],
+    "execution_environment": "Sandboxed browser preview with network access disabled for learner-authored documents unless explicitly enabled",
+    "file_extensions": [".html"],
+    "notes": ["Semantic correctness is evaluated independently of CSS appearance.", "ARIA is taught as a supplement when native HTML cannot express the required semantics."]
+  },
+  "modules": [
+    {
+      "id": "html.document",
+      "title": "Document foundations",
+      "description": "Create standards-mode documents and understand elements, attributes and parsing.",
+      "required": true,
+      "prerequisites": [],
+      "skills": [
+        { "id": "html.document.syntax", "title": "Elements, attributes and nesting", "description": "Write valid start/end tags, void elements, quoted attributes and properly nested structures.", "outcomes": ["Author and repair a small element tree without invalid nesting or duplicate attributes."], "prerequisites": [], "evidence_types": ["artifact", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.document.skeleton", "title": "Standards-mode document skeleton", "description": "Declare doctype, language, character encoding, viewport and body content correctly.", "outcomes": ["Create and explain a complete minimal HTML document with early encoding declaration."], "prerequisites": ["html.document.syntax"], "evidence_types": ["artifact", "explain", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.document.dom", "title": "Document tree and DOM concept", "description": "Relate nested source elements to parent, child and sibling nodes exposed to browser tools.", "outcomes": ["Draw or inspect the element tree for a supplied document and diagnose a parser repair."], "prerequisites": ["html.document.syntax"], "evidence_types": ["visual", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.document.comments-entities", "title": "Comments and character references", "description": "Use comments for maintainers and encode reserved characters without using entities unnecessarily.", "outcomes": ["Repair text that is accidentally parsed as markup and remove misleading commented-out secrets."], "prerequisites": ["html.document.syntax"], "evidence_types": ["artifact", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html"] }
+      ]
+    },
+    {
+      "id": "html.semantics",
+      "title": "Text and page semantics",
+      "description": "Represent document meaning with headings, paragraphs, lists and landmarks.",
+      "required": true,
+      "prerequisites": ["html.document.skeleton"],
+      "skills": [
+        { "id": "html.semantics.headings", "title": "Heading hierarchy", "description": "Use descriptive headings to communicate document outline rather than visual size.", "outcomes": ["Create and review a logical heading hierarchy for a multi-section page."], "prerequisites": ["html.document.skeleton"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] },
+        { "id": "html.semantics.text", "title": "Paragraph and inline meaning", "description": "Choose semantic text elements for emphasis, importance, quotations, code, time and abbreviations.", "outcomes": ["Mark up prose so meaning remains clear without CSS."], "prerequisites": ["html.semantics.headings"], "evidence_types": ["artifact", "concept-check", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.semantics.lists", "title": "Lists and grouped content", "description": "Use ordered, unordered and description lists according to content relationships.", "outcomes": ["Select and create the appropriate list structure for steps, sets and term-value pairs."], "prerequisites": ["html.semantics.text"], "evidence_types": ["artifact", "transfer", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.semantics.landmarks", "title": "Sections and landmarks", "description": "Use header, nav, main, article, section, aside and footer when their semantic roles apply.", "outcomes": ["Structure a page with one clear main region and meaningful labeled navigation and sections."], "prerequisites": ["html.semantics.headings", "html.semantics.lists"], "evidence_types": ["artifact", "visual", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22", "wai-aria"] }
+      ]
+    },
+    {
+      "id": "html.navigation",
+      "title": "Links, URLs and navigation",
+      "description": "Connect resources with understandable destinations and safe URL behavior.",
+      "required": true,
+      "prerequisites": ["html.semantics.landmarks", "pf.tools.files"],
+      "skills": [
+        { "id": "html.navigation.urls", "title": "Relative and absolute URLs", "description": "Resolve paths, fragments, query strings and schemes from a document base.", "outcomes": ["Construct and debug links across a multi-folder site and within a page."], "prerequisites": ["pf.tools.files", "html.document.skeleton"], "evidence_types": ["artifact", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.navigation.links", "title": "Meaningful links", "description": "Write link text that identifies purpose in and out of context and avoid fake-button anchors.", "outcomes": ["Improve a navigation set so destinations and current context are understandable."], "prerequisites": ["html.navigation.urls", "html.semantics.text"], "evidence_types": ["artifact", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "whatwg-html"] },
+        { "id": "html.navigation.external", "title": "External navigation safety", "description": "Use download, target, rel and referrer-related behavior only when justified and disclosed.", "outcomes": ["Configure an external or downloadable link without opener or expectation surprises."], "prerequisites": ["html.navigation.links"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.navigation.skip", "title": "Keyboard navigation and skip links", "description": "Preserve source order and provide bypass mechanisms for repeated navigation.", "outcomes": ["Implement and verify a functional skip link and logical keyboard traversal order."], "prerequisites": ["html.navigation.links", "html.semantics.landmarks"], "evidence_types": ["artifact", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "wai-aria"] }
+      ]
+    },
+    {
+      "id": "html.media",
+      "title": "Images and media",
+      "description": "Embed media with responsive sources, alternatives and user control.",
+      "required": true,
+      "prerequisites": ["html.navigation.urls", "html.semantics.text"],
+      "skills": [
+        { "id": "html.media.images", "title": "Images and alternative text", "description": "Write purpose-appropriate alt text or mark decoration empty without duplicating adjacent content.", "outcomes": ["Choose and justify alternative text for informative, functional and decorative images."], "prerequisites": ["html.navigation.urls", "html.semantics.text"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] },
+        { "id": "html.media.figure", "title": "Figures and captions", "description": "Associate self-contained media or examples with meaningful captions when appropriate.", "outcomes": ["Create a semantically grouped figure and caption without using figure as a generic wrapper."], "prerequisites": ["html.media.images"], "evidence_types": ["artifact", "concept-check", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html"] },
+        { "id": "html.media.responsive", "title": "Responsive image selection", "description": "Use width descriptors, sizes and picture sources for resolution or art-direction needs.", "outcomes": ["Implement and inspect responsive image selection for two viewport scenarios."], "prerequisites": ["html.media.images"], "evidence_types": ["artifact", "visual", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.media.audio-video", "title": "Audio, video, tracks and embeds", "description": "Provide controls, captions or transcripts and meaningful fallback while avoiding unsolicited playback.", "outcomes": ["Embed accessible time-based media and explain cross-origin or third-party privacy concerns."], "prerequisites": ["html.media.images", "html.navigation.external"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] }
+      ]
+    },
+    {
+      "id": "html.tables",
+      "title": "Data tables",
+      "description": "Represent genuinely tabular relationships with navigable headers and captions.",
+      "required": true,
+      "prerequisites": ["html.semantics.headings"],
+      "skills": [
+        { "id": "html.tables.structure", "title": "Rows, cells and sections", "description": "Use table, row, head, body, foot and cell elements for tabular data only.", "outcomes": ["Create a valid table structure from a small data matrix."], "prerequisites": ["html.semantics.headings"], "evidence_types": ["artifact", "visual", "concept-check"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.tables.headers", "title": "Headers and scope", "description": "Associate row and column headers with data cells using the simplest sufficient mechanism.", "outcomes": ["Mark up and inspect header relationships for a simple and a multi-level table."], "prerequisites": ["html.tables.structure"], "evidence_types": ["artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] },
+        { "id": "html.tables.caption", "title": "Captions and context", "description": "Give tables an accessible name and surrounding explanation when interpretation requires it.", "outcomes": ["Add a concise caption and contextual note to a data table."], "prerequisites": ["html.tables.headers"], "evidence_types": ["artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] },
+        { "id": "html.tables.complexity", "title": "Complex-table alternatives", "description": "Recognize when multiple simpler tables, summaries or downloadable data improve understanding.", "outcomes": ["Review a complex table and propose an accessible structural alternative."], "prerequisites": ["html.tables.caption"], "evidence_types": ["design", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22"] }
+      ]
+    },
+    {
+      "id": "html.forms",
+      "title": "Forms and native controls",
+      "description": "Collect data through labeled, grouped and keyboard-operable native controls.",
+      "required": true,
+      "prerequisites": ["html.semantics.text", "html.navigation.urls"],
+      "skills": [
+        { "id": "html.forms.form", "title": "Form submission model", "description": "Use form, action, method, names and values while distinguishing GET and POST semantics.", "outcomes": ["Build and explain a form's serialized submission without exposing sensitive values in a query URL."], "prerequisites": ["html.navigation.urls"], "evidence_types": ["artifact", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.forms.labels-controls", "title": "Labels and input controls", "description": "Associate visible labels with suitable native input, textarea, select and button controls.", "outcomes": ["Create a keyboard-operable form whose controls have persistent accessible names."], "prerequisites": ["html.forms.form", "html.semantics.text"], "evidence_types": ["artifact", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] },
+        { "id": "html.forms.groups", "title": "Groups, choices and autocomplete", "description": "Use fieldset, legend, radio/checkbox semantics and autocomplete tokens appropriately.", "outcomes": ["Group related choices and configure input purpose without relying on placeholder labels."], "prerequisites": ["html.forms.labels-controls"], "evidence_types": ["artifact", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] },
+        { "id": "html.forms.validation", "title": "Native constraints and error semantics", "description": "Use required, type, range, length and pattern constraints while planning understandable server validation.", "outcomes": ["Implement and test native constraints and describe how errors will be identified and corrected."], "prerequisites": ["html.forms.groups"], "evidence_types": ["artifact", "test", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] }
+      ]
+    },
+    {
+      "id": "html.metadata-accessibility",
+      "title": "Metadata and accessibility audit",
+      "description": "Describe documents to browsers and verify native semantics through multiple views.",
+      "required": true,
+      "prerequisites": ["html.document", "html.semantics", "html.forms"],
+      "skills": [
+        { "id": "html.metadata.title-description", "title": "Title and descriptive metadata", "description": "Provide unique page titles and appropriate descriptive, canonical and social-preview metadata.", "outcomes": ["Author metadata for a small multi-page site without promising ranking behavior."], "prerequisites": ["html.document.skeleton", "html.navigation.urls"], "evidence_types": ["artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "mdn-html"] },
+        { "id": "html.metadata.resources", "title": "Linked resources and loading hints", "description": "Link icons, styles and selected resource hints without redundant or harmful preloading.", "outcomes": ["Configure document resources and explain their loading relationship."], "prerequisites": ["html.navigation.urls", "html.document.skeleton"], "evidence_types": ["artifact", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html"] },
+        { "id": "html.accessibility.native", "title": "Native semantics before ARIA", "description": "Select native elements and add ARIA only to fill a genuine semantic gap without conflicting roles.", "outcomes": ["Replace unnecessary ARIA or generic clickable elements with native HTML controls."], "prerequisites": ["html.semantics.landmarks", "html.forms.labels-controls"], "evidence_types": ["review", "debug", "artifact"], "status": "required", "coverage_status": "covered", "source_refs": ["wai-aria", "wcag22", "whatwg-html"] },
+        { "id": "html.accessibility.audit", "title": "Keyboard and accessibility-tree audit", "description": "Inspect headings, landmarks, names, roles, states, focus order and browser zoom behavior.", "outcomes": ["Record and repair findings from a manual keyboard and accessibility-tree review."], "prerequisites": ["html.accessibility.native", "html.navigation.skip"], "evidence_types": ["performance", "review", "artifact"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "wai-aria"] }
+      ]
+    },
+    {
+      "id": "html.validation-project",
+      "title": "Validation and site project",
+      "description": "Validate, review and deliver a coherent multi-page semantic site.",
+      "required": true,
+      "prerequisites": ["html.metadata-accessibility", "html.media", "html.tables", "html.forms"],
+      "skills": [
+        { "id": "html.quality.conformance", "title": "Markup conformance", "description": "Use validator findings as evidence while distinguishing errors from style preferences.", "outcomes": ["Resolve all material conformance errors in a multi-page document set."], "prerequisites": ["html.document.dom", "html.forms.validation"], "evidence_types": ["debug", "artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html"] },
+        { "id": "html.quality.content-review", "title": "Semantic content review", "description": "Review page purpose, outline, landmarks, link names, media alternatives, tables and forms together.", "outcomes": ["Produce a traceable review checklist and repair semantic inconsistencies."], "prerequisites": ["html.quality.conformance", "html.accessibility.audit"], "evidence_types": ["review", "artifact", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "whatwg-html"] },
+        { "id": "html.quality.progressive", "title": "Progressive baseline", "description": "Ensure core content and navigation remain understandable before CSS and JavaScript load.", "outcomes": ["Demonstrate the site with styles and scripts unavailable and document acceptable degradation."], "prerequisites": ["html.quality.content-review", "html.navigation.links"], "evidence_types": ["performance", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] },
+        { "id": "html.project.site", "title": "Semantic multi-page site", "description": "Integrate document structure, navigation, media, data and forms into one coherent artifact.", "outcomes": ["Deliver and explain a validated, keyboard-reviewed multi-page HTML site with documented non-goals."], "prerequisites": ["html.quality.progressive", "html.media.audio-video", "html.tables.caption", "html.forms.validation"], "evidence_types": ["project", "artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["whatwg-html", "wcag22"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Author a standards-conforming multi-page HTML site with meaningful document structure and navigation.",
+    "Use responsive media, data tables and native forms with appropriate alternatives, labels and constraints.",
+    "Verify headings, landmarks, names, roles, focus order and keyboard operation through browser tools and manual review.",
+    "Explain what HTML guarantees independently of CSS, JavaScript, server validation and search ranking."
+  ],
+  "coverage_summary": { "required_skills": 32, "elective_skills": 0, "total_skills": 32, "covered": 32, "partial": 0, "planned": 0 }
+}

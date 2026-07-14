@@ -1,0 +1,157 @@
+.authPage {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(360px, 0.88fr) minmax(520px, 1.12fr);
+  background: var(--surface-solid);
+}
+
+.storyPanel {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  min-height: 100vh;
+  flex-direction: column;
+  padding: 42px clamp(34px, 5vw, 76px);
+  color: #f7fff8;
+  background:
+    radial-gradient(circle at 75% 18%, rgba(142, 218, 169, 0.23), transparent 27%),
+    radial-gradient(circle at 6% 90%, rgba(236, 139, 94, 0.18), transparent 26%),
+    linear-gradient(145deg, #0f3322, #174b31 56%, #1d5a3b);
+}
+
+.storyPanel::after {
+  position: absolute;
+  right: -110px;
+  bottom: 8%;
+  width: 330px;
+  height: 330px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 50px rgba(255,255,255,.025), 0 0 0 110px rgba(255,255,255,.018);
+  content: "";
+}
+
+.storyPanel > a {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  align-self: flex-start;
+  color: white;
+}
+.storyPanel > a :global(span:first-child) { color: #143c28; background: #b7e6c8; }
+
+.storyCopy {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  margin-block: auto;
+}
+
+.storyEyebrow,
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #bce8cc;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.storyCopy h1 {
+  margin: 22px 0 20px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3.2rem, 6vw, 5.9rem);
+  font-weight: 500;
+  letter-spacing: -.055em;
+  line-height: .93;
+}
+
+.storyCopy h1 em { color: #a7e2be; font-weight: 500; }
+.storyCopy > p { max-width: 500px; color: rgba(242,255,246,.74); font-size: 1.04rem; }
+
+.promiseList { display: grid; gap: 17px; margin-top: 34px; }
+.promiseList > span { display: flex; align-items: flex-start; gap: 12px; }
+.promiseList > span > svg { flex: 0 0 auto; margin-top: 2px; color: #a7e2be; }
+.promiseList span span { display: grid; }
+.promiseList strong { font-size: .93rem; }
+.promiseList small { margin-top: 2px; color: rgba(242,255,246,.6); font-size: .8rem; }
+.storyFoot { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; margin: 0; color: rgba(242,255,246,.58); font-size: .78rem; }
+
+.formPanel {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 48px clamp(28px, 6vw, 100px);
+  background:
+    radial-gradient(circle at 90% 4%, color-mix(in srgb, var(--brand-soft) 60%, transparent), transparent 25%),
+    var(--surface-solid);
+}
+
+.formCard { width: min(470px, 100%); }
+.formCard > .eyebrow { color: var(--brand); }
+.formCard h2 { margin: 9px 0 8px; font-size: clamp(2rem, 3vw, 2.7rem); letter-spacing: -.045em; line-height: 1.05; }
+.description { margin: 0 0 28px; color: var(--ink-soft); }
+.mobileBrand { display: none; }
+.privacyLine { position: absolute; bottom: 22px; color: var(--ink-soft); font-size: .75rem; }
+
+.form { display: grid; gap: 17px; }
+.field { display: grid; gap: 7px; }
+.field label, .fieldLabel { color: var(--ink); font-size: .84rem; font-weight: 760; }
+.field input, .field textarea, .field select, .inputShell {
+  width: 100%;
+  min-height: 49px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  box-shadow: 0 1px 1px rgba(0,0,0,.02);
+}
+.field textarea { min-height: 96px; resize: vertical; }
+.field input::placeholder, .field textarea::placeholder { color: color-mix(in srgb, var(--ink-soft) 72%, transparent); }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--brand); outline: 3px solid color-mix(in srgb, var(--brand) 18%, transparent); }
+.passwordWrap { position: relative; }
+.passwordWrap input { padding-right: 48px; }
+.passwordWrap button { position: absolute; top: 50%; right: 4px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; color: var(--ink-soft); background: transparent; transform: translateY(-50%); cursor: pointer; }
+.formRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.check { display: flex; min-height: 44px; align-items: center; gap: 8px; color: var(--ink-soft); font-size: .82rem; }
+.check input { width: 17px; height: 17px; accent-color: var(--brand); }
+.link { display: inline-flex; min-height: 44px; align-items: center; color: var(--brand); font-size: .83rem; font-weight: 760; }
+.submit { width: 100%; margin-top: 3px; }
+.submit:disabled { cursor: wait; opacity: .65; }
+.divider { display: flex; align-items: center; gap: 12px; margin: 5px 0; color: var(--ink-soft); font-size: .73rem; text-transform: uppercase; }
+.divider::before, .divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }
+.googleButton { width: 100%; }
+.footLink { margin: 6px 0 0; color: var(--ink-soft); font-size: .84rem; text-align: center; }
+.footLink a { color: var(--brand); font-weight: 760; }
+.error, .success, .notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 11px;
+  font-size: .82rem;
+}
+.error { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.success { color: var(--brand-strong); background: var(--brand-soft); }
+.notice { color: var(--info); background: color-mix(in srgb, var(--info) 10%, transparent); }
+
+.codeInput { text-align: center; font-family: var(--font-mono); font-size: 1.45rem; font-weight: 800; letter-spacing: .38em; }
+
+@media (max-width: 900px) {
+  .authPage { grid-template-columns: 1fr; }
+  .storyPanel { display: none; }
+  .formPanel { min-height: 100vh; flex-direction: column; padding: 28px 22px 70px; }
+  .mobileBrand { display: block; width: min(470px, 100%); margin-bottom: 54px; }
+  .privacyLine { position: static; width: min(470px, 100%); margin: 28px 0 0; padding-inline: 20px; text-align: center; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .formPanel { background: var(--canvas); }
+}

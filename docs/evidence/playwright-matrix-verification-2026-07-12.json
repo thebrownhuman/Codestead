@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "runStartedAt": "2026-07-13T05:45:18.372Z",
+  "command": "playwright test --reporter=line,json --workers=2 (owned loopback server; retained aggregate copied from test-artifacts/e2e-20260713-111518/results.json)",
+  "playwrightVersion": "1.61.1",
+  "server": {
+    "kind": "Next.js development server",
+    "bind": "127.0.0.1:3111",
+    "authenticationMode": "explicit local demo bypass",
+    "externalCredentialsUsed": false,
+    "ownedProcessStoppedAfterRun": true,
+    "listenerPresentAfterCleanup": false
+  },
+  "totals": {
+    "discovered": 156,
+    "passed": 140,
+    "intentionalSkipped": 16,
+    "failed": 0,
+    "flaky": 0,
+    "durationMs": 87509.224
+  },
+  "projects": [
+    { "name": "chromium", "passed": 24, "skipped": 2, "failed": 0 },
+    { "name": "firefox", "passed": 24, "skipped": 2, "failed": 0 },
+    { "name": "webkit", "passed": 24, "skipped": 2, "failed": 0 },
+    { "name": "tablet-safari", "passed": 24, "skipped": 2, "failed": 0 },
+    { "name": "small-mobile", "passed": 22, "skipped": 4, "failed": 0 },
+    { "name": "mobile-safari", "passed": 22, "skipped": 4, "failed": 0 }
+  ],
+  "intentionalSkipGroups": [
+    {
+      "count": 4,
+      "reason": "The mobile-navigation Escape test runs only in the two mobile projects."
+    },
+    {
+      "count": 4,
+      "reason": "The mobile learning-navigation smoke test runs only in the two mobile projects."
+    },
+    {
+      "count": 2,
+      "reason": "Formal programming exam navigation intentionally requires desktop or tablet and is excluded from the two mobile projects."
+    },
+    {
+      "count": 6,
+      "reason": "The admin operations table and two dense lesson-workspace tests are covered at desktop/tablet widths and excluded from the two mobile projects."
+    }
+  ],
+  "aggregateReport": {
+    "path": "docs/evidence/playwright-all-projects-2026-07-12.json",
+    "sha256": "16cd671cbc501ae0ffb7fd617c9cfa3224e71c016056fdd591ddbbf1467f1f47"
+  },
+  "environmentNotes": [
+    "The restricted Windows process sandbox prevented Firefox from launching its tab subprocess (before page creation). The approved final matrix ran outside that process restriction and passed Firefox with zero failures.",
+    "Safari projects use Playwright WebKit and device emulation; they do not replace physical iPad/iPhone manual verification."
+  ]
+}

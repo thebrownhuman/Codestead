@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.errors.exceptions.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.quality-project",
+  "skillId": "javascript.errors.exceptions",
+  "title": "Errors, throw and recovery boundaries",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Errors, throw and recovery boundaries; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Errors, throw and recovery boundaries",
+      "claim": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Errors, throw and recovery boundaries",
+      "claim": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context. Your goal is to design and test error behavior across domain, network and presentation modules. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Browser state and security; Dependency boundaries; Sources, console and debugger; Promises and chains. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling. This draft therefore rejects: An empty catch block makes an operation robust by preventing crashes."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create meaningful errors, preserve causes and recover only where a user or caller can act.",
+      "Design and test error behavior across domain, network and presentation modules."
+    ],
+    "excludes": [
+      "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling."
+    ]
+  },
+  "outcomes": [
+    "Design and test error behavior across domain, network and presentation modules."
+  ],
+  "examples": [
+    {
+      "id": "javascript.errors.exceptions.example-a",
+      "title": "Errors, throw and recovery boundaries: concrete case",
+      "situation": "A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Catch only where recovery or context is possible; do not silently swallow errors."
+      ],
+      "result": "The result follows because Catch only where recovery or context is possible; do not silently swallow errors."
+    },
+    {
+      "id": "javascript.errors.exceptions.example-b",
+      "title": "Errors, throw and recovery boundaries: boundary case",
+      "situation": "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: An empty catch block makes an operation robust by preventing crashes."
+      ],
+      "result": "The boundary requires this correction: Catch only where recovery or context is possible; do not silently swallow errors."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.errors.exceptions.misconception",
+      "mistakenBelief": "An empty catch block makes an operation robust by preventing crashes.",
+      "correction": "Catch only where recovery or context is possible; do not silently swallow errors.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: An empty catch block makes an operation robust by preventing crashes."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Errors, throw and recovery boundaries, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Errors, throw and recovery boundaries before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
+      "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
+      "Catch only where recovery or context is possible; do not silently swallow errors."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Catch only where recovery or context is possible; do not silently swallow errors."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: An empty catch block makes an operation robust by preventing crashes."
+      }
+    ],
+    "textAlternative": "Starting artifact: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context. Step 1, Artifact. State: evidence: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Catch only where recovery or context is possible; do not silently swallow errors.. Check the result against the boundary and reject this misconception: An empty catch block makes an operation robust by preventing crashes."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Errors, throw and recovery boundaries: concrete case”: state its starting evidence, apply the Errors, throw and recovery boundaries rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Errors, throw and recovery boundaries: concrete case.",
+        "Starting evidence: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
+        "Core rule: Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
+        "Observable result: The result follows because Catch only where recovery or context is possible; do not silently swallow errors.",
+        "Boundary check: Catch only where recovery or context is possible; do not silently swallow errors."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
+        "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Errors, throw and recovery boundaries and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Design and test error behavior across domain, network and presentation modules.",
+        "Catch only where recovery or context is possible; do not silently swallow errors."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.errors.exceptions.misconception",
+      "explanation": "Catch only where recovery or context is possible; do not silently swallow errors.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'do not silently swallow' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and test error behavior across domain, network and presentation modules. Keep this boundary in view: Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
+    "retrievalPrompts": [
+      "Explain Errors, throw and recovery boundaries using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: An empty catch block makes an operation robust by preventing crashes.",
+      "Apply checkpoint 'do not silently swallow' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Pure and module tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

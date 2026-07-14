@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.toolchain.script.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.toolchain",
+  "skillId": "python.toolchain.script",
+  "title": "Scripts, indentation and main guard",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Scripts, indentation and main guard; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 2-4 and 8: interpreter, first steps, control flow, and errors; atomic topic: Scripts, indentation and main guard",
+      "claim": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Language Reference chapters 2, 4, and 7: lexical analysis, execution model, and simple statements; atomic topic: Scripts, indentation and main guard",
+      "claim": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command. Your goal is to write and run a saved script while explaining its top-level execution. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Interactive interpreter. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context. The learner must reject this documented misconception: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create executable modules with meaningful layout, indentation and optional entry-point guard.",
+      "Write and run a saved script while explaining its top-level execution."
+    ],
+    "excludes": [
+      "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context."
+    ]
+  },
+  "outcomes": [
+    "Write and run a saved script while explaining its top-level execution."
+  ],
+  "examples": [
+    {
+      "id": "python.toolchain.script.example.direct",
+      "title": "Scripts, indentation and main guard: direct language case",
+      "situation": "A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+      ],
+      "result": "The example meets the atomic outcome because Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+    },
+    {
+      "id": "python.toolchain.script.example.boundary",
+      "title": "Scripts, indentation and main guard: boundary and transfer case",
+      "situation": "A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard.",
+        "Step 2 — Keep the language boundary explicit: The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context.",
+        "Step 3 — Reject the tempting but incorrect rule: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+      ],
+      "result": "This case demonstrates the declared outcome: Write and run a saved script while explaining its top-level execution."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.toolchain.script.misconception",
+      "mistakenBelief": "Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements.",
+      "correction": "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an experiment notebook that becomes a saved procedure executed by one identified interpreter in a known workspace can introduce Scripts, indentation and main guard, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "REPL experiments, scripts, environments, and tracebacks"
+    ],
+    "limitations": [
+      "import caching, module paths, display hooks, indentation grammar, and traceback chaining are Python-specific",
+      "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
+      "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
+      "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+      }
+    ],
+    "textAlternative": "Starting artifact: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command. Step 1, Observe. State: evidence: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.. Compare the observation with the correction and explain why the misconception fails: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Scripts, indentation and main guard: direct language case”: state its starting evidence, apply the Scripts, indentation and main guard rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Scripts, indentation and main guard: direct language case.",
+        "Starting evidence: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
+        "Core rule: A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
+        "Observable result: The example meets the atomic outcome because Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.",
+        "Boundary check: Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
+        "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Scripts, indentation and main guard, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Write and run a saved script while explaining its top-level execution.",
+        "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.toolchain.script.misconception",
+      "explanation": "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write and run a saved script while explaining its top-level execution. Keep this boundary in view: The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context.",
+    "retrievalPrompts": [
+      "Explain Scripts, indentation and main guard using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements.",
+      "Predict this case from memory: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard."
+    ],
+    "nextReviewPrompt": "Next: continue to “Interpreter and environment”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

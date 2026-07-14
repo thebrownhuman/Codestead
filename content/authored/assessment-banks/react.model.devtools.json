@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.react.model.devtools.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.model-setup",
+  "skillId": "react.model.devtools",
+  "title": "React developer tools deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because Component-tree and render-cause diagnosis requires recorded human React DevTools evidence."
+  },
+  "sourceRefs": [
+    "react-docs"
+  ],
+  "items": [
+    {
+      "skillId": "react.model.devtools",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.model.devtools.mcq.misconception",
+      "title": "React developer tools: reject the invalid model",
+      "prompt": "Which statement correctly resolves this React: Component-Based Browser Applications misconception? Every highlighted rerender must be removed with memoization.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.",
+        "incorrect": "That preserves the misconception. Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked React: Component-Based Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+        },
+        {
+          "id": "misconception",
+          "text": "Every highlighted rerender must be removed with memoization."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      }
+    },
+    {
+      "skillId": "react.model.devtools",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.model.devtools.fill.checkpoint",
+      "title": "React developer tools: complete the rule",
+      "prompt": "Complete the missing React: Component-Based Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: measurements.",
+        "incorrect": "Recheck the exact rule. Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Use DevTools {{key-rule}} to find costly work; rerendering itself is normal and memoization needs evidence.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "measurements"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      }
+    }
+  ]
+}

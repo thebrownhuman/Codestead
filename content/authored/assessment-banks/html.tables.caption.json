@@ -1,0 +1,203 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.html.tables.caption.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.tables",
+  "skillId": "html.tables.caption",
+  "title": "Captions and context deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "whatwg-html",
+    "wcag22"
+  ],
+  "items": [
+    {
+      "skillId": "html.tables.caption",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.tables.caption.mcq.misconception",
+      "title": "Captions and context: reject the invalid model",
+      "prompt": "Which statement correctly resolves this HTML: Semantic and Accessible Web Documents misconception? The title attribute is the preferred accessible label for every table.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Use caption to name a data table concisely and use surrounding text for additional explanation.",
+        "incorrect": "That preserves the misconception. Use caption to name a data table concisely and use surrounding text for additional explanation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked HTML: Semantic and Accessible Web Documents correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Use caption to name a data table concisely and use surrounding text for additional explanation."
+        },
+        {
+          "id": "misconception",
+          "text": "The title attribute is the preferred accessible label for every table."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Use caption to name a data table concisely and use surrounding text for additional explanation."
+      }
+    },
+    {
+      "skillId": "html.tables.caption",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.tables.caption.fill.checkpoint",
+      "title": "Captions and context: complete the rule",
+      "prompt": "Complete the missing HTML: Semantic and Accessible Web Documents checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: caption.",
+        "incorrect": "Recheck the exact rule. Use caption to name a data table concisely and use surrounding text for additional explanation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Use {{key-rule}} to name a data table concisely and use surrounding text for additional explanation.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "caption"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Use caption to name a data table concisely and use surrounding text for additional explanation."
+      }
+    },
+    {
+      "id": "html.tables.caption.code.verified-facet",
+      "skillId": "html.tables.caption",
+      "title": "Captions and context: verified implementation facet",
+      "kind": "code",
+      "prompt": "Give tables an accessible name and surrounding explanation when interpretation requires it. Build a bounded artifact demonstrating native table caption naming the data; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><title>TODO</title></head><body><main><!-- TODO --></main></body></html>\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "html",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "index.html",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        }
+      },
+      "tests": [
+        {
+          "id": "html.tables.caption.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"caption names the table\",\n      \"expression\": \"document.querySelector('table caption')?.textContent\",\n      \"expected\": \"Practice scores by learner\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "html.tables.caption.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"caption is the table's first element child\",\n      \"expression\": \"document.querySelector('table')?.firstElementChild?.tagName\",\n      \"expected\": \"CAPTION\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Scores</title></head><body><main><h1>Scores</h1><table><caption>Practice scores by learner</caption><thead><tr><th scope=\"col\">Learner</th><th scope=\"col\">Score</th></tr></thead><tbody><tr><th scope=\"row\">Asha</th><td>92</td></tr><tr><th scope=\"row\">Ravi</th><td>88</td></tr></tbody><tfoot><tr><th scope=\"row\">Average</th><td>90</td></tr></tfoot></table></main></body></html>",
+        "explanation": "The reference is a bounded html artifact for native table caption naming the data. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

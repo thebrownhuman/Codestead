@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.branches.conflicts.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.branches",
+  "skillId": "git.branches.conflicts",
+  "title": "Conflict resolution",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Conflict resolution; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "git-docs",
+      "locator": "Git Reference Documentation; current stable accessed 2026-07; section applicable to Conflict resolution",
+      "claim": "A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content."
+    },
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Conflict resolution",
+      "claim": "A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each. Your goal is to resolve a content conflict and document why the final behavior is correct. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Commits and history; Fast-forward and three-way merge; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Choosing ours or theirs can discard valid work, conflicts can involve rename/delete and binary states, and a resolved text can still be semantically wrong. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Conflict resolution means deleting marker lines and choosing the version that compiles first."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Interpret base, ours and theirs, edit the intended combined result and test before completing integration.",
+      "Resolve a content conflict and document why the final behavior is correct."
+    ],
+    "excludes": [
+      "Choosing ours or theirs can discard valid work, conflicts can involve rename/delete and binary states, and a resolved text can still be semantically wrong."
+    ]
+  },
+  "outcomes": [
+    "Resolve a content conflict and document why the final behavior is correct."
+  ],
+  "examples": [
+    {
+      "id": "git.branches.conflicts.example-a",
+      "title": "Conflict resolution: direct case",
+      "situation": "Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains."
+      ],
+      "result": "The case supports the declared outcome because Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains."
+    },
+    {
+      "id": "git.branches.conflicts.example-b",
+      "title": "Conflict resolution: boundary case",
+      "situation": "After removing conflict markers, status and staged diff are inspected and the focused test suite runs before the merge is completed.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: After removing conflict markers, status and staged diff are inspected and the focused test suite runs before the merge is completed.",
+        "Step 2 — Keep this boundary explicit: Choosing ours or theirs can discard valid work, conflicts can involve rename/delete and binary states, and a resolved text can still be semantically wrong.",
+        "Step 3 — Reject the documented misconception: Conflict resolution means deleting marker lines and choosing the version that compiles first."
+      ],
+      "result": "This case demonstrates the declared outcome: Resolve a content conflict and document why the final behavior is correct."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.branches.conflicts.misconception",
+      "mistakenBelief": "Conflict resolution means deleting marker lines and choosing the version that compiles first.",
+      "correction": "Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Conflict resolution means deleting marker lines and choosing the version that compiles first."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A route map can model Conflict resolution: movable signposts identify current destinations, routes diverge, and integration reconnects selected paths.",
+    "usefulFor": [
+      "Visualizing references, divergence, ancestry, merge bases, and reconciled paths"
+    ],
+    "limitations": [
+      "Branches are lightweight references to commits, not copied roads or independent containers of files.",
+      "Choosing ours or theirs can discard valid work, conflicts can involve rename/delete and binary states, and a resolved text can still be semantically wrong."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each.",
+      "A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content.",
+      "Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content."
+        },
+        "explanation": "Apply the declared Conflict resolution model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Conflict resolution means deleting marker lines and choosing the version that compiles first."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each. Step 1, Observe. State: evidence: Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content.. Apply the declared Conflict resolution model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains.. Compare the observation with the correction and reject the misconception: Conflict resolution means deleting marker lines and choosing the version that compiles first."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Conflict resolution: direct case”: state its starting evidence, apply the Conflict resolution rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Conflict resolution: direct case.",
+        "Starting evidence: Two branches change the same validation branch differently, so the resolver reads both commits and writes one rule that preserves required cases from each.",
+        "Core rule: A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content.",
+        "Observable result: The case supports the declared outcome because Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains.",
+        "Boundary check: Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: After removing conflict markers, status and staged diff are inspected and the focused test suite runs before the merge is completed.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A conflict records multiple unresolved versions in the index; resolution requires understanding both intents, editing a coherent result, removing markers, testing, and staging the resolved content.",
+        "Choosing ours or theirs can discard valid work, conflicts can involve rename/delete and binary states, and a resolved text can still be semantically wrong."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Conflict resolution, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Resolve a content conflict and document why the final behavior is correct.",
+        "Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.branches.conflicts.misconception",
+      "explanation": "Recover both change intentions, construct and test the correct combined behavior, then stage only after no marker or unresolved index entry remains.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: After removing conflict markers, status and staged diff are inspected and the focused test suite runs before the merge is completed."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to resolve a content conflict and document why the final behavior is correct. Keep this boundary in view: Choosing ours or theirs can discard valid work, conflicts can involve rename/delete and binary states, and a resolved text can still be semantically wrong.",
+    "retrievalPrompts": [
+      "Explain Conflict resolution without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Conflict resolution means deleting marker lines and choosing the version that compiles first.",
+      "Apply the model to this case from memory: After removing conflict markers, status and staged diff are inspected and the focused test suite runs before the merge is completed."
+    ],
+    "nextReviewPrompt": "Next: continue to “Clone and remote configuration”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

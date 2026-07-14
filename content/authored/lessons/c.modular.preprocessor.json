@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.modular.preprocessor.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.modular-quality",
+  "skillId": "c.modular.preprocessor",
+  "title": "Preprocessor and macros",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Preprocessor and macros; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to Preprocessor and macros",
+      "claim": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Preprocessor and macros",
+      "claim": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Preprocessor and macros",
+      "claim": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once. Your goal is to replace unsafe macro patterns and explain preprocessing results. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Failure-safe cleanup; Scope, linkage and storage duration; Header interfaces and include guards; Preprocess, compile, assemble and link. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built. Therefore the draft explicitly rejects this beginner failure model: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use conditional compilation and simple macros while avoiding multiple evaluation and hidden control flow.",
+      "Replace unsafe macro patterns and explain preprocessing results."
+    ],
+    "excludes": [
+      "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built."
+    ]
+  },
+  "outcomes": [
+    "Replace unsafe macro patterns and explain preprocessing results."
+  ],
+  "examples": [
+    {
+      "id": "c.modular.preprocessor.example-a",
+      "title": "Preprocessor and macros: defined case",
+      "situation": "A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+      ],
+      "result": "The defined result follows because Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+    },
+    {
+      "id": "c.modular.preprocessor.example-b",
+      "title": "Preprocessor and macros: boundary case",
+      "situation": "A small constant uses an enum or const object when type and scope matter instead of a global textual macro.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A small constant uses an enum or const object when type and scope matter instead of a global textual macro.",
+        "Step 2 — Keep this standard boundary visible: Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built.",
+        "Step 3 — Reject the tempting rule: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+      ],
+      "result": "This case demonstrates the declared outcome: Replace unsafe macro patterns and explain preprocessing results."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.modular.preprocessor.misconception",
+      "mistakenBelief": "A function-like macro behaves exactly like an inline function and evaluates each argument once.",
+      "correction": "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Preprocessor and macros: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
+      "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
+      "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+      }
+    ],
+    "textAlternative": "Starting artifact: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once. Step 1, Source and state. State: evidence: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.. Check the conclusion against the boundary and reject this misconception: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Preprocessor and macros: defined case”: state its starting evidence, apply the Preprocessor and macros rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Preprocessor and macros: defined case.",
+        "Starting evidence: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
+        "Core rule: The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
+        "Observable result: The defined result follows because Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.",
+        "Boundary check: Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A small constant uses an enum or const object when type and scope matter instead of a global textual macro.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
+        "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Preprocessor and macros, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Replace unsafe macro patterns and explain preprocessing results.",
+        "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.modular.preprocessor.misconception",
+      "explanation": "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'token replacement' and state the decisive evidence: A small constant uses an enum or const object when type and scope matter instead of a global textual macro."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to replace unsafe macro patterns and explain preprocessing results. Keep this boundary in view: Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built.",
+    "retrievalPrompts": [
+      "Explain Preprocessor and macros using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: A function-like macro behaves exactly like an inline function and evaluates each argument once.",
+      "Apply the checkpoint 'token replacement' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Multi-file builds”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

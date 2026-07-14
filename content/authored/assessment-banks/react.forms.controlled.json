@@ -1,0 +1,207 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.react.forms.controlled.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.forms-reducers",
+  "skillId": "react.forms.controlled",
+  "title": "Controlled inputs deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "react-docs",
+    "wcag22"
+  ],
+  "items": [
+    {
+      "skillId": "react.forms.controlled",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.forms.controlled.mcq.misconception",
+      "title": "Controlled inputs: reject the invalid model",
+      "prompt": "Which statement correctly resolves this React: Component-Based Browser Applications misconception? Providing an initial defaultValue makes an input controlled forever.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input.",
+        "incorrect": "That preserves the misconception. A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked React: Component-Based Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+        },
+        {
+          "id": "misconception",
+          "text": "Providing an initial defaultValue makes an input controlled forever."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+      }
+    },
+    {
+      "skillId": "react.forms.controlled",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.forms.controlled.fill.checkpoint",
+      "title": "Controlled inputs: complete the rule",
+      "prompt": "Complete the missing React: Component-Based Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: value plus an update handler.",
+        "incorrect": "Recheck the exact rule. A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "A controlled input uses {{key-rule}}; defaultValue initializes an uncontrolled input.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "value plus an update handler"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+      }
+    },
+    {
+      "id": "react.forms.controlled.code.verified-facet",
+      "skillId": "react.forms.controlled",
+      "title": "Controlled inputs: verified implementation facet",
+      "kind": "code",
+      "prompt": "Bind value or checked state to React while preserving labels, input semantics and responsive updates. Build a bounded artifact demonstrating controlled labeled email input; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nfunction App(){ return <main><h1>TODO</h1></main>; }\ncreateRoot(document.getElementById(\"root\")!).render(<App/>);\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "react",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "App.tsx",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        },
+        "bundler": {
+          "name": "esbuild",
+          "version": "0.25.12"
+        }
+      },
+      "tests": [
+        {
+          "id": "react.forms.controlled.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"input starts controlled and labeled\",\n      \"expression\": \"document.querySelector('label[for=email]')?.control?.value\",\n      \"expected\": \"\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "react.forms.controlled.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"typed value is retained by React state\",\n      \"expression\": \"document.querySelector('#email').value\",\n      \"expected\": \"learner@example.test\"\n    }\n  ],\n  \"actions\": [\n    {\n      \"type\": \"fill\",\n      \"selector\": \"#email\",\n      \"value\": \"learner@example.test\"\n    }\n  ],\n  \"axe\": true\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import React, { useReducer, useState } from \"react\"; import { createRoot } from \"react-dom/client\";\ntype State={attempts:number};type Action={type:\"submit\"};const reducer=(state:State,action:Action)=>action.type===\"submit\"?{attempts:state.attempts+1}:state;\nfunction App(){const [email,setEmail]=useState(\"\");const [error,setError]=useState(\"\");const [state,dispatch]=useReducer(reducer,{attempts:0});function submit(event:React.FormEvent){event.preventDefault();if(!email.includes(\"@\")){setError(\"Enter a valid email\");return;}setError(\"\");dispatch({type:\"submit\"});}return <main><h1>Register</h1><form onSubmit={submit} noValidate><label htmlFor=\"email\">Email</label><input id=\"email\" type=\"email\" required value={email} aria-describedby=\"email-error\" aria-invalid={Boolean(error)} onChange={(event)=>setEmail(event.target.value)}/><p id=\"email-error\" role=\"alert\">{error}</p><button>Submit</button></form><output>Attempts {state.attempts}</output></main>}\ncreateRoot(document.getElementById(\"root\")!).render(<App/>);",
+        "explanation": "The reference is a bounded react artifact for controlled labeled email input. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

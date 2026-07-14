@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.quality.conformance.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.validation-project",
+  "skillId": "html.quality.conformance",
+  "title": "Markup conformance",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Markup conformance; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Markup conformance",
+      "claim": "Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair. Your goal is to resolve all material conformance errors in a multi-page document set. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Metadata and accessibility audit; Images and media; Data tables; Forms and native controls; Document tree and DOM concept; Native constraints and error semantics. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too. This draft therefore rejects: If a page looks correct in one browser, HTML conformance errors cannot matter."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use validator findings as evidence while distinguishing errors from style preferences.",
+      "Resolve all material conformance errors in a multi-page document set."
+    ],
+    "excludes": [
+      "A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too."
+    ]
+  },
+  "outcomes": [
+    "Resolve all material conformance errors in a multi-page document set."
+  ],
+  "examples": [
+    {
+      "id": "html.quality.conformance.example-a",
+      "title": "Markup conformance: concrete case",
+      "situation": "A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+      ],
+      "result": "The result follows because Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+    },
+    {
+      "id": "html.quality.conformance.example-b",
+      "title": "Markup conformance: boundary case",
+      "situation": "A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: If a page looks correct in one browser, HTML conformance errors cannot matter."
+      ],
+      "result": "The boundary requires this correction: Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.quality.conformance.misconception",
+      "mistakenBelief": "If a page looks correct in one browser, HTML conformance errors cannot matter.",
+      "correction": "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: If a page looks correct in one browser, HTML conformance errors cannot matter."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Markup conformance, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Markup conformance before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair.",
+      "Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects.",
+      "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: If a page looks correct in one browser, HTML conformance errors cannot matter."
+      }
+    ],
+    "textAlternative": "Starting artifact: A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair. Step 1, Artifact. State: evidence: A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward.. Check the result against the boundary and reject this misconception: If a page looks correct in one browser, HTML conformance errors cannot matter."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Markup conformance: concrete case”: state its starting evidence, apply the Markup conformance rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Markup conformance: concrete case.",
+        "Starting evidence: A validator identifies a button nested inside a link, and the structure is redesigned instead of relying on browser repair.",
+        "Core rule: Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects.",
+        "Observable result: The result follows because Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward.",
+        "Boundary check: Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Conformance validation finds markup that violates HTML parsing or content-model requirements before browser recovery hides defects.",
+        "A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Markup conformance and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Resolve all material conformance errors in a multi-page document set.",
+        "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.quality.conformance.misconception",
+      "explanation": "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'rendered HTML' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to resolve all material conformance errors in a multi-page document set. Keep this boundary in view: A conforming document can still be inaccessible or misleading, and embedded templates or frameworks can require validating rendered output too.",
+    "retrievalPrompts": [
+      "Explain Markup conformance using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: If a page looks correct in one browser, HTML conformance errors cannot matter.",
+      "Apply checkpoint 'rendered HTML' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Semantic content review”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

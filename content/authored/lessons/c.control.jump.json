@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.control.jump.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.control-io",
+  "skillId": "c.control.jump",
+  "title": "break, continue and return",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for break, continue and return; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to break, continue and return",
+      "claim": "break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels. Your goal is to refactor loop and function exits for correct behavior and readable control flow. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Operators and precedence; pf control iteration; while, do and for. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Transfers can skip initialization or cleanup logic, nested constructs change the nearest target, and goto cannot enter scopes incompatibly with variably modified objects. Therefore the draft explicitly rejects this beginner failure model: break exits the current function and continue restarts the complete program from its first statement."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use structured early exits without obscuring invariants or cleanup.",
+      "Refactor loop and function exits for correct behavior and readable control flow."
+    ],
+    "excludes": [
+      "Transfers can skip initialization or cleanup logic, nested constructs change the nearest target, and goto cannot enter scopes incompatibly with variably modified objects."
+    ]
+  },
+  "outcomes": [
+    "Refactor loop and function exits for correct behavior and readable control flow."
+  ],
+  "examples": [
+    {
+      "id": "c.control.jump.example-a",
+      "title": "break, continue and return: defined case",
+      "situation": "A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function."
+      ],
+      "result": "The defined result follows because break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function."
+    },
+    {
+      "id": "c.control.jump.example-b",
+      "title": "break, continue and return: boundary case",
+      "situation": "A single cleanup label releases resources acquired along several failure paths before the function returns one status.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A single cleanup label releases resources acquired along several failure paths before the function returns one status.",
+        "Step 2 — Keep this standard boundary visible: Transfers can skip initialization or cleanup logic, nested constructs change the nearest target, and goto cannot enter scopes incompatibly with variably modified objects.",
+        "Step 3 — Reject the tempting rule: break exits the current function and continue restarts the complete program from its first statement."
+      ],
+      "result": "This case demonstrates the declared outcome: Refactor loop and function exits for correct behavior and readable control flow."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.control.jump.misconception",
+      "mistakenBelief": "break exits the current function and continue restarts the complete program from its first statement.",
+      "correction": "break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: break exits the current function and continue restarts the complete program from its first statement."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model break, continue and return: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Transfers can skip initialization or cleanup logic, nested constructs change the nearest target, and goto cannot enter scopes incompatibly with variably modified objects."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels.",
+      "break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function.",
+      "break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: break exits the current function and continue restarts the complete program from its first statement."
+      }
+    ],
+    "textAlternative": "Starting artifact: A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels. Step 1, Source and state. State: evidence: A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function.. Check the conclusion against the boundary and reject this misconception: break exits the current function and continue restarts the complete program from its first statement."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “break, continue and return: defined case”: state its starting evidence, apply the break, continue and return rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: break, continue and return: defined case.",
+        "Starting evidence: A nested search uses a flag or helper return because break exits only the inner loop rather than both loop levels.",
+        "Core rule: break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function.",
+        "Observable result: The defined result follows because break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function.",
+        "Boundary check: break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A single cleanup label releases resources acquired along several failure paths before the function returns one status.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "break exits the nearest loop or switch, continue advances the nearest loop to its next iteration step, return leaves a function, and goto transfers within one function.",
+        "Transfers can skip initialization or cleanup logic, nested constructs change the nearest target, and goto cannot enter scopes incompatibly with variably modified objects."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for break, continue and return, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Refactor loop and function exits for correct behavior and readable control flow.",
+        "break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.control.jump.misconception",
+      "explanation": "break targets the nearest loop or switch, continue targets the nearest loop, and return is the transfer that exits the current function.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'return' and state the decisive evidence: A single cleanup label releases resources acquired along several failure paths before the function returns one status."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to refactor loop and function exits for correct behavior and readable control flow. Keep this boundary in view: Transfers can skip initialization or cleanup logic, nested constructs change the nearest target, and goto cannot enter scopes incompatibly with variably modified objects.",
+    "retrievalPrompts": [
+      "Explain break, continue and return using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: break exits the current function and continue restarts the complete program from its first statement.",
+      "Apply the checkpoint 'return' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Validated text input”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

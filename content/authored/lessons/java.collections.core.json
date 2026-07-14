@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.collections.core.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.generics-collections",
+  "skillId": "java.collections.core",
+  "title": "List, Set, Map and Queue",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for List, Set, Map and Queue; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Generics and Collections Framework learning paths; atomic topic: List, Set, Map and Queue",
+      "claim": "Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans. Your goal is to select and use an appropriate collection for a stated problem and justify its trade-offs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Interfaces; Arrays and multidimensional arrays; Generic types and methods; pf data selection. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Hash iteration order is not a sorting promise, equality/hashing govern uniqueness and keys, null policies vary, mutability may be restricted, and big-O guarantees depend on implementation and workload. The learner must reject this documented misconception: ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use collection interfaces and choose implementations by ordering, uniqueness, lookup and mutation needs.",
+      "Select and use an appropriate collection for a stated problem and justify its trade-offs."
+    ],
+    "excludes": [
+      "Hash iteration order is not a sorting promise, equality/hashing govern uniqueness and keys, null policies vary, mutability may be restricted, and big-O guarantees depend on implementation and workload."
+    ]
+  },
+  "outcomes": [
+    "Select and use an appropriate collection for a stated problem and justify its trade-offs."
+  ],
+  "examples": [
+    {
+      "id": "java.collections.core.example.direct",
+      "title": "List, Set, Map and Queue: direct language case",
+      "situation": "A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+      ],
+      "result": "The example meets the atomic outcome because Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+    },
+    {
+      "id": "java.collections.core.example.boundary",
+      "title": "List, Set, Map and Queue: boundary and transfer case",
+      "situation": "A priority queue retrieves the least element by its comparator but does not expose the entire collection in sorted iteration order.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A priority queue retrieves the least element by its comparator but does not expose the entire collection in sorted iteration order.",
+        "Step 2 — Keep the language boundary explicit: Hash iteration order is not a sorting promise, equality/hashing govern uniqueness and keys, null policies vary, mutability may be restricted, and big-O guarantees depend on implementation and workload.",
+        "Step 3 — Reject the tempting but incorrect rule: ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics."
+      ],
+      "result": "This case demonstrates the declared outcome: Select and use an appropriate collection for a stated problem and justify its trade-offs."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.collections.core.misconception",
+      "mistakenBelief": "ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics.",
+      "correction": "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a typed storage service whose labels constrain accepted contents and whose containers promise order, uniqueness, lookup, or removal policy can introduce List, Set, Map and Queue, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "generic relationships, wildcard direction, and collection choice"
+    ],
+    "limitations": [
+      "type erasure, variance, hashing, iterator validity, and complexity guarantees are not visible in physical bins",
+      "Hash iteration order is not a sorting promise, equality/hashing govern uniqueness and keys, null policies vary, mutability may be restricted, and big-O guarantees depend on implementation and workload."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans.",
+      "Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits.",
+      "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics."
+      }
+    ],
+    "textAlternative": "Starting artifact: A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans. Step 1, Observe. State: evidence: A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations.. Compare the observation with the correction and explain why the misconception fails: ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “List, Set, Map and Queue: direct language case”: state its starting evidence, apply the List, Set, Map and Queue rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: List, Set, Map and Queue: direct language case.",
+        "Starting evidence: A word counter uses Map<String,Integer>, while a unique insertion-ordered report uses LinkedHashSet rather than a List plus repeated scans.",
+        "Core rule: Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits.",
+        "Observable result: The example meets the atomic outcome because Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations.",
+        "Boundary check: Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A priority queue retrieves the least element by its comparator but does not expose the entire collection in sorted iteration order.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java collection interfaces encode different contracts: List preserves positional sequence, Set uniqueness, Map key-value association, and Queue ordered removal policy; implementations add performance and ordering traits.",
+        "Hash iteration order is not a sorting promise, equality/hashing govern uniqueness and keys, null policies vary, mutability may be restricted, and big-O guarantees depend on implementation and workload."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of List, Set, Map and Queue, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Select and use an appropriate collection for a stated problem and justify its trade-offs.",
+        "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.collections.core.misconception",
+      "explanation": "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A priority queue retrieves the least element by its comparator but does not expose the entire collection in sorted iteration order."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to select and use an appropriate collection for a stated problem and justify its trade-offs. Keep this boundary in view: Hash iteration order is not a sorting promise, equality/hashing govern uniqueness and keys, null policies vary, mutability may be restricted, and big-O guarantees depend on implementation and workload.",
+    "retrievalPrompts": [
+      "Explain List, Set, Map and Queue using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics.",
+      "Predict this case from memory: A priority queue retrieves the least element by its comparator but does not expose the entire collection in sorted iteration order."
+    ],
+    "nextReviewPrompt": "Next: continue to “Iteration, mutation and immutability”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

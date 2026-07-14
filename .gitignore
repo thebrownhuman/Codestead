@@ -1,0 +1,38 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# tests and build output
+/coverage
+/playwright-report
+/test-results
+/test-artifacts
+/.next
+/.next-e2e-*
+/out
+/public/monaco
+/services/runner/dist
+
+# local data and uploads
+/data
+/uploads
+/backups
+
+# environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# logs and editor files
+*.log
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.effects.cleanup.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.effects-refs",
+  "skillId": "react.effects.cleanup",
+  "title": "Cleanup and race prevention",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Cleanup and race prevention; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Cleanup and race prevention",
+      "claim": "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A resize listener is removed with the exact same function reference when the effect cleans up. Your goal is to implement and test setup-cleanup symmetry and latest-request behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: State and events; javascript async network; Dependencies and reactive values; javascript async cancellation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup. This draft therefore rejects: Cleanup runs only when the whole application closes, not before an effect reruns."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Undo subscriptions and ignore or abort obsolete asynchronous results across rerenders and unmounts.",
+      "Implement and test setup-cleanup symmetry and latest-request behavior."
+    ],
+    "excludes": [
+      "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup."
+    ]
+  },
+  "outcomes": [
+    "Implement and test setup-cleanup symmetry and latest-request behavior."
+  ],
+  "examples": [
+    {
+      "id": "react.effects.cleanup.example-a",
+      "title": "Cleanup and race prevention: concrete case",
+      "situation": "A resize listener is removed with the exact same function reference when the effect cleans up.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A resize listener is removed with the exact same function reference when the effect cleans up.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+      ],
+      "result": "The result follows because React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+    },
+    {
+      "id": "react.effects.cleanup.example-b",
+      "title": "Cleanup and race prevention: boundary case",
+      "situation": "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Cleanup runs only when the whole application closes, not before an effect reruns."
+      ],
+      "result": "The boundary requires this correction: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.effects.cleanup.misconception",
+      "mistakenBelief": "Cleanup runs only when the whole application closes, not before an effect reruns.",
+      "correction": "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Cleanup runs only when the whole application closes, not before an effect reruns."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Cleanup and race prevention, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Cleanup and race prevention before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A resize listener is removed with the exact same function reference when the effect cleans up.",
+      "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
+      "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A resize listener is removed with the exact same function reference when the effect cleans up."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Cleanup runs only when the whole application closes, not before an effect reruns."
+      }
+    ],
+    "textAlternative": "Starting artifact: A resize listener is removed with the exact same function reference when the effect cleans up. Step 1, Artifact. State: evidence: A resize listener is removed with the exact same function reference when the effect cleans up.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.. Check the result against the boundary and reject this misconception: Cleanup runs only when the whole application closes, not before an effect reruns."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Cleanup and race prevention: concrete case”: state its starting evidence, apply the Cleanup and race prevention rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Cleanup and race prevention: concrete case.",
+        "Starting evidence: A resize listener is removed with the exact same function reference when the effect cleans up.",
+        "Core rule: An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
+        "Observable result: The result follows because React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.",
+        "Boundary check: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
+        "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Cleanup and race prevention and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test setup-cleanup symmetry and latest-request behavior.",
+        "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.effects.cleanup.misconception",
+      "explanation": "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'reversible pair' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test setup-cleanup symmetry and latest-request behavior. Keep this boundary in view: Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
+    "retrievalPrompts": [
+      "Explain Cleanup and race prevention using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Cleanup runs only when the whole application closes, not before an effect reruns.",
+      "Apply checkpoint 'reversible pair' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Refs and imperative escape hatches”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

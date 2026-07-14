@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.state.mutation.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.state",
+  "skillId": "pf.state.mutation",
+  "title": "Mutation and aliases",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Mutation and aliases; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Mutation and aliases",
+      "claim": "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other. Your goal is to predict visible changes when two names refer to the same mutable collection. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Pseudocode; Variables and assignment. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Assigning or updating through one name can never affect a value observed through another name."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Recognize the conceptual difference between rebinding a name and changing a shared value.",
+      "Predict visible changes when two names refer to the same mutable collection."
+    ],
+    "excludes": [
+      "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation."
+    ]
+  },
+  "outcomes": [
+    "Predict visible changes when two names refer to the same mutable collection."
+  ],
+  "examples": [
+    {
+      "id": "pf.state.mutation.example-a",
+      "title": "Mutation and aliases: direct case",
+      "situation": "Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+      ],
+      "result": "The case supports the declared outcome because First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+    },
+    {
+      "id": "pf.state.mutation.example-b",
+      "title": "Mutation and aliases: boundary case",
+      "situation": "Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it.",
+        "Step 2 — Keep this boundary explicit: Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation.",
+        "Step 3 — Reject the documented misconception: Assigning or updating through one name can never affect a value observed through another name."
+      ],
+      "result": "This case demonstrates the declared outcome: Predict visible changes when two names refer to the same mutable collection."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.state.mutation.misconception",
+      "mistakenBelief": "Assigning or updating through one name can never affect a value observed through another name.",
+      "correction": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Assigning or updating through one name can never affect a value observed through another name."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled scoreboard can model Mutation and aliases: each label exposes a current value and each recorded event produces the next visible state.",
+    "usefulFor": [
+      "Reasoning about values, expressions, named state, and changes across time"
+    ],
+    "limitations": [
+      "The scoreboard does not accurately model binary representation, scope, aliases, object identity, or language coercion.",
+      "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
+      "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
+      "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name."
+        },
+        "explanation": "Apply the declared Mutation and aliases model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Assigning or updating through one name can never affect a value observed through another name."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other. Step 1, Observe. State: evidence: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.. Apply the declared Mutation and aliases model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.. Compare the observation with the correction and reject the misconception: Assigning or updating through one name can never affect a value observed through another name."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Mutation and aliases: direct case”: state its starting evidence, apply the Mutation and aliases rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Mutation and aliases: direct case.",
+        "Starting evidence: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
+        "Core rule: Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
+        "Observable result: The case supports the declared outcome because First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.",
+        "Boundary check: First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
+        "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Mutation and aliases, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Predict visible changes when two names refer to the same mutable collection.",
+        "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.state.mutation.misconception",
+      "explanation": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to predict visible changes when two names refer to the same mutable collection. Keep this boundary in view: Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation.",
+    "retrievalPrompts": [
+      "Explain Mutation and aliases without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Assigning or updating through one name can never affect a value observed through another name.",
+      "Apply the model to this case from memory: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it."
+    ],
+    "nextReviewPrompt": "Next: continue to “Sequence”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

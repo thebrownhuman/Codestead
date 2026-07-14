@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.html.quality.content-review.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.validation-project",
+  "skillId": "html.quality.content-review",
+  "title": "Semantic content review deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because Holistic page-purpose and semantic-content review requires human judgment across the complete artifact."
+  },
+  "sourceRefs": [
+    "wcag22",
+    "whatwg-html"
+  ],
+  "items": [
+    {
+      "skillId": "html.quality.content-review",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.quality.content-review.mcq.misconception",
+      "title": "Semantic content review: reject the invalid model",
+      "prompt": "Which statement correctly resolves this HTML: Semantic and Accessible Web Documents misconception? Semantic elements automatically make the words inside them clear and accessible.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Review the actual language and task context; semantic markup supports but does not create understandable content.",
+        "incorrect": "That preserves the misconception. Review the actual language and task context; semantic markup supports but does not create understandable content."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked HTML: Semantic and Accessible Web Documents correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Review the actual language and task context; semantic markup supports but does not create understandable content."
+        },
+        {
+          "id": "misconception",
+          "text": "Semantic elements automatically make the words inside them clear and accessible."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Review the actual language and task context; semantic markup supports but does not create understandable content."
+      }
+    },
+    {
+      "skillId": "html.quality.content-review",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.quality.content-review.fill.checkpoint",
+      "title": "Semantic content review: complete the rule",
+      "prompt": "Complete the missing HTML: Semantic and Accessible Web Documents checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: actual language.",
+        "incorrect": "Recheck the exact rule. Review the actual language and task context; semantic markup supports but does not create understandable content."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Review the {{key-rule}} and task context; semantic markup supports but does not create understandable content.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "actual language"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Review the actual language and task context; semantic markup supports but does not create understandable content."
+      }
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.collaboration.pr.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.collaboration",
+  "skillId": "git.collaboration.pr",
+  "title": "Pull request narrative",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Pull request narrative; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "github-docs",
+      "locator": "GitHub Documentation; accessed 2026-07; section applicable to Pull request narrative",
+      "claim": "A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Pull request narrative",
+      "claim": "A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact. Your goal is to open a focused pull request linked to acceptance criteria and tests. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Remotes and synchronization; Push and non-fast-forward rejection; Actionable issues. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "A pull request is not proof of correctness, approval rules vary, and generated files, migrations, rollout, compatibility, or security may need specialized evidence. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Explain what changed, why, validation evidence, risks and follow-up without restating every diff line.",
+      "Open a focused pull request linked to acceptance criteria and tests."
+    ],
+    "excludes": [
+      "A pull request is not proof of correctness, approval rules vary, and generated files, migrations, rollout, compatibility, or security may need specialized evidence."
+    ]
+  },
+  "outcomes": [
+    "Open a focused pull request linked to acceptance criteria and tests."
+  ],
+  "examples": [
+    {
+      "id": "git.collaboration.pr.example-a",
+      "title": "Pull request narrative: direct case",
+      "situation": "A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+      ],
+      "result": "The case supports the declared outcome because Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+    },
+    {
+      "id": "git.collaboration.pr.example-b",
+      "title": "Pull request narrative: boundary case",
+      "situation": "A UI change includes keyboard and narrow-screen evidence plus a note about deliberately unchanged behavior.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A UI change includes keyboard and narrow-screen evidence plus a note about deliberately unchanged behavior.",
+        "Step 2 — Keep this boundary explicit: A pull request is not proof of correctness, approval rules vary, and generated files, migrations, rollout, compatibility, or security may need specialized evidence.",
+        "Step 3 — Reject the documented misconception: Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists."
+      ],
+      "result": "This case demonstrates the declared outcome: Open a focused pull request linked to acceptance criteria and tests."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.collaboration.pr.misconception",
+      "mistakenBelief": "Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists.",
+      "correction": "Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "An editorial desk can model Pull request narrative: a request defines the change, a draft presents evidence, reviewers comment, and approved work enters the edition.",
+    "usefulFor": [
+      "Connecting issues, bounded changes, actionable review, checks, and controlled integration"
+    ],
+    "limitations": [
+      "Repository permissions, automated checks, security disclosure, and commit identity require explicit technical controls.",
+      "A pull request is not proof of correctness, approval rules vary, and generated files, migrations, rollout, compatibility, or security may need specialized evidence."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact.",
+      "A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history.",
+      "Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history."
+        },
+        "explanation": "Apply the declared Pull request narrative model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists."
+      }
+    ],
+    "textAlternative": "Starting artifact: A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact. Step 1, Observe. State: evidence: A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history.. Apply the declared Pull request narrative model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes.. Compare the observation with the correction and reject the misconception: Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Pull request narrative: direct case”: state its starting evidence, apply the Pull request narrative rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Pull request narrative: direct case.",
+        "Starting evidence: A parser fix PR links the issue, explains the boundary defect, includes the regression test, and identifies no schema or deployment impact.",
+        "Core rule: A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history.",
+        "Observable result: The case supports the declared outcome because Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes.",
+        "Boundary check: Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A UI change includes keyboard and narrow-screen evidence plus a note about deliberately unchanged behavior.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A pull request presents a bounded change for review with linked motivation, implementation summary, risk, tests, screenshots or evidence, and an understandable commit or diff history.",
+        "A pull request is not proof of correctness, approval rules vary, and generated files, migrations, rollout, compatibility, or security may need specialized evidence."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Pull request narrative, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Open a focused pull request linked to acceptance criteria and tests.",
+        "Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.collaboration.pr.misconception",
+      "explanation": "Treat the PR as a review artifact: make intent, boundaries, evidence, and risk legible so reviewers can evaluate more than raw syntax changes.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A UI change includes keyboard and narrow-screen evidence plus a note about deliberately unchanged behavior."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to open a focused pull request linked to acceptance criteria and tests. Keep this boundary in view: A pull request is not proof of correctness, approval rules vary, and generated files, migrations, rollout, compatibility, or security may need specialized evidence.",
+    "retrievalPrompts": [
+      "Explain Pull request narrative without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Opening a pull request is only a request to merge, so description, tests, and scope explanation are optional when the diff exists.",
+      "Apply the model to this case from memory: A UI change includes keyboard and narrow-screen evidence plus a note about deliberately unchanged behavior."
+    ],
+    "nextReviewPrompt": "Next: continue to “Code review”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

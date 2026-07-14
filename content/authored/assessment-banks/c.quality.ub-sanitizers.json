@@ -1,0 +1,130 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.c.quality.ub-sanitizers.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.modular-quality",
+  "skillId": "c.quality.ub-sanitizers",
+  "title": "Undefined behavior, tests and sanitizers deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific deterministic MCQ and fill-gap evidence for Undefined behavior, tests and sanitizers; human review required."
+  },
+  "sourceRefs": [
+    "wg14-c23",
+    "cert-c",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "skillId": "c.quality.ub-sanitizers",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.quality.ub-sanitizers.mcq.misconception",
+      "title": "Undefined behavior, tests and sanitizers: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this C misconception? If sanitizer tests pass, the C program contains no undefined behavior on any input.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests.",
+        "incorrect": "That option preserves the documented misconception. Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned C correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "If sanitizer tests pass, the C program contains no undefined behavior on any input."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+      }
+    },
+    {
+      "skillId": "c.quality.ub-sanitizers",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.quality.ub-sanitizers.fill.checkpoint",
+      "title": "Undefined behavior, tests and sanitizers: complete the language rule",
+      "prompt": "Complete the missing C checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: If sanitizer tests pass, the C program contains no undefined behavior on any input."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'path-limited evidence'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact C token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Sanitizer success is {{key-rule}}; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "path-limited evidence"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Sanitizer success is path-limited evidence; combine it with contracts, bounds and lifetime reasoning, diagnostics, and broader tests."
+      }
+    }
+  ]
+}

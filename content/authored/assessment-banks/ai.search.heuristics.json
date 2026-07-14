@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.search.heuristics.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.heuristics",
+  "title": "Heuristics, greedy search and A* deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Heuristics, greedy search and A*; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.search.heuristics.mcq.misconception",
+      "skillId": "ai.search.heuristics",
+      "title": "Heuristics, greedy search and A*: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
+        "incorrect": "That option preserves the overclaim. Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+        },
+        {
+          "id": "overclaim",
+          "text": "A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      }
+    },
+    {
+      "id": "ai.search.heuristics.fill.checkpoint",
+      "skillId": "ai.search.heuristics",
+      "title": "Heuristics, greedy search and A*: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'true remaining cost'. Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Prove or bound the heuristic against [[checkpoint]] and implement the required reopen/duplicate policy; report optimality only under those conditions.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "true remaining cost"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      }
+    },
+    {
+      "id": "ai.search.heuristics.code.offline",
+      "skillId": "ai.search.heuristics",
+      "title": "Heuristics, greedy search and A*: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read a directed weighted graph, one heuristic per node, start, and goal. Run A* with reopen-on-better-cost and print optimal cost or unreachable.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.search.heuristics.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "4 5 0 1 2 0 2 5 1 2 1 1 3 5 2 3 1 3 2 1 0 0 3\n",
+          "expectedStdout": "4",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.search.heuristics.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "2 0 1 0 0 1\n",
+          "expectedStdout": "unreachable",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\nfrom heapq import heappop, heappush\n\ndef solve(data: str) -> str:\n    tokens = iter(map(int, data.split()))\n    n, m = next(tokens), next(tokens)\n    graph = [[] for _ in range(n)]\n    for _ in range(m):\n        source, target, cost = next(tokens), next(tokens), next(tokens)\n        graph[source].append((target, cost))\n    heuristic = [next(tokens) for _ in range(n)]\n    start, goal = next(tokens), next(tokens)\n    best = {start: 0}\n    frontier = [(heuristic[start], 0, start)]\n    while frontier:\n        _, cost, node = heappop(frontier)\n        if cost != best.get(node):\n            continue\n        if node == goal:\n            return str(cost)\n        for neighbor, edge in graph[node]:\n            candidate = cost + edge\n            if candidate < best.get(neighbor, 10**18):\n                best[neighbor] = candidate\n                heappush(frontier, (candidate + heuristic[neighbor], candidate, neighbor))\n    return 'unreachable'\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The implementation combines accumulated and estimated cost, discards stale entries, and reopens a state when a cheaper path is found."
+      }
+    }
+  ]
+}

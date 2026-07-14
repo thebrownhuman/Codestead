@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.state.structure.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.state-events",
+  "skillId": "react.state.structure",
+  "title": "Minimal and normalized state",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Minimal and normalized state; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Minimal and normalized state",
+      "claim": "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A cart stores items and derives total rather than storing an independently editable total that can drift. Your goal is to refactor a component to one source of truth and explain each remaining state variable. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Props and composition; javascript events model; useState and snapshots; Props and one-way data flow. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity. This draft therefore rejects: Every displayed value should have its own state variable."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Avoid redundant, contradictory or duplicated state and derive values during render when cheap.",
+      "Refactor a component to one source of truth and explain each remaining state variable."
+    ],
+    "excludes": [
+      "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity."
+    ]
+  },
+  "outcomes": [
+    "Refactor a component to one source of truth and explain each remaining state variable."
+  ],
+  "examples": [
+    {
+      "id": "react.state.structure.example-a",
+      "title": "Minimal and normalized state: concrete case",
+      "situation": "A cart stores items and derives total rather than storing an independently editable total that can drift.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A cart stores items and derives total rather than storing an independently editable total that can drift.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+      ],
+      "result": "The result follows because Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+    },
+    {
+      "id": "react.state.structure.example-b",
+      "title": "Minimal and normalized state: boundary case",
+      "situation": "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Every displayed value should have its own state variable."
+      ],
+      "result": "The boundary requires this correction: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.state.structure.misconception",
+      "mistakenBelief": "Every displayed value should have its own state variable.",
+      "correction": "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Every displayed value should have its own state variable."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Minimal and normalized state, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Minimal and normalized state before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A cart stores items and derives total rather than storing an independently editable total that can drift.",
+      "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
+      "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A cart stores items and derives total rather than storing an independently editable total that can drift."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Every displayed value should have its own state variable."
+      }
+    ],
+    "textAlternative": "Starting artifact: A cart stores items and derives total rather than storing an independently editable total that can drift. Step 1, Artifact. State: evidence: A cart stores items and derives total rather than storing an independently editable total that can drift.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.. Check the result against the boundary and reject this misconception: Every displayed value should have its own state variable."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Minimal and normalized state: concrete case”: state its starting evidence, apply the Minimal and normalized state rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Minimal and normalized state: concrete case.",
+        "Starting evidence: A cart stores items and derives total rather than storing an independently editable total that can drift.",
+        "Core rule: State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
+        "Observable result: The result follows because Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.",
+        "Boundary check: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
+        "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Minimal and normalized state and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Refactor a component to one source of truth and explain each remaining state variable.",
+        "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.state.structure.misconception",
+      "explanation": "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'source of truth' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to refactor a component to one source of truth and explain each remaining state variable. Keep this boundary in view: Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
+    "retrievalPrompts": [
+      "Explain Minimal and normalized state using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Every displayed value should have its own state variable.",
+      "Apply checkpoint 'source of truth' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Lifting and preserving state”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

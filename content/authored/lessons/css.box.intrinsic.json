@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.box.intrinsic.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.box",
+  "skillId": "css.box.intrinsic",
+  "title": "Intrinsic sizing and constraints",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Intrinsic sizing and constraints; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Intrinsic sizing and constraints",
+      "claim": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Intrinsic sizing and constraints",
+      "claim": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider. Your goal is to implement a component that grows, shrinks and wraps without clipping realistic content. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Rules, declarations and values; Lengths, percentages and viewport units. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions. This draft therefore rejects: A 1fr track always shrinks below its content's minimum without any additional rule."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use min/max/content-based sizing and aspect ratio to avoid brittle fixed dimensions.",
+      "Implement a component that grows, shrinks and wraps without clipping realistic content."
+    ],
+    "excludes": [
+      "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions."
+    ]
+  },
+  "outcomes": [
+    "Implement a component that grows, shrinks and wraps without clipping realistic content."
+  ],
+  "examples": [
+    {
+      "id": "css.box.intrinsic.example-a",
+      "title": "Intrinsic sizing and constraints: concrete case",
+      "situation": "A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+      ],
+      "result": "The result follows because Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+    },
+    {
+      "id": "css.box.intrinsic.example-b",
+      "title": "Intrinsic sizing and constraints: boundary case",
+      "situation": "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A 1fr track always shrinks below its content's minimum without any additional rule."
+      ],
+      "result": "The boundary requires this correction: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.box.intrinsic.misconception",
+      "mistakenBelief": "A 1fr track always shrinks below its content's minimum without any additional rule.",
+      "correction": "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A 1fr track always shrinks below its content's minimum without any additional rule."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Intrinsic sizing and constraints, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Intrinsic sizing and constraints before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
+      "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
+      "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A 1fr track always shrinks below its content's minimum without any additional rule."
+      }
+    ],
+    "textAlternative": "Starting artifact: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider. Step 1, Artifact. State: evidence: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.. Check the result against the boundary and reject this misconception: A 1fr track always shrinks below its content's minimum without any additional rule."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Intrinsic sizing and constraints: concrete case”: state its starting evidence, apply the Intrinsic sizing and constraints rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Intrinsic sizing and constraints: concrete case.",
+        "Starting evidence: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
+        "Core rule: Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
+        "Observable result: The result follows because Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.",
+        "Boundary check: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
+        "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Intrinsic sizing and constraints and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement a component that grows, shrinks and wraps without clipping realistic content.",
+        "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.box.intrinsic.misconception",
+      "explanation": "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'intrinsic minimums' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement a component that grows, shrinks and wraps without clipping realistic content. Keep this boundary in view: Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
+    "retrievalPrompts": [
+      "Explain Intrinsic sizing and constraints using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: A 1fr track always shrinks below its content's minimum without any additional rule.",
+      "Apply checkpoint 'intrinsic minimums' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Overflow and containment”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

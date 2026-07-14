@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-07-14T11:17:58.586Z",
+  "structure": {
+    "skillCount": 60,
+    "itemCount": 240,
+    "visibleTestCount": 240,
+    "hiddenTestCount": 240,
+    "examEligibleItemCount": 0,
+    "imageDigests": {
+      "c": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "cpp": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "java": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "python": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657"
+    }
+  },
+  "selectedItems": 240,
+  "declaredItems": 240,
+  "executedCases": 0,
+  "passedCases": 0,
+  "failedCases": 0,
+  "fullRuntimeRun": false,
+  "externalProviderCalls": 0,
+  "imageEvidence": {
+    "c": {
+      "tag": "learncoding/runtime-c:local",
+      "expected": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+      "actual": null,
+      "matches": false
+    },
+    "cpp": {
+      "tag": "learncoding/runtime-cpp:local",
+      "expected": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+      "actual": null,
+      "matches": false
+    },
+    "java": {
+      "tag": "learncoding/runtime-java:local",
+      "expected": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+      "actual": null,
+      "matches": false
+    },
+    "python": {
+      "tag": "learncoding/runtime-python:local",
+      "expected": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+      "actual": null,
+      "matches": false
+    }
+  },
+  "results": [],
+  "limitations": [
+    "All content remains AI-assisted draft with zero exam eligibility.",
+    "Numeric module-scoped contracts prove deterministic four-runtime equivalence, not human-reviewed pedagogy or idiomatic language quality.",
+    "Local Docker image IDs are evidence for this workstation only; production KVM/NUC deployment remains open."
+  ]
+}

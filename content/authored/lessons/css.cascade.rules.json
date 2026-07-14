@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.cascade.rules.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.cascade",
+  "skillId": "css.cascade.rules",
+  "title": "Rules, declarations and values",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Rules, declarations and values; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Rules, declarations and values",
+      "claim": "A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Rules, declarations and values",
+      "claim": "A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A misspelled display value is ignored, so an earlier valid display declaration remains effective. Your goal is to author and debug a stylesheet containing grouped rules and shorthand or longhand declarations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: html document syntax. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values. This draft therefore rejects: The last textual declaration always wins even when its selector does not match."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Write selectors and property-value declarations with valid syntax and units.",
+      "Author and debug a stylesheet containing grouped rules and shorthand or longhand declarations."
+    ],
+    "excludes": [
+      "Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values."
+    ]
+  },
+  "outcomes": [
+    "Author and debug a stylesheet containing grouped rules and shorthand or longhand declarations."
+  ],
+  "examples": [
+    {
+      "id": "css.cascade.rules.example-a",
+      "title": "Rules, declarations and values: concrete case",
+      "situation": "A misspelled display value is ignored, so an earlier valid display declaration remains effective.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A misspelled display value is ignored, so an earlier valid display declaration remains effective.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value."
+      ],
+      "result": "The result follows because A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value."
+    },
+    {
+      "id": "css.cascade.rules.example-b",
+      "title": "Rules, declarations and values: boundary case",
+      "situation": "Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: The last textual declaration always wins even when its selector does not match."
+      ],
+      "result": "The boundary requires this correction: A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.cascade.rules.misconception",
+      "mistakenBelief": "The last textual declaration always wins even when its selector does not match.",
+      "correction": "A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: The last textual declaration always wins even when its selector does not match."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Rules, declarations and values, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Rules, declarations and values before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A misspelled display value is ignored, so an earlier valid display declaration remains effective.",
+      "A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values.",
+      "A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A misspelled display value is ignored, so an earlier valid display declaration remains effective."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: The last textual declaration always wins even when its selector does not match."
+      }
+    ],
+    "textAlternative": "Starting artifact: A misspelled display value is ignored, so an earlier valid display declaration remains effective. Step 1, Artifact. State: evidence: A misspelled display value is ignored, so an earlier valid display declaration remains effective.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value.. Check the result against the boundary and reject this misconception: The last textual declaration always wins even when its selector does not match."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Rules, declarations and values: concrete case”: state its starting evidence, apply the Rules, declarations and values rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Rules, declarations and values: concrete case.",
+        "Starting evidence: A misspelled display value is ignored, so an earlier valid display declaration remains effective.",
+        "Core rule: A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values.",
+        "Observable result: The result follows because A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value.",
+        "Boundary check: A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A CSS declaration participates in the cascade only after its selector matches and its property value parses, then winning declarations produce computed values.",
+        "Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Rules, declarations and values and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Author and debug a stylesheet containing grouped rules and shorthand or longhand declarations.",
+        "A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.cascade.rules.misconception",
+      "explanation": "A declaration must match and be valid before cascade order matters; inspect the winning declaration and computed value.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'winning declaration' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to author and debug a stylesheet containing grouped rules and shorthand or longhand declarations. Keep this boundary in view: Invalid values are discarded, shorthands reset subproperties, and animations or transitions can temporarily affect values.",
+    "retrievalPrompts": [
+      "Explain Rules, declarations and values using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: The last textual declaration always wins even when its selector does not match.",
+      "Apply checkpoint 'winning declaration' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Origins, importance and layers”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.uncertainty.bayes.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.knowledge-uncertainty",
+  "skillId": "ai.uncertainty.bayes",
+  "title": "Conditional probability and Bayes rule",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Conditional probability and Bayes rule; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Knowledge Representation and Reasoning plus Reasoning Under Uncertainty; atomic topic: Conditional probability and Bayes rule",
+      "claim": "Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit."
+    },
+    {
+      "sourceRef": "cs2023-msf",
+      "locator": "CS2023 Mathematical and Statistical Foundations; August 2023; Probability, conditional probability, Bayes theorem, logic, relations, and graphical-model mathematical foundations; atomic topic: Conditional probability and Bayes rule",
+      "claim": "Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included. Your goal is to compute and interpret a posterior probability for a diagnostic scenario. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: AI problems and agents; Problem and environment characteristics. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "A posterior is conditional on model assumptions, likelihood is not the posterior, dependent evidence cannot be multiplied as independent, low base rates can dominate, and estimated inputs carry uncertainty. The learner must reject this overclaim: A test that is 95 percent accurate means a positive result gives a 95 percent probability of the condition."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Update belief from prior, likelihood and evidence while avoiding base-rate neglect.",
+      "Compute and interpret a posterior probability for a diagnostic scenario."
+    ],
+    "excludes": [
+      "A posterior is conditional on model assumptions, likelihood is not the posterior, dependent evidence cannot be multiplied as independent, low base rates can dominate, and estimated inputs carry uncertainty."
+    ]
+  },
+  "outcomes": [
+    "Compute and interpret a posterior probability for a diagnostic scenario."
+  ],
+  "examples": [
+    {
+      "id": "ai.uncertainty.bayes.example.direct",
+      "title": "Conditional probability and Bayes rule: bounded direct case",
+      "situation": "A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result."
+      ],
+      "result": "This example supports only the atomic outcome because Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result."
+    },
+    {
+      "id": "ai.uncertainty.bayes.example.stress",
+      "title": "Conditional probability and Bayes rule: stress and transfer case",
+      "situation": "Two correlated symptoms are not multiplied as independent evidence; the model either represents their dependency or reports the simplifying assumption.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Two correlated symptoms are not multiplied as independent evidence; the model either represents their dependency or reports the simplifying assumption.",
+        "Step 2 — Keep the non-claim visible: A posterior is conditional on model assumptions, likelihood is not the posterior, dependent evidence cannot be multiplied as independent, low base rates can dominate, and estimated inputs carry uncertainty.",
+        "Step 3 — Reject the tempting overclaim: A test that is 95 percent accurate means a positive result gives a 95 percent probability of the condition."
+      ],
+      "result": "This case demonstrates the declared outcome: Compute and interpret a posterior probability for a diagnostic scenario."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.uncertainty.bayes.misconception",
+      "mistakenBelief": "A test that is 95 percent accurate means a positive result gives a 95 percent probability of the condition.",
+      "correction": "Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A test that is 95 percent accurate means a positive result gives a 95 percent probability of the condition."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an evidence board that distinguishes explicit facts, supported rule chains, missing knowledge, probabilities, and dependency assumptions can introduce Conditional probability and Bayes rule only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "symbolic representation, inference, Bayesian updating, and graphical dependencies"
+    ],
+    "limitations": [
+      "encoded facts can be incomplete or inconsistent and probabilistic edges do not automatically establish causation",
+      "A posterior is conditional on model assumptions, likelihood is not the posterior, dependent evidence cannot be multiplied as independent, low base rates can dominate, and estimated inputs carry uncertainty."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included.",
+      "Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit.",
+      "Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A test that is 95 percent accurate means a positive result gives a 95 percent probability of the condition."
+      }
+    ],
+    "textAlternative": "Starting artifact: A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included. Step 1, Observe. State: boundedEvidence: A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result.. State what the evidence does not establish and reject the misconception: A test that is 95 percent accurate means a positive result gives a 95 percent probability of the condition."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Conditional probability and Bayes rule: bounded direct case”: state its starting evidence, apply the Conditional probability and Bayes rule rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Conditional probability and Bayes rule: bounded direct case.",
+        "Starting evidence: A rare condition with a sensitive test still has a modest positive posterior because false positives among the large unaffected population are included.",
+        "Core rule: Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit.",
+        "Observable result: This example supports only the atomic outcome because Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result.",
+        "Boundary check: Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Two correlated symptoms are not multiplied as independent evidence; the model either represents their dependency or reports the simplifying assumption.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Bayes' rule updates a prior using likelihood of observed evidence and normalizes across alternatives, making base rates and evidence reliability explicit.",
+        "A posterior is conditional on model assumptions, likelihood is not the posterior, dependent evidence cannot be multiplied as independent, low base rates can dominate, and estimated inputs carry uncertainty."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Conditional probability and Bayes rule and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Compute and interpret a posterior probability for a diagnostic scenario.",
+        "Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.uncertainty.bayes.misconception",
+      "explanation": "Compute the posterior from prior, likelihood, and evidence normalization; sensitivity or headline accuracy alone is not the probability after a positive result.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Two correlated symptoms are not multiplied as independent evidence; the model either represents their dependency or reports the simplifying assumption."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to compute and interpret a posterior probability for a diagnostic scenario. Keep this boundary in view: A posterior is conditional on model assumptions, likelihood is not the posterior, dependent evidence cannot be multiplied as independent, low base rates can dominate, and estimated inputs carry uncertainty.",
+    "retrievalPrompts": [
+      "Explain Conditional probability and Bayes rule with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A test that is 95 percent accurate means a positive result gives a 95 percent probability of the condition.",
+      "Apply the boundary to: Two correlated symptoms are not multiplied as independent evidence; the model either represents their dependency or reports the simplifying assumption."
+    ],
+    "nextReviewPrompt": "Next: continue to “Probabilistic graphical models concept”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

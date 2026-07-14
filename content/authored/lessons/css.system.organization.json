@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.system.organization.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.selectors-system",
+  "skillId": "css.system.organization",
+  "title": "Stylesheet organization",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Stylesheet organization; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-cascade",
+      "locator": "CSS Cascading and Inheritance Level 5; W3C specification accessed 2026-07; provisions applicable to Stylesheet organization",
+      "claim": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Stylesheet organization",
+      "claim": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents. Your goal is to refactor a conflicting stylesheet into a predictable layered structure. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Specificity and source order; html semantics; Custom properties and design tokens; Pseudo-classes and pseudo-elements. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content. This draft therefore rejects: Adding !important wherever a conflict appears is a scalable organization strategy."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Separate reset/base, layout, component and utility concerns with documented layering and naming.",
+      "Refactor a conflicting stylesheet into a predictable layered structure."
+    ],
+    "excludes": [
+      "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content."
+    ]
+  },
+  "outcomes": [
+    "Refactor a conflicting stylesheet into a predictable layered structure."
+  ],
+  "examples": [
+    {
+      "id": "css.system.organization.example-a",
+      "title": "Stylesheet organization: concrete case",
+      "situation": "The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      ],
+      "result": "The result follows because Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+    },
+    {
+      "id": "css.system.organization.example-b",
+      "title": "Stylesheet organization: boundary case",
+      "situation": "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Adding !important wherever a conflict appears is a scalable organization strategy."
+      ],
+      "result": "The boundary requires this correction: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.system.organization.misconception",
+      "mistakenBelief": "Adding !important wherever a conflict appears is a scalable organization strategy.",
+      "correction": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Adding !important wherever a conflict appears is a scalable organization strategy."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Stylesheet organization, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Stylesheet organization before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
+      "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
+      "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Adding !important wherever a conflict appears is a scalable organization strategy."
+      }
+    ],
+    "textAlternative": "Starting artifact: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents. Step 1, Artifact. State: evidence: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.. Check the result against the boundary and reject this misconception: Adding !important wherever a conflict appears is a scalable organization strategy."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Stylesheet organization: concrete case”: state its starting evidence, apply the Stylesheet organization rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Stylesheet organization: concrete case.",
+        "Starting evidence: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
+        "Core rule: A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
+        "Observable result: The result follows because Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
+        "Boundary check: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
+        "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Stylesheet organization and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Refactor a conflicting stylesheet into a predictable layered structure.",
+        "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.system.organization.misconception",
+      "explanation": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'cascade layers' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to refactor a conflicting stylesheet into a predictable layered structure. Keep this boundary in view: Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
+    "retrievalPrompts": [
+      "Explain Stylesheet organization using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Adding !important wherever a conflict appears is a scalable organization strategy.",
+      "Apply checkpoint 'cascade layers' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Content, padding, border and margin”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.cpp.quality.build.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.quality",
+  "skillId": "cpp.quality.build",
+  "title": "CMake project structure deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific deterministic MCQ and fill-gap evidence for CMake project structure; human review required."
+  },
+  "sourceRefs": [
+    "cpp-core",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "skillId": "cpp.quality.build",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.quality.build.mcq.misconception",
+      "title": "CMake project structure: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this CPP misconception? Object files built with any compiler flags can be mixed safely as long as the linker accepts their names.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Keep ABI-affecting compiler, library, macro, and language settings consistent across every linked translation unit and dependency.",
+        "incorrect": "That option preserves the documented misconception. Keep ABI-affecting compiler, library, macro, and language settings consistent across every linked translation unit and dependency."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned CPP correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Keep ABI-affecting compiler, library, macro, and language settings consistent across every linked translation unit and dependency."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Object files built with any compiler flags can be mixed safely as long as the linker accepts their names."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Keep ABI-affecting compiler, library, macro, and language settings consistent across every linked translation unit and dependency."
+      }
+    },
+    {
+      "skillId": "cpp.quality.build",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.quality.build.fill.checkpoint",
+      "title": "CMake project structure: complete the language rule",
+      "prompt": "Complete the missing CPP checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: Object files built with any compiler flags can be mixed safely as long as the linker accepts their names."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'ABI-affecting'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Keep ABI-affecting compiler, library, macro, and language settings consistent across every linked translation unit and dependency."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact CPP token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Keep {{key-rule}} compiler, library, macro, and language settings consistent across every linked translation unit and dependency.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "ABI-affecting"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Keep ABI-affecting compiler, library, macro, and language settings consistent across every linked translation unit and dependency."
+      }
+    }
+  ]
+}

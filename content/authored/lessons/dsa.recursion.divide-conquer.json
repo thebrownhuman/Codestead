@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.recursion.divide-conquer.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.recursion-divide",
+  "skillId": "dsa.recursion.divide-conquer",
+  "title": "Divide-and-conquer strategy",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Divide-and-conquer strategy; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Divide-and-conquer strategy",
+      "claim": "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Merge sort divides into halves and linearly combines sorted results. Your goal is to design and analyze a divide-and-conquer solution beyond a memorized sorting example. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations; Recurrence reasoning. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate. The draft therefore rejects: Any algorithm containing recursion is divide-and-conquer."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Divide independent subproblems, solve recursively and combine with controlled duplication.",
+      "Design and analyze a divide-and-conquer solution beyond a memorized sorting example.",
+      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+    ],
+    "excludes": [
+      "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+    ]
+  },
+  "outcomes": [
+    "Design and analyze a divide-and-conquer solution beyond a memorized sorting example."
+  ],
+  "examples": [
+    {
+      "id": "dsa.recursion.divide-conquer.example-a",
+      "title": "Divide-and-conquer strategy: language-neutral trace",
+      "situation": "Merge sort divides into halves and linearly combines sorted results.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Merge sort divides into halves and linearly combines sorted results.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+      ],
+      "result": "The conceptual result follows because Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+    },
+    {
+      "id": "dsa.recursion.divide-conquer.example-b",
+      "title": "Divide-and-conquer strategy: implementation transfer",
+      "situation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+        "Step 3 — Retest this boundary in the selected implementation: Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.recursion.divide-conquer.misconception",
+      "mistakenBelief": "Any algorithm containing recursion is divide-and-conquer.",
+      "correction": "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Any algorithm containing recursion is divide-and-conquer."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Divide-and-conquer strategy, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Merge sort divides into halves and linearly combines sorted results.",
+      "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
+      "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
+      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Merge sort divides into halves and linearly combines sorted results."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+        },
+        "explanation": "Verify the result and reject this misconception: Any algorithm containing recursion is divide-and-conquer."
+      }
+    ],
+    "textAlternative": "Starting artifact: Merge sort divides into halves and linearly combines sorted results. Step 1, Specification. State: scenario: Merge sort divides into halves and linearly combines sorted results.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input. Step 4, Conclusion. State: correction: Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.. Verify the result and reject this misconception: Any algorithm containing recursion is divide-and-conquer."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Divide-and-conquer strategy: language-neutral trace”: state its starting evidence, apply the Divide-and-conquer strategy rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Divide-and-conquer strategy: language-neutral trace.",
+        "Starting evidence: Merge sort divides into halves and linearly combines sorted results.",
+        "Core rule: Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
+        "Observable result: The conceptual result follows because Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
+        "Boundary check: Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+        "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Divide-and-conquer strategy case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Design and analyze a divide-and-conquer solution beyond a memorized sorting example.",
+        "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.recursion.divide-conquer.misconception",
+      "explanation": "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'combination step', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and analyze a divide-and-conquer solution beyond a memorized sorting example. Keep this boundary in view: Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate.",
+    "retrievalPrompts": [
+      "State the Divide-and-conquer strategy invariant and complexity without code.",
+      "Why is this claim false: Any algorithm containing recursion is divide-and-conquer.",
+      "Map checkpoint 'combination step' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Tree terminology and representation”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

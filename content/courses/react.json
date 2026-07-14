@@ -1,0 +1,174 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "react",
+  "title": "React: Component-Based Browser Applications",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A React 19.2 course covering components, JSX, props, state, events, forms, hooks, effects, data loading, routing, context, accessibility, performance and user-centered tests.",
+  "audience": {
+    "level": "intermediate frontend learner",
+    "assumed_knowledge": ["HTML", "CSS", "JavaScript through modules, DOM, promises, async/await and fetch"],
+    "target_capability": "Independently design, implement, test and debug an accessible single-page React application with explicit state ownership, routed views and robust asynchronous states."
+  },
+  "scope": {
+    "includes": ["React 19.2 client rendering", "Modern JSX transform", "Function components and composition", "Props, keys and render purity", "State, events, reducers and forms", "Hooks, effects and refs", "Fetch-backed loading, empty, success and failure states", "Context and declarative client routing", "Accessibility, performance and error boundaries", "React Testing Library and an intermediate SPA"],
+    "non_goals": ["Next.js or another React framework", "React Server Components", "Redux or another external state library", "React Native", "Legacy class components as an implementation requirement", "Premature compiler or memoization tuning"]
+  },
+  "authoritative_sources": [
+    { "id": "react-docs", "title": "React Learn and Reference", "url": "https://react.dev/", "type": "official-docs", "version_or_date": "React 19.2" },
+    { "id": "react-versions", "title": "React Versions", "url": "https://react.dev/versions", "type": "official-docs", "version_or_date": "19.2.7, June 2026" },
+    { "id": "react-router", "title": "React Router Documentation", "url": "https://reactrouter.com/start/declarative/installation", "type": "official-docs", "version_or_date": "8.0.1 declarative mode reviewed 2026-07" },
+    { "id": "react-testing", "title": "React Testing Library", "url": "https://testing-library.com/docs/react-testing-library/intro/", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "wcag22", "title": "Web Content Accessibility Guidelines 2.2", "url": "https://www.w3.org/TR/WCAG22/", "type": "accessibility-standard", "version_or_date": "W3C Recommendation 2023" }
+  ],
+  "runtime": {
+    "kind": "library",
+    "language": "JavaScript with JSX",
+    "standard": "React 19.2 stable client APIs",
+    "toolchain": ["React 19.2.x", "react-dom 19.2.x", "Vite stable", "React Router stable declarative mode", "React Testing Library", "Browser developer tools"],
+    "execution_environment": "Sandboxed browser origin with mocked APIs and pinned exact dependency lockfile",
+    "file_extensions": [".js", ".jsx", ".css", ".html"],
+    "notes": ["Exact patch versions are pinned by each published course release.", "Server Components and framework-specific server behavior are excluded from Launch 1."]
+  },
+  "modules": [
+    {
+      "id": "react.model-setup",
+      "title": "React model and project setup",
+      "description": "Create a client application and understand render, commit and browser ownership boundaries.",
+      "required": true,
+      "prerequisites": ["javascript.project.browser-app"],
+      "skills": [
+        { "id": "react.model.root", "title": "Application root and rendering", "description": "Mount one React root and distinguish rendering descriptions from DOM commit work.", "outcomes": ["Create and explain a minimal React root and component tree."], "prerequisites": ["javascript.runtime.modules", "javascript.dom.query-update"], "evidence_types": ["code", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "react-versions"] },
+        { "id": "react.model.project", "title": "Vite project and dependency pinning", "description": "Run development, build and preview commands while preserving a reviewed lockfile.", "outcomes": ["Create and reproduce a React project from its manifest and lockfile."], "prerequisites": ["react.model.root", "git.tools.dependencies"], "evidence_types": ["artifact", "performance", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "react-versions"] },
+        { "id": "react.model.declarative", "title": "Declarative UI and re-rendering", "description": "Describe UI as a function of current props and state rather than imperative DOM mutations.", "outcomes": ["Translate a manual DOM update into state-driven rendering and trace its rerender."], "prerequisites": ["react.model.root", "javascript.dom.query-update"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.model.devtools", "title": "React developer tools", "description": "Inspect component trees, props, state and render causes without editing production state as a fix.", "outcomes": ["Locate and explain a component data-flow defect using developer-tool evidence."], "prerequisites": ["react.model.declarative", "javascript.runtime.devtools"], "evidence_types": ["debug", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] }
+      ]
+    },
+    {
+      "id": "react.components-jsx",
+      "title": "Components and JSX",
+      "description": "Create pure reusable components and valid semantic element trees.",
+      "required": true,
+      "prerequisites": ["react.model.declarative", "html.semantics"],
+      "skills": [
+        { "id": "react.components.functions", "title": "Function components", "description": "Define capitalized pure component functions with a single responsibility.", "outcomes": ["Extract and test a cohesive component without hidden mutation."], "prerequisites": ["react.model.declarative", "javascript.functions.forms"], "evidence_types": ["code", "review", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.components.jsx", "title": "JSX expressions and attributes", "description": "Embed expressions, use React DOM property names and keep data distinct from executable markup.", "outcomes": ["Write and debug JSX with dynamic content, attributes and safe text interpolation."], "prerequisites": ["react.components.functions", "javascript.collections.objects"], "evidence_types": ["code", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.components.conditionals", "title": "Conditional rendering", "description": "Render explicit loading, empty, success and conditional branches without leaking falsey values accidentally.", "outcomes": ["Implement and test complete conditional UI states."], "prerequisites": ["react.components.jsx", "javascript.control.selection"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.components.lists", "title": "Lists and stable keys", "description": "Render collections with stable identity keys rather than positions that change with data.", "outcomes": ["Render and update a reorderable list while explaining key-based reconciliation."], "prerequisites": ["react.components.jsx", "javascript.collections.methods"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] }
+      ]
+    },
+    {
+      "id": "react.props-composition",
+      "title": "Props and composition",
+      "description": "Design one-way component interfaces and compose reusable page structures.",
+      "required": true,
+      "prerequisites": ["react.components-jsx"],
+      "skills": [
+        { "id": "react.props.data", "title": "Props and one-way data flow", "description": "Treat props as read-only inputs and send changes upward through callbacks.", "outcomes": ["Trace data and event flow across a parent-child component pair."], "prerequisites": ["react.components.functions", "javascript.functions.parameters"], "evidence_types": ["trace", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.props.children", "title": "Children and composition", "description": "Compose layout and behavior through children or focused slots rather than prop explosions.", "outcomes": ["Design and implement a reusable composition boundary for varied child content."], "prerequisites": ["react.props.data", "react.components.jsx"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.props.interfaces", "title": "Component API design", "description": "Keep component props minimal, cohesive, serializable where practical and semantically named.", "outcomes": ["Review and simplify a component interface while documenting its contract."], "prerequisites": ["react.props.children", "javascript.modules.architecture"], "evidence_types": ["design", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.props.purity", "title": "Render purity and Strict Mode", "description": "Avoid side effects during render and use development double invocation to expose impurities.", "outcomes": ["Find and remove a render-time mutation revealed by Strict Mode."], "prerequisites": ["react.props.data", "javascript.scope.closures"], "evidence_types": ["debug", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "react-versions"] }
+      ]
+    },
+    {
+      "id": "react.state-events",
+      "title": "State and events",
+      "description": "Model interactive state minimally and update it through accessible event handlers.",
+      "required": true,
+      "prerequisites": ["react.props-composition", "javascript.events.model"],
+      "skills": [
+        { "id": "react.state.use-state", "title": "useState and snapshots", "description": "Treat render state as a snapshot and use updater functions for queued changes based on prior state.", "outcomes": ["Trace and implement state updates without stale arithmetic or direct mutation."], "prerequisites": ["react.props.purity", "javascript.scope.closures"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.state.events", "title": "Event handlers", "description": "Pass handlers rather than calling them during render and preserve native element semantics.", "outcomes": ["Implement keyboard- and pointer-compatible interactions with correct handler arguments."], "prerequisites": ["react.state.use-state", "javascript.events.model"], "evidence_types": ["code", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "wcag22"] },
+        { "id": "react.state.structure", "title": "Minimal and normalized state", "description": "Avoid redundant, contradictory or duplicated state and derive values during render when cheap.", "outcomes": ["Refactor a component to one source of truth and explain each remaining state variable."], "prerequisites": ["react.state.use-state", "react.props.data"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.state.lifting", "title": "Lifting and preserving state", "description": "Place shared state at the nearest common owner and use identity or keys to preserve or reset it deliberately.", "outcomes": ["Repair unsynchronized sibling state and control when form state resets."], "prerequisites": ["react.state.structure", "react.components.lists"], "evidence_types": ["design", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] }
+      ]
+    },
+    {
+      "id": "react.forms-reducers",
+      "title": "Forms and complex state",
+      "description": "Build accessible controlled forms and use reducers for related state transitions.",
+      "required": true,
+      "prerequisites": ["react.state-events", "html.forms"],
+      "skills": [
+        { "id": "react.forms.controlled", "title": "Controlled inputs", "description": "Bind value or checked state to React while preserving labels, input semantics and responsive updates.", "outcomes": ["Implement and test text, choice and checkbox controls without controlled/uncontrolled warnings."], "prerequisites": ["react.state.use-state", "html.forms.labels-controls"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "wcag22"] },
+        { "id": "react.forms.validation", "title": "Validation and error recovery", "description": "Combine native constraints and domain validation with persistent instructions and focus-aware errors.", "outcomes": ["Implement and test a form's invalid, submitting, success and server-error states."], "prerequisites": ["react.forms.controlled", "html.forms.validation"], "evidence_types": ["code", "performance", "test", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "wcag22"] },
+        { "id": "react.state.reducer", "title": "useReducer", "description": "Represent related state transitions as explicit actions and a pure reducer.", "outcomes": ["Refactor complex interdependent state into a tested reducer."], "prerequisites": ["react.state.structure", "javascript.collections.objects"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.state.reducer-context", "title": "Reducer and context boundary", "description": "Share a reducer-backed feature state through a focused provider without making all state global.", "outcomes": ["Design and test a provider boundary for a multi-component feature."], "prerequisites": ["react.state.reducer", "react.props.interfaces"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] }
+      ]
+    },
+    {
+      "id": "react.effects-refs",
+      "title": "Effects, refs and external systems",
+      "description": "Synchronize with non-React systems while keeping derived logic out of effects.",
+      "required": true,
+      "prerequisites": ["react.state-events", "javascript.async-network"],
+      "skills": [
+        { "id": "react.effects.need", "title": "When an effect is needed", "description": "Use effects only to synchronize with external systems, not for event logic or derivable values.", "outcomes": ["Remove an unnecessary effect and place logic in render or an event handler."], "prerequisites": ["react.state.structure", "react.props.purity"], "evidence_types": ["review", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.effects.dependencies", "title": "Dependencies and reactive values", "description": "Declare every reactive dependency and restructure code instead of suppressing the hooks linter.", "outcomes": ["Repair stale-closure and runaway-effect defects with correct dependencies."], "prerequisites": ["react.effects.need", "javascript.scope.closures"], "evidence_types": ["debug", "code", "trace"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.effects.cleanup", "title": "Cleanup and race prevention", "description": "Undo subscriptions and ignore or abort obsolete asynchronous results across rerenders and unmounts.", "outcomes": ["Implement and test setup-cleanup symmetry and latest-request behavior."], "prerequisites": ["react.effects.dependencies", "javascript.async.cancellation"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.refs.dom", "title": "Refs and imperative escape hatches", "description": "Store non-rendering values and access DOM nodes only for focus, measurement or external integration.", "outcomes": ["Implement an accessible focus transition without using refs as hidden render state."], "prerequisites": ["react.effects.need", "html.navigation.skip"], "evidence_types": ["code", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "wcag22"] }
+      ]
+    },
+    {
+      "id": "react.data",
+      "title": "Remote data and asynchronous UI",
+      "description": "Load and mutate remote data with complete observable states and stale-work protection.",
+      "required": true,
+      "prerequisites": ["react.effects.cleanup", "javascript.network.fetch"],
+      "skills": [
+        { "id": "react.data.states", "title": "Loading, empty, success and failure states", "description": "Model remote data as explicit states rather than ambiguous null checks.", "outcomes": ["Render and test every observable remote-data state."], "prerequisites": ["react.components.conditionals", "javascript.network.fetch"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.data.fetch", "title": "Client fetch lifecycle", "description": "Trigger bounded requests, validate responses and prevent obsolete results from winning.", "outcomes": ["Implement a fetch-backed component with cancellation and retry behavior."], "prerequisites": ["react.data.states", "react.effects.cleanup"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.data.mutations", "title": "Mutations and pending UI", "description": "Coordinate form mutation, pending feedback, success reconciliation and recoverable failure without duplicate submission.", "outcomes": ["Implement and test a remote mutation with disabled-state and error-recovery semantics."], "prerequisites": ["react.data.fetch", "react.forms.validation"], "evidence_types": ["code", "performance", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "wcag22"] },
+        { "id": "react.data.custom-hook", "title": "Custom hooks for reusable logic", "description": "Extract reusable stateful behavior without hiding dependencies or returning unstable accidental APIs.", "outcomes": ["Design and test a focused custom hook used by two components."], "prerequisites": ["react.data.fetch", "react.effects.dependencies"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] }
+      ]
+    },
+    {
+      "id": "react.routing-context",
+      "title": "Routing and application context",
+      "description": "Map URL state to views and share truly global services through narrow providers.",
+      "required": true,
+      "prerequisites": ["react.data", "javascript.browser.url"],
+      "skills": [
+        { "id": "react.routing.routes", "title": "Declarative routes and links", "description": "Map paths to page-level components and navigate with real links that preserve browser behavior.", "outcomes": ["Implement nested routes and verify direct, link and back-forward navigation."], "prerequisites": ["javascript.browser.url", "react.props.children"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-router", "wcag22"] },
+        { "id": "react.routing.params", "title": "Parameters, search state and not-found views", "description": "Parse route and query values as untrusted input and render explicit missing-resource states.", "outcomes": ["Implement and test parameterized and filterable views with invalid and unknown URLs."], "prerequisites": ["react.routing.routes", "javascript.browser.url"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-router"] },
+        { "id": "react.routing.focus", "title": "Route titles and focus management", "description": "Update document context and move focus appropriately after client navigation.", "outcomes": ["Verify route changes are perceivable to keyboard and assistive-technology users."], "prerequisites": ["react.routing.routes", "react.refs.dom", "html.metadata.title-description"], "evidence_types": ["performance", "review", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "react-router"] },
+        { "id": "react.context.services", "title": "Context for stable global dependencies", "description": "Use context for theme, session or service boundaries without placing rapidly changing local state globally.", "outcomes": ["Design and test a narrow context provider with a documented default and consumer contract."], "prerequisites": ["react.state.reducer-context", "react.props.interfaces"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] }
+      ]
+    },
+    {
+      "id": "react.robustness",
+      "title": "Accessibility, errors and performance",
+      "description": "Keep component applications resilient, perceivable and appropriately optimized.",
+      "required": true,
+      "prerequisites": ["react.routing-context", "react.data"],
+      "skills": [
+        { "id": "react.robustness.semantics", "title": "Semantic and keyboard-accessible components", "description": "Render native elements, visible focus and logical order instead of div-based imitation controls.", "outcomes": ["Audit and repair component names, roles, states, focus order and keyboard behavior."], "prerequisites": ["html.accessibility.audit", "react.components.jsx"], "evidence_types": ["review", "performance", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "react-docs"] },
+        { "id": "react.robustness.errors", "title": "Error boundaries and recovery", "description": "Contain render failures at meaningful regions and provide recovery without masking event or async errors.", "outcomes": ["Design and test a route or feature error boundary with useful fallback and reset behavior."], "prerequisites": ["react.data.states", "javascript.errors.exceptions"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] },
+        { "id": "react.robustness.performance", "title": "Measure before optimization", "description": "Use React performance tools to identify actual expensive renders before memoizing.", "outcomes": ["Record a render-performance observation and justify either a targeted optimization or no change."], "prerequisites": ["react.model.devtools", "react.state.structure"], "evidence_types": ["performance", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "react-versions"] },
+        { "id": "react.robustness.memo", "title": "Memoization and stable identity", "description": "Use memo, useMemo or useCallback only when measured work or dependency identity requires it.", "outcomes": ["Repair premature or ineffective memoization and demonstrate any retained optimization with evidence."], "prerequisites": ["react.robustness.performance", "react.effects.dependencies"], "evidence_types": ["debug", "review", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs"] }
+      ]
+    },
+    {
+      "id": "react.testing-project",
+      "title": "User-centered tests and SPA project",
+      "description": "Verify behavior through accessible queries and deliver an intermediate routed application.",
+      "required": true,
+      "prerequisites": ["react.robustness", "react.routing-context"],
+      "skills": [
+        { "id": "react.testing.queries", "title": "Accessible queries and interactions", "description": "Query rendered output by role, name, label or text and drive realistic user interactions.", "outcomes": ["Write component tests that avoid implementation-detail selectors."], "prerequisites": ["react.robustness.semantics", "javascript.quality.dom-tests"], "evidence_types": ["test", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-testing", "wcag22"] },
+        { "id": "react.testing.async", "title": "Asynchronous component tests", "description": "Wait for observable state transitions and mock the network boundary rather than internal hooks.", "outcomes": ["Test loading, success, empty, error, retry and stale-request behavior deterministically."], "prerequisites": ["react.testing.queries", "react.data.fetch"], "evidence_types": ["test", "code", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["react-testing"] },
+        { "id": "react.testing.routes", "title": "Routing and integration tests", "description": "Verify navigation, URL state, direct entry and not-found behavior using a representative router setup.", "outcomes": ["Create an integration test covering route navigation and focus-context changes."], "prerequisites": ["react.testing.async", "react.routing.focus"], "evidence_types": ["test", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["react-testing", "react-router"] },
+        { "id": "react.project.spa", "title": "Intermediate single-page application", "description": "Integrate routed views, forms, remote data, complete async states, accessibility, errors and tests.", "outcomes": ["Deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests."], "prerequisites": ["react.testing.routes", "react.robustness.errors", "react.robustness.performance"], "evidence_types": ["project", "artifact", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["react-docs", "react-router", "react-testing", "wcag22"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Design component and prop boundaries with pure rendering, stable identity and one-way data flow.",
+    "Model local, shared, reducer and remote state without redundant values or unnecessary effects.",
+    "Implement accessible forms, routed views and complete asynchronous loading, success, empty, failure and cancellation states.",
+    "Diagnose component behavior with React tools and verify user journeys through accessible queries and realistic interactions.",
+    "Deliver a reproducible intermediate React SPA without relying on framework-specific server features or external state libraries."
+  ],
+  "coverage_summary": { "required_skills": 40, "elective_skills": 0, "total_skills": 40, "covered": 40, "partial": 0, "planned": 0 }
+}

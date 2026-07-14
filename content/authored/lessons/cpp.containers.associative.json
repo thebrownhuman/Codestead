@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.containers.associative.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.containers",
+  "skillId": "cpp.containers.associative",
+  "title": "map, unordered_map and set",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for map, unordered_map and set; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to map, unordered_map and set",
+      "claim": "Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update. Your goal is to choose and use an associative container while explaining ordering and expected lookup cost. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and range iteration; Copy and assignment semantics; string, array and vector. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Custom comparison must be strict weak ordering, hash must agree with equality, insertion can invalidate unordered iterators during rehash, and operator[] can insert. Therefore the draft explicitly rejects this beginner failure model: map operator[] is a read-only lookup that leaves the container unchanged when a key is absent."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use ordered and hashed associative containers with suitable keys and operations.",
+      "Choose and use an associative container while explaining ordering and expected lookup cost."
+    ],
+    "excludes": [
+      "Custom comparison must be strict weak ordering, hash must agree with equality, insertion can invalidate unordered iterators during rehash, and operator[] can insert."
+    ]
+  },
+  "outcomes": [
+    "Choose and use an associative container while explaining ordering and expected lookup cost."
+  ],
+  "examples": [
+    {
+      "id": "cpp.containers.associative.example-a",
+      "title": "map, unordered_map and set: defined case",
+      "situation": "A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended."
+      ],
+      "result": "The defined result follows because map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended."
+    },
+    {
+      "id": "cpp.containers.associative.example-b",
+      "title": "map, unordered_map and set: boundary case",
+      "situation": "An unordered_set custom key supplies equality and a consistent hash so equal keys always hash equally.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: An unordered_set custom key supplies equality and a consistent hash so equal keys always hash equally.",
+        "Step 2 — Keep this standard boundary visible: Custom comparison must be strict weak ordering, hash must agree with equality, insertion can invalidate unordered iterators during rehash, and operator[] can insert.",
+        "Step 3 — Reject the tempting rule: map operator[] is a read-only lookup that leaves the container unchanged when a key is absent."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose and use an associative container while explaining ordering and expected lookup cost."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.containers.associative.misconception",
+      "mistakenBelief": "map operator[] is a read-only lookup that leaves the container unchanged when a key is absent.",
+      "correction": "map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: map operator[] is a read-only lookup that leaves the container unchanged when a key is absent."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model map, unordered_map and set: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "Custom comparison must be strict weak ordering, hash must agree with equality, insertion can invalidate unordered iterators during rehash, and operator[] can insert."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update.",
+      "Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values.",
+      "map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: map operator[] is a read-only lookup that leaves the container unchanged when a key is absent."
+      }
+    ],
+    "textAlternative": "Starting artifact: A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update. Step 1, Source and state. State: evidence: A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended.. Check the conclusion against the boundary and reject this misconception: map operator[] is a read-only lookup that leaves the container unchanged when a key is absent."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “map, unordered_map and set: defined case”: state its starting evidence, apply the map, unordered_map and set rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: map, unordered_map and set: defined case.",
+        "Starting evidence: A map counts words but uses find when a lookup must not create a missing entry, reserving operator[] for intentional insertion or update.",
+        "Core rule: Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values.",
+        "Observable result: The defined result follows because map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended.",
+        "Boundary check: map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: An unordered_set custom key supplies equality and a consistent hash so equal keys always hash equally.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Ordered associative containers use key ordering, while unordered containers use hash and equality; sets store keys and maps associate unique keys with mapped values.",
+        "Custom comparison must be strict weak ordering, hash must agree with equality, insertion can invalidate unordered iterators during rehash, and operator[] can insert."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for map, unordered_map and set, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Choose and use an associative container while explaining ordering and expected lookup cost.",
+        "map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.containers.associative.misconception",
+      "explanation": "map operator[] inserts a value-initialized mapped value for a missing key; use find, contains, or at when insertion is not intended.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'inserts' and state the decisive evidence: An unordered_set custom key supplies equality and a consistent hash so equal keys always hash equally."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and use an associative container while explaining ordering and expected lookup cost. Keep this boundary in view: Custom comparison must be strict weak ordering, hash must agree with equality, insertion can invalidate unordered iterators during rehash, and operator[] can insert.",
+    "retrievalPrompts": [
+      "Explain map, unordered_map and set using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: map operator[] is a read-only lookup that leaves the container unchanged when a key is absent.",
+      "Apply the checkpoint 'inserts' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Stacks, queues and optional values”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

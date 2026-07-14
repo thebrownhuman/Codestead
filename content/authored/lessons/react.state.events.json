@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.state.events.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.state-events",
+  "skillId": "react.state.events",
+  "title": "Event handlers",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Event handlers; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Event handlers",
+      "claim": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Event handlers",
+      "claim": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: onClick={save} passes the function while onClick={save()} would execute during render. Your goal is to implement keyboard- and pointer-compatible interactions with correct handler arguments. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Props and composition; javascript events model; useState and snapshots. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics. This draft therefore rejects: Event handler props should call the function immediately so React knows what to do later."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Pass handlers rather than calling them during render and preserve native element semantics.",
+      "Implement keyboard- and pointer-compatible interactions with correct handler arguments."
+    ],
+    "excludes": [
+      "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics."
+    ]
+  },
+  "outcomes": [
+    "Implement keyboard- and pointer-compatible interactions with correct handler arguments."
+  ],
+  "examples": [
+    {
+      "id": "react.state.events.example-a",
+      "title": "Event handlers: concrete case",
+      "situation": "onClick={save} passes the function while onClick={save()} would execute during render.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: onClick={save} passes the function while onClick={save()} would execute during render.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+      ],
+      "result": "The result follows because Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+    },
+    {
+      "id": "react.state.events.example-b",
+      "title": "Event handlers: boundary case",
+      "situation": "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Event handler props should call the function immediately so React knows what to do later."
+      ],
+      "result": "The boundary requires this correction: Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.state.events.misconception",
+      "mistakenBelief": "Event handler props should call the function immediately so React knows what to do later.",
+      "correction": "Pass a function to an event prop; invoking it during render performs the action at the wrong time.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Event handler props should call the function immediately so React knows what to do later."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Event handlers, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Event handlers before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "onClick={save} passes the function while onClick={save()} would execute during render.",
+      "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
+      "Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "onClick={save} passes the function while onClick={save()} would execute during render."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Event handler props should call the function immediately so React knows what to do later."
+      }
+    ],
+    "textAlternative": "Starting artifact: onClick={save} passes the function while onClick={save()} would execute during render. Step 1, Artifact. State: evidence: onClick={save} passes the function while onClick={save()} would execute during render.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Pass a function to an event prop; invoking it during render performs the action at the wrong time.. Check the result against the boundary and reject this misconception: Event handler props should call the function immediately so React knows what to do later."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Event handlers: concrete case”: state its starting evidence, apply the Event handlers rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Event handlers: concrete case.",
+        "Starting evidence: onClick={save} passes the function while onClick={save()} would execute during render.",
+        "Core rule: React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
+        "Observable result: The result follows because Pass a function to an event prop; invoking it during render performs the action at the wrong time.",
+        "Boundary check: Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
+        "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Event handlers and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement keyboard- and pointer-compatible interactions with correct handler arguments.",
+        "Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.state.events.misconception",
+      "explanation": "Pass a function to an event prop; invoking it during render performs the action at the wrong time.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'Pass a function' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement keyboard- and pointer-compatible interactions with correct handler arguments. Keep this boundary in view: Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
+    "retrievalPrompts": [
+      "Explain Event handlers using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Event handler props should call the function immediately so React knows what to do later.",
+      "Apply checkpoint 'Pass a function' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Minimal and normalized state”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

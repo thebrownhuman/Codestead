@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.risk.lifecycle.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.evaluation-risk",
+  "skillId": "ai.risk.lifecycle",
+  "title": "Govern, map, measure and manage deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap for Govern, map, measure and manage; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "nist-ai-rmf",
+    "nist-genai"
+  ],
+  "items": [
+    {
+      "id": "ai.risk.lifecycle.mcq.misconception",
+      "skillId": "ai.risk.lifecycle",
+      "title": "Govern, map, measure and manage: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions.",
+        "incorrect": "That option preserves the overclaim. Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+        },
+        {
+          "id": "overclaim",
+          "text": "Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+      }
+    },
+    {
+      "id": "ai.risk.lifecycle.fill.checkpoint",
+      "skillId": "ai.risk.lifecycle",
+      "title": "Govern, map, measure and manage: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'continuous context-specific functions'. Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Use Govern, Map, Measure, and Manage as [[checkpoint]] with accountable owners, evidence, controls, residual risk, and stop decisions.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "continuous context-specific functions"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+      }
+    }
+  ]
+}

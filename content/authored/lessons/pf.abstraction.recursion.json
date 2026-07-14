@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.abstraction.recursion.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.abstraction",
+  "skillId": "pf.abstraction.recursion",
+  "title": "Recursion concept",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Recursion concept; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Recursion concept",
+      "claim": "A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind. Your goal is to trace a simple recursive definition and identify a missing or unreachable base case. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Decomposition; Calls, parameters and returns; Selection. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "A reachable base case is necessary but not sufficient: every recursive path must progress toward it, and deep recursion can exceed runtime stack limits. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Adding any base-case branch guarantees termination even if recursive calls keep the same argument."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Understand base cases and smaller self-similar calls without requiring language syntax.",
+      "Trace a simple recursive definition and identify a missing or unreachable base case."
+    ],
+    "excludes": [
+      "A reachable base case is necessary but not sufficient: every recursive path must progress toward it, and deep recursion can exceed runtime stack limits."
+    ]
+  },
+  "outcomes": [
+    "Trace a simple recursive definition and identify a missing or unreachable base case."
+  ],
+  "examples": [
+    {
+      "id": "pf.abstraction.recursion.example-a",
+      "title": "Recursion concept: direct case",
+      "situation": "Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+      ],
+      "result": "The case supports the declared outcome because Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+    },
+    {
+      "id": "pf.abstraction.recursion.example-b",
+      "title": "Recursion concept: boundary case",
+      "situation": "A folder-size routine returns a file's size directly and recursively sums each child only when the current item is a folder.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A folder-size routine returns a file's size directly and recursively sums each child only when the current item is a folder.",
+        "Step 2 — Keep this boundary explicit: A reachable base case is necessary but not sufficient: every recursive path must progress toward it, and deep recursion can exceed runtime stack limits.",
+        "Step 3 — Reject the documented misconception: Adding any base-case branch guarantees termination even if recursive calls keep the same argument."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace a simple recursive definition and identify a missing or unreachable base case."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.abstraction.recursion.misconception",
+      "mistakenBelief": "Adding any base-case branch guarantees termination even if recursive calls keep the same argument.",
+      "correction": "Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Adding any base-case branch guarantees termination even if recursive calls keep the same argument."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A service counter can model Recursion concept: it advertises accepted requests and results while its internal work remains behind a named interface.",
+    "usefulFor": [
+      "Separating contracts, local work, calls, returned results, and repeated service use"
+    ],
+    "limitations": [
+      "A service counter does not capture language-specific frames, reference semantics, closures, or recursion limits.",
+      "A reachable base case is necessary but not sufficient: every recursive path must progress toward it, and deep recursion can exceed runtime stack limits."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind.",
+      "A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame.",
+      "Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame."
+        },
+        "explanation": "Apply the declared Recursion concept model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Adding any base-case branch guarantees termination even if recursive calls keep the same argument."
+      }
+    ],
+    "textAlternative": "Starting artifact: Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind. Step 1, Observe. State: evidence: Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame.. Apply the declared Recursion concept model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return.. Compare the observation with the correction and reject the misconception: Adding any base-case branch guarantees termination even if recursive calls keep the same argument."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Recursion concept: direct case”: state its starting evidence, apply the Recursion concept rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Recursion concept: direct case.",
+        "Starting evidence: Factorial of three calls factorial of two, then one, reaches the base result, and multiplies returned values while frames unwind.",
+        "Core rule: A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame.",
+        "Observable result: The case supports the declared outcome because Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return.",
+        "Boundary check: Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A folder-size routine returns a file's size directly and recursively sums each child only when the current item is a folder.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A recursive definition solves a problem using a base case and calls on strictly smaller or otherwise progressing instances, with each call receiving its own frame.",
+        "A reachable base case is necessary but not sufficient: every recursive path must progress toward it, and deep recursion can exceed runtime stack limits."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Recursion concept, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Trace a simple recursive definition and identify a missing or unreachable base case.",
+        "Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.abstraction.recursion.misconception",
+      "explanation": "Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A folder-size routine returns a file's size directly and recursively sums each child only when the current item is a folder."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace a simple recursive definition and identify a missing or unreachable base case. Keep this boundary in view: A reachable base case is necessary but not sufficient: every recursive path must progress toward it, and deep recursion can exceed runtime stack limits.",
+    "retrievalPrompts": [
+      "Explain Recursion concept without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Adding any base-case branch guarantees termination even if recursive calls keep the same argument.",
+      "Apply the model to this case from memory: A folder-size routine returns a file's size directly and recursively sums each child only when the current item is a folder."
+    ],
+    "nextReviewPrompt": "Next: continue to “Sequences and indexes”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

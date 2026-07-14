@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.iteration.iterator.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.iteration-functional",
+  "skillId": "python.iteration.iterator",
+  "title": "Iterable and iterator protocols",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Iterable and iterator protocols; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial §§4.7 and 5.1-5.6: iteration, range, comprehensions, and sequence techniques; atomic topic: Iterable and iterator protocols",
+      "claim": "An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Data Model iterator protocol plus yield expressions, generator functions, and decorators; atomic topic: Iterable and iterator protocols",
+      "claim": "An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently. Your goal is to trace iteration state and implement a small iterable or iterator correctly. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; Functions, scope and recursion; Representation, equality and container protocols; for, while and loop control. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "iter(iterator) normally returns itself, exhausted iterators stay exhausted, multiple iterators may or may not be independent, mutation can invalidate traversal, and StopIteration has special generator rules. The learner must reject this documented misconception: Iterable and iterator are interchangeable, and calling iter on an exhausted iterator restarts it."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish reusable iterables from stateful one-pass iterators.",
+      "Trace iteration state and implement a small iterable or iterator correctly."
+    ],
+    "excludes": [
+      "iter(iterator) normally returns itself, exhausted iterators stay exhausted, multiple iterators may or may not be independent, mutation can invalidate traversal, and StopIteration has special generator rules."
+    ]
+  },
+  "outcomes": [
+    "Trace iteration state and implement a small iterable or iterator correctly."
+  ],
+  "examples": [
+    {
+      "id": "python.iteration.iterator.example.direct",
+      "title": "Iterable and iterator protocols: direct language case",
+      "situation": "A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source."
+      ],
+      "result": "The example meets the atomic outcome because An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source."
+    },
+    {
+      "id": "python.iteration.iterator.example.boundary",
+      "title": "Iterable and iterator protocols: boundary and transfer case",
+      "situation": "Calling list on a generator iterator consumes it, so a second list call is empty and the source must be recreated for another pass.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: Calling list on a generator iterator consumes it, so a second list call is empty and the source must be recreated for another pass.",
+        "Step 2 — Keep the language boundary explicit: iter(iterator) normally returns itself, exhausted iterators stay exhausted, multiple iterators may or may not be independent, mutation can invalidate traversal, and StopIteration has special generator rules.",
+        "Step 3 — Reject the tempting but incorrect rule: Iterable and iterator are interchangeable, and calling iter on an exhausted iterator restarts it."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace iteration state and implement a small iterable or iterator correctly."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.iteration.iterator.misconception",
+      "mistakenBelief": "Iterable and iterator are interchangeable, and calling iter on an exhausted iterator restarts it.",
+      "correction": "An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Iterable and iterator are interchangeable, and calling iter on an exhausted iterator restarts it."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass production route that can build a bounded result, expose an iterator, pause lazily, or wrap a callable can introduce Iterable and iterator protocols, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "comprehensions, iterators, generators, and decorators"
+    ],
+    "limitations": [
+      "StopIteration, suspension, close behavior, metadata, wrapper order, and memory allocation require exact Python semantics",
+      "iter(iterator) normally returns itself, exhausted iterators stay exhausted, multiple iterators may or may not be independent, mutation can invalidate traversal, and StopIteration has special generator rules."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently.",
+      "An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration.",
+      "An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Iterable and iterator are interchangeable, and calling iter on an exhausted iterator restarts it."
+      }
+    ],
+    "textAlternative": "Starting artifact: A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently. Step 1, Observe. State: evidence: A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source.. Compare the observation with the correction and explain why the misconception fails: Iterable and iterator are interchangeable, and calling iter on an exhausted iterator restarts it."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Iterable and iterator protocols: direct language case”: state its starting evidence, apply the Iterable and iterator protocols rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Iterable and iterator protocols: direct language case.",
+        "Starting evidence: A custom Countdown iterable returns a new iterator for each for loop, letting two traversals progress independently.",
+        "Core rule: An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration.",
+        "Observable result: The example meets the atomic outcome because An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source.",
+        "Boundary check: An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: Calling list on a generator iterator consumes it, so a second list call is empty and the source must be recreated for another pass.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "An iterable can produce an iterator, while an iterator is a stateful one-pass object whose __next__ yields values until it raises StopIteration.",
+        "iter(iterator) normally returns itself, exhausted iterators stay exhausted, multiple iterators may or may not be independent, mutation can invalidate traversal, and StopIteration has special generator rules."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Iterable and iterator protocols, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace iteration state and implement a small iterable or iterator correctly.",
+        "An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.iteration.iterator.misconception",
+      "explanation": "An iterable supplies iterators; an iterator carries one-pass state and remains exhausted after StopIteration unless a new iterator is created from a reusable source.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Calling list on a generator iterator consumes it, so a second list call is empty and the source must be recreated for another pass."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace iteration state and implement a small iterable or iterator correctly. Keep this boundary in view: iter(iterator) normally returns itself, exhausted iterators stay exhausted, multiple iterators may or may not be independent, mutation can invalidate traversal, and StopIteration has special generator rules.",
+    "retrievalPrompts": [
+      "Explain Iterable and iterator protocols using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Iterable and iterator are interchangeable, and calling iter on an exhausted iterator restarts it.",
+      "Predict this case from memory: Calling list on a generator iterator consumes it, so a second list call is empty and the source must be recreated for another pass."
+    ],
+    "nextReviewPrompt": "Next: continue to “Generators and lazy pipelines”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

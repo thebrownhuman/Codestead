@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.document.comments-entities.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.document",
+  "skillId": "html.document.comments-entities",
+  "title": "Comments and character references",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Comments and character references; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Comments and character references",
+      "claim": "HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element. Your goal is to repair text that is accidentally parsed as markup and remove misleading commented-out secrets. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Elements, attributes and nesting. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability. This draft therefore rejects: HTML comments are private and safe for API keys because browsers do not display them."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use comments for maintainers and encode reserved characters without using entities unnecessarily.",
+      "Repair text that is accidentally parsed as markup and remove misleading commented-out secrets."
+    ],
+    "excludes": [
+      "Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability."
+    ]
+  },
+  "outcomes": [
+    "Repair text that is accidentally parsed as markup and remove misleading commented-out secrets."
+  ],
+  "examples": [
+    {
+      "id": "html.document.comments-entities.example-a",
+      "title": "Comments and character references: concrete case",
+      "situation": "The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Comments remain in delivered source and are not private; use character references only when needed to represent data safely."
+      ],
+      "result": "The result follows because Comments remain in delivered source and are not private; use character references only when needed to represent data safely."
+    },
+    {
+      "id": "html.document.comments-entities.example-b",
+      "title": "Comments and character references: boundary case",
+      "situation": "Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: HTML comments are private and safe for API keys because browsers do not display them."
+      ],
+      "result": "The boundary requires this correction: Comments remain in delivered source and are not private; use character references only when needed to represent data safely."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.document.comments-entities.misconception",
+      "mistakenBelief": "HTML comments are private and safe for API keys because browsers do not display them.",
+      "correction": "Comments remain in delivered source and are not private; use character references only when needed to represent data safely.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: HTML comments are private and safe for API keys because browsers do not display them."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Comments and character references, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Comments and character references before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element.",
+      "HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type.",
+      "Comments remain in delivered source and are not private; use character references only when needed to represent data safely."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Comments remain in delivered source and are not private; use character references only when needed to represent data safely."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: HTML comments are private and safe for API keys because browsers do not display them."
+      }
+    ],
+    "textAlternative": "Starting artifact: The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element. Step 1, Artifact. State: evidence: The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Comments remain in delivered source and are not private; use character references only when needed to represent data safely.. Check the result against the boundary and reject this misconception: HTML comments are private and safe for API keys because browsers do not display them."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Comments and character references: concrete case”: state its starting evidence, apply the Comments and character references rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Comments and character references: concrete case.",
+        "Starting evidence: The source writes &lt;code&gt; to display literal angle brackets instead of creating a code element.",
+        "Core rule: HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type.",
+        "Observable result: The result follows because Comments remain in delivered source and are not private; use character references only when needed to represent data safely.",
+        "Boundary check: Comments remain in delivered source and are not private; use character references only when needed to represent data safely."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "HTML comments annotate source without becoming rendered text, while character references represent characters that would otherwise be syntax or hard to type.",
+        "Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Comments and character references and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Repair text that is accidentally parsed as markup and remove misleading commented-out secrets.",
+        "Comments remain in delivered source and are not private; use character references only when needed to represent data safely."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.document.comments-entities.misconception",
+      "explanation": "Comments remain in delivered source and are not private; use character references only when needed to represent data safely.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not private' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair text that is accidentally parsed as markup and remove misleading commented-out secrets. Keep this boundary in view: Comments are visible to anyone receiving source and must never contain secrets; unnecessary entities can reduce readability.",
+    "retrievalPrompts": [
+      "Explain Comments and character references using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: HTML comments are private and safe for API keys because browsers do not display them.",
+      "Apply checkpoint 'not private' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Heading hierarchy”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

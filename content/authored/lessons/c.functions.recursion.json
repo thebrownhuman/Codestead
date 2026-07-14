@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.functions.recursion.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.functions",
+  "skillId": "c.functions.recursion",
+  "title": "Recursive functions",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Recursive functions; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Recursive functions",
+      "claim": "A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; provisions applicable to Recursive functions",
+      "claim": "A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input. Your goal is to write, trace and test a recursive function with explicit base and progress cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: while, do and for; pf abstraction calls; Parameters and return values; pf abstraction recursion. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "The C standard does not guarantee tail-call optimization, deep recursion can exhaust resources, and unsigned progress can wrap away from a base case. Therefore the draft explicitly rejects this beginner failure model: Tail-recursive C code is guaranteed to use constant stack space because the recursive call appears last."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Implement terminating recursion while accounting for call-stack cost.",
+      "Write, trace and test a recursive function with explicit base and progress cases."
+    ],
+    "excludes": [
+      "The C standard does not guarantee tail-call optimization, deep recursion can exhaust resources, and unsigned progress can wrap away from a base case."
+    ]
+  },
+  "outcomes": [
+    "Write, trace and test a recursive function with explicit base and progress cases."
+  ],
+  "examples": [
+    {
+      "id": "c.functions.recursion.example-a",
+      "title": "Recursive functions: defined case",
+      "situation": "A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits."
+      ],
+      "result": "The defined result follows because C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits."
+    },
+    {
+      "id": "c.functions.recursion.example-b",
+      "title": "Recursive functions: boundary case",
+      "situation": "A recursive linked-list length handles a null pointer as zero and advances to next on every recursive call.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A recursive linked-list length handles a null pointer as zero and advances to next on every recursive call.",
+        "Step 2 — Keep this standard boundary visible: The C standard does not guarantee tail-call optimization, deep recursion can exhaust resources, and unsigned progress can wrap away from a base case.",
+        "Step 3 — Reject the tempting rule: Tail-recursive C code is guaranteed to use constant stack space because the recursive call appears last."
+      ],
+      "result": "This case demonstrates the declared outcome: Write, trace and test a recursive function with explicit base and progress cases."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.functions.recursion.misconception",
+      "mistakenBelief": "Tail-recursive C code is guaranteed to use constant stack space because the recursive call appears last.",
+      "correction": "C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Tail-recursive C code is guaranteed to use constant stack space because the recursive call appears last."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Recursive functions: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "The C standard does not guarantee tail-call optimization, deep recursion can exhaust resources, and unsigned progress can wrap away from a base case."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input.",
+      "A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects.",
+      "C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Tail-recursive C code is guaranteed to use constant stack space because the recursive call appears last."
+      }
+    ],
+    "textAlternative": "Starting artifact: A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input. Step 1, Source and state. State: evidence: A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits.. Check the conclusion against the boundary and reject this misconception: Tail-recursive C code is guaranteed to use constant stack space because the recursive call appears last."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Recursive functions: defined case”: state its starting evidence, apply the Recursive functions rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Recursive functions: defined case.",
+        "Starting evidence: A factorial function handles n <= 1 directly and calls factorial(n - 1) only for positive bounded input.",
+        "Core rule: A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects.",
+        "Observable result: The defined result follows because C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits.",
+        "Boundary check: C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A recursive linked-list length handles a null pointer as zero and advances to next on every recursive call.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A recursive C function requires a reachable base case and a call argument that progresses toward it, with each active call owning separate automatic objects.",
+        "The C standard does not guarantee tail-call optimization, deep recursion can exhaust resources, and unsigned progress can wrap away from a base case."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Recursive functions, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Write, trace and test a recursive function with explicit base and progress cases.",
+        "C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.functions.recursion.misconception",
+      "explanation": "C does not guarantee tail-call optimization; prove progress and prefer iteration when required depth can exceed safe implementation limits.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'does not guarantee tail-call optimization' and state the decisive evidence: A recursive linked-list length handles a null pointer as zero and advances to next on every recursive call."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write, trace and test a recursive function with explicit base and progress cases. Keep this boundary in view: The C standard does not guarantee tail-call optimization, deep recursion can exhaust resources, and unsigned progress can wrap away from a base case.",
+    "retrievalPrompts": [
+      "Explain Recursive functions using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: Tail-recursive C code is guaranteed to use constant stack space because the recursive call appears last.",
+      "Apply the checkpoint 'does not guarantee tail-call optimization' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “One-dimensional arrays”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

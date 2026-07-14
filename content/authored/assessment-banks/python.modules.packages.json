@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.modules.packages.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.modules-packaging",
+  "skillId": "python.modules.packages",
+  "title": "Packages and public APIs deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Packages and public APIs; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "py-packaging"
+  ],
+  "items": [
+    {
+      "id": "python.modules.packages.mcq.misconception",
+      "skillId": "python.modules.packages",
+      "title": "Packages and public APIs: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context.",
+        "incorrect": "That choice preserves the misconception. Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+        },
+        {
+          "id": "misconception",
+          "text": "A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+      }
+    },
+    {
+      "id": "python.modules.packages.fill.checkpoint",
+      "skillId": "python.modules.packages",
+      "title": "Packages and public APIs: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'import package'. Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context.",
+        "incorrect": "The phrase must preserve the exact language rule. Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Distinguish [[checkpoint]] from distribution package, define a small public namespace, and launch modules with a valid package context.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "import package"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+      }
+    }
+  ]
+}

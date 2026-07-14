@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.java.concurrency.virtual.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.runtime-concurrency",
+  "skillId": "java.concurrency.virtual",
+  "title": "Virtual-thread use cases deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Virtual-thread use cases; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "dev-java"
+  ],
+  "items": [
+    {
+      "id": "java.concurrency.virtual.mcq.misconception",
+      "skillId": "java.concurrency.virtual",
+      "title": "Virtual-thread use cases: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Java: Beginner to Intermediate and corrects this misconception? Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work.",
+        "incorrect": "That choice preserves the misconception. Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+        },
+        {
+          "id": "misconception",
+          "text": "Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+      }
+    },
+    {
+      "id": "java.concurrency.virtual.fill.checkpoint",
+      "skillId": "java.concurrency.virtual",
+      "title": "Virtual-thread use cases: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Java: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'blocking tasks'. Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work.",
+        "incorrect": "The phrase must preserve the exact language rule. Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Use virtual threads for numerous [[checkpoint]], but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "blocking tasks"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+      }
+    }
+  ]
+}

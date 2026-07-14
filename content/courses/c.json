@@ -1,0 +1,159 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "c",
+  "title": "C: Beginner to Intermediate",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A C23-oriented course from first compilation through functions, arrays, pointers, dynamic memory, files, modular builds and defensive systems-level programming.",
+  "audience": {
+    "level": "beginner to intermediate",
+    "assumed_knowledge": ["Programming Foundations or equivalent diagnostic mastery"],
+    "target_capability": "Independently design, build, test and debug a portable multi-file C program while reasoning explicitly about types, object lifetimes, pointers and resource ownership."
+  },
+  "scope": {
+    "includes": ["C23 core language used by mainstream toolchains", "Compilation and linking", "Scalar types and control flow", "Functions, arrays and strings", "Pointers and dynamic memory", "Structures, enums, unions and type aliases", "Files, headers and preprocessing", "Undefined behavior, diagnostics, sanitizers and tests"],
+    "non_goals": ["Platform-specific kernel programming", "Embedded peripherals and real-time systems", "Advanced C atomics and lock-free design", "Compiler extensions presented as portable C", "Every C standard-library function"]
+  },
+  "authoritative_sources": [
+    { "id": "wg14-c23", "title": "ISO C Working Group C23 status", "url": "https://www9.open-std.org/JTC1/SC22/WG14/", "type": "standard", "version_or_date": "ISO/IEC 9899:2024" },
+    { "id": "gnu-c", "title": "GNU C Language Introduction and Reference Manual", "url": "https://www.gnu.org/software/c-intro-and-ref/manual/html_node/index.html", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "cert-c", "title": "SEI CERT C Coding Standard", "url": "https://wiki.sei.cmu.edu/confluence/display/c/SEI+CERT+C+Coding+Standard", "type": "security-guidance", "version_or_date": "living standard accessed 2026-07" },
+    { "id": "cs2023-sdf", "title": "CS2023 Software Development Fundamentals", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SDF-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" }
+  ],
+  "runtime": {
+    "kind": "programming-language",
+    "language": "C",
+    "standard": "C23 portable subset with deviations labeled",
+    "toolchain": ["GCC or Clang in C23 mode", "GDB or LLDB", "AddressSanitizer", "UndefinedBehaviorSanitizer", "Make-compatible build tool"],
+    "execution_environment": "Isolated Linux container with warnings enabled and deterministic resource limits",
+    "file_extensions": [".c", ".h"],
+    "notes": ["Examples compile with strict warnings.", "Toolchain-specific extensions are excluded unless explicitly marked."]
+  },
+  "modules": [
+    {
+      "id": "c.toolchain",
+      "title": "C program lifecycle",
+      "description": "Create, translate, link and run a minimal C program while reading diagnostics.",
+      "required": true,
+      "prerequisites": ["pf.computing.execution", "pf.tools.terminal-editor"],
+      "skills": [
+        { "id": "c.toolchain.program", "title": "Translation unit and main", "description": "Identify declarations, definitions, statements and the hosted program entry point.", "outcomes": ["Write and explain a minimal conforming hosted C program."], "prerequisites": ["pf.computing.execution"], "evidence_types": ["code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.toolchain.phases", "title": "Preprocess, compile, assemble and link", "description": "Relate source, object files, libraries and executable output.", "outcomes": ["Diagnose whether a supplied failure occurs during preprocessing, compilation or linking."], "prerequisites": ["c.toolchain.program"], "evidence_types": ["visual", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.toolchain.diagnostics", "title": "Warnings and diagnostics", "description": "Use diagnostic locations and warning categories instead of ignoring warnings.", "outcomes": ["Repair syntax and constraint violations reported by a strict compiler invocation."], "prerequisites": ["c.toolchain.phases"], "evidence_types": ["debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cert-c"] },
+        { "id": "c.toolchain.headers", "title": "Library headers and declarations", "description": "Include the header that declares each standard-library facility and respect its contract.", "outcomes": ["Select required headers and explain the danger of missing or incompatible declarations."], "prerequisites": ["c.toolchain.program"], "evidence_types": ["code", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] }
+      ]
+    },
+    {
+      "id": "c.types",
+      "title": "Objects, types and expressions",
+      "description": "Represent values and evaluate expressions with C's type and conversion rules.",
+      "required": true,
+      "prerequisites": ["c.toolchain.program", "pf.state.expressions"],
+      "skills": [
+        { "id": "c.types.scalar", "title": "Scalar types and declarations", "description": "Use integer, floating, Boolean, character and void-related declarations appropriately.", "outcomes": ["Choose and declare a suitable scalar type while avoiding unjustified size assumptions."], "prerequisites": ["c.toolchain.program"], "evidence_types": ["code", "concept-check", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.types.literals-format", "title": "Literals and formatted I/O types", "description": "Match literal forms, suffixes and format specifiers to types.", "outcomes": ["Repair mismatched literals and formatted I/O conversions without invoking undefined behavior."], "prerequisites": ["c.types.scalar"], "evidence_types": ["debug", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cert-c"] },
+        { "id": "c.types.operators", "title": "Operators and precedence", "description": "Use arithmetic, relational, logical, conditional, increment and assignment operators deliberately.", "outcomes": ["Trace expressions and add grouping that makes evaluation intent unambiguous."], "prerequisites": ["c.types.scalar", "pf.state.expressions"], "evidence_types": ["trace", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.types.conversions", "title": "Conversions and numeric boundaries", "description": "Reason about promotions, signedness, narrowing, overflow and floating-point approximation.", "outcomes": ["Predict and test conversion results while guarding values that cannot be represented."], "prerequisites": ["c.types.operators"], "evidence_types": ["trace", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] }
+      ]
+    },
+    {
+      "id": "c.control-io",
+      "title": "Control flow and input/output",
+      "description": "Build robust console programs using selection, iteration and validated input.",
+      "required": true,
+      "prerequisites": ["c.types.operators", "pf.control.iteration"],
+      "skills": [
+        { "id": "c.control.selection", "title": "if and switch", "description": "Express decisions with Boolean conditions and integral dispatch.", "outcomes": ["Implement and test boundary-complete if and switch logic."], "prerequisites": ["c.types.operators"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.control.loops", "title": "while, do and for", "description": "Choose and implement loops with explicit progress and termination.", "outcomes": ["Write and debug counted, sentinel and input-driven loops."], "prerequisites": ["c.control.selection"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.control.jump", "title": "break, continue and return", "description": "Use structured early exits without obscuring invariants or cleanup.", "outcomes": ["Refactor loop and function exits for correct behavior and readable control flow."], "prerequisites": ["c.control.loops"], "evidence_types": ["code", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.control.input", "title": "Validated text input", "description": "Read bounded text, parse values and handle malformed or exhausted input.", "outcomes": ["Implement a console input loop that rejects malformed and out-of-range values safely."], "prerequisites": ["c.control.loops", "c.types.conversions"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cert-c"] }
+      ]
+    },
+    {
+      "id": "c.functions",
+      "title": "Functions, scope and recursion",
+      "description": "Design typed interfaces and reason about calls, names and storage duration.",
+      "required": true,
+      "prerequisites": ["c.control.loops", "pf.abstraction.calls"],
+      "skills": [
+        { "id": "c.functions.prototype", "title": "Declarations, prototypes and definitions", "description": "Declare functions before use and keep interfaces compatible with definitions.", "outcomes": ["Design, declare, define and call a type-correct function."], "prerequisites": ["c.types.scalar", "pf.abstraction.functions"], "evidence_types": ["code", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.functions.parameters", "title": "Parameters and return values", "description": "Apply C's value-passing model and use pointer parameters only with clear contracts.", "outcomes": ["Predict which caller-visible values change across a function call."], "prerequisites": ["c.functions.prototype"], "evidence_types": ["trace", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.functions.scope-storage", "title": "Scope, linkage and storage duration", "description": "Distinguish block/file scope, internal/external linkage and automatic/static duration.", "outcomes": ["Resolve name visibility and lifetime in a multi-function example."], "prerequisites": ["c.functions.prototype"], "evidence_types": ["trace", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.functions.recursion", "title": "Recursive functions", "description": "Implement terminating recursion while accounting for call-stack cost.", "outcomes": ["Write, trace and test a recursive function with explicit base and progress cases."], "prerequisites": ["c.functions.parameters", "pf.abstraction.recursion"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "c.arrays-strings",
+      "title": "Arrays and strings",
+      "description": "Store and process contiguous fixed-size data without violating bounds.",
+      "required": true,
+      "prerequisites": ["c.control.loops", "c.functions.parameters"],
+      "skills": [
+        { "id": "c.arrays.one-dimensional", "title": "One-dimensional arrays", "description": "Declare, initialize, measure in scope and traverse arrays within valid bounds.", "outcomes": ["Implement and test array traversal, update and aggregation routines."], "prerequisites": ["c.control.loops"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.arrays.multidimensional", "title": "Multidimensional arrays", "description": "Use row-major nested arrays and pass dimensions correctly to functions.", "outcomes": ["Implement a bounded two-dimensional grid traversal and explain its layout."], "prerequisites": ["c.arrays.one-dimensional", "c.control.loops"], "evidence_types": ["code", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.strings.representation", "title": "C string representation", "description": "Treat strings as character arrays terminated by a null character with finite capacity.", "outcomes": ["Trace string length, storage capacity and termination in memory."], "prerequisites": ["c.arrays.one-dimensional"], "evidence_types": ["trace", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.strings.operations", "title": "Bounded string processing", "description": "Copy, compare, search and parse text while tracking capacities and failure cases.", "outcomes": ["Implement a bounded string-processing routine and tests for empty, full and malformed inputs."], "prerequisites": ["c.strings.representation", "c.control.input"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cert-c"] }
+      ]
+    },
+    {
+      "id": "c.pointers",
+      "title": "Pointers and indirection",
+      "description": "Use addresses and pointer expressions with explicit validity and lifetime reasoning.",
+      "required": true,
+      "prerequisites": ["c.arrays.one-dimensional", "c.functions.parameters"],
+      "skills": [
+        { "id": "c.pointers.address", "title": "Addresses and dereference", "description": "Create, inspect and dereference pointers only while they designate valid objects.", "outcomes": ["Trace pointer and pointee state and identify null, invalid and dangling cases."], "prerequisites": ["c.functions.parameters"], "evidence_types": ["trace", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] },
+        { "id": "c.pointers.arrays", "title": "Pointers, arrays and arithmetic", "description": "Relate array conversion, indexing and pointer arithmetic within one array object.", "outcomes": ["Rewrite and trace equivalent bounded array and pointer traversals."], "prerequisites": ["c.pointers.address", "c.arrays.one-dimensional"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.pointers.const", "title": "const-correct pointer interfaces", "description": "Distinguish pointer constness from pointee constness and express read-only contracts.", "outcomes": ["Design a pointer-based function signature with the least required mutation rights."], "prerequisites": ["c.pointers.address", "c.functions.prototype"], "evidence_types": ["code", "design", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cert-c"] },
+        { "id": "c.pointers.functions", "title": "Function pointers and callbacks", "description": "Store compatible function addresses and invoke callbacks through typed interfaces.", "outcomes": ["Implement and explain a small callback-based operation without incompatible casts."], "prerequisites": ["c.pointers.address", "c.functions.prototype"], "evidence_types": ["code", "trace", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] }
+      ]
+    },
+    {
+      "id": "c.aggregates",
+      "title": "Structured and named types",
+      "description": "Model domain data using structures, enumerations, unions and aliases.",
+      "required": true,
+      "prerequisites": ["c.arrays.one-dimensional", "c.pointers.address"],
+      "skills": [
+        { "id": "c.aggregates.struct", "title": "Structures", "description": "Define, initialize, copy and access related named fields.", "outcomes": ["Model and process a small domain entity using a structure and functions."], "prerequisites": ["c.arrays.one-dimensional"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c"] },
+        { "id": "c.aggregates.enum", "title": "Enumerations", "description": "Represent a closed set of named integral states and validate external values.", "outcomes": ["Use an enum with exhaustive control flow and a safe invalid-value policy."], "prerequisites": ["c.control.selection"], "evidence_types": ["code", "design", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] },
+        { "id": "c.aggregates.union", "title": "Unions and tagged values", "description": "Understand shared storage and pair a union with a valid discriminant.", "outcomes": ["Implement and safely inspect a simple tagged union."], "prerequisites": ["c.aggregates.struct", "c.aggregates.enum"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] },
+        { "id": "c.aggregates.typedef", "title": "Type aliases and API clarity", "description": "Use typedef to name existing types without confusing aliases with new runtime representations.", "outcomes": ["Create readable public type names while preserving const and pointer meaning."], "prerequisites": ["c.aggregates.struct", "c.pointers.const"], "evidence_types": ["code", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c"] }
+      ]
+    },
+    {
+      "id": "c.resources",
+      "title": "Dynamic memory and files",
+      "description": "Acquire, validate, use and release memory and file resources on every path.",
+      "required": true,
+      "prerequisites": ["c.pointers.arrays", "c.aggregates.struct"],
+      "skills": [
+        { "id": "c.memory.lifetime", "title": "Object lifetime and ownership", "description": "Relate automatic, static and allocated objects to valid reference lifetimes.", "outcomes": ["Identify owner, borrowers and release point for each resource in a routine."], "prerequisites": ["c.pointers.address", "c.functions.scope-storage"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] },
+        { "id": "c.memory.allocate", "title": "Allocation and deallocation", "description": "Use malloc, calloc, realloc and free with overflow and failure checks.", "outcomes": ["Implement a dynamically sized array without leak, double-free or lost-pointer errors."], "prerequisites": ["c.memory.lifetime", "c.types.conversions"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] },
+        { "id": "c.files.streams", "title": "File streams and binary/text modes", "description": "Open, read, write, check and close streams with clear ownership.", "outcomes": ["Implement text file persistence that handles open, parse, I/O and close failures."], "prerequisites": ["c.control.input", "c.memory.lifetime"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] },
+        { "id": "c.resources.cleanup", "title": "Failure-safe cleanup", "description": "Structure cleanup so partially acquired resources are released exactly once.", "outcomes": ["Repair a multi-resource function to preserve the first failure and release all acquired resources."], "prerequisites": ["c.memory.allocate", "c.files.streams"], "evidence_types": ["debug", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cert-c"] }
+      ]
+    },
+    {
+      "id": "c.modular-quality",
+      "title": "Modular and defensive C",
+      "description": "Build maintainable multi-file programs and verify behavior with tools and tests.",
+      "required": true,
+      "prerequisites": ["c.resources.cleanup", "c.functions.scope-storage"],
+      "skills": [
+        { "id": "c.modular.headers", "title": "Header interfaces and include guards", "description": "Separate public declarations from private definitions without duplicate-definition hazards.", "outcomes": ["Create a self-contained header and matching implementation for a small module."], "prerequisites": ["c.functions.prototype", "c.aggregates.typedef"], "evidence_types": ["code", "artifact", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cert-c"] },
+        { "id": "c.modular.preprocessor", "title": "Preprocessor and macros", "description": "Use conditional compilation and simple macros while avoiding multiple evaluation and hidden control flow.", "outcomes": ["Replace unsafe macro patterns and explain preprocessing results."], "prerequisites": ["c.modular.headers", "c.toolchain.phases"], "evidence_types": ["trace", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "gnu-c", "cert-c"] },
+        { "id": "c.modular.build", "title": "Multi-file builds", "description": "Compile separate translation units and link reproducibly with declared dependencies.", "outcomes": ["Build and diagnose a multi-file command-line program using a repeatable build description."], "prerequisites": ["c.modular.headers", "c.toolchain.phases"], "evidence_types": ["artifact", "debug", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["gnu-c", "cs2023-sdf"] },
+        { "id": "c.quality.ub-sanitizers", "title": "Undefined behavior, tests and sanitizers", "description": "Distinguish defined, implementation-defined and undefined behavior and combine tests with dynamic diagnostics.", "outcomes": ["Find and repair bounds, lifetime, overflow and uninitialized-state defects using tests and sanitizers."], "prerequisites": ["c.resources.cleanup", "c.modular.build"], "evidence_types": ["debug", "test", "explain", "project"], "status": "required", "coverage_status": "covered", "source_refs": ["wg14-c23", "cert-c", "cs2023-sdf"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Build and diagnose a portable multi-file C program with strict warnings and a repeatable build.",
+    "Use arrays, structures, pointers, dynamic memory and files while explaining bounds, lifetimes and ownership.",
+    "Design typed module interfaces and test normal, boundary, malformed-input and allocation-failure paths.",
+    "Use sanitizer evidence and the C behavioral model to identify and remove undefined behavior."
+  ],
+  "coverage_summary": { "required_skills": 36, "elective_skills": 0, "total_skills": 36, "covered": 36, "partial": 0, "planned": 0 }
+}

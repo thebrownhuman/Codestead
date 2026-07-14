@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.components.functions.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.components-jsx",
+  "skillId": "react.components.functions",
+  "title": "Function components",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Function components; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Function components",
+      "claim": "A function component receives props and returns renderable React nodes while remaining pure during render."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A function component receives props and returns renderable React nodes while remaining pure during render.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Greeting receives name and returns one heading without mutating props or external state. Your goal is to extract and test a cohesive component without hidden mutation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Declarative UI and re-rendering; html semantics; javascript functions forms. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A function component receives props and returns renderable React nodes while remaining pure during render. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Components can render null, hooks require stable call order, and local variables reset on each render. This draft therefore rejects: A component function runs once when mounted and retains its local variables forever."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Define capitalized pure component functions with a single responsibility.",
+      "Extract and test a cohesive component without hidden mutation."
+    ],
+    "excludes": [
+      "Components can render null, hooks require stable call order, and local variables reset on each render."
+    ]
+  },
+  "outcomes": [
+    "Extract and test a cohesive component without hidden mutation."
+  ],
+  "examples": [
+    {
+      "id": "react.components.functions.example-a",
+      "title": "Function components: concrete case",
+      "situation": "Greeting receives name and returns one heading without mutating props or external state.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Greeting receives name and returns one heading without mutating props or external state.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals."
+      ],
+      "result": "The result follows because Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals."
+    },
+    {
+      "id": "react.components.functions.example-b",
+      "title": "Function components: boundary case",
+      "situation": "Components can render null, hooks require stable call order, and local variables reset on each render.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Components can render null, hooks require stable call order, and local variables reset on each render.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A component function runs once when mounted and retains its local variables forever."
+      ],
+      "result": "The boundary requires this correction: Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.components.functions.misconception",
+      "mistakenBelief": "A component function runs once when mounted and retains its local variables forever.",
+      "correction": "Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A component function runs once when mounted and retains its local variables forever."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Function components, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Function components before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Components can render null, hooks require stable call order, and local variables reset on each render."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Greeting receives name and returns one heading without mutating props or external state.",
+      "A function component receives props and returns renderable React nodes while remaining pure during render.",
+      "Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Greeting receives name and returns one heading without mutating props or external state."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A function component receives props and returns renderable React nodes while remaining pure during render."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A component function runs once when mounted and retains its local variables forever."
+      }
+    ],
+    "textAlternative": "Starting artifact: Greeting receives name and returns one heading without mutating props or external state. Step 1, Artifact. State: evidence: Greeting receives name and returns one heading without mutating props or external state.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A function component receives props and returns renderable React nodes while remaining pure during render.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals.. Check the result against the boundary and reject this misconception: A component function runs once when mounted and retains its local variables forever."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Function components: concrete case”: state its starting evidence, apply the Function components rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Function components: concrete case.",
+        "Starting evidence: Greeting receives name and returns one heading without mutating props or external state.",
+        "Core rule: A function component receives props and returns renderable React nodes while remaining pure during render.",
+        "Observable result: The result follows because Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals.",
+        "Boundary check: Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Components can render null, hooks require stable call order, and local variables reset on each render.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A function component receives props and returns renderable React nodes while remaining pure during render.",
+        "Components can render null, hooks require stable call order, and local variables reset on each render."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Function components and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Extract and test a cohesive component without hidden mutation.",
+        "Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.components.functions.misconception",
+      "explanation": "Component functions can run repeatedly; persist changing UI data in state or refs, not ordinary render locals.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'run repeatedly' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to extract and test a cohesive component without hidden mutation. Keep this boundary in view: Components can render null, hooks require stable call order, and local variables reset on each render.",
+    "retrievalPrompts": [
+      "Explain Function components using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: A component function runs once when mounted and retains its local variables forever.",
+      "Apply checkpoint 'run repeatedly' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “JSX expressions and attributes”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

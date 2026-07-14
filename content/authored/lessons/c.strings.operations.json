@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.strings.operations.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.arrays-strings",
+  "skillId": "c.strings.operations",
+  "title": "Bounded string processing",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Bounded string processing; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Bounded string processing",
+      "claim": "C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Bounded string processing",
+      "claim": "C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying. Your goal is to implement a bounded string-processing routine and tests for empty, full and malformed inputs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: while, do and for; Parameters and return values; C string representation; Validated text input. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "strlen excludes the terminator, strncpy may not terminate, concatenation needs remaining capacity, and byte length can differ from displayed character count. Therefore the draft explicitly rejects this beginner failure model: strncpy always creates a null-terminated string and therefore makes arbitrary source text safe."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Copy, compare, search and parse text while tracking capacities and failure cases.",
+      "Implement a bounded string-processing routine and tests for empty, full and malformed inputs."
+    ],
+    "excludes": [
+      "strlen excludes the terminator, strncpy may not terminate, concatenation needs remaining capacity, and byte length can differ from displayed character count."
+    ]
+  },
+  "outcomes": [
+    "Implement a bounded string-processing routine and tests for empty, full and malformed inputs."
+  ],
+  "examples": [
+    {
+      "id": "c.strings.operations.example-a",
+      "title": "Bounded string processing: defined case",
+      "situation": "A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed."
+      ],
+      "result": "The defined result follows because Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed."
+    },
+    {
+      "id": "c.strings.operations.example-b",
+      "title": "Bounded string processing: boundary case",
+      "situation": "Before appending, code checks that destination length plus source length plus one does not exceed destination capacity.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: Before appending, code checks that destination length plus source length plus one does not exceed destination capacity.",
+        "Step 2 — Keep this standard boundary visible: strlen excludes the terminator, strncpy may not terminate, concatenation needs remaining capacity, and byte length can differ from displayed character count.",
+        "Step 3 — Reject the tempting rule: strncpy always creates a null-terminated string and therefore makes arbitrary source text safe."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement a bounded string-processing routine and tests for empty, full and malformed inputs."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.strings.operations.misconception",
+      "mistakenBelief": "strncpy always creates a null-terminated string and therefore makes arbitrary source text safe.",
+      "correction": "Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: strncpy always creates a null-terminated string and therefore makes arbitrary source text safe."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Bounded string processing: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "strlen excludes the terminator, strncpy may not terminate, concatenation needs remaining capacity, and byte length can differ from displayed character count."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying.",
+      "C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors.",
+      "Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: strncpy always creates a null-terminated string and therefore makes arbitrary source text safe."
+      }
+    ],
+    "textAlternative": "Starting artifact: A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying. Step 1, Source and state. State: evidence: A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed.. Check the conclusion against the boundary and reject this misconception: strncpy always creates a null-terminated string and therefore makes arbitrary source text safe."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Bounded string processing: defined case”: state its starting evidence, apply the Bounded string processing rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Bounded string processing: defined case.",
+        "Starting evidence: A bounded line read tracks the array capacity, removes an optional newline, and verifies termination before measuring or copying.",
+        "Core rule: C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors.",
+        "Observable result: The defined result follows because Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed.",
+        "Boundary check: Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: Before appending, code checks that destination length plus source length plus one does not exceed destination capacity.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C string operations require a valid terminated source, a destination with enough capacity, and explicit handling of lengths, truncation, overlap, and conversion errors.",
+        "strlen excludes the terminator, strncpy may not terminate, concatenation needs remaining capacity, and byte length can differ from displayed character count."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Bounded string processing, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement a bounded string-processing routine and tests for empty, full and malformed inputs.",
+        "Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.strings.operations.misconception",
+      "explanation": "Do not assume strncpy terminates; design from destination capacity, validate source bounds, and establish the terminator explicitly when needed.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'destination capacity' and state the decisive evidence: Before appending, code checks that destination length plus source length plus one does not exceed destination capacity."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement a bounded string-processing routine and tests for empty, full and malformed inputs. Keep this boundary in view: strlen excludes the terminator, strncpy may not terminate, concatenation needs remaining capacity, and byte length can differ from displayed character count.",
+    "retrievalPrompts": [
+      "Explain Bounded string processing using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: strncpy always creates a null-terminated string and therefore makes arbitrary source text safe.",
+      "Apply the checkpoint 'destination capacity' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Addresses and dereference”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

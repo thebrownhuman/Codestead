@@ -1,0 +1,213 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.c.functions.parameters.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.functions",
+  "skillId": "c.functions.parameters",
+  "title": "Parameters and return values deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Added digest-pinned deterministic executable evidence for Parameters and return values; AI-assisted draft remains human-unreviewed and exam-ineligible."
+  },
+  "sourceRefs": [
+    "gnu-c"
+  ],
+  "items": [
+    {
+      "skillId": "c.functions.parameters",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.functions.parameters.mcq.misconception",
+      "title": "Parameters and return values: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this C misconception? C passes variables by reference whenever their names are used as function arguments.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability.",
+        "incorrect": "That option preserves the documented misconception. C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned C correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "C passes variables by reference whenever their names are used as function arguments."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+      }
+    },
+    {
+      "skillId": "c.functions.parameters",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.functions.parameters.fill.checkpoint",
+      "title": "Parameters and return values: complete the language rule",
+      "prompt": "Complete the missing C checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: C passes variables by reference whenever their names are used as function arguments."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'passes by value'.",
+        "incorrect": "Recheck the exact language rule and its boundary. C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact C token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "C {{key-rule}}; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "passes by value"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+      }
+    },
+    {
+      "id": "c.functions.parameters.code.apply",
+      "skillId": "c.functions.parameters",
+      "title": "Parameters and return values: executable application",
+      "kind": "code",
+      "prompt": "Call a function that receives two integers by value and writes their ordered minimum and maximum through non-null output pointers, then print both.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards, security, and assessment review."
+      },
+      "hints": [
+        "Begin with the declared input and exact output contract, then implement the named language facet without relying on undefined behavior."
+      ],
+      "feedback": {
+        "correct": "The reference-aligned visible and hidden deterministic checks passed in the pinned isolated runtime.",
+        "incorrect": "At least one deterministic check failed; inspect input validation, boundary behavior, and the named language rule without exposing hidden cases."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "deterministic-behavior",
+            "description": "Compiles in the pinned runtime and passes every visible and hidden exact-output case.",
+            "points": 7,
+            "critical": true
+          },
+          {
+            "id": "language-facet",
+            "description": "Uses the target C or C++ language facet with declared bounds and without an out-of-scope workaround.",
+            "points": 3,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "AI-assisted and human-unreviewed: formal exam eligibility is prohibited until independent technical and assessment approval.",
+        "Reference verification uses the digest-pinned local container with network=none, no package installation, a read-only source mount, and deterministic stdin/stdout.",
+        "Executable facet: value parameters versus explicit pointer output parameters"
+      ],
+      "starterCode": "#include <stdio.h>\n\nstatic void order_pair(int a, int b, int *minimum, int *maximum) {\n    /* assign caller-visible outputs */\n}\n\nint main(void) {\n    /* read, call, print */\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "c",
+        "version": "C23 / GCC 14.2.0",
+        "imageDigest": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+        "entrypoint": "main.c",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "c-functions-parameters-case-1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "9 2\n",
+          "expectedStdout": "2 9\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "c-functions-parameters-case-2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "4 4\n",
+          "expectedStdout": "4 4\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "c-functions-parameters-case-3",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "-1 -8\n",
+          "expectedStdout": "-8 -1\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "#include <stdio.h>\n\nstatic void order_pair(int a, int b, int *minimum, int *maximum) {\n    if (a <= b) { *minimum = a; *maximum = b; }\n    else { *minimum = b; *maximum = a; }\n}\n\nint main(void) {\n    int a, b, minimum, maximum;\n    if (scanf(\"%d %d\", &a, &b) != 2) return 1;\n    order_pair(a, b, &minimum, &maximum);\n    printf(\"%d %d\\n\", minimum, maximum);\n    return 0;\n}\n",
+        "explanation": "The reference solution exercises value parameters versus explicit pointer output parameters under the bounded deterministic contract; it remains an AI-assisted draft pending human review."
+      }
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.java.collections.core.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.generics-collections",
+  "skillId": "java.collections.core",
+  "title": "List, Set, Map and Queue deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for List, Set, Map and Queue; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "dev-java"
+  ],
+  "items": [
+    {
+      "id": "java.collections.core.mcq.misconception",
+      "skillId": "java.collections.core",
+      "title": "List, Set, Map and Queue: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Java: Beginner to Intermediate and corrects this misconception? ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations.",
+        "incorrect": "That choice preserves the misconception. Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+        },
+        {
+          "id": "misconception",
+          "text": "ArrayList, HashSet, HashMap, and PriorityQueue differ only in method names and can be swapped without changing semantics."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+      }
+    },
+    {
+      "id": "java.collections.core.fill.checkpoint",
+      "skillId": "java.collections.core",
+      "title": "List, Set, Map and Queue: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Java: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'interface contract first'. Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations.",
+        "incorrect": "The phrase must preserve the exact language rule. Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Choose the [[checkpoint]]—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "interface contract first"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Choose the interface contract first—order, duplicates, lookup, or removal policy—then select an implementation whose guarantees and cost fit the operations."
+      }
+    },
+    {
+      "id": "java.collections.core.code.core",
+      "skillId": "java.collections.core",
+      "title": "List, Set, Map and Queue: runnable core task",
+      "kind": "code",
+      "prompt": "Read whitespace-separated words. Use a Map to count them and print key=count pairs in sorted-key order.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Java: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        // TODO: implement the stated input/output contract.\n    }\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "java",
+        "version": "Java SE 21",
+        "imageDigest": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+        "entrypoint": "Main.java",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 256
+      },
+      "tests": [
+        {
+          "id": "java.collections.core.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "pear apple pear\n",
+          "expectedStdout": "apple=1 pear=2",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "java.collections.core.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "solo\n",
+          "expectedStdout": "solo=1",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import java.util.*;\nimport java.util.stream.*;\n\npublic class Main {\n\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        Map<String, Integer> counts = new TreeMap<>();\n        while (input.hasNext()) counts.merge(input.next(), 1, Integer::sum);\n        System.out.println(counts.entrySet().stream().map(entry -> entry.getKey() + \"=\" + entry.getValue()).collect(Collectors.joining(\" \")));\n    }\n}\n",
+        "explanation": "A Map provides key lookup/counting and TreeMap adds the explicit sorted presentation guarantee."
+      }
+    }
+  ]
+}

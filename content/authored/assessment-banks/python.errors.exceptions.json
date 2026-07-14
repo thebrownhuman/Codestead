@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.errors.exceptions.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.errors-io",
+  "skillId": "python.errors.exceptions",
+  "title": "Exception handling and propagation deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Exception handling and propagation; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "py-reference"
+  ],
+  "items": [
+    {
+      "id": "python.errors.exceptions.mcq.misconception",
+      "skillId": "python.errors.exceptions",
+      "title": "Exception handling and propagation: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? A bare except around a whole function is robust because it prevents all crashes and lets execution continue.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists.",
+        "incorrect": "That choice preserves the misconception. Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+        },
+        {
+          "id": "misconception",
+          "text": "A bare except around a whole function is robust because it prevents all crashes and lets execution continue."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+      }
+    },
+    {
+      "id": "python.errors.exceptions.fill.checkpoint",
+      "skillId": "python.errors.exceptions",
+      "title": "Exception handling and propagation: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'keep the try block narrow'. Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists.",
+        "incorrect": "The phrase must preserve the exact language rule. Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Catch specific exceptions at a responsible boundary, [[checkpoint]], preserve causal context, and recover only when a valid next state exists.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "keep the try block narrow"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "requirement": "RUN-002",
+  "generatedAt": "2026-07-12T09:27:54.6185596Z",
+  "status": "locally-verified-partial",
+  "surface": {
+    "route": "src/app/api/code/run/route.ts",
+    "component": "src/components/lesson/lesson-workspace.tsx",
+    "practiceLanguages": ["c", "cpp", "java", "python", "javascript"],
+    "pythonRuntime": "Python 3.14",
+    "pythonEntrypoint": "main.py"
+  },
+  "serverContract": {
+    "strictInputFields": ["language", "source", "stdin", "skillId", "mode", "clientRequestId"],
+    "rejectedTamperClasses": [
+      "officialMasteryEvidence",
+      "masteryAwarded",
+      "attemptId",
+      "userId",
+      "limits",
+      "tests",
+      "TEST mode"
+    ],
+    "orderedGates": [
+      "authentication",
+      "closed-book capability",
+      "per-user minute/hour rate limit",
+      "strict request schema",
+      "server-execution consent"
+    ],
+    "serverSelected": {
+      "wallTimeMs": 5000,
+      "memoryMb": 128,
+      "cpuCount": 0.5,
+      "pids": 32,
+      "outputBytes": 65536,
+      "fileBytes": 16777216
+    }
+  },
+  "masteryInvariant": {
+    "officialMasteryEvidence": false,
+    "practiceSubmissionHasAttemptId": false,
+    "practiceSubmissionHasActivityId": false,
+    "practiceSubmissionHasTestBundleId": false,
+    "clientMasteryFieldsAccepted": false,
+    "masteryLikeResponseStatusDisplayed": false,
+    "componentPerformsMasteryMutation": false
+  },
+  "queueEvidence": {
+    "interimBrowserState": "queued",
+    "capacityLabel": "two isolated runner slots; bounded queue",
+    "persistedStatesCovered": ["queued", "running", "succeeded", "failed"],
+    "serverReturnsInitialQueuePosition": true
+  },
+  "tests": {
+    "routeFile": "src/app/api/code/run/__tests__/route.test.ts",
+    "routeTests": 15,
+    "componentFile": "src/components/lesson/__tests__/code-lab-runner.test.tsx",
+    "componentTests": 4,
+    "focusedRegressionFiles": 3,
+    "focusedRegressionTestsPassed": 23
+  },
+  "unproved": [
+    "deployed browser-to-Next.js-to-signed-runner Python execution",
+    "hostile production proxy or browser response mutation",
+    "real NUC queue position and capacity behavior under load"
+  ]
+}

@@ -1,0 +1,175 @@
+.page { display: grid; min-width: 0; gap: 24px; padding-bottom: 56px; }
+.hero { display: flex; align-items: flex-end; justify-content: space-between; min-width: 0; gap: 24px; }
+.hero > div { min-width: 0; }
+.eyebrow { color: var(--brand); font-size: .75rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.hero h1 { max-width: 900px; margin: 5px 0 7px; font-size: clamp(2.15rem,5vw,4.5rem); letter-spacing: -.055em; line-height: .98; }
+.hero p { max-width: 760px; margin: 0; color: var(--ink-soft); font-size: 1rem; line-height: 1.65; }
+.heroActions { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+.notice { display: flex; align-items: flex-start; gap: 11px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; color: var(--ink-soft); background: var(--surface-muted); font-size: .875rem; line-height: 1.55; }
+.notice svg { flex: none; margin-top: 2px; color: var(--brand); }
+.notice strong { color: var(--ink); }
+.trail { position: relative; display: grid; gap: 14px; padding-left: 34px; }
+.trail::before { position: absolute; inset: 8px auto 8px 14px; width: 3px; border-radius: 99px; background: var(--line); content: ""; }
+.careerCard { --trail-color: var(--signal-violet); position: relative; display: grid; min-width: 0; gap: 16px; padding: clamp(18px,2.4vw,26px); overflow: hidden; }
+.careerCard::before { position: absolute; top: 28px; left: -27px; width: 15px; height: 15px; border: 4px solid var(--canvas); border-radius: 50%; background: var(--trail-color); box-shadow: 0 0 0 2px var(--trail-color); content: ""; }
+.careerCard[data-readiness="ready"] { --trail-color: var(--brand); border-color: color-mix(in srgb,var(--brand) 44%,var(--line)); }
+.careerCard[data-readiness="building"] { --trail-color: var(--signal-amber); }
+.careerCard[data-readiness="locked"] { --trail-color: var(--ink-soft); }
+.careerTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.careerTop > div { min-width: 0; }
+.routeLabel { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 5px; color: var(--ink-soft); font-family: var(--font-mono); font-size: .72rem; }
+.routeLabel span { color: var(--brand-strong); }
+.careerCard h2,.careerCard h3 { margin: 0; letter-spacing: -.025em; }
+.careerCard > p { max-width: 850px; margin: -5px 0 0; color: var(--ink-soft); line-height: 1.6; }
+.status { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid color-mix(in srgb,var(--trail-color) 40%,var(--line)); border-radius: 999px; color: var(--ink); background: color-mix(in srgb,var(--trail-color) 12%,var(--surface-solid)); font-size: .72rem; font-weight: 800; text-transform: capitalize; }
+.careerGrid { display: grid; grid-template-columns: minmax(0,1fr) minmax(240px,.72fr); gap: 14px; }
+.careerSection { display: grid; align-content: start; gap: 9px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
+.careerSection h3 { font-size: .9rem; }
+.careerSection p { margin: 0; color: var(--ink-soft); font-size: .82rem; line-height: 1.55; }
+.evidenceList { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.evidenceList li { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: start; gap: 9px; padding: 10px; border-radius: 10px; background: var(--surface-solid); }
+.evidenceList li > svg { margin-top: 2px; color: var(--brand); }
+.evidenceList li > div { display: grid; min-width: 0; gap: 2px; }
+.evidenceList strong { font-size: .78rem; }
+.evidenceList small { color: var(--ink-soft); font-size: .7rem; line-height: 1.45; }
+.evidenceList b { color: var(--ink-soft); font-family: var(--font-mono); font-size: .68rem; white-space: nowrap; }
+.marketSource { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; color: var(--brand-strong); font-size: .75rem; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.empty { display: grid; min-height: 300px; place-items: center; padding: 36px; text-align: center; }
+.empty > div { display: grid; max-width: 520px; justify-items: center; gap: 10px; }
+.empty span { display: grid; width: 64px; height: 64px; place-items: center; border-radius: 20px; color: var(--brand); background: var(--brand-soft); }
+.empty h2,.empty p { margin: 0; }
+.empty p { color: var(--ink-soft); }
+.grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.panel { display: grid; min-width: 0; align-content: start; gap: 16px; padding: clamp(17px,2.4vw,24px); }
+.panel h2,.panel h3 { margin: 0; }
+.panelHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.panelHead > div { display: grid; gap: 3px; }
+.panelHead p,.panel > p { margin: 0; color: var(--ink-soft); font-size: .85rem; line-height: 1.55; }
+.form { display: grid; gap: 14px; }
+.form label { display: grid; min-width: 0; gap: 6px; font-size: .82rem; font-weight: 800; }
+.form input,.form textarea,.form select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); }
+.form textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
+.form small { color: var(--ink-soft); font-weight: 500; line-height: 1.45; }
+.fieldGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.checkList { display: grid; max-height: 320px; gap: 8px; margin: 0; padding: 10px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; }
+.checkList legend { padding: 0 6px; font-size: .82rem; font-weight: 850; }
+.checkRow { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: start; gap: 10px; padding: 10px; border-radius: 10px; background: var(--surface-muted); }
+.checkRow input[type="checkbox"] { width: 18px; min-height: 18px; height: 18px; margin: 3px 0 0; padding: 0; accent-color: var(--brand); }
+.checkRow > span { display: grid; min-width: 0; gap: 3px; }
+.checkRow strong { font-size: .8rem; }
+.checkRow small { color: var(--ink-soft); font-size: .7rem; }
+.checkRow input[type="text"] { margin-top: 5px; }
+.disclosure { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: start; gap: 10px; min-height: 44px; padding: 12px; border: 1px solid color-mix(in srgb,var(--signal-cyan) 36%,var(--line)); border-radius: 11px; background: var(--signal-cyan-soft); cursor: pointer; }
+.disclosure input { width: 18px; min-height: 18px; height: 18px; margin: 3px 0 0; padding: 0; }
+.disclosure span { display: grid; gap: 3px; }
+.disclosure strong { font-size: .8rem; }
+.disclosure small { color: var(--ink-soft); font-size: .7rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.actions button,.actions a { min-height: 44px; }
+.error,.success { margin: 0; padding: 11px 13px; border-radius: 10px; color: var(--danger); background: color-mix(in srgb,var(--danger) 10%,transparent); font-size: .8rem; }
+.success { color: var(--brand-strong); background: var(--brand-soft); }
+.collection { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.collectionItem { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-solid); }
+.collectionItem > div { display: grid; min-width: 0; gap: 4px; }
+.collectionItem strong { font-size: .88rem; }
+.collectionItem p { margin: 0; color: var(--ink-soft); font-size: .76rem; line-height: 1.5; }
+.collectionItem small { color: var(--ink-soft); font-size: .68rem; }
+.certificateList { display: grid; gap: 13px; }
+.certificateCard { position: relative; display: grid; grid-template-columns: 58px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 18px; overflow: hidden; }
+.certificateCard::after { position: absolute; top: 0; right: 0; width: 9px; height: 100%; background: var(--brand); content: ""; }
+.certificateCard[data-status="revoked"]::after { background: var(--danger); }
+.seal { display: grid; width: 54px; height: 54px; place-items: center; border: 2px solid var(--brand); border-radius: 50%; color: var(--brand); background: var(--brand-soft); }
+.certificateCard > div { display: grid; min-width: 0; gap: 3px; }
+.certificateCard h3,.certificateCard p { margin: 0; }
+.certificateCard p,.certificateCard small { color: var(--ink-soft); font-size: .74rem; }
+.verificationId { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.revokeButton { border-color: color-mix(in srgb,var(--danger) 45%,var(--line)) !important; }
+.revocationForm { display: grid !important; grid-column: 1 / -1; gap: 9px !important; padding: 14px; border: 1px solid color-mix(in srgb,var(--danger) 35%,var(--line)); border-radius: 12px; background: color-mix(in srgb,var(--danger) 6%,var(--surface-solid)); }
+.revocationForm label { font-size: .8rem; font-weight: 850; }
+.revocationForm textarea { min-height: 96px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); resize: vertical; }
+.revocationForm p { margin: 0; color: var(--ink-soft); font-size: .73rem; line-height: 1.5; }
+.portfolioPreview { display: grid; gap: 22px; }
+.portfolioHeader { display: grid; gap: 10px; padding: clamp(24px,5vw,54px); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-small); }
+.portfolioHeader h1 { max-width: 900px; margin: 0; font-size: clamp(2.4rem,6vw,5.4rem); letter-spacing: -.06em; line-height: .94; }
+.portfolioHeader h2 { margin: 0; color: var(--brand-strong); font-family: var(--font-mono); font-size: clamp(.9rem,2vw,1.2rem); font-weight: 700; }
+.portfolioHeader p { max-width: 760px; margin: 4px 0 0; color: var(--ink-soft); line-height: 1.7; }
+.showcaseGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.showcaseCard { display: grid; align-content: start; gap: 10px; padding: 20px; }
+.showcaseCard h3,.showcaseCard p { margin: 0; }
+.showcaseCard p { color: var(--ink-soft); font-size: .85rem; line-height: 1.6; }
+.showcaseCard a { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; color: var(--brand-strong); font-size: .78rem; font-weight: 850; text-decoration: underline; text-underline-offset: 3px; }
+.badgeRow { display: flex; flex-wrap: wrap; gap: 9px; }
+.badge { display: inline-flex; align-items: center; gap: 7px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-solid); font-size: .75rem; font-weight: 800; }
+.verifier { width: min(1040px,calc(100% - 40px)); margin: 44px auto; }
+.certificateSheet { position: relative; display: grid; min-height: 680px; align-content: center; gap: 26px; padding: clamp(34px,7vw,84px); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface-solid); box-shadow: var(--shadow); }
+.certificateSheet::before { position: absolute; inset: 18px; border: 2px solid var(--brand); border-radius: calc(var(--radius-xl) - 10px); content: ""; pointer-events: none; }
+.certificateSheet header,.certificateBody,.certificateSheet footer { position: relative; z-index: 1; }
+.certificateSheet header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.certificateBody { display: grid; justify-items: center; gap: 16px; text-align: center; }
+.certificateSheet h1 { margin: 0; font-size: clamp(2rem,5vw,4.5rem); letter-spacing: -.05em; }
+.certificateSheet h2 { margin: 0; color: var(--brand-strong); font-size: clamp(1.4rem,4vw,2.8rem); }
+.certificateBody p { max-width: 720px; margin: 0; color: var(--ink-soft); line-height: 1.65; }
+.certificateSheet footer { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.certificateSheet footer p { margin: 0; color: var(--ink-soft); font-family: var(--font-mono); font-size: .72rem; overflow-wrap: anywhere; }
+.printButton { display: flex; justify-content: center; margin-top: 16px; }
+.trophySection { display: grid; min-width: 0; gap: 17px; }
+.trophyHero { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: clamp(20px,3vw,32px); border: 1px solid color-mix(in srgb,var(--signal-amber) 38%,var(--line)); border-radius: var(--radius-xl); background: linear-gradient(135deg,color-mix(in srgb,var(--signal-amber-soft) 65%,var(--surface)),color-mix(in srgb,var(--signal-violet-soft) 30%,var(--surface))); }
+.trophyHero h2 { margin: 5px 0 7px; font-size: clamp(2rem,4.8vw,4.2rem); letter-spacing: -.055em; line-height: .98; }
+.trophyHero p { max-width: 760px; margin: 0; color: var(--ink-soft); line-height: 1.65; }
+.trophyStats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.trophyStats article { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.trophyStats svg { color: var(--signal-amber); }
+.trophyStats strong { font-size: 1.25rem; }
+.trophyStats small { color: var(--ink-soft); }
+.trophyGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.trophyCard { --trophy: var(--signal-amber); position: relative; display: grid; grid-template-columns: auto minmax(0,1fr); align-content: start; gap: 13px; padding: 18px; overflow: hidden; }
+.trophyCard::before { position: absolute; inset: 0 0 auto; height: 5px; background: var(--trophy); content: ""; }
+.trophyCard[data-status="revoked"] { --trophy: var(--danger); opacity: .78; }
+.trophySeal { display: grid; width: 50px; height: 50px; place-items: center; border: 2px solid var(--trophy); border-radius: 16px; color: var(--trophy); background: color-mix(in srgb,var(--trophy) 10%,var(--surface-solid)); transform: rotate(-3deg); }
+.trophyCard > div { display: grid; min-width: 0; gap: 5px; }
+.trophyCard small { color: var(--trophy); font-size: .66rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.trophyCard h3,.trophyCard p { margin: 0; }
+.trophyCard p { color: var(--ink-soft); font-size: .78rem; line-height: 1.55; }
+.evidenceTag { display: inline-flex; width: fit-content; align-items: center; gap: 5px; margin-top: 4px; padding: 5px 8px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-size: .66rem; font-weight: 800; }
+.trophyCard footer { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: .68rem; }
+.trophyCard footer span { display: inline-flex; align-items: center; gap: 5px; }
+.trophyCard > a { grid-column: 1 / -1; justify-content: center; text-decoration: none; }
+.trophyFooter { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-muted); }
+.trophyFooter p { margin: 0; color: var(--ink-soft); font-size: .78rem; line-height: 1.5; }
+.trophyFooter a { flex: none; text-decoration: none; }
+.adminLayout { display: grid; grid-template-columns: minmax(260px,.72fr) minmax(0,1.3fr); align-items: start; gap: 16px; }
+.adminList button { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); text-align: left; }
+.adminList button[aria-current="true"] { border-color: var(--brand); background: var(--brand-soft); }
+
+@media (max-width: 920px) {
+  .hero { align-items: flex-start; flex-direction: column; }
+  .heroActions { justify-content: flex-start; }
+  .careerGrid,.grid,.adminLayout { grid-template-columns: 1fr; }
+  .certificateCard { grid-template-columns: 50px minmax(0,1fr); }
+  .certificateCard > a,.certificateCard > button { grid-column: 1 / -1; }
+  .trophyHero,.trophyFooter { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 640px) {
+  .trail { padding-left: 25px; }
+  .trail::before { left: 9px; }
+  .careerCard::before { left: -23px; }
+  .careerTop,.panelHead { align-items: flex-start; flex-direction: column; }
+  .fieldGrid,.showcaseGrid { grid-template-columns: 1fr; }
+  .collectionItem { grid-template-columns: 1fr; }
+  .certificateSheet { min-height: 620px; padding: 44px 30px; }
+  .certificateSheet::before { inset: 10px; }
+  .certificateSheet header,.certificateSheet footer { align-items: flex-start; grid-template-columns: 1fr; flex-direction: column; }
+  .trophyStats,.trophyGrid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .careerCard,.showcaseCard,.certificateCard,.trophyCard { transition: transform var(--motion-base) var(--ease-out),border-color var(--motion-base) var(--ease-out),box-shadow var(--motion-base) var(--ease-out); }
+  .careerCard:hover,.showcaseCard:hover,.certificateCard:hover,.trophyCard:hover { transform: translateY(-2px); box-shadow: var(--shadow-small); }
+}
+
+@media print {
+  .verifier { width: 100%; margin: 0; }
+  .certificateSheet { min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; print-color-adjust: exact; }
+  .printButton { display: none !important; }
+}

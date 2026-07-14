@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.functions.headers.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.functions",
+  "skillId": "cpp.functions.headers",
+  "title": "Headers and source separation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Headers and source separation; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Headers and source separation",
+      "claim": "C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file."
+    },
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to Headers and source separation",
+      "claim": "C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions. Your goal is to create a multi-file function library with correct declarations and definitions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and range iteration; pf abstraction calls; Function contracts and return values; Compile and link model. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Templates need visible definitions for instantiation, inline variables have special ODR rules, and macros or using directives in headers leak into includers. Therefore the draft explicitly rejects this beginner failure model: Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Separate interface from implementation using self-contained guarded headers.",
+      "Create a multi-file function library with correct declarations and definitions."
+    ],
+    "excludes": [
+      "Templates need visible definitions for instantiation, inline variables have special ODR rules, and macros or using directives in headers leak into includers."
+    ]
+  },
+  "outcomes": [
+    "Create a multi-file function library with correct declarations and definitions."
+  ],
+  "examples": [
+    {
+      "id": "cpp.functions.headers.example-a",
+      "title": "Headers and source separation: defined case",
+      "situation": "A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+      ],
+      "result": "The defined result follows because Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+    },
+    {
+      "id": "cpp.functions.headers.example-b",
+      "title": "Headers and source separation: boundary case",
+      "situation": "A function template definition remains in the header and is identical in every translation unit that instantiates it.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A function template definition remains in the header and is identical in every translation unit that instantiates it.",
+        "Step 2 — Keep this standard boundary visible: Templates need visible definitions for instantiation, inline variables have special ODR rules, and macros or using directives in headers leak into includers.",
+        "Step 3 — Reject the tempting rule: Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time."
+      ],
+      "result": "This case demonstrates the declared outcome: Create a multi-file function library with correct declarations and definitions."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.functions.headers.misconception",
+      "mistakenBelief": "Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time.",
+      "correction": "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Headers and source separation: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "Templates need visible definitions for instantiation, inline variables have special ODR rules, and macros or using directives in headers leak into includers."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions.",
+      "C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file.",
+      "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time."
+      }
+    ],
+    "textAlternative": "Starting artifact: A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions. Step 1, Source and state. State: evidence: A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules.. Check the conclusion against the boundary and reject this misconception: Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Headers and source separation: defined case”: state its starting evidence, apply the Headers and source separation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Headers and source separation: defined case.",
+        "Starting evidence: A class declaration and function prototype live in a guarded header while one .cpp file defines non-inline member functions.",
+        "Core rule: C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file.",
+        "Observable result: The defined result follows because Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules.",
+        "Boundary check: Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A function template definition remains in the header and is identical in every translation unit that instantiates it.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C++ headers expose declarations and template or inline definitions under ODR-safe rules, while ordinary external definitions normally reside in one source file.",
+        "Templates need visible definitions for instantiation, inline variables have special ODR rules, and macros or using directives in headers leak into includers."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Headers and source separation, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Create a multi-file function library with correct declarations and definitions.",
+        "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.functions.headers.misconception",
+      "explanation": "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'one-definition rules' and state the decisive evidence: A function template definition remains in the header and is identical in every translation unit that instantiates it."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a multi-file function library with correct declarations and definitions. Keep this boundary in view: Templates need visible definitions for instantiation, inline variables have special ODR rules, and macros or using directives in headers leak into includers.",
+    "retrievalPrompts": [
+      "Explain Headers and source separation using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time.",
+      "Apply the checkpoint 'one-definition rules' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Class interface and invariants”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

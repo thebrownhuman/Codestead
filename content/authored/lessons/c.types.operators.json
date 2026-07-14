@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.types.operators.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.types",
+  "skillId": "c.types.operators",
+  "title": "Operators and precedence",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Operators and precedence; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Operators and precedence",
+      "claim": "C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping. Your goal is to trace expressions and add grouping that makes evaluation intent unambiguous. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Translation unit and main; pf state expressions; Scalar types and declarations. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Precedence does not specify every evaluation order, signed overflow is undefined, and modifying and reading one scalar without required sequencing can be undefined. Therefore the draft explicitly rejects this beginner failure model: Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use arithmetic, relational, logical, conditional, increment and assignment operators deliberately.",
+      "Trace expressions and add grouping that makes evaluation intent unambiguous."
+    ],
+    "excludes": [
+      "Precedence does not specify every evaluation order, signed overflow is undefined, and modifying and reading one scalar without required sequencing can be undefined."
+    ]
+  },
+  "outcomes": [
+    "Trace expressions and add grouping that makes evaluation intent unambiguous."
+  ],
+  "examples": [
+    {
+      "id": "c.types.operators.example-a",
+      "title": "Operators and precedence: defined case",
+      "situation": "The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+      ],
+      "result": "The defined result follows because Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+    },
+    {
+      "id": "c.types.operators.example-b",
+      "title": "Operators and precedence: boundary case",
+      "situation": "A condition ready && use_value() avoids the function call when ready is zero because logical AND sequences and short-circuits its right operand.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A condition ready && use_value() avoids the function call when ready is zero because logical AND sequences and short-circuits its right operand.",
+        "Step 2 — Keep this standard boundary visible: Precedence does not specify every evaluation order, signed overflow is undefined, and modifying and reading one scalar without required sequencing can be undefined.",
+        "Step 3 — Reject the tempting rule: Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace expressions and add grouping that makes evaluation intent unambiguous."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.types.operators.misconception",
+      "mistakenBelief": "Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand.",
+      "correction": "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Operators and precedence: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Precedence does not specify every evaluation order, signed overflow is undefined, and modifying and reading one scalar without required sequencing can be undefined."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping.",
+      "C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules.",
+      "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand."
+      }
+    ],
+    "textAlternative": "Starting artifact: The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping. Step 1, Source and state. State: evidence: The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects.. Check the conclusion against the boundary and reject this misconception: Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Operators and precedence: defined case”: state its starting evidence, apply the Operators and precedence rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Operators and precedence: defined case.",
+        "Starting evidence: The expression a + b * c groups multiplication first, while parentheses communicate and enforce a different intended grouping.",
+        "Core rule: C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules.",
+        "Observable result: The defined result follows because Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects.",
+        "Boundary check: Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A condition ready && use_value() avoids the function call when ready is zero because logical AND sequences and short-circuits its right operand.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C operators form expressions according to precedence, associativity, operand types, value computations, side effects, and sequencing rules.",
+        "Precedence does not specify every evaluation order, signed overflow is undefined, and modifying and reading one scalar without required sequencing can be undefined."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Operators and precedence, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace expressions and add grouping that makes evaluation intent unambiguous.",
+        "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.types.operators.misconception",
+      "explanation": "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'grouping' and state the decisive evidence: A condition ready && use_value() avoids the function call when ready is zero because logical AND sequences and short-circuits its right operand."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace expressions and add grouping that makes evaluation intent unambiguous. Keep this boundary in view: Precedence does not specify every evaluation order, signed overflow is undefined, and modifying and reading one scalar without required sequencing can be undefined.",
+    "retrievalPrompts": [
+      "Explain Operators and precedence using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand.",
+      "Apply the checkpoint 'grouping' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Conversions and numeric boundaries”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

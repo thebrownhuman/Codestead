@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.unsupervised.clustering.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.unsupervised",
+  "skillId": "ai.unsupervised.clustering",
+  "title": "Clustering deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Clustering; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "sklearn",
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.unsupervised.clustering.mcq.misconception",
+      "skillId": "ai.unsupervised.clustering",
+      "title": "Clustering: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
+        "incorrect": "That option preserves the overclaim. Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+        },
+        {
+          "id": "overclaim",
+          "text": "A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      }
+    },
+    {
+      "id": "ai.unsupervised.clustering.fill.checkpoint",
+      "skillId": "ai.unsupervised.clustering",
+      "title": "Clustering: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'parameter-dependent summaries'. Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Treat clusters as representation- and [[checkpoint]]; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "parameter-dependent summaries"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      }
+    },
+    {
+      "id": "ai.unsupervised.clustering.code.offline",
+      "skillId": "ai.unsupervised.clustering",
+      "title": "Clustering: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read one-dimensional values. Run deterministic k=2 means initialized at min and max until stable, then print sorted centers to one decimal.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.unsupervised.clustering.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "1 2 9 10\n",
+          "expectedStdout": "1.5 9.5",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.unsupervised.clustering.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0 0 10\n",
+          "expectedStdout": "0.0 10.0",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    values = list(map(float, data.split())); centers = [min(values), max(values)]\n    for _ in range(100):\n        groups = [[], []]\n        for value in values:\n            index = 0 if abs(value-centers[0]) <= abs(value-centers[1]) else 1\n            groups[index].append(value)\n        updated = [sum(group)/len(group) if group else centers[index] for index,group in enumerate(groups)]\n        if all(abs(a-b) < 1e-12 for a,b in zip(updated,centers)):\n            break\n        centers = updated\n    centers.sort()\n    return f\"{centers[0]:.1f} {centers[1]:.1f}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The output is a parameter- and initialization-defined 1D summary; it does not label the clusters as natural real-world groups."
+      }
+    }
+  ]
+}

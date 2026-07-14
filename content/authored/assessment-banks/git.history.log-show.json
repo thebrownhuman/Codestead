@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.history.log-show.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.history",
+  "skillId": "git.history.log-show",
+  "title": "Log, show and graph deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Log, show and graph; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.history.log-show.mcq.misconception",
+      "skillId": "git.history.log-show",
+      "title": "Log, show and graph: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? The newest log entry is always the commit that introduced a particular line or behavior.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone.",
+        "incorrect": "The selected statement preserves the documented misconception. Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Log, show and graph instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "The newest log entry is always the commit that introduced a particular line or behavior."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+      }
+    }
+  ]
+}

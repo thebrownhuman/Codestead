@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.model.stage-commit.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.model",
+  "skillId": "git.model.stage-commit",
+  "title": "Selective staging and first commit",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Selective staging and first commit; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "git-docs",
+      "locator": "Git Reference Documentation; current stable accessed 2026-07; section applicable to Selective staging and first commit",
+      "claim": "A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change."
+    },
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Selective staging and first commit",
+      "claim": "A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged. Your goal is to produce a commit whose staged diff matches its stated purpose. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Filesystem and terminal fluency; Working tree, index and HEAD; Ignore policy. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Amend and history rewriting create new commit objects, timestamps and identities can differ, and committing does not automatically publish to a remote. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Commit saves the entire project exactly as currently visible and sends it to GitHub in one operation."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Stage an intentional patch and create one coherent snapshot.",
+      "Produce a commit whose staged diff matches its stated purpose."
+    ],
+    "excludes": [
+      "Amend and history rewriting create new commit objects, timestamps and identities can differ, and committing does not automatically publish to a remote."
+    ]
+  },
+  "outcomes": [
+    "Produce a commit whose staged diff matches its stated purpose."
+  ],
+  "examples": [
+    {
+      "id": "git.model.stage-commit.example-a",
+      "title": "Selective staging and first commit: direct case",
+      "situation": "A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action."
+      ],
+      "result": "The case supports the declared outcome because A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action."
+    },
+    {
+      "id": "git.model.stage-commit.example-b",
+      "title": "Selective staging and first commit: boundary case",
+      "situation": "After committing, status still shows a modified local note because it was never added to the index.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: After committing, status still shows a modified local note because it was never added to the index.",
+        "Step 2 — Keep this boundary explicit: Amend and history rewriting create new commit objects, timestamps and identities can differ, and committing does not automatically publish to a remote.",
+        "Step 3 — Reject the documented misconception: Commit saves the entire project exactly as currently visible and sends it to GitHub in one operation."
+      ],
+      "result": "This case demonstrates the declared outcome: Produce a commit whose staged diff matches its stated purpose."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.model.stage-commit.misconception",
+      "mistakenBelief": "Commit saves the entire project exactly as currently visible and sends it to GitHub in one operation.",
+      "correction": "A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Commit saves the entire project exactly as currently visible and sends it to GitHub in one operation."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A photo studio can model Selective staging and first commit: the set is the working tree, a selected proof is the index, and an archived photograph is a commit snapshot.",
+    "usefulFor": [
+      "Separating working changes, staged content, committed snapshots, and repository metadata"
+    ],
+    "limitations": [
+      "Git stores content-addressed objects and references rather than physical photographs or one linear album.",
+      "Amend and history rewriting create new commit objects, timestamps and identities can differ, and committing does not automatically publish to a remote."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged.",
+      "A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change.",
+      "A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change."
+        },
+        "explanation": "Apply the declared Selective staging and first commit model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Commit saves the entire project exactly as currently visible and sends it to GitHub in one operation."
+      }
+    ],
+    "textAlternative": "Starting artifact: A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged. Step 1, Observe. State: evidence: A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change.. Apply the declared Selective staging and first commit model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action.. Compare the observation with the correction and reject the misconception: Commit saves the entire project exactly as currently visible and sends it to GitHub in one operation."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Selective staging and first commit: direct case”: state its starting evidence, apply the Selective staging and first commit rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Selective staging and first commit: direct case.",
+        "Starting evidence: A learner stages one bug fix, reviews the staged diff, commits it with a causal message, and leaves an unrelated experiment unstaged.",
+        "Core rule: A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change.",
+        "Observable result: The case supports the declared outcome because A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action.",
+        "Boundary check: A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: After committing, status still shows a modified local note because it was never added to the index.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A commit stores an immutable snapshot reference, parent relationship, author/committer metadata, and message based on the current index, not every working-tree change.",
+        "Amend and history rewriting create new commit objects, timestamps and identities can differ, and committing does not automatically publish to a remote."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Selective staging and first commit, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Produce a commit whose staged diff matches its stated purpose.",
+        "A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.model.stage-commit.misconception",
+      "explanation": "A commit records the staged snapshot locally; inspect the index before committing and treat remote push as a separate authorized action.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: After committing, status still shows a modified local note because it was never added to the index."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to produce a commit whose staged diff matches its stated purpose. Keep this boundary in view: Amend and history rewriting create new commit objects, timestamps and identities can differ, and committing does not automatically publish to a remote.",
+    "retrievalPrompts": [
+      "Explain Selective staging and first commit without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Commit saves the entire project exactly as currently visible and sends it to GitHub in one operation.",
+      "Apply the model to this case from memory: After committing, status still shows a modified local note because it was never added to the index."
+    ],
+    "nextReviewPrompt": "Next: continue to “Commit messages and scope”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

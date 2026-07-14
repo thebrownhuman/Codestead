@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.functions.forms.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.control-functions",
+  "skillId": "javascript.functions.forms",
+  "title": "Function declarations, expressions and arrows",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Function declarations, expressions and arrows; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Function declarations, expressions and arrows",
+      "claim": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Function declarations, expressions and arrows",
+      "claim": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An arrow callback reads surrounding this intentionally without rebinding it. Your goal is to implement equivalent callable behavior and explain where arrow semantics differ. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Values, types and expressions; pf abstraction calls; Loops and iterable traversal; pf abstraction functions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form. This draft therefore rejects: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose callable forms while understanding hoisting, lexical this and expression returns.",
+      "Implement equivalent callable behavior and explain where arrow semantics differ."
+    ],
+    "excludes": [
+      "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form."
+    ]
+  },
+  "outcomes": [
+    "Implement equivalent callable behavior and explain where arrow semantics differ."
+  ],
+  "examples": [
+    {
+      "id": "javascript.functions.forms.example-a",
+      "title": "Function declarations, expressions and arrows: concrete case",
+      "situation": "An arrow callback reads surrounding this intentionally without rebinding it.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: An arrow callback reads surrounding this intentionally without rebinding it.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+      ],
+      "result": "The result follows because Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+    },
+    {
+      "id": "javascript.functions.forms.example-b",
+      "title": "Function declarations, expressions and arrows: boundary case",
+      "situation": "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+      ],
+      "result": "The boundary requires this correction: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.functions.forms.misconception",
+      "mistakenBelief": "Arrow functions are shorter syntax for every function and can always replace methods or constructors.",
+      "correction": "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Function declarations, expressions and arrows, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Function declarations, expressions and arrows before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An arrow callback reads surrounding this intentionally without rebinding it.",
+      "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
+      "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "An arrow callback reads surrounding this intentionally without rebinding it."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+      }
+    ],
+    "textAlternative": "Starting artifact: An arrow callback reads surrounding this intentionally without rebinding it. Step 1, Artifact. State: evidence: An arrow callback reads surrounding this intentionally without rebinding it.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.. Check the result against the boundary and reject this misconception: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Function declarations, expressions and arrows: concrete case”: state its starting evidence, apply the Function declarations, expressions and arrows rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Function declarations, expressions and arrows: concrete case.",
+        "Starting evidence: An arrow callback reads surrounding this intentionally without rebinding it.",
+        "Core rule: Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
+        "Observable result: The result follows because Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.",
+        "Boundary check: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
+        "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Function declarations, expressions and arrows and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement equivalent callable behavior and explain where arrow semantics differ.",
+        "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.functions.forms.misconception",
+      "explanation": "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'lexical this' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement equivalent callable behavior and explain where arrow semantics differ. Keep this boundary in view: Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
+    "retrievalPrompts": [
+      "Explain Function declarations, expressions and arrows using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Arrow functions are shorter syntax for every function and can always replace methods or constructors.",
+      "Apply checkpoint 'lexical this' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Parameters, rest and return contracts”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

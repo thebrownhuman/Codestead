@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.pointers.const.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.pointers",
+  "skillId": "c.pointers.const",
+  "title": "const-correct pointer interfaces",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for const-correct pointer interfaces; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to const-correct pointer interfaces",
+      "claim": "C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to const-correct pointer interfaces",
+      "claim": "C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: const int *p permits p to select another int but prevents modifying an int through p. Your goal is to design a pointer-based function signature with the least required mutation rights. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: One-dimensional arrays; Parameters and return values; Addresses and dereference; Declarations, prototypes and definitions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "const does not make an originally mutable object globally immutable, casts can discard qualifiers unsafely, and nested pointer qualification has stricter compatibility rules. Therefore the draft explicitly rejects this beginner failure model: const int * and int * const mean the same thing because both contain the word const."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish pointer constness from pointee constness and express read-only contracts.",
+      "Design a pointer-based function signature with the least required mutation rights."
+    ],
+    "excludes": [
+      "const does not make an originally mutable object globally immutable, casts can discard qualifiers unsafely, and nested pointer qualification has stricter compatibility rules."
+    ]
+  },
+  "outcomes": [
+    "Design a pointer-based function signature with the least required mutation rights."
+  ],
+  "examples": [
+    {
+      "id": "c.pointers.const.example-a",
+      "title": "const-correct pointer interfaces: defined case",
+      "situation": "const int *p permits p to select another int but prevents modifying an int through p.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: const int *p permits p to select another int but prevents modifying an int through p.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable."
+      ],
+      "result": "The defined result follows because Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable."
+    },
+    {
+      "id": "c.pointers.const.example-b",
+      "title": "const-correct pointer interfaces: boundary case",
+      "situation": "int * const p keeps p fixed on one int while permitting modification of that int through p.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: int * const p keeps p fixed on one int while permitting modification of that int through p.",
+        "Step 2 — Keep this standard boundary visible: const does not make an originally mutable object globally immutable, casts can discard qualifiers unsafely, and nested pointer qualification has stricter compatibility rules.",
+        "Step 3 — Reject the tempting rule: const int * and int * const mean the same thing because both contain the word const."
+      ],
+      "result": "This case demonstrates the declared outcome: Design a pointer-based function signature with the least required mutation rights."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.pointers.const.misconception",
+      "mistakenBelief": "const int * and int * const mean the same thing because both contain the word const.",
+      "correction": "Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: const int * and int * const mean the same thing because both contain the word const."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model const-correct pointer interfaces: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "const does not make an originally mutable object globally immutable, casts can discard qualifiers unsafely, and nested pointer qualification has stricter compatibility rules."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "const int *p permits p to select another int but prevents modifying an int through p.",
+      "C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement.",
+      "Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "const int *p permits p to select another int but prevents modifying an int through p."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: const int * and int * const mean the same thing because both contain the word const."
+      }
+    ],
+    "textAlternative": "Starting artifact: const int *p permits p to select another int but prevents modifying an int through p. Step 1, Source and state. State: evidence: const int *p permits p to select another int but prevents modifying an int through p.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable.. Check the conclusion against the boundary and reject this misconception: const int * and int * const mean the same thing because both contain the word const."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “const-correct pointer interfaces: defined case”: state its starting evidence, apply the const-correct pointer interfaces rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: const-correct pointer interfaces: defined case.",
+        "Starting evidence: const int *p permits p to select another int but prevents modifying an int through p.",
+        "Core rule: C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement.",
+        "Observable result: The defined result follows because Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable.",
+        "Boundary check: Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: int * const p keeps p fixed on one int while permitting modification of that int through p.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C const qualification can protect the pointed-to object through one access path, the pointer object itself, or both, depending on declarator placement.",
+        "const does not make an originally mutable object globally immutable, casts can discard qualifiers unsafely, and nested pointer qualification has stricter compatibility rules."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for const-correct pointer interfaces, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Design a pointer-based function signature with the least required mutation rights.",
+        "Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.pointers.const.misconception",
+      "explanation": "Read the declarator from the identifier: const int * protects the pointee through that path, while int * const makes the pointer itself nonassignable.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'const int *' and state the decisive evidence: int * const p keeps p fixed on one int while permitting modification of that int through p."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design a pointer-based function signature with the least required mutation rights. Keep this boundary in view: const does not make an originally mutable object globally immutable, casts can discard qualifiers unsafely, and nested pointer qualification has stricter compatibility rules.",
+    "retrievalPrompts": [
+      "Explain const-correct pointer interfaces using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: const int * and int * const mean the same thing because both contain the word const.",
+      "Apply the checkpoint 'const int *' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Function pointers and callbacks”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

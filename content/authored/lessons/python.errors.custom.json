@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.errors.custom.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.errors-io",
+  "skillId": "python.errors.custom",
+  "title": "Raising and custom exceptions",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Raising and custom exceptions; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 7-8: input/output, files, JSON, exceptions, and cleanup; atomic topic: Raising and custom exceptions",
+      "claim": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Simple and Compound Statements: raise, try, with, exception chaining, and cleanup; atomic topic: Raising and custom exceptions",
+      "claim": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics. Your goal is to design and test failure behavior for a small module API. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Function contracts and returns; Unicode text and formatting; Exception handling and propagation; Modules and imports. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly. The learner must reject this documented misconception: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Validate contracts and define domain exceptions only when callers benefit from the distinction.",
+      "Design and test failure behavior for a small module API."
+    ],
+    "excludes": [
+      "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly."
+    ]
+  },
+  "outcomes": [
+    "Design and test failure behavior for a small module API."
+  ],
+  "examples": [
+    {
+      "id": "python.errors.custom.example.direct",
+      "title": "Raising and custom exceptions: direct language case",
+      "situation": "A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+      ],
+      "result": "The example meets the atomic outcome because Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+    },
+    {
+      "id": "python.errors.custom.example.boundary",
+      "title": "Raising and custom exceptions: boundary and transfer case",
+      "situation": "A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists.",
+        "Step 2 — Keep the language boundary explicit: Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly.",
+        "Step 3 — Reject the tempting but incorrect rule: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and test failure behavior for a small module API."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.errors.custom.misconception",
+      "mistakenBelief": "Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery.",
+      "correction": "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a records office that escalates named failures, validates decoded forms, and returns borrowed resources on every exit can introduce Raising and custom exceptions, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "exceptions, custom failure categories, files, JSON, and contexts"
+    ],
+    "limitations": [
+      "exception chaining, suppression, path resolution, encoding, partial writes, and protocol methods are software rules",
+      "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
+      "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
+      "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+      }
+    ],
+    "textAlternative": "Starting artifact: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics. Step 1, Observe. State: evidence: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.. Compare the observation with the correction and explain why the misconception fails: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Raising and custom exceptions: direct language case”: state its starting evidence, apply the Raising and custom exceptions rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Raising and custom exceptions: direct language case.",
+        "Starting evidence: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
+        "Core rule: A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
+        "Observable result: The example meets the atomic outcome because Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.",
+        "Boundary check: Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
+        "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Raising and custom exceptions, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Design and test failure behavior for a small module API.",
+        "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.errors.custom.misconception",
+      "explanation": "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and test failure behavior for a small module API. Keep this boundary in view: Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly.",
+    "retrievalPrompts": [
+      "Explain Raising and custom exceptions using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery.",
+      "Predict this case from memory: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists."
+    ],
+    "nextReviewPrompt": "Next: continue to “Files, paths and JSON”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

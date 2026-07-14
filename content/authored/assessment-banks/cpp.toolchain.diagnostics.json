@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.cpp.toolchain.diagnostics.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.toolchain",
+  "skillId": "cpp.toolchain.diagnostics",
+  "title": "Warnings and diagnostics deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific deterministic MCQ and fill-gap evidence for Warnings and diagnostics; human review required."
+  },
+  "sourceRefs": [
+    "cpp-core",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "skillId": "cpp.toolchain.diagnostics",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.toolchain.diagnostics.mcq.misconception",
+      "title": "Warnings and diagnostics: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this CPP misconception? The longest template diagnostic line is necessarily the root cause and all later notes describe separate defects.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Locate the primary failed requirement or call, use candidate notes as context, minimize the example, and treat clean diagnostics as bounded evidence.",
+        "incorrect": "That option preserves the documented misconception. Locate the primary failed requirement or call, use candidate notes as context, minimize the example, and treat clean diagnostics as bounded evidence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned CPP correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Locate the primary failed requirement or call, use candidate notes as context, minimize the example, and treat clean diagnostics as bounded evidence."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "The longest template diagnostic line is necessarily the root cause and all later notes describe separate defects."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Locate the primary failed requirement or call, use candidate notes as context, minimize the example, and treat clean diagnostics as bounded evidence."
+      }
+    },
+    {
+      "skillId": "cpp.toolchain.diagnostics",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.toolchain.diagnostics.fill.checkpoint",
+      "title": "Warnings and diagnostics: complete the language rule",
+      "prompt": "Complete the missing CPP checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: The longest template diagnostic line is necessarily the root cause and all later notes describe separate defects."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'failed requirement'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Locate the primary failed requirement or call, use candidate notes as context, minimize the example, and treat clean diagnostics as bounded evidence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact CPP token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Locate the primary {{key-rule}} or call, use candidate notes as context, minimize the example, and treat clean diagnostics as bounded evidence.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "failed requirement"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Locate the primary failed requirement or call, use candidate notes as context, minimize the example, and treat clean diagnostics as bounded evidence."
+      }
+    }
+  ]
+}

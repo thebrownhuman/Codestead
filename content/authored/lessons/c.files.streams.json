@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.files.streams.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.resources",
+  "skillId": "c.files.streams",
+  "title": "File streams and binary/text modes",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for File streams and binary/text modes; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to File streams and binary/text modes",
+      "claim": "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to File streams and binary/text modes",
+      "claim": "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams."
+    },
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to File streams and binary/text modes",
+      "claim": "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked. Your goal is to implement text file persistence that handles open, parse, I/O and close failures. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Pointers, arrays and arithmetic; Structures; Validated text input; Object lifetime and ownership. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Text translation, buffering, seek support, update-stream direction changes, encoding, and filesystem errors vary by implementation and stream kind. Therefore the draft explicitly rejects this beginner failure model: A null result from a read always means normal end-of-file and does not require checking stream error state."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Open, read, write, check and close streams with clear ownership.",
+      "Implement text file persistence that handles open, parse, I/O and close failures."
+    ],
+    "excludes": [
+      "Text translation, buffering, seek support, update-stream direction changes, encoding, and filesystem errors vary by implementation and stream kind."
+    ]
+  },
+  "outcomes": [
+    "Implement text file persistence that handles open, parse, I/O and close failures."
+  ],
+  "examples": [
+    {
+      "id": "c.files.streams.example-a",
+      "title": "File streams and binary/text modes: defined case",
+      "situation": "A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred."
+      ],
+      "result": "The defined result follows because After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred."
+    },
+    {
+      "id": "c.files.streams.example-b",
+      "title": "File streams and binary/text modes: boundary case",
+      "situation": "Binary data uses fread element counts and handles a short read rather than assuming the requested byte count always arrives.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: Binary data uses fread element counts and handles a short read rather than assuming the requested byte count always arrives.",
+        "Step 2 — Keep this standard boundary visible: Text translation, buffering, seek support, update-stream direction changes, encoding, and filesystem errors vary by implementation and stream kind.",
+        "Step 3 — Reject the tempting rule: A null result from a read always means normal end-of-file and does not require checking stream error state."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement text file persistence that handles open, parse, I/O and close failures."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.files.streams.misconception",
+      "mistakenBelief": "A null result from a read always means normal end-of-file and does not require checking stream error state.",
+      "correction": "After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A null result from a read always means normal end-of-file and does not require checking stream error state."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model File streams and binary/text modes: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Text translation, buffering, seek support, update-stream direction changes, encoding, and filesystem errors vary by implementation and stream kind."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked.",
+      "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams.",
+      "After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A null result from a read always means normal end-of-file and does not require checking stream error state."
+      }
+    ],
+    "textAlternative": "Starting artifact: A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked. Step 1, Source and state. State: evidence: A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred.. Check the conclusion against the boundary and reject this misconception: A null result from a read always means normal end-of-file and does not require checking stream error state."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “File streams and binary/text modes: defined case”: state its starting evidence, apply the File streams and binary/text modes rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: File streams and binary/text modes: defined case.",
+        "Starting evidence: A file is opened for reading, fgets results are checked in a loop, feof and ferror distinguish completion from failure, and fclose is checked.",
+        "Core rule: C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams.",
+        "Observable result: The defined result follows because After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred.",
+        "Boundary check: After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: Binary data uses fread element counts and handles a short read rather than assuming the requested byte count always arrives.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C streams represent formatted or binary I/O state; code opens with an intentional mode, checks every operation, distinguishes EOF from error, and closes owned streams.",
+        "Text translation, buffering, seek support, update-stream direction changes, encoding, and filesystem errors vary by implementation and stream kind."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for File streams and binary/text modes, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement text file persistence that handles open, parse, I/O and close failures.",
+        "After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.files.streams.misconception",
+      "explanation": "After a read stops, distinguish EOF from error with the stream state and validate the number of elements actually transferred.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'distinguish EOF from error' and state the decisive evidence: Binary data uses fread element counts and handles a short read rather than assuming the requested byte count always arrives."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement text file persistence that handles open, parse, I/O and close failures. Keep this boundary in view: Text translation, buffering, seek support, update-stream direction changes, encoding, and filesystem errors vary by implementation and stream kind.",
+    "retrievalPrompts": [
+      "Explain File streams and binary/text modes using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: A null result from a read always means normal end-of-file and does not require checking stream error state.",
+      "Apply the checkpoint 'distinguish EOF from error' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Failure-safe cleanup”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

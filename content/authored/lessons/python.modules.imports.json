@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.modules.imports.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.modules-packaging",
+  "skillId": "python.modules.imports",
+  "title": "Modules and imports",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Modules and imports; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapter 6: modules, packages, import execution, and search path; atomic topic: Modules and imports",
+      "claim": "Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Import System and Execution Model: module loading, package context, and name binding; atomic topic: Modules and imports",
+      "claim": "Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly. Your goal is to split a script into modules and diagnose a name or import-path failure. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Function contracts and returns; Interpreter and environment. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Circular imports can observe partial initialization, wildcard imports obscure APIs, local names can shadow packages, reload does not rebuild every external reference, and top-level effects run during import. The learner must reject this documented misconception: Import merely pastes definitions and never executes module code, so circular imports cannot expose incomplete state."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Define module APIs and reason about import execution, names and search paths.",
+      "Split a script into modules and diagnose a name or import-path failure."
+    ],
+    "excludes": [
+      "Circular imports can observe partial initialization, wildcard imports obscure APIs, local names can shadow packages, reload does not rebuild every external reference, and top-level effects run during import."
+    ]
+  },
+  "outcomes": [
+    "Split a script into modules and diagnose a name or import-path failure."
+  ],
+  "examples": [
+    {
+      "id": "python.modules.imports.example.direct",
+      "title": "Modules and imports: direct language case",
+      "situation": "A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names."
+      ],
+      "result": "The example meets the atomic outcome because Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names."
+    },
+    {
+      "id": "python.modules.imports.example.boundary",
+      "title": "Modules and imports: boundary and transfer case",
+      "situation": "Two modules move a shared protocol into a third module to remove a circular import that read a not-yet-defined name.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: Two modules move a shared protocol into a third module to remove a circular import that read a not-yet-defined name.",
+        "Step 2 — Keep the language boundary explicit: Circular imports can observe partial initialization, wildcard imports obscure APIs, local names can shadow packages, reload does not rebuild every external reference, and top-level effects run during import.",
+        "Step 3 — Reject the tempting but incorrect rule: Import merely pastes definitions and never executes module code, so circular imports cannot expose incomplete state."
+      ],
+      "result": "This case demonstrates the declared outcome: Split a script into modules and diagnose a name or import-path failure."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.modules.imports.misconception",
+      "mistakenBelief": "Import merely pastes definitions and never executes module code, so circular imports cannot expose incomplete state.",
+      "correction": "Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Import merely pastes definitions and never executes module code, so circular imports cannot expose incomplete state."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a library whose catalogs, shelves, isolated rooms, and shipping manifest separate import names from installable distributions can introduce Modules and imports, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "imports, packages, virtual environments, and pyproject builds"
+    ],
+    "limitations": [
+      "sys.path, partial module initialization, build backends, editable installs, and wheel contents need direct inspection",
+      "Circular imports can observe partial initialization, wildcard imports obscure APIs, local names can shadow packages, reload does not rebuild every external reference, and top-level effects run during import."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly.",
+      "Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer.",
+      "Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Import merely pastes definitions and never executes module code, so circular imports cannot expose incomplete state."
+      }
+    ],
+    "textAlternative": "Starting artifact: A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly. Step 1, Observe. State: evidence: A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names.. Compare the observation with the correction and explain why the misconception fails: Import merely pastes definitions and never executes module code, so circular imports cannot expose incomplete state."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Modules and imports: direct language case”: state its starting evidence, apply the Modules and imports rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Modules and imports: direct language case.",
+        "Starting evidence: A calculation module keeps definitions at top level without command effects, and a CLI imports its public function explicitly.",
+        "Core rule: Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer.",
+        "Observable result: The example meets the atomic outcome because Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names.",
+        "Boundary check: Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: Two modules move a shared protocol into a third module to remove a circular import that read a not-yet-defined name.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Import locates a module through the import system, creates and executes its module object on first load, caches it in sys.modules, and binds selected names in the importer.",
+        "Circular imports can observe partial initialization, wildcard imports obscure APIs, local names can shadow packages, reload does not rebuild every external reference, and top-level effects run during import."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Modules and imports, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Split a script into modules and diagnose a name or import-path failure.",
+        "Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.modules.imports.misconception",
+      "explanation": "Import executes a module once into a cached module object; keep top-level effects minimal and redesign cycles that depend on partially initialized names.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Two modules move a shared protocol into a third module to remove a circular import that read a not-yet-defined name."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to split a script into modules and diagnose a name or import-path failure. Keep this boundary in view: Circular imports can observe partial initialization, wildcard imports obscure APIs, local names can shadow packages, reload does not rebuild every external reference, and top-level effects run during import.",
+    "retrievalPrompts": [
+      "Explain Modules and imports using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Import merely pastes definitions and never executes module code, so circular imports cannot expose incomplete state.",
+      "Predict this case from memory: Two modules move a shared protocol into a third module to remove a circular import that read a not-yet-defined name."
+    ],
+    "nextReviewPrompt": "Next: continue to “Packages and public APIs”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

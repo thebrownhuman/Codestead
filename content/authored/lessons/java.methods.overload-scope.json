@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.methods.overload-scope.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.methods-data",
+  "skillId": "java.methods.overload-scope",
+  "title": "Overloading and local scope",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Overloading and local scope; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Classes and Objects, Arrays, and String processing learning paths; atomic topic: Overloading and local scope",
+      "claim": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§6.3, 8.4, chapter 10, and §§15.12, 15.18.1: scope, methods, arrays, invocation, and strings; atomic topic: Overloading and local scope",
+      "claim": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter. Your goal is to resolve overload selection and repair shadowing or scope defects. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and branching; pf abstraction calls; Method contracts and parameters; Operators and conversions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields. The learner must reject this documented misconception: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Create unambiguous overloads and reason about local, parameter and class-level names.",
+      "Resolve overload selection and repair shadowing or scope defects."
+    ],
+    "excludes": [
+      "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields."
+    ]
+  },
+  "outcomes": [
+    "Resolve overload selection and repair shadowing or scope defects."
+  ],
+  "examples": [
+    {
+      "id": "java.methods.overload-scope.example.direct",
+      "title": "Overloading and local scope: direct language case",
+      "situation": "Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      ],
+      "result": "The example meets the atomic outcome because Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+    },
+    {
+      "id": "java.methods.overload-scope.example.boundary",
+      "title": "Overloading and local scope: boundary and transfer case",
+      "situation": "Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast.",
+        "Step 2 — Keep the language boundary explicit: Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields.",
+        "Step 3 — Reject the tempting but incorrect rule: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+      ],
+      "result": "This case demonstrates the declared outcome: Resolve overload selection and repair shadowing or scope defects."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.methods.overload-scope.misconception",
+      "mistakenBelief": "Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie.",
+      "correction": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a set of labeled workstations that accept copies of request values and process fixed trays or immutable text tickets can introduce Overloading and local scope, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "reasoning about method contracts, scope, arrays, and strings"
+    ],
+    "limitations": [
+      "reference values can still alias mutable objects and Unicode or overload rules have no exact workstation equivalent",
+      "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
+      "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
+      "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+      }
+    ],
+    "textAlternative": "Starting artifact: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter. Step 1, Observe. State: evidence: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.. Compare the observation with the correction and explain why the misconception fails: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Overloading and local scope: direct language case”: state its starting evidence, apply the Overloading and local scope rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Overloading and local scope: direct language case.",
+        "Starting evidence: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
+        "Core rule: Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
+        "Observable result: The example meets the atomic outcome because Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
+        "Boundary check: Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
+        "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Overloading and local scope, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Resolve overload selection and repair shadowing or scope defects.",
+        "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.methods.overload-scope.misconception",
+      "explanation": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to resolve overload selection and repair shadowing or scope defects. Keep this boundary in view: Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields.",
+    "retrievalPrompts": [
+      "Explain Overloading and local scope using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie.",
+      "Predict this case from memory: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast."
+    ],
+    "nextReviewPrompt": "Next: continue to “Arrays and multidimensional arrays”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T22:10:00.000+05:30",
+  "scope": "Canonical reviewed placement/plan through lesson, practice, remediation, formal exam mastery, and delayed review",
+  "status": "passed",
+  "fixture": {
+    "kind": "synthetic-explicitly-human-reviewed",
+    "database": "disposable learncoding_integration PostgreSQL 17",
+    "course": "programming-foundations",
+    "module": "pf.computing",
+    "skill": "pf.computing.program",
+    "promisedSkills": 1,
+    "reviewedLessons": 1,
+    "reviewedAssessmentBanks": 1,
+    "reviewedItems": 6,
+    "limitation": "The fixture proves the publication and learner engines without representing approval of any of the 476 committed draft lessons or banks."
+  },
+  "authorityChecks": {
+    "reviewEventsAppended": true,
+    "aggregateArtifactHashBound": true,
+    "releaseEvidenceBound": true,
+    "publicationGateAllowed": true,
+    "publicationPointerSelected": true,
+    "olderBetaIgnoredForNewPlan": true,
+    "activityBoundToReviewedAuthoredItem": true,
+    "draftOrUnboundActivityRejectedByUnitContract": true,
+    "formalExamUsesPointerSelectedReviewedBank": true,
+    "formalExamReadinessDeniedBeforeHardGates": true,
+    "formalExamReadinessRecheckedInsideAdmissionTransaction": true,
+    "learnerFormExcludesAnswerAndSeed": true
+  },
+  "journeyChecks": {
+    "selfReportUsedAsMasteryEvidence": false,
+    "diagnosticEvidenceLevel": "E2",
+    "diagnosticAwardedMastery": false,
+    "lessonSessionEventsPersisted": true,
+    "forgedAssistanceDowngradeIgnored": true,
+    "persistedAssistedEvidenceLevel": "A1",
+    "distinctCleanFailuresRequiredForRemediation": 2,
+    "deterministicRemediationRecommendation": true,
+    "distinctCleanRecoveriesRequired": 2,
+    "independentConstructedEvidenceLevel": "E4",
+    "transferEvidenceLevel": "E5",
+    "delayedEvidenceLevel": "E6",
+    "formalExamOutcome": "MASTERED",
+    "formalExamScorePercent": 100,
+    "privateBadgeEvidenceLinked": true,
+    "delayedReviewRecommended": true,
+    "delayedReviewAdvancedSchedule": true,
+    "normalGoalContainingReviewedStayedBalanced": true,
+    "reviewOnlyRequiredExplicitBoolean": true
+  },
+  "verification": {
+    "postgres": {
+      "command": "npm.cmd run test:integration -- integration/learner-journey.integration.test.ts integration/practice-learning.integration.test.ts",
+      "migrationPasses": 2,
+      "filesPassed": 2,
+      "testsPassed": 4,
+      "testsFailed": 0
+    },
+    "focusedUnitRoute": {
+      "filesPassed": 9,
+      "testsPassed": 92,
+      "testsFailed": 0
+    },
+    "typecheck": "passed",
+    "focusedLint": "passed",
+    "architectureImportBoundary": {
+      "status": "passed",
+      "files": 522,
+      "imports": 2145,
+      "violations": 0,
+      "staleExceptions": 0
+    },
+    "schemaRegeneration": "no changes after 0028"
+  },
+  "auditImpact": {
+    "materiallyImproved": [
+      "CUR-008",
+      "LES-004",
+      "ADP-001",
+      "ADP-002",
+      "ADP-004",
+      "ADP-005",
+      "EXM-001",
+      "SES-002"
+    ],
+    "additionalCoverage": [
+      "LES-003",
+      "ASM-002",
+      "EXM-004"
+    ],
+    "statusPromotions": [],
+    "reasonNoStatusPromotion": "Browser breadth, actual-corpus human review, adaptive-placement breadth, scheduling calibration, reconnect/expiry, and retake/recheck acceptance evidence remain open."
+  },
+  "remainingGaps": [
+    "Authenticated browser journey including access and interrupted onboarding",
+    "Independent review/publication of all 476 committed lessons and banks",
+    "Adaptive placement branching, I-don't-know handling, advanced probes, and golden scenarios",
+    "Cross-course reviewed misconception/remediation breadth and review calibration",
+    "Failed formal exam through remediation, cooldown, equivalent retake, and 80-94 mastery recheck",
+    "Independent expiry worker and material-outage/reconnect browser evidence",
+    "Production KVM/runner, provider, load, accessibility, and physical-device evidence"
+  ]
+}

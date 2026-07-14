@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.lists.singly.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.linked-lists",
+  "skillId": "dsa.lists.singly",
+  "title": "Singly linked representation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Singly linked representation; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Singly linked representation",
+      "claim": "A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Traversal advances current=current.next until null while retaining the head reference. Your goal is to draw, traverse and implement a singly linked list representation in the selected language. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Selected-language readiness. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Random access remains linear, ownership and deallocation differ by language, and a lost link can orphan the suffix. The draft therefore rejects: Linked lists provide constant-time access to any index because nodes have pointers."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Model head, node value, next link and empty or singleton states.",
+      "Draw, traverse and implement a singly linked list representation in the selected language.",
+      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+    ],
+    "excludes": [
+      "Random access remains linear, ownership and deallocation differ by language, and a lost link can orphan the suffix."
+    ]
+  },
+  "outcomes": [
+    "Draw, traverse and implement a singly linked list representation in the selected language."
+  ],
+  "examples": [
+    {
+      "id": "dsa.lists.singly.example-a",
+      "title": "Singly linked representation: language-neutral trace",
+      "situation": "Traversal advances current=current.next until null while retaining the head reference.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Traversal advances current=current.next until null while retaining the head reference.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Singly linked lists provide sequential traversal; reaching index k requires following k links."
+      ],
+      "result": "The conceptual result follows because Singly linked lists provide sequential traversal; reaching index k requires following k links."
+    },
+    {
+      "id": "dsa.lists.singly.example-b",
+      "title": "Singly linked representation: implementation transfer",
+      "situation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+        "Step 3 — Retest this boundary in the selected implementation: Random access remains linear, ownership and deallocation differ by language, and a lost link can orphan the suffix."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.lists.singly.misconception",
+      "mistakenBelief": "Linked lists provide constant-time access to any index because nodes have pointers.",
+      "correction": "Singly linked lists provide sequential traversal; reaching index k requires following k links.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Linked lists provide constant-time access to any index because nodes have pointers."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Singly linked representation, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Random access remains linear, ownership and deallocation differ by language, and a lost link can orphan the suffix."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Traversal advances current=current.next until null while retaining the head reference.",
+      "A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements.",
+      "Singly linked lists provide sequential traversal; reaching index k requires following k links.",
+      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Traversal advances current=current.next until null while retaining the head reference."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Singly linked lists provide sequential traversal; reaching index k requires following k links."
+        },
+        "explanation": "Verify the result and reject this misconception: Linked lists provide constant-time access to any index because nodes have pointers."
+      }
+    ],
+    "textAlternative": "Starting artifact: Traversal advances current=current.next until null while retaining the head reference. Step 1, Specification. State: scenario: Traversal advances current=current.next until null while retaining the head reference.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity. Step 4, Conclusion. State: correction: Singly linked lists provide sequential traversal; reaching index k requires following k links.. Verify the result and reject this misconception: Linked lists provide constant-time access to any index because nodes have pointers."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Singly linked representation: language-neutral trace”: state its starting evidence, apply the Singly linked representation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Singly linked representation: language-neutral trace.",
+        "Starting evidence: Traversal advances current=current.next until null while retaining the head reference.",
+        "Core rule: A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements.",
+        "Observable result: The conceptual result follows because Singly linked lists provide sequential traversal; reaching index k requires following k links.",
+        "Boundary check: Singly linked lists provide sequential traversal; reaching index k requires following k links."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A singly linked list stores nodes with values and next links, supporting head updates without shifting contiguous elements.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+        "Random access remains linear, ownership and deallocation differ by language, and a lost link can orphan the suffix."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Singly linked representation case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Draw, traverse and implement a singly linked list representation in the selected language.",
+        "Singly linked lists provide sequential traversal; reaching index k requires following k links."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.lists.singly.misconception",
+      "explanation": "Singly linked lists provide sequential traversal; reaching index k requires following k links.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'sequential traversal', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to draw, traverse and implement a singly linked list representation in the selected language. Keep this boundary in view: Random access remains linear, ownership and deallocation differ by language, and a lost link can orphan the suffix.",
+    "retrievalPrompts": [
+      "State the Singly linked representation invariant and complexity without code.",
+      "Why is this claim false: Linked lists provide constant-time access to any index because nodes have pointers.",
+      "Map checkpoint 'sequential traversal' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Insertion and deletion”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

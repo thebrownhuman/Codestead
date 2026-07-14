@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.async.cancellation.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.async-network",
+  "skillId": "javascript.async.cancellation",
+  "title": "Cancellation, timeout and stale results",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Cancellation, timeout and stale results; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-fetch",
+      "locator": "Fetch Standard; living standard accessed 2026-07; provisions applicable to Cancellation, timeout and stale results",
+      "claim": "AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Cancellation, timeout and stale results",
+      "claim": "AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A new search aborts the previous fetch and ignores its AbortError while reporting real network failures. Your goal is to implement and test cancellation or latest-request-wins behavior for an interactive fetch. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Call stack and event loop model; Closures and lifetime; Fetch and HTTP responses; Event propagation and delegation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects. This draft therefore rejects: Dropping a promise variable automatically cancels its underlying request."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Abort obsolete work and prevent older responses from overwriting current interface state.",
+      "Implement and test cancellation or latest-request-wins behavior for an interactive fetch."
+    ],
+    "excludes": [
+      "Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects."
+    ]
+  },
+  "outcomes": [
+    "Implement and test cancellation or latest-request-wins behavior for an interactive fetch."
+  ],
+  "examples": [
+    {
+      "id": "javascript.async.cancellation.example-a",
+      "title": "Cancellation, timeout and stale results: concrete case",
+      "situation": "A new search aborts the previous fetch and ignores its AbortError while reporting real network failures.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A new search aborts the previous fetch and ignores its AbortError while reporting real network failures.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+      ],
+      "result": "The result follows because Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+    },
+    {
+      "id": "javascript.async.cancellation.example-b",
+      "title": "Cancellation, timeout and stale results: boundary case",
+      "situation": "Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Dropping a promise variable automatically cancels its underlying request."
+      ],
+      "result": "The boundary requires this correction: Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.async.cancellation.misconception",
+      "mistakenBelief": "Dropping a promise variable automatically cancels its underlying request.",
+      "correction": "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Dropping a promise variable automatically cancels its underlying request."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Cancellation, timeout and stale results, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Cancellation, timeout and stale results before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A new search aborts the previous fetch and ignores its AbortError while reporting real network failures.",
+      "AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures.",
+      "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A new search aborts the previous fetch and ignores its AbortError while reporting real network failures."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Dropping a promise variable automatically cancels its underlying request."
+      }
+    ],
+    "textAlternative": "Starting artifact: A new search aborts the previous fetch and ignores its AbortError while reporting real network failures. Step 1, Artifact. State: evidence: A new search aborts the previous fetch and ignores its AbortError while reporting real network failures.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations.. Check the result against the boundary and reject this misconception: Dropping a promise variable automatically cancels its underlying request."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Cancellation, timeout and stale results: concrete case”: state its starting evidence, apply the Cancellation, timeout and stale results rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Cancellation, timeout and stale results: concrete case.",
+        "Starting evidence: A new search aborts the previous fetch and ignores its AbortError while reporting real network failures.",
+        "Core rule: AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures.",
+        "Observable result: The result follows because Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations.",
+        "Boundary check: Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "AbortController communicates cancellation to APIs such as fetch, and consumers distinguish intentional abort from other failures.",
+        "Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Cancellation, timeout and stale results and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test cancellation or latest-request-wins behavior for an interactive fetch.",
+        "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.async.cancellation.misconception",
+      "explanation": "Promises do not cancel by being ignored; pass and trigger an AbortSignal to supported operations.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'AbortSignal' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test cancellation or latest-request-wins behavior for an interactive fetch. Keep this boundary in view: Abort is cooperative, not every operation supports the signal, and cancellation does not roll back completed side effects.",
+    "retrievalPrompts": [
+      "Explain Cancellation, timeout and stale results using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Dropping a promise variable automatically cancels its underlying request.",
+      "Apply checkpoint 'AbortSignal' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “URL and history state”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

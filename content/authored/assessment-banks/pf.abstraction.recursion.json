@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.abstraction.recursion.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.abstraction",
+  "skillId": "pf.abstraction.recursion",
+  "title": "Recursion concept deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Recursion concept; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.abstraction.recursion.mcq.misconception",
+      "skillId": "pf.abstraction.recursion",
+      "title": "Recursion concept: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Adding any base-case branch guarantees termination even if recursive calls keep the same argument.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return.",
+        "incorrect": "The selected statement preserves the documented misconception. Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Recursion concept instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Adding any base-case branch guarantees termination even if recursive calls keep the same argument."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Check both reachability and progress: each recursive path must move a well-founded measure toward a base case before the call can return."
+      }
+    }
+  ]
+}

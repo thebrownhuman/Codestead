@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.tools.terminal-editor.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.tools-quality",
+  "skillId": "pf.tools.terminal-editor",
+  "title": "Editor and terminal workflow deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Editor and terminal workflow; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf",
+    "cs2023-se"
+  ],
+  "items": [
+    {
+      "id": "pf.tools.terminal-editor.mcq.misconception",
+      "skillId": "pf.tools.terminal-editor",
+      "title": "Editor and terminal workflow: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step.",
+        "incorrect": "The selected statement preserves the documented misconception. Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Editor and terminal workflow instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+      }
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.unsupervised.anomaly.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.unsupervised",
+  "skillId": "ai.unsupervised.anomaly",
+  "title": "Anomaly detection deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Anomaly detection; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "sklearn",
+    "nist-ai-rmf"
+  ],
+  "items": [
+    {
+      "id": "ai.unsupervised.anomaly.mcq.misconception",
+      "skillId": "ai.unsupervised.anomaly",
+      "title": "Anomaly detection: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation.",
+        "incorrect": "That option preserves the overclaim. Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+        },
+        {
+          "id": "overclaim",
+          "text": "An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+      }
+    },
+    {
+      "id": "ai.unsupervised.anomaly.fill.checkpoint",
+      "skillId": "ai.unsupervised.anomaly",
+      "title": "Anomaly detection: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'domain confirmation'. Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and [[checkpoint]].",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "domain confirmation"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+      }
+    },
+    {
+      "id": "ai.unsupervised.anomaly.code.offline",
+      "skillId": "ai.unsupervised.anomaly",
+      "title": "Anomaly detection: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read reference values followed by a vertical bar and one probe. Compute median absolute deviation score and print typical or anomalous using score greater than 3.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.unsupervised.anomaly.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "10 11 12 13 14 | 20\n",
+          "expectedStdout": "anomalous 8.00",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.unsupervised.anomaly.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "5 5 5 | 5\n",
+          "expectedStdout": "typical 0.00",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\nimport math\nimport statistics\n\ndef solve(data: str) -> str:\n    left, right = data.split('|', 1); values = list(map(float, left.split())); probe = float(right)\n    median = statistics.median(values); mad = statistics.median(abs(value-median) for value in values)\n    score = abs(probe-median) / mad if mad else (0.0 if probe == median else float('inf'))\n    label = 'anomalous' if score > 3 else 'typical'\n    rendered = 'inf' if math.isinf(score) else f\"{score:.2f}\"\n    return f\"{label} {rendered}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The robust score is explicitly relative to the reference sample and threshold; anomalous is not equated with harmful."
+      }
+    }
+  ]
+}

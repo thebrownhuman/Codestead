@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.functions.parameters.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.functions",
+  "skillId": "cpp.functions.parameters",
+  "title": "Value, reference and const-reference parameters",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Value, reference and const-reference parameters; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Value, reference and const-reference parameters",
+      "claim": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers."
+    },
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to Value, reference and const-reference parameters",
+      "claim": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface. Your goal is to choose and justify parameter forms for scalar and class-type values. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and range iteration; pf abstraction calls; Function contracts and return values. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design. Therefore the draft explicitly rejects this beginner failure model: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Select parameter passing from ownership, optionality, mutation and cost requirements.",
+      "Choose and justify parameter forms for scalar and class-type values."
+    ],
+    "excludes": [
+      "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design."
+    ]
+  },
+  "outcomes": [
+    "Choose and justify parameter forms for scalar and class-type values."
+  ],
+  "examples": [
+    {
+      "id": "cpp.functions.parameters.example-a",
+      "title": "Value, reference and const-reference parameters: defined case",
+      "situation": "A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+      ],
+      "result": "The defined result follows because Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+    },
+    {
+      "id": "cpp.functions.parameters.example-b",
+      "title": "Value, reference and const-reference parameters: boundary case",
+      "situation": "A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it.",
+        "Step 2 — Keep this standard boundary visible: Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design.",
+        "Step 3 — Reject the tempting rule: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose and justify parameter forms for scalar and class-type values."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.functions.parameters.misconception",
+      "mistakenBelief": "Passing every object by const reference is always fastest and always communicates the correct ownership contract.",
+      "correction": "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Value, reference and const-reference parameters: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
+      "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
+      "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+      }
+    ],
+    "textAlternative": "Starting artifact: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface. Step 1, Source and state. State: evidence: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.. Check the conclusion against the boundary and reject this misconception: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Value, reference and const-reference parameters: defined case”: state its starting evidence, apply the Value, reference and const-reference parameters rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Value, reference and const-reference parameters: defined case.",
+        "Starting evidence: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
+        "Core rule: C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
+        "Observable result: The defined result follows because Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.",
+        "Boundary check: Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
+        "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Value, reference and const-reference parameters, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Choose and justify parameter forms for scalar and class-type values.",
+        "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.functions.parameters.misconception",
+      "explanation": "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'borrowing' and state the decisive evidence: A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and justify parameter forms for scalar and class-type values. Keep this boundary in view: Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design.",
+    "retrievalPrompts": [
+      "Explain Value, reference and const-reference parameters using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: Passing every object by const reference is always fastest and always communicates the correct ownership contract.",
+      "Apply the checkpoint 'borrowing' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Overloading and default arguments”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

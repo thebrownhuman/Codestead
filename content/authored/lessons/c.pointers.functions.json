@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.pointers.functions.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.pointers",
+  "skillId": "c.pointers.functions",
+  "title": "Function pointers and callbacks",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Function pointers and callbacks; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to Function pointers and callbacks",
+      "claim": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Function pointers and callbacks",
+      "claim": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer. Your goal is to implement and explain a small callback-based operation without incompatible casts. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: One-dimensional arrays; Parameters and return values; Addresses and dereference; Declarations, prototypes and definitions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract. Therefore the draft explicitly rejects this beginner failure model: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Store compatible function addresses and invoke callbacks through typed interfaces.",
+      "Implement and explain a small callback-based operation without incompatible casts."
+    ],
+    "excludes": [
+      "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract."
+    ]
+  },
+  "outcomes": [
+    "Implement and explain a small callback-based operation without incompatible casts."
+  ],
+  "examples": [
+    {
+      "id": "c.pointers.functions.example-a",
+      "title": "Function pointers and callbacks: defined case",
+      "situation": "A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+      ],
+      "result": "The defined result follows because The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+    },
+    {
+      "id": "c.pointers.functions.example-b",
+      "title": "Function pointers and callbacks: boundary case",
+      "situation": "A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract.",
+        "Step 2 — Keep this standard boundary visible: Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract.",
+        "Step 3 — Reject the tempting rule: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and explain a small callback-based operation without incompatible casts."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.pointers.functions.misconception",
+      "mistakenBelief": "Casting any function address to the requested pointer type makes an incompatible callback call safe.",
+      "correction": "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Function pointers and callbacks: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
+      "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
+      "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+      }
+    ],
+    "textAlternative": "Starting artifact: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer. Step 1, Source and state. State: evidence: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.. Check the conclusion against the boundary and reject this misconception: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Function pointers and callbacks: defined case”: state its starting evidence, apply the Function pointers and callbacks rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Function pointers and callbacks: defined case.",
+        "Starting evidence: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
+        "Core rule: A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
+        "Observable result: The defined result follows because The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.",
+        "Boundary check: The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
+        "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Function pointers and callbacks, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and explain a small callback-based operation without incompatible casts.",
+        "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.pointers.functions.misconception",
+      "explanation": "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compatible' and state the decisive evidence: A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and explain a small callback-based operation without incompatible casts. Keep this boundary in view: Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract.",
+    "retrievalPrompts": [
+      "Explain Function pointers and callbacks using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: Casting any function address to the requested pointer type makes an incompatible callback call safe.",
+      "Apply the checkpoint 'compatible' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Structures”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

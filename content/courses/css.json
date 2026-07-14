@@ -1,0 +1,146 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "css",
+  "title": "CSS: Responsive and Accessible Styling",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A modern CSS course covering cascade, selectors, sizing, typography, color, normal flow, Flexbox, Grid, responsive design, reusable systems, motion and accessibility.",
+  "audience": {
+    "level": "beginner to intermediate web author",
+    "assumed_knowledge": ["HTML course or equivalent semantic markup diagnostic"],
+    "target_capability": "Independently design, implement and audit a responsive multi-page visual system that preserves semantic HTML, keyboard visibility, readability and user preferences."
+  },
+  "scope": {
+    "includes": ["CSS syntax, cascade, inheritance and specificity", "Box model, sizing and overflow", "Typography, color and backgrounds", "Normal flow, positioning and stacking", "Flexbox and Grid", "Responsive and intrinsic design", "Custom properties, layers and component organization", "Transitions, transforms and reduced-motion handling", "Cross-browser debugging and accessible visual review"],
+    "non_goals": ["A particular CSS framework", "Preprocessor-specific syntax", "Pixel-perfect reproduction at every viewport", "Advanced Houdini or custom paint APIs", "Replacing semantic structure with visual ordering"]
+  },
+  "authoritative_sources": [
+    { "id": "css-snapshot", "title": "CSS Snapshot 2024", "url": "https://www.w3.org/TR/css-2024/", "type": "standard", "version_or_date": "W3C Working Group Note 2024" },
+    { "id": "mdn-css", "title": "MDN CSS Guide", "url": "https://developer.mozilla.org/en-US/docs/Web/CSS", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "wcag22", "title": "Web Content Accessibility Guidelines 2.2", "url": "https://www.w3.org/TR/WCAG22/", "type": "accessibility-standard", "version_or_date": "W3C Recommendation 2023" },
+    { "id": "css-cascade", "title": "CSS Cascading and Inheritance Level 5", "url": "https://www.w3.org/TR/css-cascade-5/", "type": "standard", "version_or_date": "W3C specification accessed 2026-07" }
+  ],
+  "runtime": {
+    "kind": "styling",
+    "language": "CSS",
+    "standard": "CSS Snapshot 2024 modules used by current evergreen browsers",
+    "toolchain": ["Standards-mode browser", "Browser developer tools", "CSS validator", "Responsive viewport emulator", "Accessibility inspector"],
+    "execution_environment": "Sandboxed browser preview with reference HTML fixtures and deterministic local assets",
+    "file_extensions": [".css"],
+    "notes": ["Experimental features require explicit compatibility labels.", "Source order must remain meaningful when visual layout changes."]
+  },
+  "modules": [
+    {
+      "id": "css.cascade",
+      "title": "Syntax and cascade",
+      "description": "Write rules and predict which declarations become computed values.",
+      "required": true,
+      "prerequisites": ["html.document.syntax"],
+      "skills": [
+        { "id": "css.cascade.rules", "title": "Rules, declarations and values", "description": "Write selectors and property-value declarations with valid syntax and units.", "outcomes": ["Author and debug a stylesheet containing grouped rules and shorthand or longhand declarations."], "prerequisites": ["html.document.syntax"], "evidence_types": ["artifact", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.cascade.sources", "title": "Origins, importance and layers", "description": "Predict precedence across user-agent, user and author origins, importance and cascade layers.", "outcomes": ["Determine the winning declaration in a layered multi-origin example."], "prerequisites": ["css.cascade.rules"], "evidence_types": ["trace", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-cascade", "mdn-css"] },
+        { "id": "css.cascade.specificity", "title": "Specificity and source order", "description": "Calculate selector specificity and prefer maintainable ordering over escalation.", "outcomes": ["Explain and repair a specificity conflict without adding unnecessary important declarations."], "prerequisites": ["css.cascade.sources"], "evidence_types": ["trace", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["css-cascade", "mdn-css"] },
+        { "id": "css.cascade.inheritance", "title": "Inheritance, initial and computed values", "description": "Distinguish inherited, initial, unset and computed behavior including custom properties.", "outcomes": ["Trace a property's specified and computed value through an element tree."], "prerequisites": ["css.cascade.specificity", "html.document.dom"], "evidence_types": ["trace", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["css-cascade", "mdn-css"] }
+      ]
+    },
+    {
+      "id": "css.selectors-system",
+      "title": "Selectors and reusable systems",
+      "description": "Target semantic structures and organize predictable reusable styles.",
+      "required": true,
+      "prerequisites": ["css.cascade.specificity", "html.semantics"],
+      "skills": [
+        { "id": "css.selectors.core", "title": "Type, class, attribute and combinator selectors", "description": "Select elements by stable semantic hooks and structural relationships.", "outcomes": ["Choose selectors that are specific enough without coupling to incidental nesting."], "prerequisites": ["css.cascade.rules", "html.document.dom"], "evidence_types": ["artifact", "trace", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.selectors.states", "title": "Pseudo-classes and pseudo-elements", "description": "Style interaction, structural and generated parts while preserving native behavior.", "outcomes": ["Implement hover, focus-visible, validation and structural states without hiding keyboard focus."], "prerequisites": ["css.selectors.core", "html.forms.labels-controls"], "evidence_types": ["artifact", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "wcag22"] },
+        { "id": "css.system.custom-properties", "title": "Custom properties and design tokens", "description": "Define inheriting reusable values with local overrides and safe fallbacks.", "outcomes": ["Create a small color, spacing and typography token layer and trace an override."], "prerequisites": ["css.cascade.inheritance"], "evidence_types": ["artifact", "trace", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.system.organization", "title": "Stylesheet organization", "description": "Separate reset/base, layout, component and utility concerns with documented layering and naming.", "outcomes": ["Refactor a conflicting stylesheet into a predictable layered structure."], "prerequisites": ["css.system.custom-properties", "css.selectors.states"], "evidence_types": ["review", "artifact", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["css-cascade", "mdn-css"] }
+      ]
+    },
+    {
+      "id": "css.box",
+      "title": "Box model, sizing and overflow",
+      "description": "Reason precisely about dimensions, spacing and content that exceeds available space.",
+      "required": true,
+      "prerequisites": ["css.cascade.rules"],
+      "skills": [
+        { "id": "css.box.model", "title": "Content, padding, border and margin", "description": "Calculate used box dimensions and apply border-box sizing deliberately.", "outcomes": ["Trace and repair unexpected element size using the browser box-model inspector."], "prerequisites": ["css.cascade.rules"], "evidence_types": ["trace", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.box.units", "title": "Lengths, percentages and viewport units", "description": "Choose relative or absolute units based on typography, container and viewport relationships.", "outcomes": ["Select and justify units for readable text, spacing and responsive dimensions."], "prerequisites": ["css.box.model"], "evidence_types": ["design", "artifact", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.box.intrinsic", "title": "Intrinsic sizing and constraints", "description": "Use min/max/content-based sizing and aspect ratio to avoid brittle fixed dimensions.", "outcomes": ["Implement a component that grows, shrinks and wraps without clipping realistic content."], "prerequisites": ["css.box.units"], "evidence_types": ["artifact", "visual", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.box.overflow", "title": "Overflow and containment", "description": "Handle long words, scroll regions and clipping without hiding essential content or focus.", "outcomes": ["Repair overflow across narrow, zoomed and long-content scenarios."], "prerequisites": ["css.box.intrinsic", "css.selectors.states"], "evidence_types": ["debug", "test", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "wcag22"] }
+      ]
+    },
+    {
+      "id": "css.type-color",
+      "title": "Typography, color and visual treatment",
+      "description": "Create readable hierarchy and sufficient contrast across user settings.",
+      "required": true,
+      "prerequisites": ["css.box.units", "html.semantics.text"],
+      "skills": [
+        { "id": "css.type.fonts", "title": "Font families and loading", "description": "Define resilient font stacks and load web fonts without unreadable fallback assumptions.", "outcomes": ["Configure a font stack and explain fallback, loading and privacy trade-offs."], "prerequisites": ["css.box.units"], "evidence_types": ["artifact", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.type.readability", "title": "Readable text metrics", "description": "Set scalable size, line height, measure, weight, alignment and spacing without blocking text zoom.", "outcomes": ["Create and audit readable body, heading and code typography at 200 percent zoom."], "prerequisites": ["css.type.fonts", "html.semantics.headings"], "evidence_types": ["artifact", "review", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "mdn-css"] },
+        { "id": "css.color.contrast", "title": "Color and contrast", "description": "Choose foreground, background, focus and state colors that satisfy contrast and do not encode meaning alone.", "outcomes": ["Measure and repair text, component and focus-indicator contrast."], "prerequisites": ["css.system.custom-properties", "css.type.readability"], "evidence_types": ["visual", "review", "artifact"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "css-snapshot"] },
+        { "id": "css.visual.backgrounds", "title": "Borders, shadows, gradients and backgrounds", "description": "Use decorative layers without obscuring content, focus or contrast.", "outcomes": ["Implement a visual surface treatment that degrades safely and preserves readability."], "prerequisites": ["css.color.contrast", "css.box.model"], "evidence_types": ["artifact", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] }
+      ]
+    },
+    {
+      "id": "css.layout",
+      "title": "Flow, positioning and stacking",
+      "description": "Understand normal layout before applying explicit positioning and layering.",
+      "required": true,
+      "prerequisites": ["css.box", "html.semantics.landmarks"],
+      "skills": [
+        { "id": "css.layout.flow", "title": "Normal flow and display", "description": "Reason about block, inline and flow-root participation before choosing a layout system.", "outcomes": ["Predict and repair layout using normal flow and appropriate display behavior."], "prerequisites": ["css.box.model", "html.document.dom"], "evidence_types": ["trace", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.layout.position", "title": "Relative, absolute, fixed and sticky positioning", "description": "Choose positioned layout with correct containing blocks and document-flow consequences.", "outcomes": ["Implement and debug a positioned component without covering content or focus targets."], "prerequisites": ["css.layout.flow", "css.box.overflow"], "evidence_types": ["artifact", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "wcag22"] },
+        { "id": "css.layout.stacking", "title": "Stacking contexts and z-order", "description": "Explain paint order and stacking-context boundaries instead of escalating z-index values blindly.", "outcomes": ["Diagnose and repair an overlay ordering defect using stacking-context evidence."], "prerequisites": ["css.layout.position"], "evidence_types": ["visual", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.layout.logical", "title": "Logical properties and writing modes", "description": "Use block/inline-relative sizing and spacing for direction- and language-resilient layouts.", "outcomes": ["Refactor directional properties and verify a component in left-to-right and right-to-left contexts."], "prerequisites": ["css.layout.flow", "css.box.units"], "evidence_types": ["artifact", "test", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] }
+      ]
+    },
+    {
+      "id": "css.flex-grid",
+      "title": "Flexbox and Grid",
+      "description": "Build one- and two-dimensional layouts without reordering semantic meaning.",
+      "required": true,
+      "prerequisites": ["css.layout.flow", "css.box.intrinsic"],
+      "skills": [
+        { "id": "css.flex.axes", "title": "Flex axes and sizing", "description": "Use flex containers, direction, basis, growth, shrinkage and wrapping deliberately.", "outcomes": ["Implement and explain a resilient one-dimensional component layout."], "prerequisites": ["css.layout.flow", "css.box.intrinsic"], "evidence_types": ["artifact", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.flex.alignment", "title": "Flex alignment and order", "description": "Align items and groups while avoiding visual order that contradicts DOM and keyboard order.", "outcomes": ["Debug alignment and verify meaningful source and focus order."], "prerequisites": ["css.flex.axes", "html.navigation.skip"], "evidence_types": ["artifact", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "wcag22"] },
+        { "id": "css.grid.tracks", "title": "Grid tracks and placement", "description": "Define explicit and implicit tracks with repeat, minmax, lines and named areas.", "outcomes": ["Implement and inspect a two-dimensional page or component grid."], "prerequisites": ["css.layout.flow", "css.box.intrinsic"], "evidence_types": ["artifact", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.grid.responsive", "title": "Intrinsic responsive grids", "description": "Combine flexible tracks, auto placement and content constraints before adding breakpoints.", "outcomes": ["Create a grid that adapts across content and container widths without fixed device assumptions."], "prerequisites": ["css.grid.tracks", "css.flex.axes"], "evidence_types": ["artifact", "test", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] }
+      ]
+    },
+    {
+      "id": "css.responsive-motion",
+      "title": "Responsive design and motion",
+      "description": "Adapt to containers, devices and user preferences without breaking content.",
+      "required": true,
+      "prerequisites": ["css.flex-grid", "css.type-color"],
+      "skills": [
+        { "id": "css.responsive.media", "title": "Media and feature queries", "description": "Add content-driven breakpoints and feature or preference queries as progressive enhancements.", "outcomes": ["Implement and test layout, color-scheme and contrast adaptations."], "prerequisites": ["css.grid.responsive", "css.color.contrast"], "evidence_types": ["artifact", "test", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "wcag22"] },
+        { "id": "css.responsive.container", "title": "Container queries", "description": "Adapt reusable components to their available container rather than only the viewport.", "outcomes": ["Build and explain a component with a size-based container query and safe baseline."], "prerequisites": ["css.responsive.media", "css.system.organization"], "evidence_types": ["artifact", "visual", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.motion.transitions", "title": "Transforms, transitions and animations", "description": "Animate composite-friendly properties for feedback without making content inaccessible or disorienting.", "outcomes": ["Implement purposeful state motion and explain its start, end and interruption behavior."], "prerequisites": ["css.selectors.states", "css.layout.stacking"], "evidence_types": ["artifact", "performance", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.motion.preferences", "title": "Reduced motion and input preferences", "description": "Respect reduced-motion and other user preferences with equivalent non-motion feedback.", "outcomes": ["Verify and repair an experience under reduced-motion, zoom and keyboard-only settings."], "prerequisites": ["css.motion.transitions", "css.responsive.media"], "evidence_types": ["test", "review", "artifact"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22", "css-snapshot"] }
+      ]
+    },
+    {
+      "id": "css.quality-project",
+      "title": "Debugging, compatibility and project",
+      "description": "Deliver a maintainable responsive visual system with verification evidence.",
+      "required": true,
+      "prerequisites": ["css.responsive-motion", "css.system.organization"],
+      "skills": [
+        { "id": "css.quality.devtools", "title": "Computed styles and layout inspectors", "description": "Use matched rules, computed values, box, flex and grid inspectors to find the actual cause of a defect.", "outcomes": ["Diagnose a cascade and a layout failure using recorded developer-tool evidence."], "prerequisites": ["css.cascade.inheritance", "css.flex-grid"], "evidence_types": ["debug", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["mdn-css"] },
+        { "id": "css.quality.compatibility", "title": "Compatibility and progressive enhancement", "description": "Check support and supply a usable baseline before optional newer features.", "outcomes": ["Implement and test a fallback for a feature whose support is not universal in the target matrix."], "prerequisites": ["css.quality.devtools", "css.responsive.container"], "evidence_types": ["design", "artifact", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "mdn-css"] },
+        { "id": "css.quality.accessibility", "title": "Visual accessibility audit", "description": "Review contrast, focus visibility, reflow, zoom, text spacing, target size and motion preferences.", "outcomes": ["Record and repair findings from a WCAG-informed visual and interaction audit."], "prerequisites": ["css.color.contrast", "css.motion.preferences", "css.box.overflow"], "evidence_types": ["review", "test", "artifact"], "status": "required", "coverage_status": "covered", "source_refs": ["wcag22"] },
+        { "id": "css.project.system", "title": "Responsive site design system", "description": "Integrate tokens, layers, typography, layout, components, states and preferences across a multi-page site.", "outcomes": ["Deliver and explain a responsive, accessible and maintainable CSS system with documented compatibility targets."], "prerequisites": ["css.quality.compatibility", "css.quality.accessibility", "html.project.site"], "evidence_types": ["project", "artifact", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["css-snapshot", "wcag22"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Predict and debug the cascade, inheritance, box model and layout using browser evidence.",
+    "Build responsive components and page layouts with normal flow, Flexbox, Grid and content-driven queries.",
+    "Create a reusable token and layer system without excessive specificity or semantic source-order changes.",
+    "Verify contrast, focus visibility, reflow, zoom, text spacing and reduced-motion behavior across the declared target matrix."
+  ],
+  "coverage_summary": { "required_skills": 32, "elective_skills": 0, "total_skills": 32, "covered": 32, "partial": 0, "planned": 0 }
+}

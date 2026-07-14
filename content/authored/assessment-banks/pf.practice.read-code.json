@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.practice.read-code.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.learning-practice",
+  "skillId": "pf.practice.read-code",
+  "title": "Reading before writing deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Reading before writing; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.practice.read-code.mcq.misconception",
+      "skillId": "pf.practice.read-code",
+      "title": "Reading before writing: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract.",
+        "incorrect": "The selected statement preserves the documented misconception. Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Reading before writing instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+      }
+    }
+  ]
+}

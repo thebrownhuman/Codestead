@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.resources.cleanup.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.resources",
+  "skillId": "c.resources.cleanup",
+  "title": "Failure-safe cleanup",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Failure-safe cleanup; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cert-c",
+      "locator": "SEI CERT C Coding Standard; living standard accessed 2026-07; provisions applicable to Failure-safe cleanup",
+      "claim": "C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file. Your goal is to repair a multi-resource function to preserve the first failure and release all acquired resources. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Pointers, arrays and arithmetic; Structures; Allocation and deallocation; File streams and binary/text modes. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Early returns, partially initialized aggregates, callbacks, signals, and ownership transfer complicate cleanup and require explicit state flags or helper abstractions. Therefore the draft explicitly rejects this beginner failure model: The operating system eventually reclaims resources, so cleanup on error paths is unnecessary in a C program."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Structure cleanup so partially acquired resources are released exactly once.",
+      "Repair a multi-resource function to preserve the first failure and release all acquired resources."
+    ],
+    "excludes": [
+      "Early returns, partially initialized aggregates, callbacks, signals, and ownership transfer complicate cleanup and require explicit state flags or helper abstractions."
+    ]
+  },
+  "outcomes": [
+    "Repair a multi-resource function to preserve the first failure and release all acquired resources."
+  ],
+  "examples": [
+    {
+      "id": "c.resources.cleanup.example-a",
+      "title": "Failure-safe cleanup: defined case",
+      "situation": "A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness."
+      ],
+      "result": "The defined result follows because Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness."
+    },
+    {
+      "id": "c.resources.cleanup.example-b",
+      "title": "Failure-safe cleanup: boundary case",
+      "situation": "A pointer is set to null after ownership transfers so the former owner does not free the same allocation twice.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A pointer is set to null after ownership transfers so the former owner does not free the same allocation twice.",
+        "Step 2 — Keep this standard boundary visible: Early returns, partially initialized aggregates, callbacks, signals, and ownership transfer complicate cleanup and require explicit state flags or helper abstractions.",
+        "Step 3 — Reject the tempting rule: The operating system eventually reclaims resources, so cleanup on error paths is unnecessary in a C program."
+      ],
+      "result": "This case demonstrates the declared outcome: Repair a multi-resource function to preserve the first failure and release all acquired resources."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.resources.cleanup.misconception",
+      "mistakenBelief": "The operating system eventually reclaims resources, so cleanup on error paths is unnecessary in a C program.",
+      "correction": "Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: The operating system eventually reclaims resources, so cleanup on error paths is unnecessary in a C program."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Failure-safe cleanup: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Early returns, partially initialized aggregates, callbacks, signals, and ownership transfer complicate cleanup and require explicit state flags or helper abstractions."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file.",
+      "C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order.",
+      "Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: The operating system eventually reclaims resources, so cleanup on error paths is unnecessary in a C program."
+      }
+    ],
+    "textAlternative": "Starting artifact: A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file. Step 1, Source and state. State: evidence: A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness.. Check the conclusion against the boundary and reject this misconception: The operating system eventually reclaims resources, so cleanup on error paths is unnecessary in a C program."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Failure-safe cleanup: defined case”: state its starting evidence, apply the Failure-safe cleanup rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Failure-safe cleanup: defined case.",
+        "Starting evidence: A function opens a file, allocates a buffer, and on any later failure jumps to one cleanup section that frees the buffer then closes the file.",
+        "Core rule: C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order.",
+        "Observable result: The defined result follows because Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness.",
+        "Boundary check: Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: A pointer is set to null after ownership transfers so the former owner does not free the same allocation twice.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C resource management assigns clear ownership and routes every success or failure path through cleanup that releases each acquired resource once in reverse dependency order.",
+        "Early returns, partially initialized aggregates, callbacks, signals, and ownership transfer complicate cleanup and require explicit state flags or helper abstractions."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Failure-safe cleanup, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Repair a multi-resource function to preserve the first failure and release all acquired resources.",
+        "Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.resources.cleanup.misconception",
+      "explanation": "Release every owned resource on every path; process cleanup is not a substitute for bounded files, locks, memory, or long-running correctness.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'every path' and state the decisive evidence: A pointer is set to null after ownership transfers so the former owner does not free the same allocation twice."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair a multi-resource function to preserve the first failure and release all acquired resources. Keep this boundary in view: Early returns, partially initialized aggregates, callbacks, signals, and ownership transfer complicate cleanup and require explicit state flags or helper abstractions.",
+    "retrievalPrompts": [
+      "Explain Failure-safe cleanup using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: The operating system eventually reclaims resources, so cleanup on error paths is unnecessary in a C program.",
+      "Apply the checkpoint 'every path' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Header interfaces and include guards”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

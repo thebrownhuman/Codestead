@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.search.uninformed.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.uninformed",
+  "title": "Uninformed search",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Uninformed search; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Fundamental Issues and Basic Search Strategies: state spaces, uninformed/informed, and adversarial search; atomic topic: Uninformed search",
+      "claim": "DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued. Your goal is to select, implement and instrument an uninformed search for a stated state space. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Agent, goal and utility models; dsa graphs bfs dfs; States, actions, goals and costs; dsa heaps priority queue. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "BFS is optimal only for equal step costs, DFS can follow infinite/deep branches, uniform-cost needs nonnegative costs, graph search needs a cost-aware visited policy, and practical memory can dominate. The learner must reject this overclaim: BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Compare DFS, BFS, iterative deepening and uniform-cost search by completeness, optimality, time and space.",
+      "Select, implement and instrument an uninformed search for a stated state space."
+    ],
+    "excludes": [
+      "BFS is optimal only for equal step costs, DFS can follow infinite/deep branches, uniform-cost needs nonnegative costs, graph search needs a cost-aware visited policy, and practical memory can dominate."
+    ]
+  },
+  "outcomes": [
+    "Select, implement and instrument an uninformed search for a stated state space."
+  ],
+  "examples": [
+    {
+      "id": "ai.search.uninformed.example.direct",
+      "title": "Uninformed search: bounded direct case",
+      "situation": "BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+      ],
+      "result": "This example supports only the atomic outcome because Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+    },
+    {
+      "id": "ai.search.uninformed.example.stress",
+      "title": "Uninformed search: stress and transfer case",
+      "situation": "A longer route has lower total cost, so uniform-cost search replaces BFS and updates a state when a cheaper path is discovered.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A longer route has lower total cost, so uniform-cost search replaces BFS and updates a state when a cheaper path is discovered.",
+        "Step 2 — Keep the non-claim visible: BFS is optimal only for equal step costs, DFS can follow infinite/deep branches, uniform-cost needs nonnegative costs, graph search needs a cost-aware visited policy, and practical memory can dominate.",
+        "Step 3 — Reject the tempting overclaim: BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it."
+      ],
+      "result": "This case demonstrates the declared outcome: Select, implement and instrument an uninformed search for a stated state space."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.search.uninformed.misconception",
+      "mistakenBelief": "BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it.",
+      "correction": "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a route planner that tracks states, legal moves, accumulated cost, estimates, and an ordered frontier can introduce Uninformed search only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "state-space representation, frontier policies, heuristics, and adversarial backup"
+    ],
+    "limitations": [
+      "real environments can be continuous, stochastic, changing, partially observed, or too large for the simplified route model",
+      "BFS is optimal only for equal step costs, DFS can follow infinite/deep branches, uniform-cost needs nonnegative costs, graph search needs a cost-aware visited policy, and practical memory can dominate."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued.",
+      "DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions.",
+      "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it."
+      }
+    ],
+    "textAlternative": "Starting artifact: BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued. Step 1, Observe. State: boundedEvidence: BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost.. State what the evidence does not establish and reject the misconception: BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Uninformed search: bounded direct case”: state its starting evidence, apply the Uninformed search rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Uninformed search: bounded direct case.",
+        "Starting evidence: BFS finds a minimum-step route in a finite unweighted graph using a queue and a visited set marked when enqueued.",
+        "Core rule: DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions.",
+        "Observable result: This example supports only the atomic outcome because Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost.",
+        "Boundary check: Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A longer route has lower total cost, so uniform-cost search replaces BFS and updates a state when a cheaper path is discovered.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "DFS, BFS, iterative deepening, and uniform-cost search differ in frontier order, duplicate handling, completeness, optimality conditions, time, and memory; selection follows graph and cost assumptions.",
+        "BFS is optimal only for equal step costs, DFS can follow infinite/deep branches, uniform-cost needs nonnegative costs, graph search needs a cost-aware visited policy, and practical memory can dominate."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Uninformed search and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Select, implement and instrument an uninformed search for a stated state space.",
+        "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.search.uninformed.misconception",
+      "explanation": "Match the frontier and duplicate policy to depth and path-cost assumptions; BFS minimizes steps under equal costs, while uniform-cost search minimizes nonnegative accumulated cost.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A longer route has lower total cost, so uniform-cost search replaces BFS and updates a state when a cheaper path is discovered."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to select, implement and instrument an uninformed search for a stated state space. Keep this boundary in view: BFS is optimal only for equal step costs, DFS can follow infinite/deep branches, uniform-cost needs nonnegative costs, graph search needs a cost-aware visited policy, and practical memory can dominate.",
+    "retrievalPrompts": [
+      "Explain Uninformed search with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: BFS always finds the cheapest path and a state should be permanently marked visited the first time any search encounters it.",
+      "Apply the boundary to: A longer route has lower total cost, so uniform-cost search replaces BFS and updates a state when a cheaper path is discovered."
+    ],
+    "nextReviewPrompt": "Next: continue to “Heuristics, greedy search and A*”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

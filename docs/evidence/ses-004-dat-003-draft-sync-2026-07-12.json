@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T17:42:00+05:30",
+  "revalidatedAt": "2026-07-14T16:47:00+05:30",
+  "requirements": [
+    "SES-004",
+    "DAT-003"
+  ],
+  "result": "local_contract_pass",
+  "authority": {
+    "primaryStore": "PostgreSQL learner_draft",
+    "browserStore": "sessionStorage warm-session cache only",
+    "optimisticConcurrency": "expected row_version compared in a transaction",
+    "idempotency": "durable learner_draft_mutation receipt per UUID request",
+    "identityBoundary": "session-derived user plus HMAC-derived user-and-session cache namespace",
+    "closedBookCapability": "learning_workspace",
+    "curriculumScope": "active/completed enrollment in a beta/verified course and lesson skill",
+    "languageIdentity": "code draft key includes implementation language; lesson notes use null",
+    "aggregateQuota": "512 records and 33554432 UTF-8 bytes per learner, serialized in the repository and mirrored by a PostgreSQL trigger",
+    "installable": false
+  },
+  "provedBehaviors": [
+    "Cache eviction or a new device namespace restores server-synced work from PostgreSQL.",
+    "Another learner or durable session namespace cannot address the prior browser cache.",
+    "Offline edits are visibly local-only and retain one request UUID until an unambiguous acknowledgement.",
+    "An old accepted request replayed after newer work does not duplicate or overwrite the newer row.",
+    "Two concurrent writes at one expected version produce exactly one winner and one explicit conflict.",
+    "A revoked/expired session or closed-book gate purges every cache entry in the denied session namespace and blocks draft synchronization without touching another namespace.",
+    "Failed sign-out preserves dirty offline-only text; confirmed sign-out synchronously clears all LearnCoding draft entries before navigation.",
+    "C++, Java, Python, and other code facets cannot overwrite one another for the same DSA skill.",
+    "Arbitrary/unpublished/unenrolled scopes fail closed before draft reads or writes.",
+    "Concurrent writes cannot exceed the per-user record quota; the byte and record checks exist at both repository and database-trigger boundaries.",
+    "Export schema 4 includes drafts and content-free mutation history; deletion removes receipts before drafts; retention v3 keeps both until account deletion.",
+    "No service worker, web-app manifest, Workbox dependency, background sync, or install surface exists."
+  ],
+  "verification": [
+    {
+      "command": "npx vitest run src/lib/drafts/__tests__ src/app/api/drafts/__tests__/route.test.ts src/components/lesson/__tests__/code-lab-draft-sync.test.tsx src/components/lesson/__tests__/code-lab-runner.test.tsx",
+      "result": "pass",
+      "files": 7,
+      "passed": 73,
+      "failed": 0
+    },
+    {
+      "command": "npm run test:integration -- integration/learner-drafts.integration.test.ts",
+      "result": "pass",
+      "files": 1,
+      "passed": 10,
+      "failed": 0,
+      "notes": "Disposable PostgreSQL 17; all migrations through 0024 applied twice; includes ownership, scope, DSA language isolation, idempotency, optimistic concurrency, database-trigger quota concurrency, cascade, and constraint cases."
+    },
+    {
+      "command": "npm run test:coverage",
+      "result": "pass",
+      "files": 160,
+      "passed": 1143,
+      "skipped": 1,
+      "failed": 0,
+      "coveragePercent": {
+        "statements": 84.88,
+        "branches": 75.71,
+        "functions": 83.36,
+        "lines": 88.13
+      }
+    },
+    {
+      "command": "npm run lint && npm run typecheck",
+      "result": "pass"
+    },
+    {
+      "command": "npm run test:auth-boundary && npm run security:api-surface",
+      "result": "pass",
+      "authenticatedOperations": 60,
+      "administratorOperations": 45,
+      "matrixRows": 110,
+      "errors": 0
+    },
+    {
+      "command": "npm run security:secrets",
+      "result": "pass"
+    },
+    {
+      "command": "final npm run check follow-up",
+      "verifiedOn": "2026-07-12",
+      "result": "pass",
+      "files": 181,
+      "passed": 1383,
+      "skipped": 1,
+      "failed": 0,
+      "coveragePercent": {
+        "statements": 86.38,
+        "branches": 77.68,
+        "functions": 85.01,
+        "lines": 89.52
+      },
+      "apiRouteFiles": 94,
+      "apiOperations": 114,
+      "apiErrors": 0,
+      "notes": "The recorded use-synced-draft hash includes the final dependency-array warning fix."
+    },
+    {
+      "command": "npm run test:coverage",
+      "verifiedOn": "2026-07-14",
+      "result": "pass",
+      "files": 250,
+      "passed": 1572,
+      "skipped": 1,
+      "failed": 0,
+      "coveragePercent": {
+        "statements": 83.16,
+        "branches": 75.06,
+        "functions": 81.07,
+        "lines": 86.66
+      },
+      "notes": "Revalidated after the Patch mentor cockpit and responsive lesson-workspace interaction update; the dedicated lesson-workspace interaction suite passed 9 of 9 tests."
+    }
+  ],
+  "migration": {
+    "numbers": [
+      "0021",
+      "0024"
+    ],
+    "files": [
+      "drizzle/0021_luxuriant_hellcat.sql",
+      "drizzle/0024_fine_shadowcat.sql"
+    ],
+    "tables": [
+      "learner_draft",
+      "learner_draft_mutation"
+    ],
+    "foreignKeyCascade": true,
+    "uniqueOwnerScopeAndLanguage": true,
+    "utf8ContentByteLimit": 131072,
+    "aggregateRecordLimit": 512,
+    "aggregateByteLimit": 33554432,
+    "databaseQuotaTrigger": true,
+    "versionTransitionConstraint": true
+  },
+  "sha256": {
+    "drizzle/0021_luxuriant_hellcat.sql": "16086741ba84f6a6d63b7f0a1f4e55f8f35cfff8a7223640f8c5cf2d8db30e19",
+    "drizzle/0024_fine_shadowcat.sql": "9bb044a47730b7a6c8f0df41f153f7ececc1b07e63c77ab1e6a90ecdae9d8e66",
+    "drizzle/meta/0024_snapshot.json": "e09559779cc8c175280923edb59cc8208ec61969b7b4a5e2abd837cb94d5939e",
+    "src/lib/drafts/repository.ts": "c2e32842c67d0688783d64b01eaec73645f1f4df1bb0a71ef3f1d9a364202013",
+    "src/lib/drafts/browser-cache.ts": "e804647fc84cf609dd28b558a00b7c4c8c3d27b95390d1c25051edbcc5e42c6f",
+    "src/lib/drafts/use-synced-draft.ts": "05637931e5849c95d01ef90141c171043ad493ecc2d18d05f83e480e34805df6",
+    "src/lib/drafts/logout.ts": "74e8cd1b70036d8d1c1c8c7ef1eaf7510d5ecb087c45392bc90f0414ec14764f",
+    "src/app/api/drafts/route.ts": "f2624118a0ca8fe8d52da7241371a12a34b98bb68f82b6a8729cf0d11adc68ba",
+    "src/components/lesson/lesson-workspace.tsx": "be93f416bb6b02e2887913179ffa37f8e53d769e37049992a2d4bb5ff4e1006b",
+    "integration/learner-drafts.integration.test.ts": "ef15f3a605a8d02adb240a484be12ab8f259a6bca7b943acc147b9f71a9cc91f"
+  },
+  "supersededDigests": [
+    {
+      "artifact": "src/components/lesson/lesson-workspace.tsx",
+      "priorDigest": "6e35dfebae85c1e1f401112523563adbd30c95b45d264b210b6e9fab0f2385be",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/components/lesson/lesson-workspace.tsx",
+      "priorDigest": "1513850b1153012a60667da8252571a86d711df2e3228275ed0b816ff34e4da2",
+      "replacedAt": "2026-07-14T16:47:00+05:30"
+    }
+  ],
+  "remainingLimitations": [
+    "Offline support is warm-page/browser-session only; a cold offline launch is impossible by design because the product is not an installable PWA.",
+    "Unsynced local-only text can be lost if sessionStorage is evicted before synchronization; the UI states this explicitly.",
+    "A disconnected server cannot remotely execute JavaScript to erase old sessionStorage after account deletion; server access is revoked immediately and normal logout/next denied request clears the current namespace.",
+    "No deployed Cloudflare/real-cookie multi-device browser penetration run has been retained; evidence here is local unit, browser-contract, route, lifecycle, and real-PostgreSQL integration evidence."
+  ]
+}

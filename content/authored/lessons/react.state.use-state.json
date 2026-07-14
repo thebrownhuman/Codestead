@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.state.use-state.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.state-events",
+  "skillId": "react.state.use-state",
+  "title": "useState and snapshots",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for useState and snapshots; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to useState and snapshots",
+      "claim": "useState stores component state between renders and its setter queues a replacement or updater for a later render."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "useState stores component state between renders and its setter queues a replacement or updater for a later render.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Three increments use functional updates so each derives from the latest queued count. Your goal is to trace and implement state updates without stale arithmetic or direct mutation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Props and composition; javascript events model; Render purity and Strict Mode; javascript scope closures. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "useState stores component state between renders and its setter queues a replacement or updater for a later render. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development. This draft therefore rejects: Calling setCount(count+1) three times always increases count by three."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Treat render state as a snapshot and use updater functions for queued changes based on prior state.",
+      "Trace and implement state updates without stale arithmetic or direct mutation."
+    ],
+    "excludes": [
+      "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development."
+    ]
+  },
+  "outcomes": [
+    "Trace and implement state updates without stale arithmetic or direct mutation."
+  ],
+  "examples": [
+    {
+      "id": "react.state.use-state.example-a",
+      "title": "useState and snapshots: concrete case",
+      "situation": "Three increments use functional updates so each derives from the latest queued count.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Three increments use functional updates so each derives from the latest queued count.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      ],
+      "result": "The result follows because When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+    },
+    {
+      "id": "react.state.use-state.example-b",
+      "title": "useState and snapshots: boundary case",
+      "situation": "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Calling setCount(count+1) three times always increases count by three."
+      ],
+      "result": "The boundary requires this correction: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.state.use-state.misconception",
+      "mistakenBelief": "Calling setCount(count+1) three times always increases count by three.",
+      "correction": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Calling setCount(count+1) three times always increases count by three."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model useState and snapshots, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for useState and snapshots before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Three increments use functional updates so each derives from the latest queued count.",
+      "useState stores component state between renders and its setter queues a replacement or updater for a later render.",
+      "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Three increments use functional updates so each derives from the latest queued count."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "useState stores component state between renders and its setter queues a replacement or updater for a later render."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Calling setCount(count+1) three times always increases count by three."
+      }
+    ],
+    "textAlternative": "Starting artifact: Three increments use functional updates so each derives from the latest queued count. Step 1, Artifact. State: evidence: Three increments use functional updates so each derives from the latest queued count.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: useState stores component state between renders and its setter queues a replacement or updater for a later render.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.. Check the result against the boundary and reject this misconception: Calling setCount(count+1) three times always increases count by three."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “useState and snapshots: concrete case”: state its starting evidence, apply the useState and snapshots rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: useState and snapshots: concrete case.",
+        "Starting evidence: Three increments use functional updates so each derives from the latest queued count.",
+        "Core rule: useState stores component state between renders and its setter queues a replacement or updater for a later render.",
+        "Observable result: The result follows because When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.",
+        "Boundary check: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "useState stores component state between renders and its setter queues a replacement or updater for a later render.",
+        "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for useState and snapshots and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace and implement state updates without stale arithmetic or direct mutation.",
+        "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.state.use-state.misconception",
+      "explanation": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'functional updater' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace and implement state updates without stale arithmetic or direct mutation. Keep this boundary in view: Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
+    "retrievalPrompts": [
+      "Explain useState and snapshots using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Calling setCount(count+1) three times always increases count by three.",
+      "Apply checkpoint 'functional updater' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Event handlers”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

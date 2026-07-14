@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.box.model.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.box",
+  "skillId": "css.box.model",
+  "title": "Content, padding, border and margin",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Content, padding, border and margin; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Content, padding, border and margin",
+      "claim": "Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border."
+    },
+    {
+      "sourceRef": "mdn-css",
+      "locator": "MDN CSS Guide; accessed 2026-07; provisions applicable to Content, padding, border and margin",
+      "claim": "Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box. Your goal is to trace and repair unexpected element size using the browser box-model inspector. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Rules, declarations and values. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic. This draft therefore rejects: Declared width always equals the final outer width of an element."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Calculate used box dimensions and apply border-box sizing deliberately.",
+      "Trace and repair unexpected element size using the browser box-model inspector."
+    ],
+    "excludes": [
+      "Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic."
+    ]
+  },
+  "outcomes": [
+    "Trace and repair unexpected element size using the browser box-model inspector."
+  ],
+  "examples": [
+    {
+      "id": "css.box.model.example-a",
+      "title": "Content, padding, border and margin: concrete case",
+      "situation": "With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Inspect box-sizing and every box edge; width does not necessarily equal the final outer size."
+      ],
+      "result": "The result follows because Inspect box-sizing and every box edge; width does not necessarily equal the final outer size."
+    },
+    {
+      "id": "css.box.model.example-b",
+      "title": "Content, padding, border and margin: boundary case",
+      "situation": "Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Declared width always equals the final outer width of an element."
+      ],
+      "result": "The boundary requires this correction: Inspect box-sizing and every box edge; width does not necessarily equal the final outer size."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.box.model.misconception",
+      "mistakenBelief": "Declared width always equals the final outer width of an element.",
+      "correction": "Inspect box-sizing and every box edge; width does not necessarily equal the final outer size.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Declared width always equals the final outer width of an element."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Content, padding, border and margin, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Content, padding, border and margin before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box.",
+      "Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border.",
+      "Inspect box-sizing and every box edge; width does not necessarily equal the final outer size."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Inspect box-sizing and every box edge; width does not necessarily equal the final outer size."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Declared width always equals the final outer width of an element."
+      }
+    ],
+    "textAlternative": "Starting artifact: With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box. Step 1, Artifact. State: evidence: With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Inspect box-sizing and every box edge; width does not necessarily equal the final outer size.. Check the result against the boundary and reject this misconception: Declared width always equals the final outer width of an element."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Content, padding, border and margin: concrete case”: state its starting evidence, apply the Content, padding, border and margin rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Content, padding, border and margin: concrete case.",
+        "Starting evidence: With border-box, a 200px width includes horizontal padding and border instead of producing a wider outer border box.",
+        "Core rule: Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border.",
+        "Observable result: The result follows because Inspect box-sizing and every box edge; width does not necessarily equal the final outer size.",
+        "Boundary check: Inspect box-sizing and every box edge; width does not necessarily equal the final outer size."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Each box has content, padding, border, and margin; box-sizing controls whether declared dimensions include padding and border.",
+        "Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Content, padding, border and margin and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace and repair unexpected element size using the browser box-model inspector.",
+        "Inspect box-sizing and every box edge; width does not necessarily equal the final outer size."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.box.model.misconception",
+      "explanation": "Inspect box-sizing and every box edge; width does not necessarily equal the final outer size.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'box-sizing' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace and repair unexpected element size using the browser box-model inspector. Keep this boundary in view: Margins can collapse in block flow, inline boxes differ, and intrinsic sizing or min-size constraints can override naive arithmetic.",
+    "retrievalPrompts": [
+      "Explain Content, padding, border and margin using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Declared width always equals the final outer width of an element.",
+      "Apply checkpoint 'box-sizing' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Lengths, percentages and viewport units”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

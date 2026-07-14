@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.foundations.history-limits.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.foundations",
+  "skillId": "ai.foundations.history-limits",
+  "title": "History, cycles and limits",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for History, cycles and limits; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; AI Knowledge Area: fundamental issues, intelligent agents, history, and societal context; atomic topic: History, cycles and limits",
+      "claim": "AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp. Your goal is to place major approach families in context and identify an overgeneralized historical claim. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf problem io; python quality project; AI, automation and intelligence claims. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Historical periods overlap, methods combine, labels shift, benchmark gains can coexist with brittle transfer, and simplified boom-winter narratives omit institutions, labor, harms, and prior work. The learner must reject this overclaim: AI history is a straight sequence in which neural networks replaced symbolic and statistical methods and each benchmark record proves general progress."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Recognize symbolic, statistical and neural traditions and recurring gaps between benchmark and general capability.",
+      "Place major approach families in context and identify an overgeneralized historical claim."
+    ],
+    "excludes": [
+      "Historical periods overlap, methods combine, labels shift, benchmark gains can coexist with brittle transfer, and simplified boom-winter narratives omit institutions, labor, harms, and prior work."
+    ]
+  },
+  "outcomes": [
+    "Place major approach families in context and identify an overgeneralized historical claim."
+  ],
+  "examples": [
+    {
+      "id": "ai.foundations.history-limits.example.direct",
+      "title": "History, cycles and limits: bounded direct case",
+      "situation": "A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability."
+      ],
+      "result": "This example supports only the atomic outcome because Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability."
+    },
+    {
+      "id": "ai.foundations.history-limits.example.stress",
+      "title": "History, cycles and limits: stress and transfer case",
+      "situation": "A benchmark record is announced as a solved domain, but changed data and real workflows expose distribution, cost, and safety failures.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A benchmark record is announced as a solved domain, but changed data and real workflows expose distribution, cost, and safety failures.",
+        "Step 2 — Keep the non-claim visible: Historical periods overlap, methods combine, labels shift, benchmark gains can coexist with brittle transfer, and simplified boom-winter narratives omit institutions, labor, harms, and prior work.",
+        "Step 3 — Reject the tempting overclaim: AI history is a straight sequence in which neural networks replaced symbolic and statistical methods and each benchmark record proves general progress."
+      ],
+      "result": "This case demonstrates the declared outcome: Place major approach families in context and identify an overgeneralized historical claim."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.foundations.history-limits.misconception",
+      "mistakenBelief": "AI history is a straight sequence in which neural networks replaced symbolic and statistical methods and each benchmark record proves general progress.",
+      "correction": "Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: AI history is a straight sequence in which neural networks replaced symbolic and statistical methods and each benchmark record proves general progress."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a map that labels what an automated system observes, claims, chooses, and cannot establish can introduce History, cycles and limits only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "separating techniques, environments, agents, evidence, and historical limits"
+    ],
+    "limitations": [
+      "maps simplify contested intelligence concepts and cannot turn benchmark evidence into general capability",
+      "Historical periods overlap, methods combine, labels shift, benchmark gains can coexist with brittle transfer, and simplified boom-winter narratives omit institutions, labor, harms, and prior work."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp.",
+      "AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability.",
+      "Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: AI history is a straight sequence in which neural networks replaced symbolic and statistical methods and each benchmark record proves general progress."
+      }
+    ],
+    "textAlternative": "Starting artifact: A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp. Step 1, Observe. State: boundedEvidence: A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability.. State what the evidence does not establish and reject the misconception: AI history is a straight sequence in which neural networks replaced symbolic and statistical methods and each benchmark record proves general progress."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “History, cycles and limits: bounded direct case”: state its starting evidence, apply the History, cycles and limits rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: History, cycles and limits: bounded direct case.",
+        "Starting evidence: A modern system combines neural representations, search, hand-authored constraints, and probabilistic scoring rather than belonging to one pure historical camp.",
+        "Core rule: AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability.",
+        "Observable result: This example supports only the atomic outcome because Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability.",
+        "Boundary check: Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A benchmark record is announced as a solved domain, but changed data and real workflows expose distribution, cost, and safety failures.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "AI has developed through interacting symbolic, search, probabilistic, statistical, and neural traditions, with progress and setbacks shaped by compute, data, evaluation, funding, and gaps between demos and robust capability.",
+        "Historical periods overlap, methods combine, labels shift, benchmark gains can coexist with brittle transfer, and simplified boom-winter narratives omit institutions, labor, harms, and prior work."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for History, cycles and limits and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Place major approach families in context and identify an overgeneralized historical claim.",
+        "Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.foundations.history-limits.misconception",
+      "explanation": "Place claims in overlapping technical and social context, identify the evaluation boundary, and distinguish benchmark improvement from general or deployment capability.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A benchmark record is announced as a solved domain, but changed data and real workflows expose distribution, cost, and safety failures."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to place major approach families in context and identify an overgeneralized historical claim. Keep this boundary in view: Historical periods overlap, methods combine, labels shift, benchmark gains can coexist with brittle transfer, and simplified boom-winter narratives omit institutions, labor, harms, and prior work.",
+    "retrievalPrompts": [
+      "Explain History, cycles and limits with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: AI history is a straight sequence in which neural networks replaced symbolic and statistical methods and each benchmark record proves general progress.",
+      "Apply the boundary to: A benchmark record is announced as a solved domain, but changed data and real workflows expose distribution, cost, and safety failures."
+    ],
+    "nextReviewPrompt": "Next: continue to “States, actions, goals and costs”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

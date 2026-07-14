@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.responsive.media.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.responsive-motion",
+  "skillId": "css.responsive.media",
+  "title": "Media and feature queries",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Media and feature queries; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Media and feature queries",
+      "claim": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Media and feature queries",
+      "claim": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Navigation changes layout when its content no longer fits, not at a guessed tablet model width. Your goal is to implement and test layout, color-scheme and contrast adaptations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Flexbox and Grid; Typography, color and visual treatment; Intrinsic responsive grids; Color and contrast. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics. This draft therefore rejects: Media queries should target named devices such as iPhone and desktop."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Add content-driven breakpoints and feature or preference queries as progressive enhancements.",
+      "Implement and test layout, color-scheme and contrast adaptations."
+    ],
+    "excludes": [
+      "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics."
+    ]
+  },
+  "outcomes": [
+    "Implement and test layout, color-scheme and contrast adaptations."
+  ],
+  "examples": [
+    {
+      "id": "css.responsive.media.example-a",
+      "title": "Media and feature queries: concrete case",
+      "situation": "Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+      ],
+      "result": "The result follows because Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+    },
+    {
+      "id": "css.responsive.media.example-b",
+      "title": "Media and feature queries: boundary case",
+      "situation": "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Media queries should target named devices such as iPhone and desktop."
+      ],
+      "result": "The boundary requires this correction: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.responsive.media.misconception",
+      "mistakenBelief": "Media queries should target named devices such as iPhone and desktop.",
+      "correction": "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Media queries should target named devices such as iPhone and desktop."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Media and feature queries, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Media and feature queries before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
+      "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
+      "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Navigation changes layout when its content no longer fits, not at a guessed tablet model width."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Media queries should target named devices such as iPhone and desktop."
+      }
+    ],
+    "textAlternative": "Starting artifact: Navigation changes layout when its content no longer fits, not at a guessed tablet model width. Step 1, Artifact. State: evidence: Navigation changes layout when its content no longer fits, not at a guessed tablet model width.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.. Check the result against the boundary and reject this misconception: Media queries should target named devices such as iPhone and desktop."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Media and feature queries: concrete case”: state its starting evidence, apply the Media and feature queries rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Media and feature queries: concrete case.",
+        "Starting evidence: Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
+        "Core rule: Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
+        "Observable result: The result follows because Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.",
+        "Boundary check: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
+        "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Media and feature queries and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test layout, color-scheme and contrast adaptations.",
+        "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.responsive.media.misconception",
+      "explanation": "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'content and capabilities' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test layout, color-scheme and contrast adaptations. Keep this boundary in view: Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
+    "retrievalPrompts": [
+      "Explain Media and feature queries using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: Media queries should target named devices such as iPhone and desktop.",
+      "Apply checkpoint 'content and capabilities' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Container queries”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

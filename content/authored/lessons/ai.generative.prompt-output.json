@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.generative.prompt-output.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.generative",
+  "skillId": "ai.generative.prompt-output",
+  "title": "Prompts and constrained outputs",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Prompts and constrained outputs; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-genai",
+      "locator": "NIST AI 600-1 Generative AI Profile; July 2024; NIST AI 600-1 risk sections and suggested actions for confabulation, information integrity, security, privacy, and misuse; atomic topic: Prompts and constrained outputs",
+      "claim": "A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers. Your goal is to design and test a prompt-plus-validator workflow against normal and adversarial cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Convolution, sequence and attention roles; Natural-language processing; Tokens, next-token modeling and context; python io files json. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Prompt wording cannot guarantee compliance, schema validity does not make content factual or safe, adversarial context can inject instructions, retries can add cost or inconsistency, and some decisions require human review. The learner must reject this overclaim: A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Specify task, context, constraints and output schema while treating generated output as untrusted.",
+      "Design and test a prompt-plus-validator workflow against normal and adversarial cases."
+    ],
+    "excludes": [
+      "Prompt wording cannot guarantee compliance, schema validity does not make content factual or safe, adversarial context can inject instructions, retries can add cost or inconsistency, and some decisions require human review."
+    ]
+  },
+  "outcomes": [
+    "Design and test a prompt-plus-validator workflow against normal and adversarial cases."
+  ],
+  "examples": [
+    {
+      "id": "ai.generative.prompt-output.example.direct",
+      "title": "Prompts and constrained outputs: bounded direct case",
+      "situation": "A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+      ],
+      "result": "This example supports only the atomic outcome because Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+    },
+    {
+      "id": "ai.generative.prompt-output.example.stress",
+      "title": "Prompts and constrained outputs: stress and transfer case",
+      "situation": "Retrieved text says to ignore prior rules; it remains quoted data and cannot alter tool permissions or output policy.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Retrieved text says to ignore prior rules; it remains quoted data and cannot alter tool permissions or output policy.",
+        "Step 2 — Keep the non-claim visible: Prompt wording cannot guarantee compliance, schema validity does not make content factual or safe, adversarial context can inject instructions, retries can add cost or inconsistency, and some decisions require human review.",
+        "Step 3 — Reject the tempting overclaim: A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and test a prompt-plus-validator workflow against normal and adversarial cases."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.generative.prompt-output.misconception",
+      "mistakenBelief": "A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation.",
+      "correction": "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a bounded document desk that predicts tokens, validates structured drafts, retrieves cited passages, and exposes only authorized tools can introduce Prompts and constrained outputs only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "language-model context, output validation, RAG stages, and API/tool security"
+    ],
+    "limitations": [
+      "generation, retrieval, prompting, and provider trust remain fallible and cannot receive secrets or autonomous authority",
+      "Prompt wording cannot guarantee compliance, schema validity does not make content factual or safe, adversarial context can inject instructions, retries can add cost or inconsistency, and some decisions require human review."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers.",
+      "A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass.",
+      "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation."
+      }
+    ],
+    "textAlternative": "Starting artifact: A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers. Step 1, Observe. State: boundedEvidence: A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use.. State what the evidence does not establish and reject the misconception: A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Prompts and constrained outputs: bounded direct case”: state its starting evidence, apply the Prompts and constrained outputs rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Prompts and constrained outputs: bounded direct case.",
+        "Starting evidence: A model is asked for bounded JSON, the application parses exact fields, rejects extras and invalid ranges, and separately verifies cited identifiers.",
+        "Core rule: A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass.",
+        "Observable result: This example supports only the atomic outcome because Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use.",
+        "Boundary check: Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Retrieved text says to ignore prior rules; it remains quoted data and cannot alter tool permissions or output policy.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A prompt-plus-validator workflow defines task, authorized context, constraints, untrusted-data boundaries, and an output schema, then treats every generated field as untrusted until deterministic validation and policy checks pass.",
+        "Prompt wording cannot guarantee compliance, schema validity does not make content factual or safe, adversarial context can inject instructions, retries can add cost or inconsistency, and some decisions require human review."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Prompts and constrained outputs and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Design and test a prompt-plus-validator workflow against normal and adversarial cases.",
+        "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.generative.prompt-output.misconception",
+      "explanation": "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Retrieved text says to ignore prior rules; it remains quoted data and cannot alter tool permissions or output policy."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and test a prompt-plus-validator workflow against normal and adversarial cases. Keep this boundary in view: Prompt wording cannot guarantee compliance, schema validity does not make content factual or safe, adversarial context can inject instructions, retries can add cost or inconsistency, and some decisions require human review.",
+    "retrievalPrompts": [
+      "Explain Prompts and constrained outputs with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation.",
+      "Apply the boundary to: Retrieved text says to ignore prior rules; it remains quoted data and cannot alter tool permissions or output policy."
+    ],
+    "nextReviewPrompt": "Next: continue to “Embeddings and retrieval augmentation”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T16:02:30Z",
+  "scope": {
+    "host": "Windows Docker Desktop disposable verification",
+    "docker": "29.1.2",
+    "engine": "linux/amd64",
+    "externalDeploymentPerformed": false,
+    "realCredentialsUsed": false,
+    "unrelatedContainersModified": false
+  },
+  "images": [
+    {
+      "target": "app",
+      "tag": "learncoding-verify-app:20260712",
+      "manifestDigest": "sha256:0053e9e6f21241d9f594db754b6f1782ce6902f4104e6cfd6bfc2cb3da38b182",
+      "sizeBytes": 102539133,
+      "user": "node",
+      "command": ["node", "server.js"],
+      "buildPassed": true
+    },
+    {
+      "target": "tooling",
+      "tag": "learncoding-verify-tooling:20260712",
+      "manifestDigest": "sha256:da486cad1e57d15e07bf577efedcb3deb670e74b9aac987331f95056ba41f58c",
+      "sizeBytes": 334059163,
+      "user": "node",
+      "command": ["npm", "run", "db:migrate"],
+      "buildPassed": true
+    },
+    {
+      "target": "mail-worker",
+      "tag": "learncoding-verify-worker:20260712",
+      "manifestDigest": "sha256:d97497b125b891b495377f129fef788eb697fcbd49e15f00f0bcd1b9988f8348",
+      "sizeBytes": 271359062,
+      "user": "node",
+      "command": ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"],
+      "buildPassed": true
+    },
+    {
+      "target": "regrade-worker",
+      "tag": "learncoding-verify-regrade:20260712",
+      "manifestDigest": "sha256:8934fb165522f3252505006fbcf2ef4958fd82633328dfaa1e68c87b7cb1e436",
+      "sizeBytes": 271360698,
+      "user": "node",
+      "command": ["node", "--import", "tsx", "/app/scripts/process-assessment-regrades.ts"],
+      "buildPassed": true
+    },
+    {
+      "target": "scanner-worker",
+      "tag": "learncoding-verify-scanner:20260712",
+      "manifestDigest": "sha256:10d0a37440d79e4eb296d4f03e32c1a278ac6a785ecb6d7e84b731968f14fced",
+      "sizeBytes": 271361171,
+      "user": "node",
+      "command": ["node", "--import", "tsx", "/app/scripts/scan-uploads.ts"],
+      "buildPassed": true
+    },
+    {
+      "target": "runner",
+      "tag": "learncoding-verify-runner:20260712",
+      "manifestDigest": "sha256:4ba907994b1b0c6d5f37a27b280a0ddc96a45de9b0fcbcdb3787f1e3c28af35e",
+      "sizeBytes": 79931758,
+      "user": "node",
+      "command": ["node", "dist/index.js"],
+      "buildPassed": true
+    }
+  ],
+  "buildEvidence": {
+    "contentValidation": {
+      "launchCourseTracks": 12,
+      "metadataOnlyRoadmapEntries": 10,
+      "declaredSkills": 476,
+      "authoredLessons": 476,
+      "assessmentBanks": 476,
+      "passed": true
+    },
+    "nextProductionBuild": {
+      "staticAndDynamicRoutes": 72,
+      "typescriptPassed": true,
+      "passed": true
+    },
+    "composeStaticValidation": true,
+    "composeSemanticValidation": true,
+    "ephemeralPostgres17Migration": true
+  },
+  "runtimeHardening": {
+    "app": {
+      "origin": "http://127.0.0.1:3020",
+      "status": "ready",
+      "containerUser": "node",
+      "readOnlyRoot": true,
+      "capabilitiesDropped": ["ALL"],
+      "noNewPrivileges": true,
+      "init": true,
+      "pidsLimit": 256,
+      "memoryBytes": 2147483648,
+      "nanoCpus": 2000000000,
+      "hostBindingLoopbackOnly": true,
+      "writableAreas": ["tmpfs:/tmp", "tmpfs:/app/.next/cache", "tmpfs:/var/lib/learncoding"]
+    },
+    "runner": {
+      "origin": "http://127.0.0.1:4101",
+      "health": {"status": "ok", "queueDepth": 0, "activeJobs": 0, "concurrency": 2},
+      "containerUser": "node",
+      "readOnlyRoot": true,
+      "capabilitiesDropped": ["ALL"],
+      "noNewPrivileges": true,
+      "dockerSocketMounted": false,
+      "trustedCredentialsPresent": false,
+      "hostBindingLoopbackOnly": true
+    },
+    "migrationContainer": {
+      "readOnlyRoot": true,
+      "capabilitiesDropped": ["ALL"],
+      "noNewPrivileges": true,
+      "result": "all migrations applied successfully"
+    }
+  },
+  "loadSmoke": {
+    "report": "docs/evidence/load-smoke-docker-final-image-2026-07-12.json",
+    "testedImageDigest": "sha256:0053e9e6f21241d9f594db754b6f1782ce6902f4104e6cfd6bfc2cb3da38b182",
+    "concurrency": 10,
+    "requestsPerScenario": 20,
+    "measuredRequests": 100,
+    "succeeded": 100,
+    "failed": 0,
+    "p95LimitMs": 1500,
+    "scenarios": {
+      "landing": {"p95Ms": 31.55, "status": 200, "passed": true},
+      "catalog": {"p95Ms": 211.39, "status": 307, "passed": true},
+      "learn": {"p95Ms": 63.81, "status": 307, "passed": true},
+      "roadmap": {"p95Ms": 64.41, "status": 307, "passed": true},
+      "review": {"p95Ms": 61.64, "status": 307, "passed": true}
+    },
+    "passed": true,
+    "regression": {
+      "detectedBy": [
+        "docs/evidence/load-smoke-docker-2026-07-12.json",
+        "docs/evidence/load-smoke-docker-warm-2026-07-12.json"
+      ],
+      "cause": "Default curriculum repositories were reconstructed and all 476 authored lessons and banks were reread and revalidated per request.",
+      "fix": "Use one process-wide immutable default repository while preserving isolated repositories for explicit content roots/loaders.",
+      "focusedTests": "8/8 passed",
+      "typecheckPassed": true
+    }
+  },
+  "runnerReleaseContract": {
+    "runtimeAndAbuse": {"passed": 17, "total": 17},
+    "realExecutor": {"passed": 4, "total": 4},
+    "languages": ["c", "cpp", "java", "python", "javascript"],
+    "covered": [
+      "compile and run",
+      "compile errors",
+      "read-only root",
+      "ephemeral work",
+      "network blocked",
+      "hidden environment absent",
+      "cross-job cleanup",
+      "wall timeout",
+      "combined output cap",
+      "process limit",
+      "hidden-data redaction",
+      "forced cleanup"
+    ],
+    "passed": true
+  },
+  "encryptedBackupRestoreDrill": {
+    "source": "dedicated disposable PostgreSQL 17 database plus disposable app-data volume",
+    "testOnlyAgeMaterialGenerated": true,
+    "identityPersistedOutsideDisposableVolume": false,
+    "archive": "learncoding-full-20260712T160025Z.tar.gz.age",
+    "archiveBytes": 1810936,
+    "ciphertextSha256": "91b3c4f618403618724ce16bc35bfc9d13cd8e3d4f8dcace60b0615a65947f7a",
+    "backupScriptPassed": true,
+    "retentionPolicy": "7 daily / 4 weekly / 12 monthly",
+    "backupAgeChecksumCapacityCheckPassed": true,
+    "manualIsolatedRestorePassed": true,
+    "restoredPublicTableCount": 82,
+    "databaseSentinelSha256": "b7604752242ac93b046a6f1fbc168f1196f63aab6029af9185df2774c889e670",
+    "databaseSentinelMatched": true,
+    "sourceDatabaseStillIntact": true,
+    "appDataSha256": "a9215617f7c4de1bf0312cf6ff9c80aca7a1987b0c4ab84343bcbc336ac579a0",
+    "appDataMatched": true,
+    "manifestExcludedSecretFiles": true,
+    "manifestExcludedEmailExports": true,
+    "automatedRestoreDrillPassed": true,
+    "restoreReportChecksumPassed": true,
+    "temporaryDrillDatabaseRemoved": true,
+    "liveDatabaseModified": false,
+    "portabilityDefectFixed": "Removed the invalid GNU df combination of -P and --output from target initialization and capacity checking.",
+    "regressionTest": "infra/tests/backup-config.test.sh passed in Linux"
+  },
+  "notProvenHere": [
+    "Real Ubuntu NUC CPU, disk, thermal, reboot, firewall, KVM, or sustained multi-hour load behavior",
+    "Full production Compose startup with operator secrets, Cloudflare, Gmail, ClamAV signatures, and a separate runner VM",
+    "Google Drive/rclone offsite upload, retention, and download recovery",
+    "A local HIGH/CRITICAL container CVE scan; Trivy, Grype, and Syft were unavailable and external Docker Scout analysis was not authorized because it may disclose private image metadata",
+    "Production registry push or immutable registry digest verification"
+  ]
+}

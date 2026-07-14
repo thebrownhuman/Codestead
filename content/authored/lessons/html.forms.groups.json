@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.forms.groups.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.forms",
+  "skillId": "html.forms.groups",
+  "title": "Groups, choices and autocomplete",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Groups, choices and autocomplete; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Groups, choices and autocomplete",
+      "claim": "fieldset and legend name a related group of controls, especially radio choices sharing one question."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Groups, choices and autocomplete",
+      "claim": "fieldset and legend name a related group of controls, especially radio choices sharing one question."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "fieldset and legend name a related group of controls, especially radio choices sharing one question.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A delivery-method fieldset uses legend Delivery method and labels each radio option. Your goal is to group related choices and configure input purpose without relying on placeholder labels. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Paragraph and inline meaning; Relative and absolute URLs; Labels and input controls. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "fieldset and legend name a related group of controls, especially radio choices sharing one question. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship. This draft therefore rejects: Radio buttons with the same name never need a group label."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use fieldset, legend, radio/checkbox semantics and autocomplete tokens appropriately.",
+      "Group related choices and configure input purpose without relying on placeholder labels."
+    ],
+    "excludes": [
+      "Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship."
+    ]
+  },
+  "outcomes": [
+    "Group related choices and configure input purpose without relying on placeholder labels."
+  ],
+  "examples": [
+    {
+      "id": "html.forms.groups.example-a",
+      "title": "Groups, choices and autocomplete: concrete case",
+      "situation": "A delivery-method fieldset uses legend Delivery method and labels each radio option.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A delivery-method fieldset uses legend Delivery method and labels each radio option.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use fieldset and legend to expose the shared question for a related control group."
+      ],
+      "result": "The result follows because Use fieldset and legend to expose the shared question for a related control group."
+    },
+    {
+      "id": "html.forms.groups.example-b",
+      "title": "Groups, choices and autocomplete: boundary case",
+      "situation": "Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Radio buttons with the same name never need a group label."
+      ],
+      "result": "The boundary requires this correction: Use fieldset and legend to expose the shared question for a related control group."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.forms.groups.misconception",
+      "mistakenBelief": "Radio buttons with the same name never need a group label.",
+      "correction": "Use fieldset and legend to expose the shared question for a related control group.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Radio buttons with the same name never need a group label."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Groups, choices and autocomplete, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Groups, choices and autocomplete before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A delivery-method fieldset uses legend Delivery method and labels each radio option.",
+      "fieldset and legend name a related group of controls, especially radio choices sharing one question.",
+      "Use fieldset and legend to expose the shared question for a related control group."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A delivery-method fieldset uses legend Delivery method and labels each radio option."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "fieldset and legend name a related group of controls, especially radio choices sharing one question."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use fieldset and legend to expose the shared question for a related control group."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Radio buttons with the same name never need a group label."
+      }
+    ],
+    "textAlternative": "Starting artifact: A delivery-method fieldset uses legend Delivery method and labels each radio option. Step 1, Artifact. State: evidence: A delivery-method fieldset uses legend Delivery method and labels each radio option.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: fieldset and legend name a related group of controls, especially radio choices sharing one question.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use fieldset and legend to expose the shared question for a related control group.. Check the result against the boundary and reject this misconception: Radio buttons with the same name never need a group label."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Groups, choices and autocomplete: concrete case”: state its starting evidence, apply the Groups, choices and autocomplete rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Groups, choices and autocomplete: concrete case.",
+        "Starting evidence: A delivery-method fieldset uses legend Delivery method and labels each radio option.",
+        "Core rule: fieldset and legend name a related group of controls, especially radio choices sharing one question.",
+        "Observable result: The result follows because Use fieldset and legend to expose the shared question for a related control group.",
+        "Boundary check: Use fieldset and legend to expose the shared question for a related control group."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "fieldset and legend name a related group of controls, especially radio choices sharing one question.",
+        "Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Groups, choices and autocomplete and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Group related choices and configure input purpose without relying on placeholder labels.",
+        "Use fieldset and legend to expose the shared question for a related control group."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.forms.groups.misconception",
+      "explanation": "Use fieldset and legend to expose the shared question for a related control group.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'fieldset and legend' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to group related choices and configure input purpose without relying on placeholder labels. Keep this boundary in view: Visual borders are optional, nested groups need clarity, and a heading alone may not create the same form-control group relationship.",
+    "retrievalPrompts": [
+      "Explain Groups, choices and autocomplete using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Radio buttons with the same name never need a group label.",
+      "Apply checkpoint 'fieldset and legend' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Native constraints and error semantics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

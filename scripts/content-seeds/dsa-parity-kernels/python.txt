@@ -1,0 +1,254 @@
+import sys
+from collections import Counter, deque
+
+TASK = __TASK__
+INF = 10**18
+t = [int(value) for value in sys.stdin.buffer.read().split()]
+group, variant = divmod(TASK, 4)
+
+def emit(values):
+    print(" ".join(map(str, values)))
+
+def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+
+def tree_height(values, index=0):
+    if index >= len(values) or values[index] == -999:
+        return 0
+    return 1 + max(tree_height(values, index * 2 + 1), tree_height(values, index * 2 + 2))
+
+def preorder(values, index=0):
+    if index >= len(values) or values[index] == -999:
+        return []
+    return [values[index], *preorder(values, index * 2 + 1), *preorder(values, index * 2 + 2)]
+
+def bst_valid(values, index=0, low=-INF, high=INF):
+    if index >= len(values) or values[index] == -999:
+        return True
+    value = values[index]
+    return low < value < high and bst_valid(values, index * 2 + 1, low, value) and bst_valid(values, index * 2 + 2, value, high)
+
+class DSU:
+    def __init__(self, n):
+        self.parent = list(range(n)); self.size = [1] * n
+    def find(self, value):
+        if self.parent[value] != value:
+            self.parent[value] = self.find(self.parent[value])
+        return self.parent[value]
+    def union(self, left, right):
+        left, right = self.find(left), self.find(right)
+        if left == right: return False
+        if self.size[left] < self.size[right]: left, right = right, left
+        self.parent[right] = left; self.size[left] += self.size[right]
+        return True
+
+if group == 0:
+    n, values = t[0], t[1:]
+    if variant == 0: print(sum(values[:n]))
+    elif variant == 1: print(sum(value > 0 for value in values[:n]))
+    elif variant == 2: print(next((i for i in range(1, n) if values[i - 1] > values[i]), -1))
+    else: print(n * (n - 1) // 2)
+elif group == 1:
+    if variant == 0:
+        n, at = t[:2]; emit([value for i, value in enumerate(t[2:2+n]) if i != at])
+    elif variant == 1:
+        rows, columns = t[:2]; values = t[2:]; print(sum(values[i * columns + i] for i in range(min(rows, columns))))
+    elif variant == 2:
+        n = t[0]; values = t[1:1+n]; print(int(values == values[::-1]))
+    else:
+        n, left, right = t[:3]; print(sum(t[3+left:3+min(n, right+1)]))
+elif group == 2:
+    if variant == 0:
+        n = t[0]; print(sum(t[1:1+n]))
+    elif variant == 1:
+        n, insert_at, value, delete_at = t[:4]; values = t[4:4+n]; values.insert(insert_at, value); values.pop(delete_at); emit(values)
+    elif variant == 2:
+        n = t[0]; values = t[1:1+n]; print(sum((i+1)*v for i,v in enumerate(values)), sum((i+1)*v for i,v in enumerate(reversed(values))))
+    else:
+        n = t[0]; links = t[1:1+n]; slow = fast = 0; cycle = False
+        while 0 <= fast < n:
+            fast = links[fast]
+            if not 0 <= fast < n: break
+            fast = links[fast]; slow = links[slow]
+            if fast == slow: cycle = True; break
+        print(int(cycle))
+elif group == 3:
+    n, operations = t[0], t[1:]
+    if variant == 0:
+        stack = []
+        for value in operations[:n]:
+            if value == 0:
+                if stack: stack.pop()
+            else: stack.append(value)
+        print(stack[-1] if stack else -999)
+    elif variant == 1:
+        queue = deque()
+        for value in operations[:n]:
+            if value == 0:
+                if queue: queue.popleft()
+            else: queue.append(value)
+        print(f"{queue[0]} {queue[-1]}" if queue else "-999 -999")
+    elif variant == 2: print(int(operations[:n] == operations[:n][::-1]))
+    else:
+        balance = 0; valid = True
+        for value in operations[:n]:
+            balance += value; valid = valid and balance >= 0
+        print(int(valid and balance == 0))
+elif group == 4:
+    if variant == 0:
+        n = t[0]; pairs = list(zip(t[1:1+2*n:2], t[2:2+2*n:2])); seen = {}; valid = True
+        for key, value_hash in pairs:
+            if key in seen and seen[key] != value_hash: valid = False
+            seen[key] = value_hash
+        print(int(valid))
+    elif variant == 1:
+        capacity, n = t[:2]; used = [False] * capacity; collisions = 0
+        for key in t[2:2+n]:
+            position = key % capacity
+            while used[position]: collisions += 1; position = (position + 1) % capacity
+            used[position] = True
+        print(collisions)
+    elif variant == 2:
+        capacity, n = t[:2]
+        while n * 4 > capacity * 3: capacity *= 2
+        print(capacity)
+    else:
+        n = t[0]; counts = Counter(t[1:1+n]); print(min(counts, key=lambda key: (-counts[key], key)))
+elif group == 5:
+    n = t[0]
+    if variant == 0:
+        target, values = t[1], t[2:2+n]; left, right = 0, n
+        while left < right:
+            middle = (left + right) // 2
+            if values[middle] >= target: right = middle
+            else: left = middle + 1
+        print(left if left < n and values[left] == target else -1)
+    elif variant == 3:
+        k, values = t[1], sorted(t[2:2+n]); print(values[k])
+    else: emit(sorted(t[1:1+n]))
+elif group == 6:
+    if variant == 0:
+        import math; print(math.gcd(t[0], t[1]))
+    elif variant == 1: print(t[0] + 1)
+    elif variant == 2: print(fib(t[0]))
+    else: print(max(t[1:1+t[0]]))
+elif group == 7:
+    if variant == 3:
+        n, prefix = t[:2]; print(sum(str(value).startswith(str(prefix)) for value in t[2:2+n]))
+    else:
+        n = t[0]; values = t[1:1+n]
+        if variant == 0: print(tree_height(values))
+        elif variant == 1: emit(preorder(values))
+        else: print(int(bst_valid(values)))
+elif group == 8:
+    n = t[0]; k = t[1] if variant == 2 else 0; values = t[2:2+n] if variant == 2 else t[1:1+n]
+    if variant == 0: print(int(all(values[(i-1)//2] >= values[i] for i in range(1, n))))
+    elif variant == 1:
+        for index in range(n//2-1, -1, -1):
+            current = index
+            while True:
+                candidates = [current, current*2+1, current*2+2]; best = max((i for i in candidates if i < n), key=values.__getitem__)
+                if best == current: break
+                values[current], values[best] = values[best], values[current]; current = best
+        emit(values)
+    elif variant == 2: emit(sorted(values, reverse=True)[:k])
+    else: emit(sorted(values))
+elif group in (9, 10) or group == 14 and variant == 3:
+    n, m = t[:2]; weighted = group == 10 and variant > 0 or group == 14
+    distance = [[0 if i == j else INF for j in range(n)] for i in range(n)]; position = 2
+    for _ in range(m):
+        left, right = t[position:position+2]; position += 2; weight = t[position] if weighted else 1; position += int(weighted)
+        distance[left][right] = min(distance[left][right], weight)
+        if group == 10 and variant == 2 or group == 9 and variant != 0: distance[right][left] = min(distance[right][left], weight)
+    if group == 9 and variant == 0: print(n, m)
+    elif group == 9 and variant == 1: emit([sum(i != j and distance[i][j] < INF for j in range(n)) for i in range(n)])
+    elif group == 9 and variant == 2:
+        result = [-1] * n; result[0] = 0; queue = deque([0])
+        while queue:
+            current = queue.popleft()
+            for target in range(n):
+                if current != target and distance[current][target] < INF and result[target] < 0: result[target] = result[current] + 1; queue.append(target)
+        emit(result)
+    elif group == 9:
+        dsu = DSU(n); components, cycles = n, 0
+        for left in range(n):
+            for right in range(left+1, n):
+                if distance[left][right] < INF:
+                    if dsu.union(left, right): components -= 1
+                    else: cycles += 1
+        print(components, cycles)
+    elif group == 10 and variant == 0:
+        indegree = [sum(source != target and distance[source][target] < INF for source in range(n)) for target in range(n)]; result=[]
+        while len(result) < n:
+            available = next((node for node in range(n) if node not in result and indegree[node] == 0), None)
+            if available is None: print("cycle"); break
+            result.append(available)
+            for target in range(n):
+                if available != target and distance[available][target] < INF: indegree[target] -= 1
+        else: emit(result)
+    elif group == 10 and variant == 2:
+        dsu=DSU(n); total=0; chosen=0
+        for weight,left,right in sorted((distance[left][right],left,right) for left in range(n) for right in range(left+1,n) if distance[left][right] < INF):
+            if dsu.union(left,right): total += weight; chosen += 1
+        print(total if chosen == n-1 else -1)
+    else:
+        for middle in range(n):
+            for left in range(n):
+                for right in range(n):
+                    distance[left][right] = min(distance[left][right], distance[left][middle] + distance[middle][right])
+        source, target = t[position:position+2]; print(distance[source][target] if distance[source][target] < INF else -1)
+elif group == 11:
+    n, m = t[:2]; dsu=DSU(n); cycles=0; position=2
+    for _ in range(m):
+        if not dsu.union(t[position], t[position+1]): cycles += 1
+        position += 2
+    roots={dsu.find(i) for i in range(n)}
+    if variant == 0: print(len(roots))
+    elif variant == 1: print(max(dsu.size[root] for root in roots))
+    elif variant == 2: print(int(any(dsu.parent[i] != i for i in range(n))))
+    else: print(cycles)
+elif group == 12:
+    if variant == 0:
+        n=t[0]; intervals=sorted(zip(t[1:1+2*n:2],t[2:2+2*n:2]),key=lambda pair:pair[1]); count=0; end=-INF
+        for left,right in intervals:
+            if left >= end: count += 1; end = right
+        print(count)
+    elif variant == 1:
+        n,target=t[:2]; possible={0}
+        for value in t[2:2+n]: possible |= {subtotal+value for subtotal in tuple(possible) if subtotal+value <= target}
+        print(int(target in possible))
+    elif variant == 2: print(fib(t[0]))
+    else:
+        n,target=t[:2]; coins=t[2:2+n]; dp=[0]+[INF]*target
+        for amount in range(1,target+1): dp[amount]=min((dp[amount-coin]+1 for coin in coins if coin<=amount),default=INF)
+        print(dp[target] if dp[target] < INF else -1)
+elif group == 13:
+    n=t[0]
+    if variant == 0:
+        target=t[1]; values=t[2:2+n]; print(int(any(values[i]+values[j]==target for i in range(n) for j in range(i+1,n))))
+    elif variant == 1:
+        k=t[1]; values=t[2:2+n]; print(max(sum(values[i:i+k]) for i in range(n-k+1)))
+    elif variant == 2:
+        values=t[1:1+n]; emit([next((right for right in values[i+1:] if right>value),-1) for i,value in enumerate(values)])
+    else:
+        intervals=sorted(zip(t[1:1+2*n:2],t[2:2+2*n:2])); merged=[]
+        for left,right in intervals:
+            if not merged or left>merged[-1][1]: merged.append([left,right])
+            else: merged[-1][1]=max(merged[-1][1],right)
+        print(len(merged))
+elif group == 14:
+    n=t[0]; values=t[1:1+n]
+    if variant == 0:
+        counts=Counter(values); print(min(counts,key=lambda key:(-counts[key],key)))
+    elif variant == 1:
+        queue=deque()
+        for value in values:
+            if value==0:
+                if queue: queue.popleft()
+            else: queue.append(value)
+        print(f"{queue[0]} {queue[-1]}" if queue else "-999 -999")
+    else:
+        print(int(values==sorted(values)),int(len(values)!=len(set(values))),min(values,default=0),max(values,default=0))

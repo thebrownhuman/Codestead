@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.browser.storage.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.browser-security",
+  "skillId": "javascript.browser.storage",
+  "title": "Web storage and serialization",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Web storage and serialization; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Web storage and serialization",
+      "claim": "Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt. Your goal is to implement resilient local preference storage without treating it as trusted input. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: DOM, events and forms; Promises, async work and HTTP; Object records and property access; Errors, throw and recovery boundaries. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability. This draft therefore rejects: localStorage is encrypted and safe for long-lived API keys because it belongs to one origin."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Persist small non-sensitive preferences with versioned parsing and quota or corruption handling.",
+      "Implement resilient local preference storage without treating it as trusted input."
+    ],
+    "excludes": [
+      "Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability."
+    ]
+  },
+  "outcomes": [
+    "Implement resilient local preference storage without treating it as trusted input."
+  ],
+  "examples": [
+    {
+      "id": "javascript.browser.storage.example-a",
+      "title": "Web storage and serialization: concrete case",
+      "situation": "A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+      ],
+      "result": "The result follows because Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+    },
+    {
+      "id": "javascript.browser.storage.example-b",
+      "title": "Web storage and serialization: boundary case",
+      "situation": "Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: localStorage is encrypted and safe for long-lived API keys because it belongs to one origin."
+      ],
+      "result": "The boundary requires this correction: Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.browser.storage.misconception",
+      "mistakenBelief": "localStorage is encrypted and safe for long-lived API keys because it belongs to one origin.",
+      "correction": "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: localStorage is encrypted and safe for long-lived API keys because it belongs to one origin."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Web storage and serialization, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Web storage and serialization before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt.",
+      "Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault.",
+      "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: localStorage is encrypted and safe for long-lived API keys because it belongs to one origin."
+      }
+    ],
+    "textAlternative": "Starting artifact: A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt. Step 1, Artifact. State: evidence: A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there.. Check the result against the boundary and reject this misconception: localStorage is encrypted and safe for long-lived API keys because it belongs to one origin."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Web storage and serialization: concrete case”: state its starting evidence, apply the Web storage and serialization rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Web storage and serialization: concrete case.",
+        "Starting evidence: A preference is JSON-validated after localStorage read and falls back safely when missing or corrupt.",
+        "Core rule: Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault.",
+        "Observable result: The result follows because Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there.",
+        "Boundary check: Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Web storage stores origin-scoped strings synchronously, while IndexedDB supports structured asynchronous storage; neither is a trusted secret vault.",
+        "Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Web storage and serialization and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement resilient local preference storage without treating it as trusted input.",
+        "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.browser.storage.misconception",
+      "explanation": "Treat browser storage as script-readable and untrusted; do not store sensitive long-lived credentials there.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'script-readable' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement resilient local preference storage without treating it as trusted input. Keep this boundary in view: Quotas, eviction, private mode, cross-tab changes, serialization, and XSS exposure affect reliability.",
+    "retrievalPrompts": [
+      "Explain Web storage and serialization using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: localStorage is encrypted and safe for long-lived API keys because it belongs to one origin.",
+      "Apply checkpoint 'script-readable' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “DOM injection prevention”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.control.iteration.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.control-functions",
+  "skillId": "javascript.control.iteration",
+  "title": "Loops and iterable traversal",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Loops and iterable traversal; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Loops and iterable traversal",
+      "claim": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Loops and iterable traversal",
+      "claim": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: for...of visits array values while an index loop is used when positions are required. Your goal is to implement and debug counted, sentinel and iterable loops. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Values, types and expressions; pf abstraction calls; Conditions and switch. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively. This draft therefore rejects: for...in is the preferred way to iterate array values."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose for, while, for-of and collection methods while avoiding inappropriate for-in array traversal.",
+      "Implement and debug counted, sentinel and iterable loops."
+    ],
+    "excludes": [
+      "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively."
+    ]
+  },
+  "outcomes": [
+    "Implement and debug counted, sentinel and iterable loops."
+  ],
+  "examples": [
+    {
+      "id": "javascript.control.iteration.example-a",
+      "title": "Loops and iterable traversal: concrete case",
+      "situation": "for...of visits array values while an index loop is used when positions are required.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: for...of visits array values while an index loop is used when positions are required.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+      ],
+      "result": "The result follows because Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+    },
+    {
+      "id": "javascript.control.iteration.example-b",
+      "title": "Loops and iterable traversal: boundary case",
+      "situation": "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: for...in is the preferred way to iterate array values."
+      ],
+      "result": "The boundary requires this correction: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.control.iteration.misconception",
+      "mistakenBelief": "for...in is the preferred way to iterate array values.",
+      "correction": "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: for...in is the preferred way to iterate array values."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Loops and iterable traversal, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Loops and iterable traversal before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "for...of visits array values while an index loop is used when positions are required.",
+      "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
+      "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "for...of visits array values while an index loop is used when positions are required."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: for...in is the preferred way to iterate array values."
+      }
+    ],
+    "textAlternative": "Starting artifact: for...of visits array values while an index loop is used when positions are required. Step 1, Artifact. State: evidence: for...of visits array values while an index loop is used when positions are required.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.. Check the result against the boundary and reject this misconception: for...in is the preferred way to iterate array values."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Loops and iterable traversal: concrete case”: state its starting evidence, apply the Loops and iterable traversal rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Loops and iterable traversal: concrete case.",
+        "Starting evidence: for...of visits array values while an index loop is used when positions are required.",
+        "Core rule: JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
+        "Observable result: The result follows because Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.",
+        "Boundary check: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
+        "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Loops and iterable traversal and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and debug counted, sentinel and iterable loops.",
+        "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.control.iteration.misconception",
+      "explanation": "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'for...of' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and debug counted, sentinel and iterable loops. Keep this boundary in view: for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
+    "retrievalPrompts": [
+      "Explain Loops and iterable traversal using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: for...in is the preferred way to iterate array values.",
+      "Apply checkpoint 'for...of' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Function declarations, expressions and arrows”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

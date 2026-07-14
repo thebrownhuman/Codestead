@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.abstraction.dispatch.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.abstraction",
+  "skillId": "java.abstraction.dispatch",
+  "title": "Overriding and dynamic dispatch",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Overriding and dynamic dispatch; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Interfaces, Inheritance, Polymorphism, and composition guidance; atomic topic: Overriding and dynamic dispatch",
+      "claim": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS chapters 8-9 and §§15.12.2, 15.12.4: inheritance, interfaces, overload selection, and dispatch; atomic topic: Overriding and dynamic dispatch",
+      "claim": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature. Your goal is to trace polymorphic calls and repair an accidental non-override. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and invariants; Class inheritance; Overloading and local scope. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state. The learner must reject this documented misconception: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Predict runtime method selection and distinguish overriding from overloading and hiding.",
+      "Trace polymorphic calls and repair an accidental non-override."
+    ],
+    "excludes": [
+      "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state."
+    ]
+  },
+  "outcomes": [
+    "Trace polymorphic calls and repair an accidental non-override."
+  ],
+  "examples": [
+    {
+      "id": "java.abstraction.dispatch.example.direct",
+      "title": "Overriding and dynamic dispatch: direct language case",
+      "situation": "A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+      ],
+      "result": "The example meets the atomic outcome because Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+    },
+    {
+      "id": "java.abstraction.dispatch.example.boundary",
+      "title": "Overriding and dynamic dispatch: boundary and transfer case",
+      "situation": "A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration.",
+        "Step 2 — Keep the language boundary explicit: A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state.",
+        "Step 3 — Reject the tempting but incorrect rule: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace polymorphic calls and repair an accidental non-override."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.abstraction.dispatch.misconception",
+      "mistakenBelief": "Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls.",
+      "correction": "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a plug-and-socket system in which contracts describe compatible behavior while components hide their implementation can introduce Overriding and dynamic dispatch, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "interfaces, substitution, dispatch, and composition"
+    ],
+    "limitations": [
+      "overload resolution, method hiding, constructor order, and multiple interface defaults require Java-specific rules",
+      "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
+      "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
+      "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature. Step 1, Observe. State: evidence: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.. Compare the observation with the correction and explain why the misconception fails: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Overriding and dynamic dispatch: direct language case”: state its starting evidence, apply the Overriding and dynamic dispatch rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Overriding and dynamic dispatch: direct language case.",
+        "Starting evidence: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
+        "Core rule: An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
+        "Observable result: The example meets the atomic outcome because Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.",
+        "Boundary check: Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
+        "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Overriding and dynamic dispatch, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace polymorphic calls and repair an accidental non-override.",
+        "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.abstraction.dispatch.misconception",
+      "explanation": "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace polymorphic calls and repair an accidental non-override. Keep this boundary in view: A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state.",
+    "retrievalPrompts": [
+      "Explain Overriding and dynamic dispatch using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls.",
+      "Predict this case from memory: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration."
+    ],
+    "nextReviewPrompt": "Next: continue to “Composition over inheritance”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

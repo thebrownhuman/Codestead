@@ -1,0 +1,15 @@
+{
+  "$schema": "../schema/roadmap-track.schema.json",
+  "format": "roadmap-track",
+  "schema_version": "1.0.0",
+  "id": "qt",
+  "title": "Qt",
+  "status": "coming-soon",
+  "release": "launch-3",
+  "prerequisites": ["cpp"],
+  "scope_brief": "A future Qt desktop-development extension gated behind the complete intermediate C++ track.",
+  "planned_scope": ["Qt object, event and ownership models", "Accessible widget and model-view application design", "Build, packaging, testing and cross-platform diagnostics"],
+  "non_goals": ["Qt is not bundled into or counted as part of Launch 1 C++."],
+  "approval": { "state": "approved-for-roadmap-only", "required_role": "admin", "decision_ref": "owner-scope-2026-07-12" },
+  "publication": { "learner_content_available": false, "authored_lessons": 0, "assessment_banks": 0, "exam_eligible_items": 0, "requires_separate_verified_release": true }
+}

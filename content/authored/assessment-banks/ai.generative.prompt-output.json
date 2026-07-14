@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.generative.prompt-output.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.generative",
+  "skillId": "ai.generative.prompt-output",
+  "title": "Prompts and constrained outputs deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Prompts and constrained outputs; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "nist-genai"
+  ],
+  "items": [
+    {
+      "id": "ai.generative.prompt-output.mcq.misconception",
+      "skillId": "ai.generative.prompt-output",
+      "title": "Prompts and constrained outputs: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use.",
+        "incorrect": "That option preserves the overclaim. Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+        },
+        {
+          "id": "overclaim",
+          "text": "A detailed system prompt or JSON mode guarantees correct, safe, schema-compliant output without application validation."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+      }
+    },
+    {
+      "id": "ai.generative.prompt-output.fill.checkpoint",
+      "skillId": "ai.generative.prompt-output",
+      "title": "Prompts and constrained outputs: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'outside the model'. Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations [[checkpoint]] before use.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "outside the model"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Separate instructions from untrusted context and validate syntax, schema, semantics, authorization, and citations outside the model before use."
+      }
+    },
+    {
+      "id": "ai.generative.prompt-output.code.offline",
+      "skillId": "ai.generative.prompt-output",
+      "title": "Prompts and constrained outputs: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read JSON and accept only an object with exactly answer:string and citations:list[string]. Print valid or invalid.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.generative.prompt-output.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\"answer\":\"bounded\",\"citations\":[\"doc:1\"]}\n",
+          "expectedStdout": "valid",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.generative.prompt-output.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\"answer\":\"x\",\"citations\":[],\"tool\":\"delete\"}\n",
+          "expectedStdout": "invalid",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\nimport json\n\ndef solve(data: str) -> str:\n    try:\n        value = json.loads(data)\n    except json.JSONDecodeError:\n        return 'invalid'\n    valid = (isinstance(value, dict) and set(value) == {'answer','citations'} and isinstance(value['answer'], str) and isinstance(value['citations'], list) and all(isinstance(item,str) for item in value['citations']))\n    return 'valid' if valid else 'invalid'\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "Deterministic parsing and exact schema checks occur outside any model; valid structure still does not establish factual grounding."
+      }
+    }
+  ]
+}

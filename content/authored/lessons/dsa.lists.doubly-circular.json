@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.lists.doubly-circular.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.linked-lists",
+  "skillId": "dsa.lists.doubly-circular",
+  "title": "Doubly and circular lists",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Doubly and circular lists; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Doubly and circular lists",
+      "claim": "Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A circular traversal stops when current returns to head rather than when current becomes null. Your goal is to implement and test a doubly linked operation and explain circular termination conditions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Insertion and deletion. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Extra links increase memory and update cases, and ordinary null-terminated traversal will not stop on a circular list. The draft therefore rejects: A circular list eventually reaches null after the tail like a singly linked list."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Maintain bidirectional or cyclic invariants and compare added flexibility with added update risk.",
+      "Implement and test a doubly linked operation and explain circular termination conditions.",
+      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+    ],
+    "excludes": [
+      "Extra links increase memory and update cases, and ordinary null-terminated traversal will not stop on a circular list."
+    ]
+  },
+  "outcomes": [
+    "Implement and test a doubly linked operation and explain circular termination conditions."
+  ],
+  "examples": [
+    {
+      "id": "dsa.lists.doubly-circular.example-a",
+      "title": "Doubly and circular lists: language-neutral trace",
+      "situation": "A circular traversal stops when current returns to head rather than when current becomes null.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: A circular traversal stops when current returns to head rather than when current becomes null.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links."
+      ],
+      "result": "The conceptual result follows because Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links."
+    },
+    {
+      "id": "dsa.lists.doubly-circular.example-b",
+      "title": "Doubly and circular lists: implementation transfer",
+      "situation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+        "Step 3 — Retest this boundary in the selected implementation: Extra links increase memory and update cases, and ordinary null-terminated traversal will not stop on a circular list."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.lists.doubly-circular.misconception",
+      "mistakenBelief": "A circular list eventually reaches null after the tail like a singly linked list.",
+      "correction": "Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A circular list eventually reaches null after the tail like a singly linked list."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Doubly and circular lists, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Extra links increase memory and update cases, and ordinary null-terminated traversal will not stop on a circular list."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A circular traversal stops when current returns to head rather than when current becomes null.",
+      "Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants.",
+      "Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links.",
+      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "A circular traversal stops when current returns to head rather than when current becomes null."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links."
+        },
+        "explanation": "Verify the result and reject this misconception: A circular list eventually reaches null after the tail like a singly linked list."
+      }
+    ],
+    "textAlternative": "Starting artifact: A circular traversal stops when current returns to head rather than when current becomes null. Step 1, Specification. State: scenario: A circular traversal stops when current returns to head rather than when current becomes null.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity. Step 4, Conclusion. State: correction: Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links.. Verify the result and reject this misconception: A circular list eventually reaches null after the tail like a singly linked list."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Doubly and circular lists: language-neutral trace”: state its starting evidence, apply the Doubly and circular lists rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Doubly and circular lists: language-neutral trace.",
+        "Starting evidence: A circular traversal stops when current returns to head rather than when current becomes null.",
+        "Core rule: Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants.",
+        "Observable result: The conceptual result follows because Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links.",
+        "Boundary check: Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Doubly linked lists add previous links, while circular lists replace null ends with links forming a cycle and require stronger consistency invariants.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+        "Extra links increase memory and update cases, and ordinary null-terminated traversal will not stop on a circular list."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Doubly and circular lists case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement and test a doubly linked operation and explain circular termination conditions.",
+        "Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.lists.doubly-circular.misconception",
+      "explanation": "Circular traversal uses a sentinel or return-to-start condition, and every update preserves both forward and backward links.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'return-to-start condition', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test a doubly linked operation and explain circular termination conditions. Keep this boundary in view: Extra links increase memory and update cases, and ordinary null-terminated traversal will not stop on a circular list.",
+    "retrievalPrompts": [
+      "State the Doubly and circular lists invariant and complexity without code.",
+      "Why is this claim false: A circular list eventually reaches null after the tail like a singly linked list.",
+      "Map checkpoint 'return-to-start condition' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Two-pointer list patterns”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

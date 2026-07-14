@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.arrays.one-dimensional.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.arrays-strings",
+  "skillId": "c.arrays.one-dimensional",
+  "title": "One-dimensional arrays",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for One-dimensional arrays; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wg14-c23",
+      "locator": "ISO C Working Group C23 status; ISO/IEC 9899:2024; provisions applicable to One-dimensional arrays",
+      "claim": "A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type."
+    },
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to One-dimensional arrays",
+      "claim": "A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements. Your goal is to implement and test array traversal, update and aggregation routines. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: while, do and for; Parameters and return values. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "No runtime bounds check is required, sizeof differs before and after parameter adjustment, and one-past pointers may be compared but not dereferenced. Therefore the draft explicitly rejects this beginner failure model: An array argument tells the called function its length automatically because the bracket size remains part of the parameter."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Declare, initialize, measure in scope and traverse arrays within valid bounds.",
+      "Implement and test array traversal, update and aggregation routines."
+    ],
+    "excludes": [
+      "No runtime bounds check is required, sizeof differs before and after parameter adjustment, and one-past pointers may be compared but not dereferenced."
+    ]
+  },
+  "outcomes": [
+    "Implement and test array traversal, update and aggregation routines."
+  ],
+  "examples": [
+    {
+      "id": "c.arrays.one-dimensional.example-a",
+      "title": "One-dimensional arrays: defined case",
+      "situation": "An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count."
+      ],
+      "result": "The defined result follows because Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count."
+    },
+    {
+      "id": "c.arrays.one-dimensional.example-b",
+      "title": "One-dimensional arrays: boundary case",
+      "situation": "When passed to a function parameter, values does not carry its element count, so a separate size_t count is supplied.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: When passed to a function parameter, values does not carry its element count, so a separate size_t count is supplied.",
+        "Step 2 — Keep this standard boundary visible: No runtime bounds check is required, sizeof differs before and after parameter adjustment, and one-past pointers may be compared but not dereferenced.",
+        "Step 3 — Reject the tempting rule: An array argument tells the called function its length automatically because the bracket size remains part of the parameter."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and test array traversal, update and aggregation routines."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.arrays.one-dimensional.misconception",
+      "mistakenBelief": "An array argument tells the called function its length automatically because the bracket size remains part of the parameter.",
+      "correction": "Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: An array argument tells the called function its length automatically because the bracket size remains part of the parameter."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model One-dimensional arrays: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "No runtime bounds check is required, sizeof differs before and after parameter adjustment, and one-past pointers may be compared but not dereferenced."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements.",
+      "A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type.",
+      "Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: An array argument tells the called function its length automatically because the bracket size remains part of the parameter."
+      }
+    ],
+    "textAlternative": "Starting artifact: An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements. Step 1, Source and state. State: evidence: An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count.. Check the conclusion against the boundary and reject this misconception: An array argument tells the called function its length automatically because the bracket size remains part of the parameter."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “One-dimensional arrays: defined case”: state its starting evidence, apply the One-dimensional arrays rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: One-dimensional arrays: defined case.",
+        "Starting evidence: An int values[4] has valid indexes zero through three, and sizeof values in its defining scope includes storage for all four elements.",
+        "Core rule: A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type.",
+        "Observable result: The defined result follows because Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count.",
+        "Boundary check: Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: When passed to a function parameter, values does not carry its element count, so a separate size_t count is supplied.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A C array is a contiguous fixed-size sequence of elements; array expressions often convert to pointers to the first element, but the array object and pointer are not the same type.",
+        "No runtime bounds check is required, sizeof differs before and after parameter adjustment, and one-past pointers may be compared but not dereferenced."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for One-dimensional arrays, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test array traversal, update and aggregation routines.",
+        "Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.arrays.one-dimensional.misconception",
+      "explanation": "Array parameters adjust to pointer parameters; pass the element count separately and enforce every index against that count.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'pass the element count separately' and state the decisive evidence: When passed to a function parameter, values does not carry its element count, so a separate size_t count is supplied."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test array traversal, update and aggregation routines. Keep this boundary in view: No runtime bounds check is required, sizeof differs before and after parameter adjustment, and one-past pointers may be compared but not dereferenced.",
+    "retrievalPrompts": [
+      "Explain One-dimensional arrays using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: An array argument tells the called function its length automatically because the bracket size remains part of the parameter.",
+      "Apply the checkpoint 'pass the element count separately' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Multidimensional arrays”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

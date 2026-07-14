@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.concurrency.model.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.concurrency",
+  "skillId": "python.concurrency.model",
+  "title": "Concurrency versus parallelism deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Concurrency versus parallelism; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-stdlib"
+  ],
+  "items": [
+    {
+      "id": "python.concurrency.model.mcq.misconception",
+      "skillId": "python.concurrency.model",
+      "title": "Concurrency versus parallelism: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost.",
+        "incorrect": "That choice preserves the misconception. Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+        },
+        {
+          "id": "misconception",
+          "text": "Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+      }
+    },
+    {
+      "id": "python.concurrency.model.fill.checkpoint",
+      "skillId": "python.concurrency.model",
+      "title": "Concurrency versus parallelism: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'overlapping progress'. Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost.",
+        "incorrect": "The phrase must preserve the exact language rule. Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Classify waiting versus computation and the desired latency or throughput; choose concurrency for [[checkpoint]] and parallel resources only when simultaneous work offsets coordination cost.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "overlapping progress"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+      }
+    }
+  ]
+}

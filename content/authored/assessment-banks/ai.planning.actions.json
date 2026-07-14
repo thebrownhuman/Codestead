@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.planning.actions.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.planning-decision",
+  "skillId": "ai.planning.actions",
+  "title": "Actions, preconditions and effects deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Actions, preconditions and effects; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.planning.actions.mcq.misconception",
+      "skillId": "ai.planning.actions",
+      "title": "Actions, preconditions and effects: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence.",
+        "incorrect": "That option preserves the overclaim. Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+        },
+        {
+          "id": "overclaim",
+          "text": "A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+      }
+    },
+    {
+      "id": "ai.planning.actions.fill.checkpoint",
+      "skillId": "ai.planning.actions",
+      "title": "Actions, preconditions and effects: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'every precondition'. Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Simulate actions from the initial state, require [[checkpoint]] when used, apply complete effects, and test the explicit goal after the full sequence.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "every precondition"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+      }
+    },
+    {
+      "id": "ai.planning.actions.code.offline",
+      "skillId": "ai.planning.actions",
+      "title": "Actions, preconditions and effects: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read starting energy and a whitespace action sequence using move and charge. move requires energy, advances position, and spends one; charge adds one. Print valid only if every action applies and final position is at least two.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.planning.actions.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "1 move charge move\n",
+          "expectedStdout": "valid",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.planning.actions.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "1 move move\n",
+          "expectedStdout": "invalid",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    tokens = data.split()\n    energy = int(tokens[0]); position = 0\n    for action in tokens[1:]:\n        if action == 'move':\n            if energy <= 0:\n                return 'invalid'\n            energy -= 1; position += 1\n        elif action == 'charge':\n            energy += 1\n        else:\n            return 'invalid'\n    return 'valid' if position >= 2 else 'invalid'\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The validator checks each precondition before applying effects and evaluates the explicit goal only after the whole sequence."
+      }
+    }
+  ]
+}

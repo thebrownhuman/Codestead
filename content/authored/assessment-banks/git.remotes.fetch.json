@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.remotes.fetch.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.remotes",
+  "skillId": "git.remotes.fetch",
+  "title": "Fetch and compare deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Fetch and compare; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.remotes.fetch.mcq.misconception",
+      "skillId": "git.remotes.fetch",
+      "title": "Fetch and compare: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Fetching is the same as pulling and can silently rewrite the current branch's files.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately.",
+        "incorrect": "The selected statement preserves the documented misconception. Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Fetch and compare instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Fetching is the same as pulling and can silently rewrite the current branch's files."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+      }
+    }
+  ]
+}

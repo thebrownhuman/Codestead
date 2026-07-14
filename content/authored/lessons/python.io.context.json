@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.io.context.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.errors-io",
+  "skillId": "python.io.context",
+  "title": "Context managers",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Context managers; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 7-8: input/output, files, JSON, exceptions, and cleanup; atomic topic: Context managers",
+      "claim": "A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Simple and Compound Statements: raise, try, with, exception chaining, and cleanup; atomic topic: Context managers",
+      "claim": "A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A file is opened with a with statement and is closed even when parsing raises halfway through the suite. Your goal is to refactor manual file cleanup into a failure-safe context-managed workflow. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Function contracts and returns; Unicode text and formatting; Files, paths and JSON; Exception handling and propagation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "__exit__ can suppress an exception by returning true, cleanup can fail, ownership determines who closes, multiple contexts unwind in reverse order, and async resources use a separate protocol. The learner must reject this documented misconception: with is only shorthand for close at the final line and every __exit__ return value re-raises exceptions."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use with-statements to guarantee resource cleanup and understand the enter/exit protocol conceptually.",
+      "Refactor manual file cleanup into a failure-safe context-managed workflow."
+    ],
+    "excludes": [
+      "__exit__ can suppress an exception by returning true, cleanup can fail, ownership determines who closes, multiple contexts unwind in reverse order, and async resources use a separate protocol."
+    ]
+  },
+  "outcomes": [
+    "Refactor manual file cleanup into a failure-safe context-managed workflow."
+  ],
+  "examples": [
+    {
+      "id": "python.io.context.example.direct",
+      "title": "Context managers: direct language case",
+      "situation": "A file is opened with a with statement and is closed even when parsing raises halfway through the suite.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A file is opened with a with statement and is closed even when parsing raises halfway through the suite.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception."
+      ],
+      "result": "The example meets the atomic outcome because Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception."
+    },
+    {
+      "id": "python.io.context.example.boundary",
+      "title": "Context managers: boundary and transfer case",
+      "situation": "A custom transaction context rolls back on an exception, commits on success, and returns false so unexpected exceptions keep propagating.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A custom transaction context rolls back on an exception, commits on success, and returns false so unexpected exceptions keep propagating.",
+        "Step 2 — Keep the language boundary explicit: __exit__ can suppress an exception by returning true, cleanup can fail, ownership determines who closes, multiple contexts unwind in reverse order, and async resources use a separate protocol.",
+        "Step 3 — Reject the tempting but incorrect rule: with is only shorthand for close at the final line and every __exit__ return value re-raises exceptions."
+      ],
+      "result": "This case demonstrates the declared outcome: Refactor manual file cleanup into a failure-safe context-managed workflow."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.io.context.misconception",
+      "mistakenBelief": "with is only shorthand for close at the final line and every __exit__ return value re-raises exceptions.",
+      "correction": "Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: with is only shorthand for close at the final line and every __exit__ return value re-raises exceptions."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a records office that escalates named failures, validates decoded forms, and returns borrowed resources on every exit can introduce Context managers, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "exceptions, custom failure categories, files, JSON, and contexts"
+    ],
+    "limitations": [
+      "exception chaining, suppression, path resolution, encoding, partial writes, and protocol methods are software rules",
+      "__exit__ can suppress an exception by returning true, cleanup can fail, ownership determines who closes, multiple contexts unwind in reverse order, and async resources use a separate protocol."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A file is opened with a with statement and is closed even when parsing raises halfway through the suite.",
+      "A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself.",
+      "Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A file is opened with a with statement and is closed even when parsing raises halfway through the suite."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: with is only shorthand for close at the final line and every __exit__ return value re-raises exceptions."
+      }
+    ],
+    "textAlternative": "Starting artifact: A file is opened with a with statement and is closed even when parsing raises halfway through the suite. Step 1, Observe. State: evidence: A file is opened with a with statement and is closed even when parsing raises halfway through the suite.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception.. Compare the observation with the correction and explain why the misconception fails: with is only shorthand for close at the final line and every __exit__ return value re-raises exceptions."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Context managers: direct language case”: state its starting evidence, apply the Context managers rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Context managers: direct language case.",
+        "Starting evidence: A file is opened with a with statement and is closed even when parsing raises halfway through the suite.",
+        "Core rule: A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself.",
+        "Observable result: The example meets the atomic outcome because Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception.",
+        "Boundary check: Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A custom transaction context rolls back on an exception, commits on success, and returns false so unexpected exceptions keep propagating.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A context manager's enter and exit protocol brackets resource use so cleanup runs on normal completion and exception unwinding; with binds the enter result, not necessarily the manager itself.",
+        "__exit__ can suppress an exception by returning true, cleanup can fail, ownership determines who closes, multiple contexts unwind in reverse order, and async resources use a separate protocol."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Context managers, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Refactor manual file cleanup into a failure-safe context-managed workflow.",
+        "Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.io.context.misconception",
+      "explanation": "Use with to guarantee protocol-driven cleanup during all exits, and return false from __exit__ unless the manager deliberately and safely suppresses the exception.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A custom transaction context rolls back on an exception, commits on success, and returns false so unexpected exceptions keep propagating."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to refactor manual file cleanup into a failure-safe context-managed workflow. Keep this boundary in view: __exit__ can suppress an exception by returning true, cleanup can fail, ownership determines who closes, multiple contexts unwind in reverse order, and async resources use a separate protocol.",
+    "retrievalPrompts": [
+      "Explain Context managers using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: with is only shorthand for close at the final line and every __exit__ return value re-raises exceptions.",
+      "Predict this case from memory: A custom transaction context rolls back on an exception, commits on success, and returns false so unexpected exceptions keep propagating."
+    ],
+    "nextReviewPrompt": "Next: continue to “Classes, instances and attributes”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

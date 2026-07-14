@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "1.1.0",
+  "generatedAt": "2026-07-12",
+  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "status": "verified",
+  "scope": "Deterministic offline provider outage, administrator-funded fallback authority, stuck-operation recovery, and deletion serialization",
+  "productionModelQualityEvidence": false,
+  "externalProviderCalls": 0,
+  "credentialMaterial": "Synthetic encrypted test fixtures only",
+  "verification": {
+    "providerOutagePostgresJourney": {
+      "command": "npm.cmd run test:integration -- integration/provider-outage-fallback.integration.test.ts",
+      "result": "8 passed / 0 failed",
+      "database": "Disposable PostgreSQL",
+      "transport": "Global fetch stub; fixed provider URLs were observed but no network request was made"
+    },
+    "combinedPostgresGate": {
+      "command": "npm.cmd run test:integration -- integration/provider-outage-fallback.integration.test.ts integration/provider-operation-idempotency.integration.test.ts integration/postgres.integration.test.ts",
+      "result": "30 passed / 0 failed across 3 files",
+      "migrationCheck": "Full checked-in migration chain through 0035 applied and was re-applied successfully"
+    },
+    "focusedContracts": {
+      "command": "npm.cmd test -- --run src/lib/ai/__tests__/fallback-grant-boundary.test.ts src/lib/ai/__tests__/fallback-budget.test.ts src/lib/ai/__tests__/router.test.ts src/lib/ai/__tests__/provider-operation-idempotency.test.ts src/lib/ai/__tests__/provider-operation-idempotency-store.test.ts src/lib/data-lifecycle/__tests__/deletion-runtime.test.ts src/app/api/privacy/consents/__tests__/route.test.ts src/app/api/onboarding/profile/__tests__/route.test.ts src/app/api/ai/tutor/__tests__/route-coverage.test.ts",
+      "result": "89 passed / 0 failed across 9 files"
+    },
+    "typecheck": {
+      "command": "npm.cmd run typecheck",
+      "result": "passed"
+    },
+    "focusedLint": {
+      "result": "passed with 0 errors and 0 warnings"
+    }
+  },
+  "provedControls": [
+    "Active learner credentials are attempted before administrator-funded credentials; corrupt credential ciphertext is isolated to its row and never aborts the remaining candidates.",
+    "Consent mutation, onboarding consent, fallback reservation, grant creation/revocation, provider-operation receipt acquisition, and both account-deletion transactions acquire the same global per-user advisory lock before narrower locks. They revalidate account/learner/receipt-owner status under that authority, and PostgreSQL races prove no consent, reservation, grant, or processing receipt is inserted after deletion wins and no reservation is authorized after withdrawal wins.",
+    "Grant creation is request-idempotent, rejects changed-payload UUID reuse and concurrent active learner/provider/model destinations, and commits grant, audit event, learner notification, and email outbox in one transaction.",
+    "Any route-authorized administrator can invoke the revocation command without a granted-by predicate. Revocation intentionally remains allowed during account shutdown because it only reduces authority; it still joins the global lock order and transactionally couples idempotent state, audit, notification, and outbox writes.",
+    "Fallback enumeration is deterministically ordered, bounded, and deduplicated by credential and model, so overlapping legacy grants cannot charge one learner request more than once.",
+    "A durable reservation row atomically guards both token and paise aggregates. Reconciliation is idempotent; missing, excessive, failed, or model-mismatched usage retains the full conservative charge.",
+    "Provider-reported model aliases are normalized under a strict provider-specific grammar; Google's documented models/ prefix is the only accepted prefix alias, while mismatches fail over as BAD_RESPONSE.",
+    "Provider-operation receipt acquisition takes the global owner lock and revalidates active status before lookup or insert, then begins an expiring lease with a monotonic version. Expired operations terminalize to a safe indeterminate response without re-executing the provider callback, and stale completions cannot pass the lease/version/expiry compare-and-set fence.",
+    "Grant authority and completed reservation fields are database-immutable. Migration 0034 rejects ordinary deletion even for an unused grant, while credential and reservation guards preserve referenced history. Explicit account deletion first rejects unreconciled calls, then uses a transaction-local authorization flag and deletes receipts, reservations, grants, and credentials in defined order.",
+    "Authored lesson blueprints and assessment banks, deterministic exam scoring, and progress aggregation remain usable during total permitted-provider outage.",
+    "Provider response bodies, unexpected errors, encrypted credential plaintext, and secret-like audit metadata do not enter learner responses, chat rows, model-call rows, notification metadata, or audit metadata."
+  ],
+  "auditImpact": {
+    "AI-004": "Adds linearizable fallback consent authority, idempotent and atomic grant commands, destination deduplication, strict model validation, and immutable dual-budget accounting",
+    "AI-009": "All-permitted-provider outage and authored continuity path has deterministic zero-network PostgreSQL evidence",
+    "NFR-REL-001": "Adds leased/fenced stuck-operation recovery, lost-response replay, bounded failover, and conservative reconciliation",
+    "NFR-PRV-002": "Provider and administrator-fallback withdrawal is serialized against new fallback reservations",
+    "TM-AI-003": "Cross-user credential, active-destination, hard-budget, and ledger-deletion controls have route, unit, and PostgreSQL coverage",
+    "TM-AI-008": "Cross-provider consent, request replay, model-report validation, and unknown-outcome handling are fail-closed"
+  },
+  "notProved": [
+    "Live provider health, teaching quality, actual served-model identity, real latency, real rate-limit semantics, or production outage recovery",
+    "Accuracy of administrator-entered pricing snapshots against provider invoices or foreign-exchange changes; the snapshot is a local authorization cap, not an invoice assertion",
+    "Production cookies, deployed routing, provider-side observability, or a deployed account-deletion/outage drill",
+    "Cross-request provider circuit breaking, automated provider-health decisions, or operator alert delivery",
+    "A multi-administrator PostgreSQL revocation journey; the release schema enforces a singleton active administrator, while the revocation command is structurally not bound to the grant creator"
+  ],
+  "artifactSha256": {
+    "drizzle/0032_short_green_goblin.sql": "ad353e63c2e45c5b46de0266b5f265f20e475771093cc8575aa49abe870b04e5",
+    "drizzle/0034_fallback_authority_delete_guard.sql": "ca1ee5a9fe728c83f9d8af42b11ad3a9467d5a93af779a79420f57cdc31d6f73",
+    "drizzle/meta/_journal.json": "ae806ae07bcea0df177322cf0f85ec1f8cccf69670577caf10b21b2afe21740e",
+    "src/lib/db/schema.ts": "49410735fd4c22f76eaf7091f52106e8a0a05767a8cd2703bcf6b6a49486b10f",
+    "src/lib/security/user-authority-lock.ts": "408ab29c495e79667df65ca192a2053468e0d7bd9f6f27e674f524f5c9aa0061",
+    "src/lib/ai/fallback-budget.ts": "e71ea062b326f044850e92d60951e00095609941bc24c7416abe8881782ec145",
+    "src/lib/ai/fallback-grants.ts": "275668e91a8c0614762b721677e6b3551aaadb88df1f154e685e9d1104946a68",
+    "src/lib/ai/fallback-notifications.ts": "f02035fbff76c8fcd6be59665d4050e54dd0850eeedfd097c68a666f4330b537",
+    "src/lib/ai/router.ts": "5951f7b8204b3adf4c182d7d726c69f4c1f8bccb4f5ea8aefe85465987e2fcba",
+    "src/lib/ai/provider-operation-idempotency.ts": "06d2e17e1d3cb76b93e4ba736760763c5b5d94decff3f4a29cd535add88aefc5",
+    "src/lib/ai/__tests__/provider-operation-idempotency-store.test.ts": "0ef67a0418aab93bb24f438a4b099a2f726c75318d00f30984f71f60bc10cac4",
+    "src/app/api/ai/tutor/route.ts": "fb2564df7e56af0e16f2caa2bd12e348272b0aa6d515d8cd10bdbbd41410b47f",
+    "src/lib/privacy/consent.ts": "7028354d1bff8efaaf91ee47623fa0f325b928707fa39cbf1d8a0816b15bc958",
+    "src/app/api/privacy/consents/route.ts": "14a613b56f579d5031342312812c99bf74b36efc2abda71ae473fdfbed337c71",
+    "src/app/api/onboarding/profile/route.ts": "bf6d31bb478913a58de658705b1264fe07e551617a90cd67d257765abae389e5",
+    "src/lib/data-lifecycle/deletion.ts": "dc19dccf56aa855e765875b01bf9fbec890933bbfdd4c62c6d9cf4f4beaa6340",
+    "src/app/api/admin/fallback-grants/route.ts": "68d4f10f868bfe01f0ec6f50200d99c95a8e44e9db2a36fccba2bf74cbd258d0",
+    "src/app/api/admin/fallback-grants/[id]/revoke/route.ts": "798024fe4eded7eb61636d9b23886fcd2b8fb132632c328f63ee68a9c83f73d7",
+    "src/components/admin/admin-fallback-grant-manager.tsx": "b93aa202456b49ce6011111140dbfcd2210948974e9f8952e214e511c4f0b6ca",
+    "integration/provider-outage-fallback.integration.test.ts": "52e7f7bbf11b87243f9b34b5c37beae6e2429a2141470b81d2d60a4a9997c89c",
+    "integration/provider-operation-idempotency.integration.test.ts": "a23336c6c944ee984aad1ca3c095a300311702377249bcb3263f51ff85727ade",
+    "integration/postgres.integration.test.ts": "9e8dfac96a071f2634c2eab50b1c7c7fd65a9c3d591c0c77a59f9e26ee760af8"
+  },
+  "supersededDigests": [
+    {
+      "artifact": "drizzle/meta/_journal.json",
+      "priorDigest": "5724ae0e7897d35f153531f9838e0d1f154ca67a72d32bc0963aa43ce5f84618",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/db/schema.ts",
+      "priorDigest": "509fc5330a347db453a04ae874c762a845f70c0bba1b777856c3b5f96527202d",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/ai/provider-operation-idempotency.ts",
+      "priorDigest": "97edac79353d6f01ab479036960f7b9b7649502def73fc2558e12e22c0ae9514",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/ai/__tests__/provider-operation-idempotency-store.test.ts",
+      "priorDigest": "3548fd28e7d5cda1bf5bdf675a5d415fc2fad4dbcc7e4b1b6b2c2c53e043ecf4",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/app/api/ai/tutor/route.ts",
+      "priorDigest": "b3b2a739bc7b4f3c9d613d60dddeb9640de6a6c64719cbb7d081e3085adf46a4",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/data-lifecycle/deletion.ts",
+      "priorDigest": "12f35aef8f8834fd15d5a0c402a5bac85b4ab4318982f856022a72be5ca013d0",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "integration/provider-outage-fallback.integration.test.ts",
+      "priorDigest": "79d8765cca1350c234301a63b65994d2596b579846f6f13e952aebf1c41c859f",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "integration/postgres.integration.test.ts",
+      "priorDigest": "8341d18b9f501559339e829bce5b6e35b6582bfaa91a427db7dec196e2d4d541",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    }
+  ]
+}

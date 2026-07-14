@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.collections.list-tuple.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.collections",
+  "skillId": "python.collections.list-tuple",
+  "title": "Lists, tuples and slicing deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Lists, tuples and slicing; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "py-reference"
+  ],
+  "items": [
+    {
+      "id": "python.collections.list-tuple.mcq.misconception",
+      "skillId": "python.collections.list-tuple",
+      "title": "Lists, tuples and slicing: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared.",
+        "incorrect": "That choice preserves the misconception. List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+        },
+        {
+          "id": "misconception",
+          "text": "Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+      }
+    },
+    {
+      "id": "python.collections.list-tuple.fill.checkpoint",
+      "skillId": "python.collections.list-tuple",
+      "title": "Lists, tuples and slicing: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'shallow copies'. List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared.",
+        "incorrect": "The phrase must preserve the exact language rule. List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "List mutation and tuple immutability apply to the outer sequence; slices are [[checkpoint]], so nested mutable objects may remain shared.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "shallow copies"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+      }
+    },
+    {
+      "id": "python.collections.list-tuple.code.core",
+      "skillId": "python.collections.list-tuple",
+      "title": "Lists, tuples and slicing: runnable core task",
+      "kind": "code",
+      "prompt": "Read one or more integers. Print the reversed list, then print a tuple-style first,last pair.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.collections.list-tuple.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "1 2 3\n",
+          "expectedStdout": "3 2 1\n1,3",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.collections.list-tuple.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "9\n",
+          "expectedStdout": "9\n9,9",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    values = [int(token) for token in data.split()]\n    reversed_values = values[::-1]\n    endpoints = (values[0], values[-1])\n    return f\"{' '.join(map(str, reversed_values))}\\n{endpoints[0]},{endpoints[1]}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "Slicing creates a reversed shallow list result while the tuple models the fixed endpoint pair."
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@learncoding/runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/index.ts",
+    "local": "npm run build && node dist/local-launcher.js",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "runtime:build": "node runtime/manage-images.mjs build",
+    "runtime:inspect": "node runtime/manage-images.mjs inspect",
+    "runtime:test": "npm run build && node runtime/test-runtime-images.mjs && node runtime/test-runner-executor.mjs",
+    "runtime:scan": "node runtime/manage-images.mjs scan",
+    "runtime:record": "node runtime/manage-images.mjs record"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "tsx": "4.23.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

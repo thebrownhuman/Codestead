@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.trees.traversal.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.trees",
+  "skillId": "dsa.trees.traversal",
+  "title": "Depth and breadth traversals",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Depth and breadth traversals; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Depth and breadth traversals",
+      "claim": "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Postorder processes both child subtrees before deleting or aggregating a node. Your goal is to choose, implement and test a traversal for a stated hierarchical task. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Recursive problem design; Linked lists; Tree terminology and representation; Stack ADT; Queue and circular buffer. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state. The draft therefore rejects: All tree traversals produce the same order because they visit every node once."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Implement preorder, inorder, postorder and level-order traversals iteratively or recursively.",
+      "Choose, implement and test a traversal for a stated hierarchical task.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "excludes": [
+      "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+    ]
+  },
+  "outcomes": [
+    "Choose, implement and test a traversal for a stated hierarchical task."
+  ],
+  "examples": [
+    {
+      "id": "dsa.trees.traversal.example-a",
+      "title": "Depth and breadth traversals: language-neutral trace",
+      "situation": "Postorder processes both child subtrees before deleting or aggregating a node.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Postorder processes both child subtrees before deleting or aggregating a node.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Traversal order changes when the node action occurs relative to children; choose the order from the task."
+      ],
+      "result": "The conceptual result follows because Traversal order changes when the node action occurs relative to children; choose the order from the task."
+    },
+    {
+      "id": "dsa.trees.traversal.example-b",
+      "title": "Depth and breadth traversals: implementation transfer",
+      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Step 3 — Retest this boundary in the selected implementation: Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.trees.traversal.misconception",
+      "mistakenBelief": "All tree traversals produce the same order because they visit every node once.",
+      "correction": "Traversal order changes when the node action occurs relative to children; choose the order from the task.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: All tree traversals produce the same order because they visit every node once."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Depth and breadth traversals, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Postorder processes both child subtrees before deleting or aggregating a node.",
+      "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
+      "Traversal order changes when the node action occurs relative to children; choose the order from the task.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Postorder processes both child subtrees before deleting or aggregating a node."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Traversal order changes when the node action occurs relative to children; choose the order from the task."
+        },
+        "explanation": "Verify the result and reject this misconception: All tree traversals produce the same order because they visit every node once."
+      }
+    ],
+    "textAlternative": "Starting artifact: Postorder processes both child subtrees before deleting or aggregating a node. Step 1, Specification. State: scenario: Postorder processes both child subtrees before deleting or aggregating a node.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Traversal order changes when the node action occurs relative to children; choose the order from the task.. Verify the result and reject this misconception: All tree traversals produce the same order because they visit every node once."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Depth and breadth traversals: language-neutral trace”: state its starting evidence, apply the Depth and breadth traversals rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Depth and breadth traversals: language-neutral trace.",
+        "Starting evidence: Postorder processes both child subtrees before deleting or aggregating a node.",
+        "Core rule: Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
+        "Observable result: The conceptual result follows because Traversal order changes when the node action occurs relative to children; choose the order from the task.",
+        "Boundary check: Traversal order changes when the node action occurs relative to children; choose the order from the task."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Depth and breadth traversals case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Choose, implement and test a traversal for a stated hierarchical task.",
+        "Traversal order changes when the node action occurs relative to children; choose the order from the task."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.trees.traversal.misconception",
+      "explanation": "Traversal order changes when the node action occurs relative to children; choose the order from the task.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'relative to children', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose, implement and test a traversal for a stated hierarchical task. Keep this boundary in view: Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state.",
+    "retrievalPrompts": [
+      "State the Depth and breadth traversals invariant and complexity without code.",
+      "Why is this claim false: All tree traversals produce the same order because they visit every node once.",
+      "Map checkpoint 'relative to children' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Binary search tree operations”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,27 @@
+name: learncoding-verify-backup-drill
+
+services:
+  postgres:
+    image: postgres@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: learncoding
+      POSTGRES_USER: learncoding
+      # Safe only because this disposable service publishes no port and its
+      # project network is removed immediately after the local drill.
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF8
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,nodev,size=512m
+      - /var/run/postgresql:rw,noexec,nosuid,nodev,size=16m
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learncoding -d learncoding"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1

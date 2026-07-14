@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.iteration.generator.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.iteration-functional",
+  "skillId": "python.iteration.generator",
+  "title": "Generators and lazy pipelines",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Generators and lazy pipelines; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Data Model iterator protocol plus yield expressions, generator functions, and decorators; atomic topic: Generators and lazy pipelines",
+      "claim": "A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested."
+    },
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial §§4.7 and 5.1-5.6: iteration, range, comprehensions, and sequence techniques; atomic topic: Generators and lazy pipelines",
+      "claim": "A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk. Your goal is to implement and test a lazy generator pipeline without accidental exhaustion. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; Functions, scope and recursion; Iterable and iterator protocols; Scope and closures. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Construction does not run the body, exceptions appear during consumption, resources need close/finally care, infinite generators need bounds, and reuse requires creating a new generator. The learner must reject this documented misconception: Calling a generator function executes it immediately and the returned generator can be iterated repeatedly from the beginning."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use yield and generator expressions for lazy stateful production with finite-consumption awareness.",
+      "Implement and test a lazy generator pipeline without accidental exhaustion."
+    ],
+    "excludes": [
+      "Construction does not run the body, exceptions appear during consumption, resources need close/finally care, infinite generators need bounds, and reuse requires creating a new generator."
+    ]
+  },
+  "outcomes": [
+    "Implement and test a lazy generator pipeline without accidental exhaustion."
+  ],
+  "examples": [
+    {
+      "id": "python.iteration.generator.example.direct",
+      "title": "Generators and lazy pipelines: direct language case",
+      "situation": "A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately."
+      ],
+      "result": "The example meets the atomic outcome because A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately."
+    },
+    {
+      "id": "python.iteration.generator.example.boundary",
+      "title": "Generators and lazy pipelines: boundary and transfer case",
+      "situation": "A file-line generator owns its file inside a generator context and the consumer uses a bounded loop so cleanup is deterministic on early exit.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A file-line generator owns its file inside a generator context and the consumer uses a bounded loop so cleanup is deterministic on early exit.",
+        "Step 2 — Keep the language boundary explicit: Construction does not run the body, exceptions appear during consumption, resources need close/finally care, infinite generators need bounds, and reuse requires creating a new generator.",
+        "Step 3 — Reject the tempting but incorrect rule: Calling a generator function executes it immediately and the returned generator can be iterated repeatedly from the beginning."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and test a lazy generator pipeline without accidental exhaustion."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.iteration.generator.misconception",
+      "mistakenBelief": "Calling a generator function executes it immediately and the returned generator can be iterated repeatedly from the beginning.",
+      "correction": "A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Calling a generator function executes it immediately and the returned generator can be iterated repeatedly from the beginning."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass production route that can build a bounded result, expose an iterator, pause lazily, or wrap a callable can introduce Generators and lazy pipelines, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "comprehensions, iterators, generators, and decorators"
+    ],
+    "limitations": [
+      "StopIteration, suspension, close behavior, metadata, wrapper order, and memory allocation require exact Python semantics",
+      "Construction does not run the body, exceptions appear during consumption, resources need close/finally care, infinite generators need bounds, and reuse requires creating a new generator."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk.",
+      "A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested.",
+      "A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Calling a generator function executes it immediately and the returned generator can be iterated repeatedly from the beginning."
+      }
+    ],
+    "textAlternative": "Starting artifact: A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk. Step 1, Observe. State: evidence: A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately.. Compare the observation with the correction and explain why the misconception fails: Calling a generator function executes it immediately and the returned generator can be iterated repeatedly from the beginning."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Generators and lazy pipelines: direct language case”: state its starting evidence, apply the Generators and lazy pipelines rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Generators and lazy pipelines: direct language case.",
+        "Starting evidence: A chunks generator yields bounded slices one at a time and is tested for empty input, exact division, and a final partial chunk.",
+        "Core rule: A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested.",
+        "Observable result: The example meets the atomic outcome because A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately.",
+        "Boundary check: A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A file-line generator owns its file inside a generator context and the consumer uses a bounded loop so cleanup is deterministic on early exit.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A generator function suspends at yield and resumes with preserved local state, producing a lazy one-pass iterator whose work occurs only as values are requested.",
+        "Construction does not run the body, exceptions appear during consumption, resources need close/finally care, infinite generators need bounds, and reuse requires creating a new generator."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Generators and lazy pipelines, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement and test a lazy generator pipeline without accidental exhaustion.",
+        "A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.iteration.generator.misconception",
+      "explanation": "A generator body runs lazily during one-pass consumption and preserves suspended state; create a new generator for another traversal and close owned resources deliberately.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A file-line generator owns its file inside a generator context and the consumer uses a bounded loop so cleanup is deterministic on early exit."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test a lazy generator pipeline without accidental exhaustion. Keep this boundary in view: Construction does not run the body, exceptions appear during consumption, resources need close/finally care, infinite generators need bounds, and reuse requires creating a new generator.",
+    "retrievalPrompts": [
+      "Explain Generators and lazy pipelines using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Calling a generator function executes it immediately and the returned generator can be iterated repeatedly from the beginning.",
+      "Predict this case from memory: A file-line generator owns its file inside a generator context and the consumer uses a bounded loop so cleanup is deterministic on early exit."
+    ],
+    "nextReviewPrompt": "Next: continue to “Decorator basics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

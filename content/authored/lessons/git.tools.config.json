@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.tools.config.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.tools-build",
+  "skillId": "git.tools.config",
+  "title": "Configuration and environment",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Configuration and environment; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Configuration and environment",
+      "claim": "Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source."
+    },
+    {
+      "sourceRef": "github-docs",
+      "locator": "GitHub Documentation; accessed 2026-07; section applicable to Configuration and environment",
+      "claim": "Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A service validates required database host and port at startup while reading the password from a secret channel excluded from Git. Your goal is to configure a project from an example environment file without committing credentials. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Ignore policy; Commits and history; Build and task commands. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Configuration can be executable or interpolated, environment variables leak in logs or child processes, and local, project, user, and system precedence varies by tool. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: All configuration files belong in version control because configuration is not code and cannot contain sensitive data."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Separate defaults, environment-specific configuration and secrets and document required variables safely.",
+      "Configure a project from an example environment file without committing credentials."
+    ],
+    "excludes": [
+      "Configuration can be executable or interpolated, environment variables leak in logs or child processes, and local, project, user, and system precedence varies by tool."
+    ]
+  },
+  "outcomes": [
+    "Configure a project from an example environment file without committing credentials."
+  ],
+  "examples": [
+    {
+      "id": "git.tools.config.example-a",
+      "title": "Configuration and environment: direct case",
+      "situation": "A service validates required database host and port at startup while reading the password from a secret channel excluded from Git.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A service validates required database host and port at startup while reading the password from a secret channel excluded from Git.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets."
+      ],
+      "result": "The case supports the declared outcome because Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets."
+    },
+    {
+      "id": "git.tools.config.example-b",
+      "title": "Configuration and environment: boundary case",
+      "situation": "A surprising formatter setting is traced through project and user configuration precedence rather than changed randomly in source.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A surprising formatter setting is traced through project and user configuration precedence rather than changed randomly in source.",
+        "Step 2 — Keep this boundary explicit: Configuration can be executable or interpolated, environment variables leak in logs or child processes, and local, project, user, and system precedence varies by tool.",
+        "Step 3 — Reject the documented misconception: All configuration files belong in version control because configuration is not code and cannot contain sensitive data."
+      ],
+      "result": "This case demonstrates the declared outcome: Configure a project from an example environment file without committing credentials."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.tools.config.misconception",
+      "mistakenBelief": "All configuration files belong in version control because configuration is not code and cannot contain sensitive data.",
+      "correction": "Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: All configuration files belong in version control because configuration is not code and cannot contain sensitive data."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A recipe and packing line can model Configuration and environment: declared ingredients resolve to exact supplies, controlled steps produce an artifact, and labels preserve provenance.",
+    "usefulFor": [
+      "Understanding dependency resolution, configuration, repeatable builds, and generated artifacts"
+    ],
+    "limitations": [
+      "Software supply chains include executable dependencies, caches, signatures, platform variance, and secret handling beyond a kitchen process.",
+      "Configuration can be executable or interpolated, environment variables leak in logs or child processes, and local, project, user, and system precedence varies by tool."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A service validates required database host and port at startup while reading the password from a secret channel excluded from Git.",
+      "Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source.",
+      "Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A service validates required database host and port at startup while reading the password from a secret channel excluded from Git."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source."
+        },
+        "explanation": "Apply the declared Configuration and environment model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: All configuration files belong in version control because configuration is not code and cannot contain sensitive data."
+      }
+    ],
+    "textAlternative": "Starting artifact: A service validates required database host and port at startup while reading the password from a secret channel excluded from Git. Step 1, Observe. State: evidence: A service validates required database host and port at startup while reading the password from a secret channel excluded from Git.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source.. Apply the declared Configuration and environment model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets.. Compare the observation with the correction and reject the misconception: All configuration files belong in version control because configuration is not code and cannot contain sensitive data."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Configuration and environment: direct case”: state its starting evidence, apply the Configuration and environment rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Configuration and environment: direct case.",
+        "Starting evidence: A service validates required database host and port at startup while reading the password from a secret channel excluded from Git.",
+        "Core rule: Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source.",
+        "Observable result: The case supports the declared outcome because Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets.",
+        "Boundary check: Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A surprising formatter setting is traced through project and user configuration precedence rather than changed randomly in source.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Configuration separates environment-specific values and policy from code, with precedence, defaults, validation, and secret handling defined for each source.",
+        "Configuration can be executable or interpolated, environment variables leak in logs or child processes, and local, project, user, and system precedence varies by tool."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Configuration and environment, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Configure a project from an example environment file without committing credentials.",
+        "Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.tools.config.misconception",
+      "explanation": "Version safe shared defaults and schemas, keep credentials out of the repository, document precedence, and validate effective configuration without printing secrets.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A surprising formatter setting is traced through project and user configuration precedence rather than changed randomly in source."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to configure a project from an example environment file without committing credentials. Keep this boundary in view: Configuration can be executable or interpolated, environment variables leak in logs or child processes, and local, project, user, and system precedence varies by tool.",
+    "retrievalPrompts": [
+      "Explain Configuration and environment without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: All configuration files belong in version control because configuration is not code and cannot contain sensitive data.",
+      "Apply the model to this case from memory: A surprising formatter setting is traced through project and user configuration precedence rather than changed randomly in source."
+    ],
+    "nextReviewPrompt": "Next: continue to “Generated artifacts and releases”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

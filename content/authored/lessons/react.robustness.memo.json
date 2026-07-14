@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.robustness.memo.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.robustness",
+  "skillId": "react.robustness.memo",
+  "title": "Memoization and stable identity",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Memoization and stable identity; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Memoization and stable identity",
+      "claim": "memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow. Your goal is to repair premature or ineffective memoization and demonstrate any retained optimization with evidence. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Routing and application context; Remote data and asynchronous UI; Measure before optimization; Dependencies and reactive values. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation. This draft therefore rejects: useMemo is required to make a computed value semantically correct and permanent."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use memo, useMemo or useCallback only when measured work or dependency identity requires it.",
+      "Repair premature or ineffective memoization and demonstrate any retained optimization with evidence."
+    ],
+    "excludes": [
+      "Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation."
+    ]
+  },
+  "outcomes": [
+    "Repair premature or ineffective memoization and demonstrate any retained optimization with evidence."
+  ],
+  "examples": [
+    {
+      "id": "react.robustness.memo.example-a",
+      "title": "Memoization and stable identity: concrete case",
+      "situation": "A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete."
+      ],
+      "result": "The result follows because Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete."
+    },
+    {
+      "id": "react.robustness.memo.example-b",
+      "title": "Memoization and stable identity: boundary case",
+      "situation": "Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: useMemo is required to make a computed value semantically correct and permanent."
+      ],
+      "result": "The boundary requires this correction: Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.robustness.memo.misconception",
+      "mistakenBelief": "useMemo is required to make a computed value semantically correct and permanent.",
+      "correction": "Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: useMemo is required to make a computed value semantically correct and permanent."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Memoization and stable identity, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Memoization and stable identity before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow.",
+      "memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them.",
+      "Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: useMemo is required to make a computed value semantically correct and permanent."
+      }
+    ],
+    "textAlternative": "Starting artifact: A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow. Step 1, Artifact. State: evidence: A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete.. Check the result against the boundary and reject this misconception: useMemo is required to make a computed value semantically correct and permanent."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Memoization and stable identity: concrete case”: state its starting evidence, apply the Memoization and stable identity rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Memoization and stable identity: concrete case.",
+        "Starting evidence: A measured expensive filter uses useMemo with complete dependencies after simpler render computation proves slow.",
+        "Core rule: memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them.",
+        "Observable result: The result follows because Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete.",
+        "Boundary check: Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "memo, useMemo, and useCallback cache work or identities as performance hints when dependencies and comparison costs justify them.",
+        "Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Memoization and stable identity and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Repair premature or ineffective memoization and demonstrate any retained optimization with evidence.",
+        "Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.robustness.memo.misconception",
+      "explanation": "Memoization is an optimization, not a correctness guarantee; first make logic pure and dependencies complete.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not a correctness guarantee' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair premature or ineffective memoization and demonstrate any retained optimization with evidence. Keep this boundary in view: Caches can be discarded, stale dependencies cause bugs, new object props defeat memo, and caching can cost more than recomputation.",
+    "retrievalPrompts": [
+      "Explain Memoization and stable identity using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: useMemo is required to make a computed value semantically correct and permanent.",
+      "Apply checkpoint 'not a correctness guarantee' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Accessible queries and interactions”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

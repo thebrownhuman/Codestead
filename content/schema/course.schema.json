@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learncoding.local/schemas/course.schema.json",
+  "title": "Codestead curriculum coverage manifest",
+  "description": "Authoritative schema for a versioned course scope, skill graph, evidence plan, and coverage declaration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "id",
+    "title",
+    "version",
+    "status",
+    "release",
+    "summary",
+    "audience",
+    "scope",
+    "authoritative_sources",
+    "runtime",
+    "modules",
+    "exit_outcomes",
+    "coverage_summary"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "title": { "type": "string", "minLength": 3 },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "status": { "enum": ["coming-soon", "beta", "verified", "retired"] },
+    "release": { "type": "string", "pattern": "^launch-[0-9]+$" },
+    "summary": { "type": "string", "minLength": 20 },
+    "audience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "assumed_knowledge", "target_capability"],
+      "properties": {
+        "level": { "type": "string", "minLength": 3 },
+        "assumed_knowledge": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "target_capability": { "type": "string", "minLength": 10 }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["includes", "non_goals"],
+      "properties": {
+        "includes": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } },
+        "non_goals": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } }
+      }
+    },
+    "authoritative_sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "runtime": { "$ref": "#/$defs/runtime" },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/module" }
+    },
+    "exit_outcomes": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string", "minLength": 8 }
+    },
+    "coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_skills", "elective_skills", "total_skills", "covered", "partial", "planned"],
+      "properties": {
+        "required_skills": { "type": "integer", "minimum": 0 },
+        "elective_skills": { "type": "integer", "minimum": 0 },
+        "total_skills": { "type": "integer", "minimum": 1 },
+        "covered": { "type": "integer", "minimum": 0 },
+        "partial": { "type": "integer", "minimum": 0 },
+        "planned": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "url", "type", "version_or_date"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 3 },
+        "url": { "type": "string", "format": "uri" },
+        "type": { "enum": ["standard", "specification", "official-docs", "curriculum", "security-guidance", "accessibility-standard", "research"] },
+        "version_or_date": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "language", "standard", "toolchain", "execution_environment", "file_extensions", "notes"],
+      "properties": {
+        "kind": { "enum": ["conceptual", "programming-language", "markup", "styling", "library", "tooling", "multi-language"] },
+        "language": { "type": "string" },
+        "standard": { "type": "string" },
+        "toolchain": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "execution_environment": { "type": "string" },
+        "file_extensions": { "type": "array", "items": { "type": "string", "pattern": "^\\.[A-Za-z0-9+_-]+$" } },
+        "notes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "required", "prerequisites", "skills"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)*$" },
+        "title": { "type": "string", "minLength": 3 },
+        "description": { "type": "string", "minLength": 10 },
+        "required": { "type": "boolean" },
+        "prerequisites": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)*$" } },
+        "skills": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/skill" } }
+      }
+    },
+    "skill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "outcomes", "prerequisites", "evidence_types", "status", "coverage_status", "source_refs"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)*$" },
+        "title": { "type": "string", "minLength": 3 },
+        "description": { "type": "string", "minLength": 8 },
+        "outcomes": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 8 } },
+        "prerequisites": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)*$" } },
+        "evidence_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["concept-check", "trace", "code", "debug", "test", "explain", "transfer", "project", "visual", "design", "artifact", "performance", "review"] }
+        },
+        "status": { "enum": ["required", "elective"] },
+        "coverage_status": { "enum": ["covered", "partial", "planned"] },
+        "source_refs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } }
+      }
+    }
+  }
+}

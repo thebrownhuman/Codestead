@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.search.adversarial.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.adversarial",
+  "title": "Minimax and alpha-beta deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap, and deterministic offline Python lab for Minimax and alpha-beta; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.search.adversarial.mcq.misconception",
+      "skillId": "ai.search.adversarial",
+      "title": "Minimax and alpha-beta: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice.",
+        "incorrect": "That option preserves the overclaim. Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+        },
+        {
+          "id": "overclaim",
+          "text": "Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+      }
+    },
+    {
+      "id": "ai.search.adversarial.fill.checkpoint",
+      "skillId": "ai.search.adversarial",
+      "title": "Minimax and alpha-beta: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'preserves the minimax value'. Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Alpha-beta [[checkpoint]] when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "preserves the minimax value"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+      }
+    },
+    {
+      "id": "ai.search.adversarial.code.offline",
+      "skillId": "ai.search.adversarial",
+      "title": "Minimax and alpha-beta: deterministic offline Python lab",
+      "kind": "code",
+      "prompt": "Read eight integer leaf utilities for a complete depth-three binary zero-sum game. Use alpha-beta minimax with MAX at the root and print the backed-up value.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Implement only the stated offline contract, run the visible boundary, and do not infer a real model, safety, fairness, or deployment claim from this toy result."
+      ],
+      "feedback": {
+        "correct": "The deterministic offline reference checks match the bounded contract; this does not establish real-world AI quality or safety.",
+        "incorrect": "At least one deterministic check differs; inspect parsing, algorithm assumptions, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "offline-contract",
+            "description": "Passes all visible and hidden deterministic offline tests while preserving the stated evidence and non-claim boundary.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Offline stdlib-only task. Human reviewer must verify algorithm, fixtures, overclaim boundary, and educational validity before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the bounded offline contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "ai.search.adversarial.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "3 5 6 9 1 2 0 -1\n",
+          "expectedStdout": "5",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "ai.search.adversarial.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "-8 -7 -6 -5 -4 -3 -2 -1\n",
+          "expectedStdout": "-3",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    leaves = list(map(int, data.split()))\n    def search(index: int, depth: int, maximizing: bool, alpha: int, beta: int) -> int:\n        if depth == 3:\n            return leaves[index]\n        if maximizing:\n            value = -10**18\n            for child in range(2):\n                value = max(value, search(index * 2 + child, depth + 1, False, alpha, beta))\n                alpha = max(alpha, value)\n                if alpha >= beta:\n                    break\n            return value\n        value = 10**18\n        for child in range(2):\n            value = min(value, search(index * 2 + child, depth + 1, True, alpha, beta))\n            beta = min(beta, value)\n            if alpha >= beta:\n                break\n        return value\n    return str(search(0, 0, True, -10**18, 10**18))\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "Alpha-beta uses valid ancestor bounds while preserving the same alternating minimax value."
+      }
+    }
+  ]
+}

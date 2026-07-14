@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.react.testing.async.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.testing-project",
+  "skillId": "react.testing.async",
+  "title": "Asynchronous component tests deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "react-testing"
+  ],
+  "items": [
+    {
+      "skillId": "react.testing.async",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.testing.async.mcq.misconception",
+      "title": "Asynchronous component tests: reject the invalid model",
+      "prompt": "Which statement correctly resolves this React: Component-Based Browser Applications misconception? Adding a one-second timeout is the most reliable way to wait for React updates.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Await the observable condition rather than elapsed time, and control promises or timers deterministically.",
+        "incorrect": "That preserves the misconception. Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked React: Component-Based Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+        },
+        {
+          "id": "misconception",
+          "text": "Adding a one-second timeout is the most reliable way to wait for React updates."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+      }
+    },
+    {
+      "skillId": "react.testing.async",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.testing.async.fill.checkpoint",
+      "title": "Asynchronous component tests: complete the rule",
+      "prompt": "Complete the missing React: Component-Based Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: observable condition.",
+        "incorrect": "Recheck the exact rule. Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Await the {{key-rule}} rather than elapsed time, and control promises or timers deterministically.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "observable condition"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Await the observable condition rather than elapsed time, and control promises or timers deterministically."
+      }
+    },
+    {
+      "id": "react.testing.async.code.verified-facet",
+      "skillId": "react.testing.async",
+      "title": "Asynchronous component tests: verified implementation facet",
+      "kind": "code",
+      "prompt": "Wait for observable state transitions and mock the network boundary rather than internal hooks. Build a bounded artifact demonstrating learner-authored observable async-state wait; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nfunction App(){ return <main><h1>TODO</h1></main>; }\ncreateRoot(document.getElementById(\"root\")!).render(<App/>);\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "react",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "App.tsx",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        },
+        "bundler": {
+          "name": "esbuild",
+          "version": "0.25.12"
+        }
+      },
+      "tests": [
+        {
+          "id": "react.testing.async.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"test suite waits for success, failure and empty async states\",\n      \"expression\": \"globalThis.__testError===undefined && ['async-state','async-error','async-empty'].every(value=>globalThis.__testResults?.includes(value))\",\n      \"expected\": true\n    }\n  ],\n  \"entrypoint\": \"test\",\n  \"actions\": [\n    {\n      \"type\": \"wait\",\n      \"milliseconds\": 500\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "react.testing.async.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"async success completes before route assertion publication\",\n      \"expression\": \"globalThis.__testResults?.indexOf('async-state') < globalThis.__testResults?.indexOf('route-param')\",\n      \"expected\": true\n    }\n  ],\n  \"entrypoint\": \"test\",\n  \"actions\": [\n    {\n      \"type\": \"wait\",\n      \"milliseconds\": 500\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "{\n  \"format\": \"browser-project-v1\",\n  \"entrypoints\": {\n    \"app\": \"src/main.tsx\",\n    \"test\": \"src/portfolio.test.tsx\"\n  },\n  \"files\": {\n    \"index.html\": \"<!doctype html><html lang=\\\"en\\\"><head><meta charset=\\\"utf-8\\\"><meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1\\\"><title>Portfolio - Codestead</title></head><body><div id=\\\"root\\\"></div><script type=\\\"module\\\" src=\\\"/src/main.tsx\\\"></script></body></html>\",\n    \"package.json\": \"{\\n  \\\"private\\\": true,\\n  \\\"type\\\": \\\"module\\\",\\n  \\\"scripts\\\": {\\n    \\\"dev\\\": \\\"vite\\\",\\n    \\\"build\\\": \\\"vite build\\\",\\n    \\\"preview\\\": \\\"vite preview\\\",\\n    \\\"test\\\": \\\"vitest run\\\"\\n  },\\n  \\\"dependencies\\\": {\\n    \\\"react\\\": \\\"19.2.7\\\",\\n    \\\"react-dom\\\": \\\"19.2.7\\\",\\n    \\\"react-router\\\": \\\"8.0.1\\\"\\n  },\\n  \\\"devDependencies\\\": {\\n    \\\"@testing-library/react\\\": \\\"16.3.2\\\",\\n    \\\"@testing-library/user-event\\\": \\\"14.6.1\\\",\\n    \\\"typescript\\\": \\\"5.9.3\\\",\\n    \\\"vite\\\": \\\"8.1.4\\\",\\n    \\\"vitest\\\": \\\"4.1.10\\\"\\n  }\\n}\",\n    \"tsconfig.json\": \"{\\n  \\\"compilerOptions\\\": {\\n    \\\"target\\\": \\\"ES2022\\\",\\n    \\\"lib\\\": [\\n      \\\"ES2022\\\",\\n      \\\"DOM\\\",\\n      \\\"DOM.Iterable\\\"\\n    ],\\n    \\\"module\\\": \\\"ESNext\\\",\\n    \\\"moduleResolution\\\": \\\"Bundler\\\",\\n    \\\"jsx\\\": \\\"react-jsx\\\",\\n    \\\"strict\\\": true,\\n    \\\"noEmit\\\": true\\n  },\\n  \\\"include\\\": [\\n    \\\"src\\\"\\n  ]\\n}\",\n    \"src/data.ts\": \"export interface Project { readonly id: string; readonly title: string; readonly summary: string; }\\nexport const projects: readonly Project[] = [\\n  { id: \\\"compiler-visualizer\\\", title: \\\"Compiler visualizer\\\", summary: \\\"Trace a small program step by step.\\\" },\\n  { id: \\\"graph-lab\\\", title: \\\"Graph lab\\\", summary: \\\"Explore breadth-first traversal.\\\" },\\n];\",\n    \"src/App.tsx\": \"import React, { useEffect, useRef, useState } from \\\"react\\\";\\nimport { Link, Outlet, Route, Routes, useLocation, useParams, useSearchParams } from \\\"react-router\\\";\\nimport { projects, type Project } from \\\"./data\\\";\\nimport \\\"./styles.css\\\";\\n\\nfunction titleFor(pathname: string): string {\\n  if (pathname === \\\"/\\\") return \\\"Portfolio\\\";\\n  if (pathname === \\\"/projects\\\") return \\\"Projects\\\";\\n  if (pathname.startsWith(\\\"/projects/\\\")) return \\\"Project detail\\\";\\n  return \\\"Not found\\\";\\n}\\n\\nfunction Layout() {\\n  const location = useLocation();\\n  const heading = useRef<HTMLHeadingElement>(null);\\n  const title = titleFor(location.pathname);\\n  useEffect(() => {\\n    document.title = title + \\\" - Codestead\\\";\\n    queueMicrotask(() => heading.current?.focus());\\n  }, [title]);\\n  return <><header><nav aria-label=\\\"Portfolio\\\"><Link to=\\\"/\\\">Home</Link><Link to=\\\"/projects\\\">Projects</Link></nav></header><main><h1 ref={heading} tabIndex={-1}>{title}</h1><Outlet /></main></>;\\n}\\n\\nfunction Home() {\\n  const [name, setName] = useState(\\\"\\\");\\n  const [message, setMessage] = useState(\\\"\\\");\\n  function submit(event: React.FormEvent) { event.preventDefault(); setMessage(name.trim() ? \\\"Thanks \\\" + name.trim() : \\\"Name is required\\\"); }\\n  return <section aria-labelledby=\\\"welcome\\\"><h2 id=\\\"welcome\\\">Shivansh's learning portfolio</h2><p>Small projects with tested user journeys.</p><form onSubmit={submit}><label htmlFor=\\\"visitor-name\\\">Your name</label><input id=\\\"visitor-name\\\" value={name} required onChange={(event) => setName(event.target.value)} /><button>Send greeting</button></form><output aria-live=\\\"polite\\\">{message}</output></section>;\\n}\\n\\nfunction Projects() {\\n  const [search] = useSearchParams();\\n  const requestedState = search.get(\\\"state\\\") ?? \\\"success\\\";\\n  const [state, setState] = useState<{ kind: \\\"loading\\\" } | { kind: \\\"ready\\\"; projects: readonly Project[] } | { kind: \\\"error\\\"; message: string }>({ kind: \\\"loading\\\" });\\n  useEffect(() => { let current = true; setState({ kind: \\\"loading\\\" }); Promise.resolve().then(() => { if (!current) return; if (requestedState === \\\"error\\\") setState({ kind: \\\"error\\\", message: \\\"Projects unavailable\\\" }); else setState({ kind: \\\"ready\\\", projects: requestedState === \\\"empty\\\" ? [] : projects }); }); return () => { current = false; }; }, [requestedState]);\\n  if (state.kind === \\\"loading\\\") return <p role=\\\"status\\\">Loading projects</p>;\\n  if (state.kind === \\\"error\\\") return <p role=\\\"alert\\\">{state.message}</p>;\\n  if (state.projects.length === 0) return <p>No projects yet</p>;\\n  return <ul>{state.projects.map((project) => <li key={project.id}><article><h2><Link to={\\\"/projects/\\\" + project.id}>{project.title}</Link></h2><p>{project.summary}</p></article></li>)}</ul>;\\n}\\n\\nfunction ProjectDetail() {\\n  const { projectId = \\\"\\\" } = useParams();\\n  const [search] = useSearchParams();\\n  const project = projects.find((candidate) => candidate.id === projectId);\\n  if (!project) return <p role=\\\"alert\\\">Project not found</p>;\\n  return <article><h2>{project.title}</h2><p data-project-id={projectId}>Project {projectId}</p><p>Tab: {search.get(\\\"tab\\\") ?? \\\"overview\\\"}</p></article>;\\n}\\n\\nfunction NotFound() { return <p role=\\\"alert\\\">Page not found</p>; }\\n\\nexport function AppRoutes() {\\n  return <Routes><Route element={<Layout />}><Route index element={<Home />} /><Route path=\\\"projects\\\" element={<Projects />} /><Route path=\\\"projects/:projectId\\\" element={<ProjectDetail />} /><Route path=\\\"*\\\" element={<NotFound />} /></Route></Routes>;\\n}\",\n    \"src/main.tsx\": \"import React from \\\"react\\\";\\nimport { createRoot } from \\\"react-dom/client\\\";\\nimport { BrowserRouter } from \\\"react-router\\\";\\nimport { AppRoutes } from \\\"./App\\\";\\nconst root = document.getElementById(\\\"root\\\");\\nif (!root) throw new Error(\\\"Missing application root\\\");\\ncreateRoot(root).render(<BrowserRouter><AppRoutes /></BrowserRouter>);\",\n    \"src/styles.css\": \":root { font-family: system-ui, sans-serif; color: #172033; background: #fff; } body { margin: 0; } header, main { inline-size: min(100% - 2rem, 64rem); margin-inline: auto; } nav { display: flex; gap: 1rem; padding-block: 1rem; } a:focus-visible, h1:focus-visible { outline: 3px solid #0759b8; outline-offset: 3px; } ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); gap: 1rem; padding: 0; list-style: none; } article { border: 1px solid #64748b; border-radius: .5rem; padding: 1rem; } @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }\",\n    \"src/portfolio.test.tsx\": \"import React from \\\"react\\\";\\nimport { cleanup, render, screen, waitFor } from \\\"@testing-library/react\\\";\\nimport userEvent from \\\"@testing-library/user-event\\\";\\nimport { MemoryRouter } from \\\"react-router\\\";\\nimport { AppRoutes } from \\\"./App\\\";\\n\\nasync function runPortfolioTests() {\\n  const checks: string[] = [];\\n  const user = userEvent.setup();\\n  render(<MemoryRouter initialEntries={[\\\"/\\\"]}><AppRoutes /></MemoryRouter>);\\n  screen.getByRole(\\\"heading\\\", { level: 1, name: \\\"Portfolio\\\" });\\n  checks.push(\\\"role-name-query\\\");\\n  await user.type(screen.getByRole(\\\"textbox\\\", { name: \\\"Your name\\\" }), \\\"Asha\\\");\\n  await user.click(screen.getByRole(\\\"button\\\", { name: \\\"Send greeting\\\" }));\\n  await screen.findByText(\\\"Thanks Asha\\\");\\n  checks.push(\\\"form-state\\\");\\n  await user.click(screen.getByRole(\\\"link\\\", { name: \\\"Projects\\\" }));\\n  checks.push(\\\"realistic-click\\\");\\n  const projectLink = await screen.findByRole(\\\"link\\\", { name: \\\"Compiler visualizer\\\" });\\n  checks.push(\\\"async-state\\\");\\n  await user.click(projectLink);\\n  await waitFor(() => screen.getByText(\\\"Project compiler-visualizer\\\"));\\n  checks.push(\\\"route-param\\\");\\n  await waitFor(() => { if (document.activeElement?.textContent !== \\\"Project detail\\\") throw new Error(\\\"route heading was not focused\\\"); });\\n  checks.push(\\\"route-focus\\\");\\n  cleanup();\\n  render(<MemoryRouter initialEntries={[\\\"/projects/graph-lab?tab=code\\\"]}><AppRoutes /></MemoryRouter>);\\n  screen.getByText(\\\"Tab: code\\\");\\n  checks.push(\\\"direct-entry\\\");\\n  cleanup();\\n  render(<MemoryRouter initialEntries={[\\\"/projects?state=error\\\"]}><AppRoutes /></MemoryRouter>);\\n  await screen.findByRole(\\\"alert\\\");\\n  screen.getByText(\\\"Projects unavailable\\\");\\n  checks.push(\\\"async-error\\\");\\n  cleanup();\\n  render(<MemoryRouter initialEntries={[\\\"/projects?state=empty\\\"]}><AppRoutes /></MemoryRouter>);\\n  await screen.findByText(\\\"No projects yet\\\");\\n  checks.push(\\\"async-empty\\\");\\n  (globalThis as typeof globalThis & { __testResults?: string[] }).__testResults = checks;\\n}\\n\\nrunPortfolioTests().catch((error: unknown) => {\\n  (globalThis as typeof globalThis & { __testError?: string }).__testError = error instanceof Error ? error.message : String(error);\\n});\"\n  }\n}",
+        "explanation": "The reference is a bounded react artifact for learner-authored observable async-state wait. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

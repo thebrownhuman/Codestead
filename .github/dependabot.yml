@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:30"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels: [dependencies, security-review-required]
+
+  - package-ecosystem: npm
+    directory: /services/runner
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:45"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels: [dependencies, runner, security-review-required]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels: [dependencies, ci, security-review-required]

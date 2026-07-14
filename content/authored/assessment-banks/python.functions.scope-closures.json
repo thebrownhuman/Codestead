@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.functions.scope-closures.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.functions",
+  "skillId": "python.functions.scope-closures",
+  "title": "Scope and closures deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Scope and closures; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-reference",
+    "py-tutorial"
+  ],
+  "items": [
+    {
+      "id": "python.functions.scope-closures.mcq.misconception",
+      "skillId": "python.functions.scope-closures",
+      "title": "Scope and closures: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding.",
+        "incorrect": "That choice preserves the misconception. Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+        },
+        {
+          "id": "misconception",
+          "text": "A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+      }
+    },
+    {
+      "id": "python.functions.scope-closures.fill.checkpoint",
+      "skillId": "python.functions.scope-closures",
+      "title": "Scope and closures: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'enclosing bindings'. Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding.",
+        "incorrect": "The phrase must preserve the exact language rule. Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Closures retain [[checkpoint]] and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "enclosing bindings"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+      }
+    },
+    {
+      "id": "python.functions.scope-closures.code.core",
+      "skillId": "python.functions.scope-closures",
+      "title": "Scope and closures: runnable core task",
+      "kind": "code",
+      "prompt": "Read starting value and step count. Build a closure counter using nonlocal and print each successive value.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.functions.scope-closures.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "3 4\n",
+          "expectedStdout": "4 5 6 7",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.functions.scope-closures.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "9 0\n",
+          "expectedStdout": "",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    start, steps = map(int, data.split())\n    def make_counter(initial: int):\n        current = initial\n        def advance() -> int:\n            nonlocal current\n            current += 1\n            return current\n        return advance\n\n    counter = make_counter(start)\n    return ' '.join(str(counter()) for _ in range(steps))\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The closure retains one enclosing cell and nonlocal makes the intended rebinding explicit."
+      }
+    }
+  ]
+}

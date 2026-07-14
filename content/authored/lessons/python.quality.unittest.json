@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.quality.unittest.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.quality",
+  "skillId": "python.quality.unittest",
+  "title": "Automated tests",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Automated tests; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; typing, unittest, logging, pdb, and development-tools documentation; atomic topic: Automated tests",
+      "claim": "Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; CS2023 Software Development Fundamentals: programming practices, testing, debugging, abstraction, data, and concurrency outcomes as applicable; atomic topic: Automated tests",
+      "claim": "Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure. Your goal is to create a deterministic unit and integration test suite covering normal, boundary and failure behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Project metadata and command entry; Exceptions, files and resources; Classes and object protocols; Raising and custom exceptions; Packages and public APIs. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Test order should not carry state, patch targets must match lookup location, broad mocks can reproduce implementation rather than behavior, and coverage measures execution rather than assertion quality. The learner must reject this documented misconception: More mocks always make a unit test better isolated and high coverage proves all contracts are tested."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use isolated fixtures, assertions, subtests and mocks only at genuine external boundaries.",
+      "Create a deterministic unit and integration test suite covering normal, boundary and failure behavior."
+    ],
+    "excludes": [
+      "Test order should not carry state, patch targets must match lookup location, broad mocks can reproduce implementation rather than behavior, and coverage measures execution rather than assertion quality."
+    ]
+  },
+  "outcomes": [
+    "Create a deterministic unit and integration test suite covering normal, boundary and failure behavior."
+  ],
+  "examples": [
+    {
+      "id": "python.quality.unittest.example.direct",
+      "title": "Automated tests: direct language case",
+      "situation": "A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+      ],
+      "result": "The example meets the atomic outcome because Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+    },
+    {
+      "id": "python.quality.unittest.example.boundary",
+      "title": "Automated tests: boundary and transfer case",
+      "situation": "A clock collaborator is injected and controlled, but the test asserts the returned expiration policy rather than private call sequence.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A clock collaborator is injected and controlled, but the test asserts the returned expiration policy rather than private call sequence.",
+        "Step 2 — Keep the language boundary explicit: Test order should not carry state, patch targets must match lookup location, broad mocks can reproduce implementation rather than behavior, and coverage measures execution rather than assertion quality.",
+        "Step 3 — Reject the tempting but incorrect rule: More mocks always make a unit test better isolated and high coverage proves all contracts are tested."
+      ],
+      "result": "This case demonstrates the declared outcome: Create a deterministic unit and integration test suite covering normal, boundary and failure behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.quality.unittest.misconception",
+      "mistakenBelief": "More mocks always make a unit test better isolated and high coverage proves all contracts are tested.",
+      "correction": "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: More mocks always make a unit test better isolated and high coverage proves all contracts are tested."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an inspected delivery package whose interface notes, repeatable checks, safe incident log, and clean installation prove bounded quality claims can introduce Automated tests, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "typing, tests, logging, debugging, and project completion"
+    ],
+    "limitations": [
+      "annotations do not enforce runtime types, mocks can mislead, logs can leak, and local editable installs can hide packaging defects",
+      "Test order should not carry state, patch targets must match lookup location, broad mocks can reproduce implementation rather than behavior, and coverage measures execution rather than assertion quality."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure.",
+      "Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries.",
+      "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: More mocks always make a unit test better isolated and high coverage proves all contracts are tested."
+      }
+    ],
+    "textAlternative": "Starting artifact: A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure. Step 1, Observe. State: evidence: A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures.. Compare the observation with the correction and explain why the misconception fails: More mocks always make a unit test better isolated and high coverage proves all contracts are tested."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Automated tests: direct language case”: state its starting evidence, apply the Automated tests rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Automated tests: direct language case.",
+        "Starting evidence: A table of subtests covers empty, normal, Unicode, and malformed cases, while assertRaises checks the exact domain failure.",
+        "Core rule: Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries.",
+        "Observable result: The example meets the atomic outcome because Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures.",
+        "Boundary check: Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A clock collaborator is injected and controlled, but the test asserts the returned expiration policy rather than private call sequence.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python automated tests isolate fixtures, call observable contracts, and assert normal, boundary, and failure behavior; mocks belong at genuine external or nondeterministic boundaries.",
+        "Test order should not carry state, patch targets must match lookup location, broad mocks can reproduce implementation rather than behavior, and coverage measures execution rather than assertion quality."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Automated tests, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Create a deterministic unit and integration test suite covering normal, boundary and failure behavior.",
+        "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.quality.unittest.misconception",
+      "explanation": "Assert public behavior with deterministic fixtures, isolate true external boundaries, and derive cases from equivalence classes, boundaries, and failures.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A clock collaborator is injected and controlled, but the test asserts the returned expiration policy rather than private call sequence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a deterministic unit and integration test suite covering normal, boundary and failure behavior. Keep this boundary in view: Test order should not carry state, patch targets must match lookup location, broad mocks can reproduce implementation rather than behavior, and coverage measures execution rather than assertion quality.",
+    "retrievalPrompts": [
+      "Explain Automated tests using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: More mocks always make a unit test better isolated and high coverage proves all contracts are tested.",
+      "Predict this case from memory: A clock collaborator is injected and controlled, but the test asserts the returned expiration policy rather than private call sequence."
+    ],
+    "nextReviewPrompt": "Next: continue to “Logging and diagnostics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "python",
+  "title": "Python: Beginner to Intermediate",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A Python 3.14 course from first expressions through collections, functions, modules, files, exceptions, classes, iteration, typing, packaging, testing and asynchronous basics.",
+  "audience": {
+    "level": "beginner to intermediate",
+    "assumed_knowledge": ["Programming Foundations or equivalent diagnostic mastery"],
+    "target_capability": "Independently design, package, test and debug a multi-module Python program using idiomatic data structures, explicit interfaces and appropriate standard-library tools."
+  },
+  "scope": {
+    "includes": ["Python 3.14 language fundamentals", "REPL, scripts and environment model", "Core scalar and collection types", "Control flow and functions", "Modules, packages and virtual environments", "Files, JSON, context managers and exceptions", "Classes, data classes and object protocols", "Comprehensions, iterators, generators and decorators", "Type hints, tests, logging and debugging", "Async and concurrency selection basics"],
+    "non_goals": ["NumPy, Pandas or machine-learning libraries", "Django, Flask or FastAPI", "Python interpreter implementation internals", "Advanced metaclasses and descriptor authoring", "Every standard-library module"]
+  },
+  "authoritative_sources": [
+    { "id": "py-tutorial", "title": "The Python Tutorial", "url": "https://docs.python.org/3.14/tutorial/index.html", "type": "official-docs", "version_or_date": "Python 3.14" },
+    { "id": "py-reference", "title": "The Python Language Reference", "url": "https://docs.python.org/3.14/reference/index.html", "type": "specification", "version_or_date": "Python 3.14" },
+    { "id": "py-stdlib", "title": "The Python Standard Library", "url": "https://docs.python.org/3.14/library/index.html", "type": "official-docs", "version_or_date": "Python 3.14" },
+    { "id": "py-packaging", "title": "Python Packaging User Guide", "url": "https://packaging.python.org/en/latest/", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "cs2023-sdf", "title": "CS2023 Software Development Fundamentals", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SDF-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" }
+  ],
+  "runtime": {
+    "kind": "programming-language",
+    "language": "Python",
+    "standard": "Python 3.14",
+    "toolchain": ["CPython 3.14", "venv", "pip", "unittest", "pdb"],
+    "execution_environment": "Isolated Linux container with deterministic dependency, memory, CPU and time limits",
+    "file_extensions": [".py", ".pyi"],
+    "notes": ["The official tutorial assumes prior programming, so absolute-beginner mental models remain in Programming Foundations.", "Third-party frameworks and data libraries are separately versioned extensions."]
+  },
+  "modules": [
+    {
+      "id": "python.toolchain",
+      "title": "Interpreter, scripts and diagnostics",
+      "description": "Run experiments and saved programs while understanding Python's execution environment.",
+      "required": true,
+      "prerequisites": ["pf.computing.execution", "pf.tools.terminal-editor"],
+      "skills": [
+        { "id": "python.toolchain.repl", "title": "Interactive interpreter", "description": "Use the REPL for bounded exploration and distinguish expression results from printed output.", "outcomes": ["Test an expression in the REPL and transfer the verified behavior into a script."], "prerequisites": ["pf.computing.execution"], "evidence_types": ["performance", "artifact", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial"] },
+        { "id": "python.toolchain.script", "title": "Scripts, indentation and main guard", "description": "Create executable modules with meaningful layout, indentation and optional entry-point guard.", "outcomes": ["Write and run a saved script while explaining its top-level execution."], "prerequisites": ["python.toolchain.repl"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.toolchain.environment", "title": "Interpreter and environment", "description": "Identify interpreter version, arguments, working directory, module path and environment effects.", "outcomes": ["Diagnose a script that runs differently because of interpreter or working-directory selection."], "prerequisites": ["python.toolchain.script", "pf.tools.files"], "evidence_types": ["debug", "performance", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-stdlib"] },
+        { "id": "python.toolchain.traceback", "title": "Tracebacks and error categories", "description": "Read syntax diagnostics and exception tracebacks from the relevant frame and causal chain.", "outcomes": ["Classify and repair representative syntax, runtime and logic failures."], "prerequisites": ["python.toolchain.script"], "evidence_types": ["debug", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "python.values-control",
+      "title": "Values, expressions and control flow",
+      "description": "Use Python's value model and structured control flow deliberately.",
+      "required": true,
+      "prerequisites": ["python.toolchain.script", "pf.state.expressions"],
+      "skills": [
+        { "id": "python.values.scalars", "title": "Numbers, booleans, None and text", "description": "Use core immutable scalar values and distinguish type, value and truthiness.", "outcomes": ["Choose and operate on suitable scalar values while explaining precision and absence semantics."], "prerequisites": ["python.toolchain.script"], "evidence_types": ["code", "concept-check", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.values.expressions", "title": "Operators and comparisons", "description": "Evaluate arithmetic, Boolean, membership, identity and chained comparisons correctly.", "outcomes": ["Trace expressions and repair identity-versus-equality and precedence defects."], "prerequisites": ["python.values.scalars", "pf.state.expressions"], "evidence_types": ["trace", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.control.selection", "title": "if and match", "description": "Use conditions and structural pattern matching for complete and readable decisions.", "outcomes": ["Implement and test boundary-complete selection using an appropriate construct."], "prerequisites": ["python.values.expressions"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.control.iteration", "title": "for, while and loop control", "description": "Iterate over values directly and use condition-controlled loops with explicit progress.", "outcomes": ["Implement and debug collection, counted and sentinel loops without needless index manipulation."], "prerequisites": ["python.control.selection"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial"] }
+      ]
+    },
+    {
+      "id": "python.collections",
+      "title": "Core collections and text",
+      "description": "Select, mutate and traverse built-in data structures with aliasing awareness.",
+      "required": true,
+      "prerequisites": ["python.control.iteration", "pf.data.selection"],
+      "skills": [
+        { "id": "python.collections.list-tuple", "title": "Lists, tuples and slicing", "description": "Use mutable sequences, immutable records and bounded slicing operations.", "outcomes": ["Implement sequence transformations while distinguishing mutation, copying and rebinding."], "prerequisites": ["python.control.iteration"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.collections.dict-set", "title": "Dictionaries and sets", "description": "Use key-value lookup and unique membership with hashable keys.", "outcomes": ["Choose and use a dictionary or set for counting, indexing and deduplication problems."], "prerequisites": ["python.collections.list-tuple", "pf.data.set-map"], "evidence_types": ["code", "design", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.collections.aliasing", "title": "Mutability, aliases and copying", "description": "Distinguish shared references, shallow copies and independent nested values.", "outcomes": ["Trace and repair accidental shared mutation in nested collections."], "prerequisites": ["python.collections.list-tuple", "pf.state.mutation"], "evidence_types": ["trace", "visual", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.collections.text", "title": "Unicode text and formatting", "description": "Use string methods, f-strings, splitting and joining while treating text as Unicode.", "outcomes": ["Implement and test robust text normalization, parsing and formatting."], "prerequisites": ["python.values.scalars", "python.collections.list-tuple"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-stdlib"] }
+      ]
+    },
+    {
+      "id": "python.functions",
+      "title": "Functions, scope and recursion",
+      "description": "Design clear callable interfaces and understand Python argument binding.",
+      "required": true,
+      "prerequisites": ["python.collections", "pf.abstraction.calls"],
+      "skills": [
+        { "id": "python.functions.contracts", "title": "Function contracts and returns", "description": "Write cohesive functions with documented inputs, outputs, effects and failure behavior.", "outcomes": ["Design, implement and test a function with a clear docstring contract."], "prerequisites": ["pf.abstraction.functions", "python.values.scalars"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "cs2023-sdf"] },
+        { "id": "python.functions.parameters", "title": "Parameter kinds and argument binding", "description": "Use positional, keyword, default, variadic and keyword-only parameters without mutable-default traps.", "outcomes": ["Trace argument binding and repair an unsafe or ambiguous function signature."], "prerequisites": ["python.functions.contracts", "python.collections.aliasing"], "evidence_types": ["trace", "debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.functions.scope-closures", "title": "Scope and closures", "description": "Resolve local, enclosing, global and built-in names and capture enclosing state deliberately.", "outcomes": ["Trace name lookup and implement a small closure without accidental shared mutation."], "prerequisites": ["python.functions.parameters", "pf.abstraction.scope"], "evidence_types": ["trace", "code", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["py-reference", "py-tutorial"] },
+        { "id": "python.functions.recursion", "title": "Recursive functions", "description": "Implement terminating recursion and compare it with iterative alternatives under Python's call limits.", "outcomes": ["Write, trace and test a recursive routine with explicit base and progress cases."], "prerequisites": ["python.functions.contracts", "pf.abstraction.recursion"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "python.modules-packaging",
+      "title": "Modules, packages and environments",
+      "description": "Organize reusable code and reproduce its dependency environment.",
+      "required": true,
+      "prerequisites": ["python.functions.contracts", "python.toolchain.environment"],
+      "skills": [
+        { "id": "python.modules.imports", "title": "Modules and imports", "description": "Define module APIs and reason about import execution, names and search paths.", "outcomes": ["Split a script into modules and diagnose a name or import-path failure."], "prerequisites": ["python.functions.contracts", "python.toolchain.environment"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.modules.packages", "title": "Packages and public APIs", "description": "Organize related modules, use relative imports sparingly and expose a deliberate package interface.", "outcomes": ["Create and import a small package with clear internal and public names."], "prerequisites": ["python.modules.imports"], "evidence_types": ["artifact", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-packaging"] },
+        { "id": "python.modules.venv", "title": "Virtual environments and dependencies", "description": "Create isolated environments and install only declared dependencies.", "outcomes": ["Reproduce a project environment from documented interpreter and dependency requirements."], "prerequisites": ["python.modules.packages"], "evidence_types": ["artifact", "performance", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["py-packaging"] },
+        { "id": "python.modules.pyproject", "title": "Project metadata and command entry", "description": "Use pyproject metadata and a conventional source/test layout for a small application.", "outcomes": ["Package and invoke a multi-module command-line application reproducibly."], "prerequisites": ["python.modules.venv", "python.toolchain.script"], "evidence_types": ["artifact", "code", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["py-packaging"] }
+      ]
+    },
+    {
+      "id": "python.errors-io",
+      "title": "Exceptions, files and resources",
+      "description": "Handle expected failures and persist structured data through safe boundaries.",
+      "required": true,
+      "prerequisites": ["python.functions.contracts", "python.collections.text"],
+      "skills": [
+        { "id": "python.errors.exceptions", "title": "Exception handling and propagation", "description": "Catch specific exceptions at responsible boundaries and preserve causal context.", "outcomes": ["Trace exception propagation and implement a narrow recovery policy."], "prerequisites": ["python.toolchain.traceback", "python.functions.contracts"], "evidence_types": ["trace", "debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.errors.custom", "title": "Raising and custom exceptions", "description": "Validate contracts and define domain exceptions only when callers benefit from the distinction.", "outcomes": ["Design and test failure behavior for a small module API."], "prerequisites": ["python.errors.exceptions", "python.modules.imports"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.io.files-json", "title": "Files, paths and JSON", "description": "Read and write text with explicit encoding and validate structured JSON data.", "outcomes": ["Implement file persistence that handles missing, malformed and permission-failure cases."], "prerequisites": ["python.errors.exceptions", "python.collections.dict-set"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-stdlib"] },
+        { "id": "python.io.context", "title": "Context managers", "description": "Use with-statements to guarantee resource cleanup and understand the enter/exit protocol conceptually.", "outcomes": ["Refactor manual file cleanup into a failure-safe context-managed workflow."], "prerequisites": ["python.io.files-json", "python.errors.exceptions"], "evidence_types": ["code", "trace", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] }
+      ]
+    },
+    {
+      "id": "python.objects",
+      "title": "Classes and object protocols",
+      "description": "Model valid objects and cooperate with Python's standard protocols.",
+      "required": true,
+      "prerequisites": ["python.functions.scope-closures", "python.modules.imports"],
+      "skills": [
+        { "id": "python.objects.class", "title": "Classes, instances and attributes", "description": "Define instance state and methods while distinguishing class and instance attributes.", "outcomes": ["Design and implement a class with clear invariants and no accidental shared mutable class state."], "prerequisites": ["python.functions.contracts", "pf.data.records"], "evidence_types": ["design", "code", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.objects.dataclass", "title": "Data classes and value modeling", "description": "Use data classes for transparent values and custom classes when invariants or behavior require them.", "outcomes": ["Choose and implement an appropriate data class or regular class for a domain model."], "prerequisites": ["python.objects.class", "python.collections.aliasing"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib"] },
+        { "id": "python.objects.inheritance", "title": "Composition, inheritance and super", "description": "Prefer composition and use inheritance only for substitutable behavior with cooperative initialization.", "outcomes": ["Implement or refactor a small design using justified composition or inheritance."], "prerequisites": ["python.objects.class", "python.modules.imports"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.objects.protocols", "title": "Representation, equality and container protocols", "description": "Implement selected special methods to make domain values predictable in display, comparison and iteration.", "outcomes": ["Implement and test appropriate repr, equality or container protocol behavior without surprising side effects."], "prerequisites": ["python.objects.dataclass", "python.objects.inheritance"], "evidence_types": ["code", "test", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["py-reference", "py-stdlib"] }
+      ]
+    },
+    {
+      "id": "python.iteration-functional",
+      "title": "Comprehensions, iterators and decorators",
+      "description": "Use Python's iteration abstractions for readable lazy and eager transformations.",
+      "required": true,
+      "prerequisites": ["python.collections", "python.functions"],
+      "skills": [
+        { "id": "python.iteration.comprehensions", "title": "Comprehensions", "description": "Use list, set and dictionary comprehensions for bounded, readable transformations.", "outcomes": ["Choose between a comprehension and explicit loop and justify readability and memory implications."], "prerequisites": ["python.collections.dict-set", "python.control.iteration"], "evidence_types": ["code", "review", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial"] },
+        { "id": "python.iteration.iterator", "title": "Iterable and iterator protocols", "description": "Distinguish reusable iterables from stateful one-pass iterators.", "outcomes": ["Trace iteration state and implement a small iterable or iterator correctly."], "prerequisites": ["python.objects.protocols", "python.control.iteration"], "evidence_types": ["trace", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-tutorial", "py-reference"] },
+        { "id": "python.iteration.generator", "title": "Generators and lazy pipelines", "description": "Use yield and generator expressions for lazy stateful production with finite-consumption awareness.", "outcomes": ["Implement and test a lazy generator pipeline without accidental exhaustion."], "prerequisites": ["python.iteration.iterator", "python.functions.scope-closures"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-reference", "py-tutorial"] },
+        { "id": "python.iteration.decorator", "title": "Decorator basics", "description": "Wrap callables while preserving metadata and making behavior changes explicit.", "outcomes": ["Implement and explain a small function decorator with correct argument forwarding."], "prerequisites": ["python.functions.scope-closures", "python.functions.parameters"], "evidence_types": ["code", "trace", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["py-reference", "py-stdlib"] }
+      ]
+    },
+    {
+      "id": "python.quality",
+      "title": "Typing, tests, logging and debugging",
+      "description": "Make interfaces understandable and verify behavior with repeatable evidence.",
+      "required": true,
+      "prerequisites": ["python.modules.pyproject", "python.errors-io", "python.objects"],
+      "skills": [
+        { "id": "python.quality.typing", "title": "Type hints and static checking concepts", "description": "Annotate public interfaces using unions, collections, protocols and generics without treating hints as runtime enforcement.", "outcomes": ["Annotate and review a module API and explain what remains a runtime responsibility."], "prerequisites": ["python.functions.parameters", "python.objects.protocols"], "evidence_types": ["code", "review", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-reference", "py-stdlib"] },
+        { "id": "python.quality.unittest", "title": "Automated tests", "description": "Use isolated fixtures, assertions, subtests and mocks only at genuine external boundaries.", "outcomes": ["Create a deterministic unit and integration test suite covering normal, boundary and failure behavior."], "prerequisites": ["python.errors.custom", "python.modules.packages"], "evidence_types": ["test", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib", "cs2023-sdf"] },
+        { "id": "python.quality.logging", "title": "Logging and diagnostics", "description": "Emit structured severity-appropriate diagnostics without leaking secrets or replacing exception handling.", "outcomes": ["Add useful operational logging and distinguish it from user-facing output."], "prerequisites": ["python.errors.exceptions", "python.modules.packages"], "evidence_types": ["code", "review", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib"] },
+        { "id": "python.quality.project", "title": "Debugger and final project", "description": "Use breakpoints, state inspection and tests to complete a packaged command-line application.", "outcomes": ["Deliver and explain a typed, tested, logged multi-module CLI project with reproducible setup."], "prerequisites": ["python.quality.typing", "python.quality.unittest", "python.quality.logging"], "evidence_types": ["debug", "project", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "python.concurrency",
+      "title": "Asynchronous and concurrent work basics",
+      "description": "Choose a concurrency model based on waiting, CPU work and shared-state constraints.",
+      "required": true,
+      "prerequisites": ["python.quality", "python.iteration.generator"],
+      "skills": [
+        { "id": "python.concurrency.model", "title": "Concurrency versus parallelism", "description": "Distinguish interleaved progress, simultaneous execution, I/O waiting and CPU-bound work.", "outcomes": ["Classify a workload and explain whether concurrency can improve responsiveness or throughput."], "prerequisites": ["python.control.iteration", "python.functions.contracts"], "evidence_types": ["concept-check", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib"] },
+        { "id": "python.concurrency.async", "title": "asyncio coroutines and tasks", "description": "Use async, await and task coordination for bounded I/O-style examples without blocking the event loop.", "outcomes": ["Implement and trace a small asynchronous workflow with timeout and cancellation handling."], "prerequisites": ["python.concurrency.model", "python.errors.exceptions", "python.iteration.generator"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib", "py-reference"] },
+        { "id": "python.concurrency.threads-processes", "title": "Threads and processes", "description": "Choose threads for compatible waiting work and processes for isolated CPU work while accounting for communication cost.", "outcomes": ["Select and justify sequential, asynchronous, threaded or process-based execution for a stated task."], "prerequisites": ["python.concurrency.model", "python.collections.aliasing"], "evidence_types": ["design", "explain", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib"] },
+        { "id": "python.concurrency.safety", "title": "Shared-state and cancellation safety", "description": "Recognize races, protect invariants and guarantee cleanup across failure or cancellation.", "outcomes": ["Repair a teaching example with unsafe shared state or lost cleanup."], "prerequisites": ["python.concurrency.async", "python.concurrency.threads-processes", "python.io.context"], "evidence_types": ["debug", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["py-stdlib"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Build and diagnose a reproducible, packaged, multi-module Python 3.14 command-line application.",
+    "Use Python's data model, built-in collections, functions, objects and iteration protocols idiomatically.",
+    "Handle files, structured data, exceptions, environments and dependencies through explicit boundaries.",
+    "Demonstrate behavior with type-informed interfaces, automated tests, logging and debugger evidence.",
+    "Choose an appropriate sequential or basic concurrent execution model for a stated workload."
+  ],
+  "coverage_summary": { "required_skills": 40, "elective_skills": 0, "total_skills": 40, "covered": 40, "partial": 0, "planned": 0 }
+}

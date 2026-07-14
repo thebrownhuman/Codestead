@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.shell.create-move.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.shell-files",
+  "skillId": "git.shell.create-move",
+  "title": "Create, copy, move and rename",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Create, copy, move and rename; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to Create, copy, move and rename",
+      "claim": "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file. Your goal is to reorganize a disposable project tree and verify every resulting path. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf tools files; List, read and search. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Move and copy are interchangeable because both make the file appear at the destination."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Manipulate files and directories with quoted literal paths and verify destinations.",
+      "Reorganize a disposable project tree and verify every resulting path."
+    ],
+    "excludes": [
+      "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss."
+    ]
+  },
+  "outcomes": [
+    "Reorganize a disposable project tree and verify every resulting path."
+  ],
+  "examples": [
+    {
+      "id": "git.shell.create-move.example-a",
+      "title": "Create, copy, move and rename: direct case",
+      "situation": "A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+      ],
+      "result": "The case supports the declared outcome because Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+    },
+    {
+      "id": "git.shell.create-move.example-b",
+      "title": "Create, copy, move and rename: boundary case",
+      "situation": "A new directory is created before copying a template, and the destination is inspected before any original is removed.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A new directory is created before copying a template, and the destination is inspected before any original is removed.",
+        "Step 2 — Keep this boundary explicit: Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss.",
+        "Step 3 — Reject the documented misconception: Move and copy are interchangeable because both make the file appear at the destination."
+      ],
+      "result": "This case demonstrates the declared outcome: Reorganize a disposable project tree and verify every resulting path."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.shell.create-move.misconception",
+      "mistakenBelief": "Move and copy are interchangeable because both make the file appear at the destination.",
+      "correction": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Move and copy are interchangeable because both make the file appear at the destination."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled filing room can model Create, copy, move and rename: current location changes how relative directions resolve, and moving differs from copying a folder.",
+    "usefulFor": [
+      "Reasoning about exact locations, inspection, file operations, and destructive scope"
+    ],
+    "limitations": [
+      "Shell expansion, permissions, links, filesystem rules, and command execution can behave unlike physical folders.",
+      "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
+      "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
+      "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward."
+        },
+        "explanation": "Apply the declared Create, copy, move and rename model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Move and copy are interchangeable because both make the file appear at the destination."
+      }
+    ],
+    "textAlternative": "Starting artifact: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file. Step 1, Observe. State: evidence: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.. Apply the declared Create, copy, move and rename model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.. Compare the observation with the correction and reject the misconception: Move and copy are interchangeable because both make the file appear at the destination."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Create, copy, move and rename: direct case”: state its starting evidence, apply the Create, copy, move and rename rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Create, copy, move and rename: direct case.",
+        "Starting evidence: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
+        "Core rule: Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
+        "Observable result: The case supports the declared outcome because Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.",
+        "Boundary check: Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A new directory is created before copying a template, and the destination is inspected before any original is removed.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
+        "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Create, copy, move and rename, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Reorganize a disposable project tree and verify every resulting path.",
+        "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.shell.create-move.misconception",
+      "explanation": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A new directory is created before copying a template, and the destination is inspected before any original is removed."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to reorganize a disposable project tree and verify every resulting path. Keep this boundary in view: Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss.",
+    "retrievalPrompts": [
+      "Explain Create, copy, move and rename without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Move and copy are interchangeable because both make the file appear at the destination.",
+      "Apply the model to this case from memory: A new directory is created before copying a template, and the destination is inspected before any original is removed."
+    ],
+    "nextReviewPrompt": "Next: continue to “Command safety and help”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

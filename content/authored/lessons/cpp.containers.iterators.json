@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.containers.iterators.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.containers",
+  "skillId": "cpp.containers.iterators",
+  "title": "Iterators and invalidation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Iterators and invalidation; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "isocpp-tour",
+      "locator": "Standard C++ Tour; accessed 2026-07; provisions applicable to Iterators and invalidation",
+      "claim": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state."
+    },
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Iterators and invalidation",
+      "claim": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end. Your goal is to repair an invalidated-iterator defect and document the governing container operation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and range iteration; Copy and assignment semantics; string, array and vector; map, unordered_map and set. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely. Therefore the draft explicitly rejects this beginner failure model: The end iterator refers to the last element and can be dereferenced before a loop stops."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Traverse iterator ranges and reason about operations that invalidate iterators and references.",
+      "Repair an invalidated-iterator defect and document the governing container operation."
+    ],
+    "excludes": [
+      "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely."
+    ]
+  },
+  "outcomes": [
+    "Repair an invalidated-iterator defect and document the governing container operation."
+  ],
+  "examples": [
+    {
+      "id": "cpp.containers.iterators.example-a",
+      "title": "Iterators and invalidation: defined case",
+      "situation": "An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+      ],
+      "result": "The defined result follows because Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+    },
+    {
+      "id": "cpp.containers.iterators.example-b",
+      "title": "Iterators and invalidation: boundary case",
+      "situation": "After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired.",
+        "Step 2 — Keep this standard boundary visible: End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely.",
+        "Step 3 — Reject the tempting rule: The end iterator refers to the last element and can be dereferenced before a loop stops."
+      ],
+      "result": "This case demonstrates the declared outcome: Repair an invalidated-iterator defect and document the governing container operation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.containers.iterators.misconception",
+      "mistakenBelief": "The end iterator refers to the last element and can be dereferenced before a loop stops.",
+      "correction": "Standard ranges are half-open: end is one past the final element and must never be dereferenced.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: The end iterator refers to the last element and can be dereferenced before a loop stops."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Iterators and invalidation: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
+      "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
+      "Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: The end iterator refers to the last element and can be dereferenced before a loop stops."
+      }
+    ],
+    "textAlternative": "Starting artifact: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end. Step 1, Source and state. State: evidence: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Standard ranges are half-open: end is one past the final element and must never be dereferenced.. Check the conclusion against the boundary and reject this misconception: The end iterator refers to the last element and can be dereferenced before a loop stops."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Iterators and invalidation: defined case”: state its starting evidence, apply the Iterators and invalidation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Iterators and invalidation: defined case.",
+        "Starting evidence: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
+        "Core rule: Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
+        "Observable result: The defined result follows because Standard ranges are half-open: end is one past the final element and must never be dereferenced.",
+        "Boundary check: Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
+        "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Iterators and invalidation, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Repair an invalidated-iterator defect and document the governing container operation.",
+        "Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.containers.iterators.misconception",
+      "explanation": "Standard ranges are half-open: end is one past the final element and must never be dereferenced.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'half-open' and state the decisive evidence: After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair an invalidated-iterator defect and document the governing container operation. Keep this boundary in view: End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely.",
+    "retrievalPrompts": [
+      "Explain Iterators and invalidation using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: The end iterator refers to the last element and can be dereferenced before a loop stops.",
+      "Apply the checkpoint 'half-open' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Standard algorithms”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

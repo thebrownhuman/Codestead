@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.refs.dom.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.effects-refs",
+  "skillId": "react.refs.dom",
+  "title": "Refs and imperative escape hatches",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Refs and imperative escape hatches; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Refs and imperative escape hatches",
+      "claim": "A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Refs and imperative escape hatches",
+      "claim": "A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: After a validation error, a ref focuses the first invalid input in a controlled event or effect. Your goal is to implement an accessible focus transition without using refs as hidden render state. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: State and events; javascript async network; When an effect is needed; html navigation skip. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data. This draft therefore rejects: Updating ref.current automatically rerenders every component that reads it."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Store non-rendering values and access DOM nodes only for focus, measurement or external integration.",
+      "Implement an accessible focus transition without using refs as hidden render state."
+    ],
+    "excludes": [
+      "Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data."
+    ]
+  },
+  "outcomes": [
+    "Implement an accessible focus transition without using refs as hidden render state."
+  ],
+  "examples": [
+    {
+      "id": "react.refs.dom.example-a",
+      "title": "Refs and imperative escape hatches: concrete case",
+      "situation": "After a validation error, a ref focuses the first invalid input in a controlled event or effect.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: After a validation error, a ref focuses the first invalid input in a controlled event or effect.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI."
+      ],
+      "result": "The result follows because Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI."
+    },
+    {
+      "id": "react.refs.dom.example-b",
+      "title": "Refs and imperative escape hatches: boundary case",
+      "situation": "Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Updating ref.current automatically rerenders every component that reads it."
+      ],
+      "result": "The boundary requires this correction: Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.refs.dom.misconception",
+      "mistakenBelief": "Updating ref.current automatically rerenders every component that reads it.",
+      "correction": "Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Updating ref.current automatically rerenders every component that reads it."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Refs and imperative escape hatches, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Refs and imperative escape hatches before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "After a validation error, a ref focuses the first invalid input in a controlled event or effect.",
+      "A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs.",
+      "Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "After a validation error, a ref focuses the first invalid input in a controlled event or effect."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Updating ref.current automatically rerenders every component that reads it."
+      }
+    ],
+    "textAlternative": "Starting artifact: After a validation error, a ref focuses the first invalid input in a controlled event or effect. Step 1, Artifact. State: evidence: After a validation error, a ref focuses the first invalid input in a controlled event or effect.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI.. Check the result against the boundary and reject this misconception: Updating ref.current automatically rerenders every component that reads it."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Refs and imperative escape hatches: concrete case”: state its starting evidence, apply the Refs and imperative escape hatches rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Refs and imperative escape hatches: concrete case.",
+        "Starting evidence: After a validation error, a ref focuses the first invalid input in a controlled event or effect.",
+        "Core rule: A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs.",
+        "Observable result: The result follows because Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI.",
+        "Boundary check: Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A ref retains a mutable value without rendering and can point to a DOM node for focus, measurement, or imperative APIs.",
+        "Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Refs and imperative escape hatches and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement an accessible focus transition without using refs as hidden render state.",
+        "Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.refs.dom.misconception",
+      "explanation": "Refs are mutable escape hatches and do not trigger rendering; use state for information that affects UI.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'do not trigger rendering' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement an accessible focus transition without using refs as hidden render state. Keep this boundary in view: Changing ref.current does not render, DOM nodes can be null, and refs should not replace state for visible data.",
+    "retrievalPrompts": [
+      "Explain Refs and imperative escape hatches using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Updating ref.current automatically rerenders every component that reads it.",
+      "Apply checkpoint 'do not trigger rendering' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Loading, empty, success and failure states”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

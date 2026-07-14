@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.quality.tests.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.quality",
+  "skillId": "cpp.quality.tests",
+  "title": "Unit and integration tests",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Unit and integration tests; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; provisions applicable to Unit and integration tests",
+      "claim": "C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation."
+    },
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Unit and integration tests",
+      "claim": "C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order. Your goal is to create a focused automated test suite with normal, boundary and failure cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Conceptual constraints and diagnostics; Exceptions and guarantees; Streams, files and parsing; Class interface and invariants. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Undefined behavior can invalidate a test, nondeterminism needs control, death and exception tests are tool-specific, and one implementation-shaped oracle can reject valid alternatives. Therefore the draft explicitly rejects this beginner failure model: High line coverage proves the class contract and every edge case are correct."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Design deterministic tests for values, classes, exceptions and file boundaries.",
+      "Create a focused automated test suite with normal, boundary and failure cases."
+    ],
+    "excludes": [
+      "Undefined behavior can invalidate a test, nondeterminism needs control, death and exception tests are tool-specific, and one implementation-shaped oracle can reject valid alternatives."
+    ]
+  },
+  "outcomes": [
+    "Create a focused automated test suite with normal, boundary and failure cases."
+  ],
+  "examples": [
+    {
+      "id": "cpp.quality.tests.example-a",
+      "title": "Unit and integration tests: defined case",
+      "situation": "A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants."
+      ],
+      "result": "The defined result follows because Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants."
+    },
+    {
+      "id": "cpp.quality.tests.example-b",
+      "title": "Unit and integration tests: boundary case",
+      "situation": "A move-only resource test verifies ownership and cleanup behavior without assuming a moved-from container is empty unless documented.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A move-only resource test verifies ownership and cleanup behavior without assuming a moved-from container is empty unless documented.",
+        "Step 2 — Keep this standard boundary visible: Undefined behavior can invalidate a test, nondeterminism needs control, death and exception tests are tool-specific, and one implementation-shaped oracle can reject valid alternatives.",
+        "Step 3 — Reject the tempting rule: High line coverage proves the class contract and every edge case are correct."
+      ],
+      "result": "This case demonstrates the declared outcome: Create a focused automated test suite with normal, boundary and failure cases."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.quality.tests.misconception",
+      "mistakenBelief": "High line coverage proves the class contract and every edge case are correct.",
+      "correction": "Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: High line coverage proves the class contract and every edge case are correct."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Unit and integration tests: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "Undefined behavior can invalidate a test, nondeterminism needs control, death and exception tests are tool-specific, and one implementation-shaped oracle can reject valid alternatives."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order.",
+      "C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation.",
+      "Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: High line coverage proves the class contract and every edge case are correct."
+      }
+    ],
+    "textAlternative": "Starting artifact: A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order. Step 1, Source and state. State: evidence: A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants.. Check the conclusion against the boundary and reject this misconception: High line coverage proves the class contract and every edge case are correct."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Unit and integration tests: defined case”: state its starting evidence, apply the Unit and integration tests rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Unit and integration tests: defined case.",
+        "Starting evidence: A parser test covers empty, valid, boundary, and malformed input and checks returned value or error rather than private helper call order.",
+        "Core rule: C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation.",
+        "Observable result: The defined result follows because Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants.",
+        "Boundary check: Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A move-only resource test verifies ownership and cleanup behavior without assuming a moved-from container is empty unless documented.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C++ tests assert observable contracts across normal, boundary, failure, lifetime, and exception cases without coupling unnecessarily to private representation.",
+        "Undefined behavior can invalidate a test, nondeterminism needs control, death and exception tests are tool-specific, and one implementation-shaped oracle can reject valid alternatives."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Unit and integration tests, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Create a focused automated test suite with normal, boundary and failure cases.",
+        "Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.quality.tests.misconception",
+      "explanation": "Coverage measures execution, not correctness; derive assertions from contracts, equivalence classes, boundaries, failures, and invariants.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'contracts' and state the decisive evidence: A move-only resource test verifies ownership and cleanup behavior without assuming a moved-from container is empty unless documented."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a focused automated test suite with normal, boundary and failure cases. Keep this boundary in view: Undefined behavior can invalidate a test, nondeterminism needs control, death and exception tests are tool-specific, and one implementation-shaped oracle can reject valid alternatives.",
+    "retrievalPrompts": [
+      "Explain Unit and integration tests using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: High line coverage proves the class contract and every edge case are correct.",
+      "Apply the checkpoint 'contracts' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “CMake project structure”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.data.custom-hook.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.data",
+  "skillId": "react.data.custom-hook",
+  "title": "Custom hooks for reusable logic",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Custom hooks for reusable logic; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Custom hooks for reusable logic",
+      "claim": "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component. Your goal is to design and test a focused custom hook used by two components. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Cleanup and race prevention; javascript network fetch; Client fetch lifecycle; Dependencies and reactive values. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers. This draft therefore rejects: Calling the same custom hook in two components automatically shares one state instance."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Extract reusable stateful behavior without hiding dependencies or returning unstable accidental APIs.",
+      "Design and test a focused custom hook used by two components."
+    ],
+    "excludes": [
+      "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers."
+    ]
+  },
+  "outcomes": [
+    "Design and test a focused custom hook used by two components."
+  ],
+  "examples": [
+    {
+      "id": "react.data.custom-hook.example-a",
+      "title": "Custom hooks for reusable logic: concrete case",
+      "situation": "useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+      ],
+      "result": "The result follows because Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+    },
+    {
+      "id": "react.data.custom-hook.example-b",
+      "title": "Custom hooks for reusable logic: boundary case",
+      "situation": "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Calling the same custom hook in two components automatically shares one state instance."
+      ],
+      "result": "The boundary requires this correction: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.data.custom-hook.misconception",
+      "mistakenBelief": "Calling the same custom hook in two components automatically shares one state instance.",
+      "correction": "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Calling the same custom hook in two components automatically shares one state instance."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Custom hooks for reusable logic, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Custom hooks for reusable logic before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
+      "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
+      "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "useOnlineStatus owns one subscription pattern and cleans it up for each consuming component."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Calling the same custom hook in two components automatically shares one state instance."
+      }
+    ],
+    "textAlternative": "Starting artifact: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component. Step 1, Artifact. State: evidence: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.. Check the result against the boundary and reject this misconception: Calling the same custom hook in two components automatically shares one state instance."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Custom hooks for reusable logic: concrete case”: state its starting evidence, apply the Custom hooks for reusable logic rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Custom hooks for reusable logic: concrete case.",
+        "Starting evidence: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
+        "Core rule: A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
+        "Observable result: The result follows because Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.",
+        "Boundary check: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
+        "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Custom hooks for reusable logic and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Design and test a focused custom hook used by two components.",
+        "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.data.custom-hook.misconception",
+      "explanation": "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'share logic, not state' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and test a focused custom hook used by two components. Keep this boundary in view: Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
+    "retrievalPrompts": [
+      "Explain Custom hooks for reusable logic using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Calling the same custom hook in two components automatically shares one state instance.",
+      "Apply checkpoint 'share logic, not state' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Declarative routes and links”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

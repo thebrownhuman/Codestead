@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.data.strings.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.methods-data",
+  "skillId": "java.data.strings",
+  "title": "String and text processing",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for String and text processing; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Classes and Objects, Arrays, and String processing learning paths; atomic topic: String and text processing",
+      "claim": "Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS §§6.3, 8.4, chapter 10, and §§15.12, 15.18.1: scope, methods, arrays, invocation, and strings; atomic topic: String and text processing",
+      "claim": "Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments. Your goal is to implement text parsing and construction while avoiding reference-equality and concatenation pitfalls. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Loops and branching; pf abstraction calls; Method contracts and parameters; Arrays and multidimensional arrays. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Reference identity differs from content equality, code units differ from Unicode code points, locale affects some transformations, and repeated concatenation in a loop can allocate excessively. The learner must reject this documented misconception: The == operator compares String text, and one char always represents one complete Unicode character."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use immutable strings, builders and Unicode-aware operations appropriately.",
+      "Implement text parsing and construction while avoiding reference-equality and concatenation pitfalls."
+    ],
+    "excludes": [
+      "Reference identity differs from content equality, code units differ from Unicode code points, locale affects some transformations, and repeated concatenation in a loop can allocate excessively."
+    ]
+  },
+  "outcomes": [
+    "Implement text parsing and construction while avoiding reference-equality and concatenation pitfalls."
+  ],
+  "examples": [
+    {
+      "id": "java.data.strings.example.direct",
+      "title": "String and text processing: direct language case",
+      "situation": "A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks."
+      ],
+      "result": "The example meets the atomic outcome because Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks."
+    },
+    {
+      "id": "java.data.strings.example.boundary",
+      "title": "String and text processing: boundary and transfer case",
+      "situation": "A display-length check counts code points rather than char units so a supplementary symbol is not treated as two user characters.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A display-length check counts code points rather than char units so a supplementary symbol is not treated as two user characters.",
+        "Step 2 — Keep the language boundary explicit: Reference identity differs from content equality, code units differ from Unicode code points, locale affects some transformations, and repeated concatenation in a loop can allocate excessively.",
+        "Step 3 — Reject the tempting but incorrect rule: The == operator compares String text, and one char always represents one complete Unicode character."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement text parsing and construction while avoiding reference-equality and concatenation pitfalls."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.data.strings.misconception",
+      "mistakenBelief": "The == operator compares String text, and one char always represents one complete Unicode character.",
+      "correction": "Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: The == operator compares String text, and one char always represents one complete Unicode character."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a set of labeled workstations that accept copies of request values and process fixed trays or immutable text tickets can introduce String and text processing, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "reasoning about method contracts, scope, arrays, and strings"
+    ],
+    "limitations": [
+      "reference values can still alias mutable objects and Unicode or overload rules have no exact workstation equivalent",
+      "Reference identity differs from content equality, code units differ from Unicode code points, locale affects some transformations, and repeated concatenation in a loop can allocate excessively."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments.",
+      "Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content.",
+      "Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: The == operator compares String text, and one char always represents one complete Unicode character."
+      }
+    ],
+    "textAlternative": "Starting artifact: A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments. Step 1, Observe. State: evidence: A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks.. Compare the observation with the correction and explain why the misconception fails: The == operator compares String text, and one char always represents one complete Unicode character."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “String and text processing: direct language case”: state its starting evidence, apply the String and text processing rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: String and text processing: direct language case.",
+        "Starting evidence: A parser uses equals for tokens, strip for surrounding whitespace, and a StringBuilder to assemble an unknown number of output fragments.",
+        "Core rule: Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content.",
+        "Observable result: The example meets the atomic outcome because Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks.",
+        "Boundary check: Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A display-length check counts code points rather than char units so a supplementary symbol is not treated as two user characters.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java String values are immutable sequences of UTF-16 code units; content operations return new values, StringBuilder supports repeated construction, and equals compares content.",
+        "Reference identity differs from content equality, code units differ from Unicode code points, locale affects some transformations, and repeated concatenation in a loop can allocate excessively."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of String and text processing, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement text parsing and construction while avoiding reference-equality and concatenation pitfalls.",
+        "Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.data.strings.misconception",
+      "explanation": "Use equals for String content and code-point-aware operations when Unicode characters matter; reserve == for reference identity checks.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A display-length check counts code points rather than char units so a supplementary symbol is not treated as two user characters."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement text parsing and construction while avoiding reference-equality and concatenation pitfalls. Keep this boundary in view: Reference identity differs from content equality, code units differ from Unicode code points, locale affects some transformations, and repeated concatenation in a loop can allocate excessively.",
+    "retrievalPrompts": [
+      "Explain String and text processing using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: The == operator compares String text, and one char always represents one complete Unicode character.",
+      "Predict this case from memory: A display-length check counts code points rather than char units so a supplementary symbol is not treated as two user characters."
+    ],
+    "nextReviewPrompt": "Next: continue to “Classes, fields and methods”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

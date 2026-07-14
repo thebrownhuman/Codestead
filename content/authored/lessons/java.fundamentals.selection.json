@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.fundamentals.selection.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.fundamentals",
+  "skillId": "java.fundamentals.selection",
+  "title": "if and switch",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for if and switch; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Java Language Basics: variables, operators, control flow, and numbers; atomic topic: if and switch",
+      "claim": "Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit."
+    },
+    {
+      "sourceRef": "jls21",
+      "locator": "Java Language Specification, Java SE 21; Java SE 21; JLS chapters 4, 5, 14, and 15: types, conversions, statements, and expressions; atomic topic: if and switch",
+      "claim": "Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input. Your goal is to implement and test boundary-complete branching including enum or string cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: First source and main; pf state expressions; Operators and conversions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Classic switch statements can fall through, switch expressions must produce a value, enum/string/null handling differs by construct and version, and boundary predicates can leave gaps. The learner must reject this documented misconception: Every Java switch case stops automatically and default always makes a decision complete and correct."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use statements and expressions for complete, readable decisions.",
+      "Implement and test boundary-complete branching including enum or string cases."
+    ],
+    "excludes": [
+      "Classic switch statements can fall through, switch expressions must produce a value, enum/string/null handling differs by construct and version, and boundary predicates can leave gaps."
+    ]
+  },
+  "outcomes": [
+    "Implement and test boundary-complete branching including enum or string cases."
+  ],
+  "examples": [
+    {
+      "id": "java.fundamentals.selection.example.direct",
+      "title": "if and switch: direct language case",
+      "situation": "A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection."
+      ],
+      "result": "The example meets the atomic outcome because Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection."
+    },
+    {
+      "id": "java.fundamentals.selection.example.boundary",
+      "title": "if and switch: boundary and transfer case",
+      "situation": "A switch expression over an enum returns one label per constant and uses a deliberate default only when forward compatibility is more important than exhaustive compiler checking.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A switch expression over an enum returns one label per constant and uses a deliberate default only when forward compatibility is more important than exhaustive compiler checking.",
+        "Step 2 — Keep the language boundary explicit: Classic switch statements can fall through, switch expressions must produce a value, enum/string/null handling differs by construct and version, and boundary predicates can leave gaps.",
+        "Step 3 — Reject the tempting but incorrect rule: Every Java switch case stops automatically and default always makes a decision complete and correct."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement and test boundary-complete branching including enum or string cases."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.fundamentals.selection.misconception",
+      "mistakenBelief": "Every Java switch case stops automatically and default always makes a decision complete and correct.",
+      "correction": "Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Every Java switch case stops automatically and default always makes a decision complete and correct."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a control panel whose typed gauges, expressions, switches, and repeating cycles produce observable state can introduce if and switch, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "tracing primitive values, operators, decisions, and loop progress"
+    ],
+    "limitations": [
+      "the panel does not model promotion, overflow, short-circuit evaluation, scope, or JVM representation exactly",
+      "Classic switch statements can fall through, switch expressions must produce a value, enum/string/null handling differs by construct and version, and boundary predicates can leave gaps."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input.",
+      "Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit.",
+      "Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Every Java switch case stops automatically and default always makes a decision complete and correct."
+      }
+    ],
+    "textAlternative": "Starting artifact: A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input. Step 1, Observe. State: evidence: A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection.. Compare the observation with the correction and explain why the misconception fails: Every Java switch case stops automatically and default always makes a decision complete and correct."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “if and switch: direct language case”: state its starting evidence, apply the if and switch rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: if and switch: direct language case.",
+        "Starting evidence: A score classifier tests the exact lower and upper boundaries for each band and uses an else branch for invalid input.",
+        "Core rule: Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit.",
+        "Observable result: The example meets the atomic outcome because Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection.",
+        "Boundary check: Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A switch expression over an enum returns one label per constant and uses a deliberate default only when forward compatibility is more important than exhaustive compiler checking.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java if statements and switch statements or expressions choose one documented path from complete conditions, with case coverage, fall-through, yields, and null behavior made explicit.",
+        "Classic switch statements can fall through, switch expressions must produce a value, enum/string/null handling differs by construct and version, and boundary predicates can leave gaps."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of if and switch, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement and test boundary-complete branching including enum or string cases.",
+        "Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.fundamentals.selection.misconception",
+      "explanation": "Use arrow cases or explicit control transfer to prevent accidental fall-through, and test every boundary rather than treating default as proof of complete selection.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A switch expression over an enum returns one label per constant and uses a deliberate default only when forward compatibility is more important than exhaustive compiler checking."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test boundary-complete branching including enum or string cases. Keep this boundary in view: Classic switch statements can fall through, switch expressions must produce a value, enum/string/null handling differs by construct and version, and boundary predicates can leave gaps.",
+    "retrievalPrompts": [
+      "Explain if and switch using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Every Java switch case stops automatically and default always makes a decision complete and correct.",
+      "Predict this case from memory: A switch expression over an enum returns one label per constant and uses a deliberate default only when forward compatibility is more important than exhaustive compiler checking."
+    ],
+    "nextReviewPrompt": "Next: continue to “Loops and branching”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

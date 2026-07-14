@@ -1,0 +1,203 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.javascript.events.model.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.dom-events",
+  "skillId": "javascript.events.model",
+  "title": "Event propagation and delegation deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "whatwg-dom",
+    "mdn-js"
+  ],
+  "items": [
+    {
+      "skillId": "javascript.events.model",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.events.model.mcq.misconception",
+      "title": "Event propagation and delegation: reject the invalid model",
+      "prompt": "Which statement correctly resolves this JavaScript: Language and Browser Applications misconception? preventDefault also stops the event from reaching ancestor listeners.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. preventDefault cancels a cancelable default action; propagation controls are separate.",
+        "incorrect": "That preserves the misconception. preventDefault cancels a cancelable default action; propagation controls are separate."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked JavaScript: Language and Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "preventDefault cancels a cancelable default action; propagation controls are separate."
+        },
+        {
+          "id": "misconception",
+          "text": "preventDefault also stops the event from reaching ancestor listeners."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "preventDefault cancels a cancelable default action; propagation controls are separate."
+      }
+    },
+    {
+      "skillId": "javascript.events.model",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.events.model.fill.checkpoint",
+      "title": "Event propagation and delegation: complete the rule",
+      "prompt": "Complete the missing JavaScript: Language and Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: default action.",
+        "incorrect": "Recheck the exact rule. preventDefault cancels a cancelable default action; propagation controls are separate."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "preventDefault cancels a cancelable {{key-rule}}; propagation controls are separate.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "default action"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "preventDefault cancels a cancelable default action; propagation controls are separate."
+      }
+    },
+    {
+      "id": "javascript.events.model.code.verified-facet",
+      "skillId": "javascript.events.model",
+      "title": "Event propagation and delegation: verified implementation facet",
+      "kind": "code",
+      "prompt": "Handle capture, target and bubble phases and delegate stable ancestor events when appropriate. Build a bounded artifact demonstrating delegated bubbling event from stable ancestor; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "// TODO: implement the declared bounded browser behavior.\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "javascript",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "main.js",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        }
+      },
+      "tests": [
+        {
+          "id": "javascript.events.model.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"delegated click reads target data\",\n      \"expression\": \"document.querySelector('output').textContent\",\n      \"expected\": \"two\"\n    }\n  ],\n  \"document\": \"<main><ul><li><button data-value='one'>One</button></li><li><button data-value='two'>Two</button></li></ul><form><label>Topic <input name='topic'></label><button>Save</button></form><output></output></main>\",\n  \"actions\": [\n    {\n      \"type\": \"click\",\n      \"selector\": \"li:nth-child(2) button\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "javascript.events.model.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"handler preserves native button target\",\n      \"expression\": \"document.querySelector('li:nth-child(2) button').tagName\",\n      \"expected\": \"BUTTON\"\n    }\n  ],\n  \"document\": \"<main><ul><li><button data-value='one'>One</button></li><li><button data-value='two'>Two</button></li></ul><form><label>Topic <input name='topic'></label><button>Save</button></form><output></output></main>\",\n  \"actions\": [\n    {\n      \"type\": \"click\",\n      \"selector\": \"li:first-child button\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "const list = document.querySelector(\"ul\"); list.addEventListener(\"click\", (event) => { const button = event.target.closest(\"button\"); if (button) document.querySelector(\"output\").textContent = button.dataset.value; }); const form = document.querySelector(\"form\"); form.addEventListener(\"submit\", (event) => { event.preventDefault(); const input = form.elements.namedItem(\"topic\"); document.querySelector(\"output\").textContent = input.value.trim() || \"required\"; });",
+        "explanation": "The reference is a bounded javascript artifact for delegated bubbling event from stable ancestor. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

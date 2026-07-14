@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.navigation.external.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.navigation",
+  "skillId": "html.navigation.external",
+  "title": "External navigation safety",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for External navigation safety; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to External navigation safety",
+      "claim": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required."
+    },
+    {
+      "sourceRef": "mdn-html",
+      "locator": "MDN HTML Guide; accessed 2026-07; provisions applicable to External navigation safety",
+      "claim": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it. Your goal is to configure an external or downloadable link without opener or expectation surprises. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Sections and landmarks; pf tools files; Meaningful links. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication. This draft therefore rejects: Every external link must open a new tab because that is always safer and more accessible."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use download, target, rel and referrer-related behavior only when justified and disclosed.",
+      "Configure an external or downloadable link without opener or expectation surprises."
+    ],
+    "excludes": [
+      "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication."
+    ]
+  },
+  "outcomes": [
+    "Configure an external or downloadable link without opener or expectation surprises."
+  ],
+  "examples": [
+    {
+      "id": "html.navigation.external.example-a",
+      "title": "External navigation safety: concrete case",
+      "situation": "A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      ],
+      "result": "The result follows because Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+    },
+    {
+      "id": "html.navigation.external.example-b",
+      "title": "External navigation safety: boundary case",
+      "situation": "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Every external link must open a new tab because that is always safer and more accessible."
+      ],
+      "result": "The boundary requires this correction: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.navigation.external.misconception",
+      "mistakenBelief": "Every external link must open a new tab because that is always safer and more accessible.",
+      "correction": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Every external link must open a new tab because that is always safer and more accessible."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model External navigation safety, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for External navigation safety before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
+      "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
+      "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Every external link must open a new tab because that is always safer and more accessible."
+      }
+    ],
+    "textAlternative": "Starting artifact: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it. Step 1, Artifact. State: evidence: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.. Check the result against the boundary and reject this misconception: Every external link must open a new tab because that is always safer and more accessible."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “External navigation safety: concrete case”: state its starting evidence, apply the External navigation safety rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: External navigation safety: concrete case.",
+        "Starting evidence: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
+        "Core rule: External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
+        "Observable result: The result follows because Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.",
+        "Boundary check: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
+        "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for External navigation safety and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Configure an external or downloadable link without opener or expectation surprises.",
+        "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.navigation.external.misconception",
+      "explanation": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'disclose it' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to configure an external or downloadable link without opener or expectation surprises. Keep this boundary in view: Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
+    "retrievalPrompts": [
+      "Explain External navigation safety using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Every external link must open a new tab because that is always safer and more accessible.",
+      "Apply checkpoint 'disclose it' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Keyboard navigation and skip links”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

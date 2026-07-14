@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.document.skeleton.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.document",
+  "skillId": "html.document.skeleton",
+  "title": "Standards-mode document skeleton",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Standards-mode document skeleton; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Standards-mode document skeleton",
+      "claim": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata."
+    },
+    {
+      "sourceRef": "mdn-html",
+      "locator": "MDN HTML Guide; accessed 2026-07; provisions applicable to Standards-mode document skeleton",
+      "claim": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body. Your goal is to create and explain a complete minimal HTML document with early encoding declaration. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Elements, attributes and nesting. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance. This draft therefore rejects: The doctype is an optional comment that only documents the HTML version."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Declare doctype, language, character encoding, viewport and body content correctly.",
+      "Create and explain a complete minimal HTML document with early encoding declaration."
+    ],
+    "excludes": [
+      "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance."
+    ]
+  },
+  "outcomes": [
+    "Create and explain a complete minimal HTML document with early encoding declaration."
+  ],
+  "examples": [
+    {
+      "id": "html.document.skeleton.example-a",
+      "title": "Standards-mode document skeleton: concrete case",
+      "situation": "A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+      ],
+      "result": "The result follows because Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+    },
+    {
+      "id": "html.document.skeleton.example-b",
+      "title": "Standards-mode document skeleton: boundary case",
+      "situation": "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: The doctype is an optional comment that only documents the HTML version."
+      ],
+      "result": "The boundary requires this correction: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.document.skeleton.misconception",
+      "mistakenBelief": "The doctype is an optional comment that only documents the HTML version.",
+      "correction": "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The doctype is an optional comment that only documents the HTML version."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Standards-mode document skeleton, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Standards-mode document skeleton before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
+      "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
+      "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: The doctype is an optional comment that only documents the HTML version."
+      }
+    ],
+    "textAlternative": "Starting artifact: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body. Step 1, Artifact. State: evidence: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.. Check the result against the boundary and reject this misconception: The doctype is an optional comment that only documents the HTML version."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Standards-mode document skeleton: concrete case”: state its starting evidence, apply the Standards-mode document skeleton rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Standards-mode document skeleton: concrete case.",
+        "Starting evidence: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
+        "Core rule: A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
+        "Observable result: The result follows because Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.",
+        "Boundary check: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
+        "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Standards-mode document skeleton and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Create and explain a complete minimal HTML document with early encoding declaration.",
+        "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.document.skeleton.misconception",
+      "explanation": "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'standards mode' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and explain a complete minimal HTML document with early encoding declaration. Keep this boundary in view: Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
+    "retrievalPrompts": [
+      "Explain Standards-mode document skeleton using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: The doctype is an optional comment that only documents the HTML version.",
+      "Apply checkpoint 'standards mode' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Document tree and DOM concept”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.tools.errors.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.tools-quality",
+  "skillId": "pf.tools.errors",
+  "title": "Error categories and messages",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Error categories and messages; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Error categories and messages",
+      "claim": "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired. Your goal is to classify an error, identify the earliest useful diagnostic and propose the next observation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Source-to-execution models; Examples and edge cases; Editor and terminal workflow; Sequence. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Differentiate syntax/build, runtime and logic failures and extract actionable location information.",
+      "Classify an error, identify the earliest useful diagnostic and propose the next observation."
+    ],
+    "excludes": [
+      "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification."
+    ]
+  },
+  "outcomes": [
+    "Classify an error, identify the earliest useful diagnostic and propose the next observation."
+  ],
+  "examples": [
+    {
+      "id": "pf.tools.errors.example-a",
+      "title": "Error categories and messages: direct case",
+      "situation": "A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+      ],
+      "result": "The case supports the declared outcome because Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+    },
+    {
+      "id": "pf.tools.errors.example-b",
+      "title": "Error categories and messages: boundary case",
+      "situation": "A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration.",
+        "Step 2 — Keep this boundary explicit: One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification.",
+        "Step 3 — Reject the documented misconception: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+      ],
+      "result": "This case demonstrates the declared outcome: Classify an error, identify the earliest useful diagnostic and propose the next observation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.tools.errors.misconception",
+      "mistakenBelief": "Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy.",
+      "correction": "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A repair bench can model Error categories and messages: identify the correct part, use a named tool, read the first reliable symptom, test one cause, and verify the repair.",
+    "usefulFor": [
+      "Building a careful inspect, edit, run, diagnose, and verify workflow"
+    ],
+    "limitations": [
+      "Software tools have shell parsing, filesystem, runtime, and diagnostic rules that physical tools do not share.",
+      "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
+      "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
+      "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation."
+        },
+        "explanation": "Apply the declared Error categories and messages model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+      }
+    ],
+    "textAlternative": "Starting artifact: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired. Step 1, Observe. State: evidence: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.. Apply the declared Error categories and messages model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.. Compare the observation with the correction and reject the misconception: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Error categories and messages: direct case”: state its starting evidence, apply the Error categories and messages rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Error categories and messages: direct case.",
+        "Starting evidence: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
+        "Core rule: Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
+        "Observable result: The case supports the declared outcome because Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.",
+        "Boundary check: Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
+        "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Error categories and messages, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Classify an error, identify the earliest useful diagnostic and propose the next observation.",
+        "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.tools.errors.misconception",
+      "explanation": "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to classify an error, identify the earliest useful diagnostic and propose the next observation. Keep this boundary in view: One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification.",
+    "retrievalPrompts": [
+      "Explain Error categories and messages without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy.",
+      "Apply the model to this case from memory: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration."
+    ],
+    "nextReviewPrompt": "Next: continue to “Debugging and testing loop”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

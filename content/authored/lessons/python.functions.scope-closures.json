@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.functions.scope-closures.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.functions",
+  "skillId": "python.functions.scope-closures",
+  "title": "Scope and closures",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Scope and closures; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Execution Model and Function Definitions: name binding, scopes, closures, calls, and defaults; atomic topic: Scope and closures",
+      "claim": "Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names."
+    },
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial §4.9 and chapter 8: function definitions, parameter rules, and errors; atomic topic: Scope and closures",
+      "claim": "Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell. Your goal is to trace name lookup and implement a small closure without accidental shared mutation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Core collections and text; pf abstraction calls; Parameter kinds and argument binding; pf abstraction scope. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Assignment makes a name local unless declared, loop-created closures can share one late-bound cell, mutable captured objects change without nonlocal, and global state couples tests. The learner must reject this documented misconception: A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Resolve local, enclosing, global and built-in names and capture enclosing state deliberately.",
+      "Trace name lookup and implement a small closure without accidental shared mutation."
+    ],
+    "excludes": [
+      "Assignment makes a name local unless declared, loop-created closures can share one late-bound cell, mutable captured objects change without nonlocal, and global state couples tests."
+    ]
+  },
+  "outcomes": [
+    "Trace name lookup and implement a small closure without accidental shared mutation."
+  ],
+  "examples": [
+    {
+      "id": "python.functions.scope-closures.example.direct",
+      "title": "Scope and closures: direct language case",
+      "situation": "A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+      ],
+      "result": "The example meets the atomic outcome because Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+    },
+    {
+      "id": "python.functions.scope-closures.example.boundary",
+      "title": "Scope and closures: boundary and transfer case",
+      "situation": "Callbacks created in a loop bind the current value through a default argument rather than all reading the final loop variable later.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: Callbacks created in a loop bind the current value through a default argument rather than all reading the final loop variable later.",
+        "Step 2 — Keep the language boundary explicit: Assignment makes a name local unless declared, loop-created closures can share one late-bound cell, mutable captured objects change without nonlocal, and global state couples tests.",
+        "Step 3 — Reject the tempting but incorrect rule: A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace name lookup and implement a small closure without accidental shared mutation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.functions.scope-closures.misconception",
+      "mistakenBelief": "A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it.",
+      "correction": "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a callable service counter with a published request form, binding rules, retained enclosing notes, and a recursive delegation limit can introduce Scope and closures, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "contracts, parameters, closures, and recursion"
+    ],
+    "limitations": [
+      "definition-time defaults, LEGB lookup, late binding, exceptions, and stack limits have no exact service-counter counterpart",
+      "Assignment makes a name local unless declared, loop-created closures can share one late-bound cell, mutable captured objects change without nonlocal, and global state couples tests."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell.",
+      "Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names.",
+      "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it."
+      }
+    ],
+    "textAlternative": "Starting artifact: A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell. Step 1, Observe. State: evidence: A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding.. Compare the observation with the correction and explain why the misconception fails: A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Scope and closures: direct language case”: state its starting evidence, apply the Scope and closures rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Scope and closures: direct language case.",
+        "Starting evidence: A make_counter closure uses nonlocal count to rebind its enclosing integer and gives each factory call an independent cell.",
+        "Core rule: Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names.",
+        "Observable result: The example meets the atomic outcome because Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding.",
+        "Boundary check: Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: Callbacks created in a loop bind the current value through a default argument rather than all reading the final loop variable later.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python resolves names through local, enclosing, global, and built-in scopes; closures retain references to enclosing cells, with nonlocal or global required for rebinding those outer names.",
+        "Assignment makes a name local unless declared, loop-created closures can share one late-bound cell, mutable captured objects change without nonlocal, and global state couples tests."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Scope and closures, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Trace name lookup and implement a small closure without accidental shared mutation.",
+        "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.functions.scope-closures.misconception",
+      "explanation": "Closures retain enclosing bindings and usually use late lookup; bind a snapshot deliberately when needed and use nonlocal only for explicit enclosing rebinding.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Callbacks created in a loop bind the current value through a default argument rather than all reading the final loop variable later."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace name lookup and implement a small closure without accidental shared mutation. Keep this boundary in view: Assignment makes a name local unless declared, loop-created closures can share one late-bound cell, mutable captured objects change without nonlocal, and global state couples tests.",
+    "retrievalPrompts": [
+      "Explain Scope and closures using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A closure copies every captured value when it is created, so later changes to the enclosing binding cannot affect it.",
+      "Predict this case from memory: Callbacks created in a loop bind the current value through a default argument rather than all reading the final loop variable later."
+    ],
+    "nextReviewPrompt": "Next: continue to “Recursive functions”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

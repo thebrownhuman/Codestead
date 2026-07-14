@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.toolchain.phases.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.toolchain",
+  "skillId": "c.toolchain.phases",
+  "title": "Preprocess, compile, assemble and link",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Preprocess, compile, assemble and link; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Preprocess, compile, assemble and link",
+      "claim": "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library. Your goal is to diagnose whether a supplied failure occurs during preprocessing, compilation or linking. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Translation unit and main. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning. Therefore the draft explicitly rejects this beginner failure model: If every .c file compiles without error, the complete program must already be executable."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Relate source, object files, libraries and executable output.",
+      "Diagnose whether a supplied failure occurs during preprocessing, compilation or linking."
+    ],
+    "excludes": [
+      "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning."
+    ]
+  },
+  "outcomes": [
+    "Diagnose whether a supplied failure occurs during preprocessing, compilation or linking."
+  ],
+  "examples": [
+    {
+      "id": "c.toolchain.phases.example-a",
+      "title": "Preprocess, compile, assemble and link: defined case",
+      "situation": "A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+      ],
+      "result": "The defined result follows because Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+    },
+    {
+      "id": "c.toolchain.phases.example-b",
+      "title": "Preprocess, compile, assemble and link: boundary case",
+      "situation": "Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object.",
+        "Step 2 — Keep this standard boundary visible: Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning.",
+        "Step 3 — Reject the tempting rule: If every .c file compiles without error, the complete program must already be executable."
+      ],
+      "result": "This case demonstrates the declared outcome: Diagnose whether a supplied failure occurs during preprocessing, compilation or linking."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.toolchain.phases.misconception",
+      "mistakenBelief": "If every .c file compiles without error, the complete program must already be executable.",
+      "correction": "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: If every .c file compiles without error, the complete program must already be executable."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Preprocess, compile, assemble and link: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
+      "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
+      "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: If every .c file compiles without error, the complete program must already be executable."
+      }
+    ],
+    "textAlternative": "Starting artifact: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library. Step 1, Source and state. State: evidence: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.. Check the conclusion against the boundary and reject this misconception: If every .c file compiles without error, the complete program must already be executable."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Preprocess, compile, assemble and link: defined case”: state its starting evidence, apply the Preprocess, compile, assemble and link rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Preprocess, compile, assemble and link: defined case.",
+        "Starting evidence: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
+        "Core rule: C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
+        "Observable result: The defined result follows because Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.",
+        "Boundary check: Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
+        "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Preprocess, compile, assemble and link, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Diagnose whether a supplied failure occurs during preprocessing, compilation or linking.",
+        "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.toolchain.phases.misconception",
+      "explanation": "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'linker' and state the decisive evidence: Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to diagnose whether a supplied failure occurs during preprocessing, compilation or linking. Keep this boundary in view: Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning.",
+    "retrievalPrompts": [
+      "Explain Preprocess, compile, assemble and link using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: If every .c file compiles without error, the complete program must already be executable.",
+      "Apply the checkpoint 'linker' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Warnings and diagnostics”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

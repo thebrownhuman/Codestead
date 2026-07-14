@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.model.ignore.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.model",
+  "skillId": "git.model.ignore",
+  "title": "Ignore policy",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Ignore policy; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "git-docs",
+      "locator": "Git Reference Documentation; current stable accessed 2026-07; section applicable to Ignore policy",
+      "claim": "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks."
+    },
+    {
+      "sourceRef": "github-docs",
+      "locator": "GitHub Documentation; accessed 2026-07; section applicable to Ignore policy",
+      "claim": "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks."
+    },
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Ignore policy",
+      "claim": "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked. Your goal is to create and test a project-appropriate ignore file. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Filesystem and terminal fluency; Repository and working tree. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Rule order, negation, directory patterns, global excludes, nested ignore files, and path anchoring affect which untracked paths match. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Adding a secret file to .gitignore erases it from existing commits and remote history."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Ignore generated, machine-local and secret files without hiding required source or removing already tracked files by mistake.",
+      "Create and test a project-appropriate ignore file."
+    ],
+    "excludes": [
+      "Rule order, negation, directory patterns, global excludes, nested ignore files, and path anchoring affect which untracked paths match."
+    ]
+  },
+  "outcomes": [
+    "Create and test a project-appropriate ignore file."
+  ],
+  "examples": [
+    {
+      "id": "git.model.ignore.example-a",
+      "title": "Ignore policy: direct case",
+      "situation": "Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+      ],
+      "result": "The case supports the declared outcome because Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+    },
+    {
+      "id": "git.model.ignore.example-b",
+      "title": "Ignore policy: boundary case",
+      "situation": "A broad build/ rule ignores generated output while a documented negation keeps one required fixture within that tree visible.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A broad build/ rule ignores generated output while a documented negation keeps one required fixture within that tree visible.",
+        "Step 2 — Keep this boundary explicit: Rule order, negation, directory patterns, global excludes, nested ignore files, and path anchoring affect which untracked paths match.",
+        "Step 3 — Reject the documented misconception: Adding a secret file to .gitignore erases it from existing commits and remote history."
+      ],
+      "result": "This case demonstrates the declared outcome: Create and test a project-appropriate ignore file."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.model.ignore.misconception",
+      "mistakenBelief": "Adding a secret file to .gitignore erases it from existing commits and remote history.",
+      "correction": "Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Adding a secret file to .gitignore erases it from existing commits and remote history."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A photo studio can model Ignore policy: the set is the working tree, a selected proof is the index, and an archived photograph is a commit snapshot.",
+    "usefulFor": [
+      "Separating working changes, staged content, committed snapshots, and repository metadata"
+    ],
+    "limitations": [
+      "Git stores content-addressed objects and references rather than physical photographs or one linear album.",
+      "Rule order, negation, directory patterns, global excludes, nested ignore files, and path anchoring affect which untracked paths match."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked.",
+      "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks.",
+      "Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks."
+        },
+        "explanation": "Apply the declared Ignore policy model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Adding a secret file to .gitignore erases it from existing commits and remote history."
+      }
+    ],
+    "textAlternative": "Starting artifact: Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked. Step 1, Observe. State: evidence: Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks.. Apply the declared Ignore policy model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process.. Compare the observation with the correction and reject the misconception: Adding a secret file to .gitignore erases it from existing commits and remote history."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Ignore policy: direct case”: state its starting evidence, apply the Ignore policy rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Ignore policy: direct case.",
+        "Starting evidence: Adding .env to an ignore file prevents a new local .env from appearing as untracked, but a previously committed .env remains tracked.",
+        "Core rule: Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks.",
+        "Observable result: The case supports the declared outcome because Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process.",
+        "Boundary check: Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A broad build/ rule ignores generated output while a documented negation keeps one required fixture within that tree visible.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Ignore rules suppress untracked-path reporting and accidental addition; they do not remove files that Git already tracks.",
+        "Rule order, negation, directory patterns, global excludes, nested ignore files, and path anchoring affect which untracked paths match."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Ignore policy, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Create and test a project-appropriate ignore file.",
+        "Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.model.ignore.misconception",
+      "explanation": "Ignore affects future untracked-path selection only; stop tracking current content separately and rotate or purge exposed secrets using an explicit incident process.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A broad build/ rule ignores generated output while a documented negation keeps one required fixture within that tree visible."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and test a project-appropriate ignore file. Keep this boundary in view: Rule order, negation, directory patterns, global excludes, nested ignore files, and path anchoring affect which untracked paths match.",
+    "retrievalPrompts": [
+      "Explain Ignore policy without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Adding a secret file to .gitignore erases it from existing commits and remote history.",
+      "Apply the model to this case from memory: A broad build/ rule ignores generated output while a documented negation keeps one required fixture within that tree visible."
+    ],
+    "nextReviewPrompt": "Next: continue to “Selective staging and first commit”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

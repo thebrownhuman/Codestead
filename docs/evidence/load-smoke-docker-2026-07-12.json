@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T15:26:40.072Z",
+  "target": {
+    "origin": "http://127.0.0.1:3020",
+    "remoteAuthorized": false
+  },
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v22.18.0"
+  },
+  "config": {
+    "concurrency": 10,
+    "requestsPerScenario": 20,
+    "timeoutMs": 10000,
+    "warmupTimeoutMs": 60000,
+    "p95LimitMs": 1500,
+    "allowedErrorRate": 0
+  },
+  "scope": "Read-only application projection smoke; not NUC thermal, runner, tutor-first-token, or authenticated mutation evidence.",
+  "scenarios": [
+    {
+      "name": "landing",
+      "path": "/",
+      "target": "/",
+      "passed": true,
+      "summary": {
+        "requests": 20,
+        "succeeded": 20,
+        "failed": 0,
+        "errorRate": 0,
+        "p50Ms": 31.44,
+        "p95Ms": 60.22,
+        "p99Ms": 61.56,
+        "maxMs": 61.56,
+        "statuses": {
+          "200": 20
+        },
+        "errors": {}
+      }
+    },
+    {
+      "name": "catalog",
+      "path": "/courses",
+      "target": "/courses",
+      "passed": false,
+      "summary": {
+        "requests": 20,
+        "succeeded": 20,
+        "failed": 0,
+        "errorRate": 0,
+        "p50Ms": 376.12,
+        "p95Ms": 3531.14,
+        "p99Ms": 4050.5,
+        "maxMs": 4050.5,
+        "statuses": {
+          "307": 20
+        },
+        "errors": {}
+      }
+    },
+    {
+      "name": "learn",
+      "path": "/learn",
+      "target": "/learn",
+      "passed": true,
+      "summary": {
+        "requests": 20,
+        "succeeded": 20,
+        "failed": 0,
+        "errorRate": 0,
+        "p50Ms": 82.03,
+        "p95Ms": 134.84,
+        "p99Ms": 144.45,
+        "maxMs": 144.45,
+        "statuses": {
+          "307": 20
+        },
+        "errors": {}
+      }
+    },
+    {
+      "name": "roadmap",
+      "path": "/roadmap",
+      "target": "/roadmap",
+      "passed": false,
+      "summary": {
+        "requests": 20,
+        "succeeded": 20,
+        "failed": 0,
+        "errorRate": 0,
+        "p50Ms": 1522.67,
+        "p95Ms": 3070.75,
+        "p99Ms": 3579.06,
+        "maxMs": 3579.06,
+        "statuses": {
+          "307": 20
+        },
+        "errors": {}
+      }
+    },
+    {
+      "name": "review",
+      "path": "/review",
+      "target": "/review",
+      "passed": true,
+      "summary": {
+        "requests": 20,
+        "succeeded": 20,
+        "failed": 0,
+        "errorRate": 0,
+        "p50Ms": 77.85,
+        "p95Ms": 105.51,
+        "p99Ms": 112.03,
+        "maxMs": 112.03,
+        "statuses": {
+          "307": 20
+        },
+        "errors": {}
+      }
+    }
+  ],
+  "passed": false
+}

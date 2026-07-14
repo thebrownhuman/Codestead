@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.forms.validation.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.forms-reducers",
+  "skillId": "react.forms.validation",
+  "title": "Validation and error recovery",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Validation and error recovery; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Validation and error recovery",
+      "claim": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Validation and error recovery",
+      "claim": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely. Your goal is to implement and test a form's invalid, submitting, success and server-error states. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: State and events; html forms; Controlled inputs; html forms validation. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Validation timing can annoy users, async checks race, and client rules remain bypassable. This draft therefore rejects: Disabling the submit button is enough to explain every invalid field."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Combine native constraints and domain validation with persistent instructions and focus-aware errors.",
+      "Implement and test a form's invalid, submitting, success and server-error states."
+    ],
+    "excludes": [
+      "Validation timing can annoy users, async checks race, and client rules remain bypassable."
+    ]
+  },
+  "outcomes": [
+    "Implement and test a form's invalid, submitting, success and server-error states."
+  ],
+  "examples": [
+    {
+      "id": "react.forms.validation.example-a",
+      "title": "Validation and error recovery: concrete case",
+      "situation": "Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+      ],
+      "result": "The result follows because Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+    },
+    {
+      "id": "react.forms.validation.example-b",
+      "title": "Validation and error recovery: boundary case",
+      "situation": "Validation timing can annoy users, async checks race, and client rules remain bypassable.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Validation timing can annoy users, async checks race, and client rules remain bypassable.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Disabling the submit button is enough to explain every invalid field."
+      ],
+      "result": "The boundary requires this correction: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.forms.validation.misconception",
+      "mistakenBelief": "Disabling the submit button is enough to explain every invalid field.",
+      "correction": "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Disabling the submit button is enough to explain every invalid field."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Validation and error recovery, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Validation and error recovery before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Validation timing can annoy users, async checks race, and client rules remain bypassable."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
+      "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
+      "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Disabling the submit button is enough to explain every invalid field."
+      }
+    ],
+    "textAlternative": "Starting artifact: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely. Step 1, Artifact. State: evidence: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.. Check the result against the boundary and reject this misconception: Disabling the submit button is enough to explain every invalid field."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Validation and error recovery: concrete case”: state its starting evidence, apply the Validation and error recovery rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Validation and error recovery: concrete case.",
+        "Starting evidence: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
+        "Core rule: React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
+        "Observable result: The result follows because Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.",
+        "Boundary check: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Validation timing can annoy users, async checks race, and client rules remain bypassable.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
+        "Validation timing can annoy users, async checks race, and client rules remain bypassable."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Validation and error recovery and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement and test a form's invalid, submitting, success and server-error states.",
+        "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.forms.validation.misconception",
+      "explanation": "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'field-specific text errors' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test a form's invalid, submitting, success and server-error states. Keep this boundary in view: Validation timing can annoy users, async checks race, and client rules remain bypassable.",
+    "retrievalPrompts": [
+      "Explain Validation and error recovery using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Disabling the submit button is enough to explain every invalid field.",
+      "Apply checkpoint 'field-specific text errors' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “useReducer”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

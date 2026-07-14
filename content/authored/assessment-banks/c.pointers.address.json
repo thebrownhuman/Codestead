@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.c.pointers.address.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.pointers",
+  "skillId": "c.pointers.address",
+  "title": "Addresses and dereference deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Added digest-pinned deterministic executable evidence for Addresses and dereference; AI-assisted draft remains human-unreviewed and exam-ineligible."
+  },
+  "sourceRefs": [
+    "wg14-c23",
+    "gnu-c",
+    "cert-c"
+  ],
+  "items": [
+    {
+      "skillId": "c.pointers.address",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.pointers.address.mcq.misconception",
+      "title": "Addresses and dereference: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this C misconception? Any non-null pointer is safe to dereference because null is the only invalid address value.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity.",
+        "incorrect": "That option preserves the documented misconception. Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned C correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Any non-null pointer is safe to dereference because null is the only invalid address value."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+      }
+    },
+    {
+      "skillId": "c.pointers.address",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.pointers.address.fill.checkpoint",
+      "title": "Addresses and dereference: complete the language rule",
+      "prompt": "Complete the missing C checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: Any non-null pointer is safe to dereference because null is the only invalid address value."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'live compatible object'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact C token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Dereference requires a pointer to a {{key-rule}} within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "live compatible object"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+      }
+    },
+    {
+      "id": "c.pointers.address.code.apply",
+      "skillId": "c.pointers.address",
+      "title": "Addresses and dereference: executable application",
+      "kind": "code",
+      "prompt": "Read two integers, call a C function that swaps the caller-owned integer objects through valid pointers, and print the swapped values separated by one space.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards, security, and assessment review."
+      },
+      "hints": [
+        "Start from input validation and the declared observable output, then apply only the target language rule before considering optimization."
+      ],
+      "feedback": {
+        "correct": "All visible and hidden deterministic behavior checks passed for the bounded source task.",
+        "incorrect": "At least one deterministic behavior check failed; inspect bounds, input state, and the target rule without exposing hidden cases."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "behavior",
+            "description": "Compiles in the pinned runtime and passes every normal and boundary behavior test.",
+            "points": 7,
+            "critical": true
+          },
+          {
+            "id": "target-rule",
+            "description": "Applies Addresses and dereference without undefined behavior or an out-of-scope workaround.",
+            "points": 3,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "AI-assisted and human-unreviewed: formal exam eligibility is prohibited until independent technical and assessment approval.",
+        "Reference verification uses the digest-pinned local container with network=none, no package installation, a read-only source mount, and deterministic stdin/stdout.",
+        "Executable facet: existing bounded executable application retained from the authored language tranche"
+      ],
+      "starterCode": "#include <stdio.h>\n\nstatic void swap_ints(int *left, int *right) {\n    /* swap through the pointers */\n}\n\nint main(void) {\n    int a, b;\n    if (scanf(\"%d %d\", &a, &b) != 2) return 1;\n    swap_ints(&a, &b);\n    printf(\"%d %d\\n\", a, b);\n    return 0;\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "c",
+        "version": "C23 / GCC 14.2.0",
+        "imageDigest": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+        "entrypoint": "main.c",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "pointers-visible-distinct",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "2 9\n",
+          "expectedStdout": "9 2\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "pointers-hidden-equal",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "4 4\n",
+          "expectedStdout": "4 4\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "pointers-hidden-negative",
+          "visibility": "hidden",
+          "category": "normal",
+          "stdin": "-1 6\n",
+          "expectedStdout": "6 -1\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "#include <stdio.h>\n\nstatic void swap_ints(int *left, int *right) {\n    int temporary = *left;\n    *left = *right;\n    *right = temporary;\n}\n\nint main(void) {\n    int a, b;\n    if (scanf(\"%d %d\", &a, &b) != 2) return 1;\n    swap_ints(&a, &b);\n    printf(\"%d %d\\n\", a, b);\n    return 0;\n}\n",
+        "explanation": "The reference solution exercises existing bounded executable application retained from the authored language tranche under the bounded deterministic contract; it remains an AI-assisted draft pending human review."
+      }
+    }
+  ]
+}

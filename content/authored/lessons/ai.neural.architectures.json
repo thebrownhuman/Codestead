@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.neural.architectures.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.neural",
+  "skillId": "ai.neural.architectures",
+  "title": "Convolution, sequence and attention roles",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Convolution, sequence and attention roles; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning and Neural Networks: units, optimization, generalization, and architecture families; atomic topic: Convolution, sequence and attention roles",
+      "claim": "Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence."
+    },
+    {
+      "sourceRef": "transformers",
+      "locator": "Transformers Documentation; 5.x target, accessed 2026-07; Transformers documentation: attention-based architecture roles, model inputs, finite context, and compute trade-offs; atomic topic: Convolution, sequence and attention roles",
+      "claim": "Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model. Your goal is to match a data structure and task to an architecture family and state limitations. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Supervised learning; Data and experimental workflow; Units, layers and activations; Dimensionality reduction. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "These families overlap and combine, attention has substantial context cost, position needs representation, convolution does not ensure invariance, recurrence can lose long dependencies, and scale does not guarantee understanding. The learner must reject this overclaim: Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Recognize how locality, recurrence and attention encode different structure and compute trade-offs.",
+      "Match a data structure and task to an architecture family and state limitations."
+    ],
+    "excludes": [
+      "These families overlap and combine, attention has substantial context cost, position needs representation, convolution does not ensure invariance, recurrence can lose long dependencies, and scale does not guarantee understanding."
+    ]
+  },
+  "outcomes": [
+    "Match a data structure and task to an architecture family and state limitations."
+  ],
+  "examples": [
+    {
+      "id": "ai.neural.architectures.example.direct",
+      "title": "Convolution, sequence and attention roles: bounded direct case",
+      "situation": "A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+      ],
+      "result": "This example supports only the atomic outcome because Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+    },
+    {
+      "id": "ai.neural.architectures.example.stress",
+      "title": "Convolution, sequence and attention roles: stress and transfer case",
+      "situation": "A long-document attention design states finite context, quadratic-like interaction cost for standard full attention, and a retrieval or chunking trade-off.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A long-document attention design states finite context, quadratic-like interaction cost for standard full attention, and a retrieval or chunking trade-off.",
+        "Step 2 — Keep the non-claim visible: These families overlap and combine, attention has substantial context cost, position needs representation, convolution does not ensure invariance, recurrence can lose long dependencies, and scale does not guarantee understanding.",
+        "Step 3 — Reject the tempting overclaim: Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits."
+      ],
+      "result": "This case demonstrates the declared outcome: Match a data structure and task to an architecture family and state limitations."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.neural.architectures.misconception",
+      "mistakenBelief": "Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits.",
+      "correction": "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a layered numeric circuit whose weights, biases, activations, loss, and updates can be traced on a tiny example can introduce Convolution, sequence and attention roles only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "forward passes, gradient updates, regularization evidence, and architectural roles"
+    ],
+    "limitations": [
+      "a toy circuit does not explain large-network representations, training data, emergent behavior, or deployment safety",
+      "These families overlap and combine, attention has substantial context cost, position needs representation, convolution does not ensure invariance, recurrence can lose long dependencies, and scale does not guarantee understanding."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model.",
+      "Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence.",
+      "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits."
+      }
+    ],
+    "textAlternative": "Starting artifact: A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model. Step 1, Observe. State: boundedEvidence: A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations.. State what the evidence does not establish and reject the misconception: Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Convolution, sequence and attention roles: bounded direct case”: state its starting evidence, apply the Convolution, sequence and attention roles rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Convolution, sequence and attention roles: bounded direct case.",
+        "Starting evidence: A small image task starts with convolutional locality and compares a simple baseline before considering a large attention model.",
+        "Core rule: Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence.",
+        "Observable result: This example supports only the atomic outcome because Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations.",
+        "Boundary check: Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A long-document attention design states finite context, quadratic-like interaction cost for standard full attention, and a retrieval or chunking trade-off.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Convolution emphasizes local shared patterns, recurrence carries sequential state, and attention forms content-dependent interactions; architecture choice follows data structure, task, scale, latency, and evidence.",
+        "These families overlap and combine, attention has substantial context cost, position needs representation, convolution does not ensure invariance, recurrence can lose long dependencies, and scale does not guarantee understanding."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Convolution, sequence and attention roles and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Match a data structure and task to an architecture family and state limitations.",
+        "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.neural.architectures.misconception",
+      "explanation": "Match structural inductive bias and compute to the task, compare baselines, and state finite context, data, latency, and transfer limitations.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A long-document attention design states finite context, quadratic-like interaction cost for standard full attention, and a retrieval or chunking trade-off."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to match a data structure and task to an architecture family and state limitations. Keep this boundary in view: These families overlap and combine, attention has substantial context cost, position needs representation, convolution does not ensure invariance, recurrence can lose long dependencies, and scale does not guarantee understanding.",
+    "retrievalPrompts": [
+      "Explain Convolution, sequence and attention roles with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Transformers and attention are universally superior, understand sequence meaning, and remove context or compute limits.",
+      "Apply the boundary to: A long-document attention design states finite context, quadratic-like interaction cost for standard full attention, and a retrieval or chunking trade-off."
+    ],
+    "nextReviewPrompt": "Next: continue to “Natural-language processing”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

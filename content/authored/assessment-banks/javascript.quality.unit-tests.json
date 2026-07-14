@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.javascript.quality.unit-tests.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.quality-project",
+  "skillId": "javascript.quality.unit-tests",
+  "title": "Pure and module tests deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because Authored test quality requires a pinned test-runner artifact grader; passing domain behavior alone would not prove the learner wrote useful tests."
+  },
+  "sourceRefs": [
+    "mdn-js"
+  ],
+  "items": [
+    {
+      "skillId": "javascript.quality.unit-tests",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.quality.unit-tests.mcq.misconception",
+      "title": "Pure and module tests: reject the invalid model",
+      "prompt": "Which statement correctly resolves this JavaScript: Language and Browser Applications misconception? One happy-path assertion is enough when line coverage reaches 100 percent.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Derive tests from contract partitions and boundaries; coverage alone does not establish behavior.",
+        "incorrect": "That preserves the misconception. Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked JavaScript: Language and Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+        },
+        {
+          "id": "misconception",
+          "text": "One happy-path assertion is enough when line coverage reaches 100 percent."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+      }
+    },
+    {
+      "skillId": "javascript.quality.unit-tests",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "javascript.quality.unit-tests.fill.checkpoint",
+      "title": "Pure and module tests: complete the rule",
+      "prompt": "Complete the missing JavaScript: Language and Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: contract partitions.",
+        "incorrect": "Recheck the exact rule. Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Derive tests from {{key-rule}} and boundaries; coverage alone does not establish behavior.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "contract partitions"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+      }
+    }
+  ]
+}

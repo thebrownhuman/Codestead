@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.concurrency.threads-processes.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.concurrency",
+  "skillId": "python.concurrency.threads-processes",
+  "title": "Threads and processes",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Threads and processes; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; asyncio, concurrent.futures, threading, multiprocessing, queue, and synchronization documentation; atomic topic: Threads and processes",
+      "claim": "Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks. Your goal is to select and justify sequential, asynchronous, threaded or process-based execution for a stated task. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Typing, tests, logging and debugging; Generators and lazy pipelines; Concurrency versus parallelism; Mutability, aliases and copying. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Threads still need synchronization, process arguments/results must be transferable, platform start methods differ, worker pools need shutdown, and small tasks can cost more to coordinate than run sequentially. The learner must reject this documented misconception: Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Choose threads for compatible waiting work and processes for isolated CPU work while accounting for communication cost.",
+      "Select and justify sequential, asynchronous, threaded or process-based execution for a stated task."
+    ],
+    "excludes": [
+      "Threads still need synchronization, process arguments/results must be transferable, platform start methods differ, worker pools need shutdown, and small tasks can cost more to coordinate than run sequentially."
+    ]
+  },
+  "outcomes": [
+    "Select and justify sequential, asynchronous, threaded or process-based execution for a stated task."
+  ],
+  "examples": [
+    {
+      "id": "python.concurrency.threads-processes.example.direct",
+      "title": "Threads and processes: direct language case",
+      "situation": "A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+      ],
+      "result": "The example meets the atomic outcome because Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+    },
+    {
+      "id": "python.concurrency.threads-processes.example.boundary",
+      "title": "Threads and processes: boundary and transfer case",
+      "situation": "The command keeps process-pool creation under a main guard so spawn-based platforms do not recursively create workers.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: The command keeps process-pool creation under a main guard so spawn-based platforms do not recursively create workers.",
+        "Step 2 — Keep the language boundary explicit: Threads still need synchronization, process arguments/results must be transferable, platform start methods differ, worker pools need shutdown, and small tasks can cost more to coordinate than run sequentially.",
+        "Step 3 — Reject the tempting but incorrect rule: Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock."
+      ],
+      "result": "This case demonstrates the declared outcome: Select and justify sequential, asynchronous, threaded or process-based execution for a stated task."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.concurrency.threads-processes.misconception",
+      "mistakenBelief": "Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock.",
+      "correction": "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a coordination desk that overlaps waiting jobs, assigns CPU work to separate rooms, and protects complete shared transitions can introduce Threads and processes, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "concurrency models, asyncio, threads, processes, cancellation, and safety"
+    ],
+    "limitations": [
+      "the event loop, GIL, serialization, atomicity, scheduling, and cancellation points must be reasoned about technically",
+      "Threads still need synchronization, process arguments/results must be transferable, platform start methods differ, worker pools need shutdown, and small tasks can cost more to coordinate than run sequentially."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks.",
+      "Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization.",
+      "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock."
+      }
+    ],
+    "textAlternative": "Starting artifact: A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks. Step 1, Observe. State: evidence: A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs.. Compare the observation with the correction and explain why the misconception fails: Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Threads and processes: direct language case”: state its starting evidence, apply the Threads and processes rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Threads and processes: direct language case.",
+        "Starting evidence: A bounded thread pool overlaps independent HTTP waits, while a measured CPU transform uses a process pool with coarse tasks.",
+        "Core rule: Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization.",
+        "Observable result: The example meets the atomic outcome because Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs.",
+        "Boundary check: Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: The command keeps process-pool creation under a main guard so spawn-based platforms do not recursively create workers.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python threads share process memory and can overlap compatible waiting work, while processes isolate memory and can use multiple CPU cores at the cost of startup and data serialization.",
+        "Threads still need synchronization, process arguments/results must be transferable, platform start methods differ, worker pools need shutdown, and small tasks can cost more to coordinate than run sequentially."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Threads and processes, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Select and justify sequential, asynchronous, threaded or process-based execution for a stated task.",
+        "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.concurrency.threads-processes.misconception",
+      "explanation": "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: The command keeps process-pool creation under a main guard so spawn-based platforms do not recursively create workers."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to select and justify sequential, asynchronous, threaded or process-based execution for a stated task. Keep this boundary in view: Threads still need synchronization, process arguments/results must be transferable, platform start methods differ, worker pools need shutdown, and small tasks can cost more to coordinate than run sequentially.",
+    "retrievalPrompts": [
+      "Explain Threads and processes using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock.",
+      "Predict this case from memory: The command keeps process-pool creation under a main guard so spawn-based platforms do not recursively create workers."
+    ],
+    "nextReviewPrompt": "Next: continue to “Shared-state and cancellation safety”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

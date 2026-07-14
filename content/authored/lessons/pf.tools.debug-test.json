@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.tools.debug-test.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.tools-quality",
+  "skillId": "pf.tools.debug-test",
+  "title": "Debugging and testing loop",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Debugging and testing loop; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Debugging and testing loop",
+      "claim": "A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Debugging and testing loop",
+      "claim": "A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run. Your goal is to repair a flawed pseudocode routine and provide tests that expose the original defect. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Source-to-execution models; Examples and edge cases; Error categories and messages. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Debugger inspection can perturb timing, one passing example does not establish the hypothesis, and changing several causes at once destroys evidence about which change mattered. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Debugging means making plausible edits until the visible failure disappears, without preserving a failing test."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Form a hypothesis, isolate a case, inspect state, change one cause and rerun tests.",
+      "Repair a flawed pseudocode routine and provide tests that expose the original defect."
+    ],
+    "excludes": [
+      "Debugger inspection can perturb timing, one passing example does not establish the hypothesis, and changing several causes at once destroys evidence about which change mattered."
+    ]
+  },
+  "outcomes": [
+    "Repair a flawed pseudocode routine and provide tests that expose the original defect."
+  ],
+  "examples": [
+    {
+      "id": "pf.tools.debug-test.example-a",
+      "title": "Debugging and testing loop: direct case",
+      "situation": "An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired."
+      ],
+      "result": "The case supports the declared outcome because Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired."
+    },
+    {
+      "id": "pf.tools.debug-test.example-b",
+      "title": "Debugging and testing loop: boundary case",
+      "situation": "A total is wrong only after refunds; a focused test isolates one refund and a trace reveals the sign is added instead of subtracted.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A total is wrong only after refunds; a focused test isolates one refund and a trace reveals the sign is added instead of subtracted.",
+        "Step 2 — Keep this boundary explicit: Debugger inspection can perturb timing, one passing example does not establish the hypothesis, and changing several causes at once destroys evidence about which change mattered.",
+        "Step 3 — Reject the documented misconception: Debugging means making plausible edits until the visible failure disappears, without preserving a failing test."
+      ],
+      "result": "This case demonstrates the declared outcome: Repair a flawed pseudocode routine and provide tests that expose the original defect."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.tools.debug-test.misconception",
+      "mistakenBelief": "Debugging means making plausible edits until the visible failure disappears, without preserving a failing test.",
+      "correction": "Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Debugging means making plausible edits until the visible failure disappears, without preserving a failing test."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A repair bench can model Debugging and testing loop: identify the correct part, use a named tool, read the first reliable symptom, test one cause, and verify the repair.",
+    "usefulFor": [
+      "Building a careful inspect, edit, run, diagnose, and verify workflow"
+    ],
+    "limitations": [
+      "Software tools have shell parsing, filesystem, runtime, and diagnostic rules that physical tools do not share.",
+      "Debugger inspection can perturb timing, one passing example does not establish the hypothesis, and changing several causes at once destroys evidence about which change mattered."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run.",
+      "A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case.",
+      "Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case."
+        },
+        "explanation": "Apply the declared Debugging and testing loop model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Debugging means making plausible edits until the visible failure disappears, without preserving a failing test."
+      }
+    ],
+    "textAlternative": "Starting artifact: An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run. Step 1, Observe. State: evidence: An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case.. Apply the declared Debugging and testing loop model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired.. Compare the observation with the correction and reject the misconception: Debugging means making plausible edits until the visible failure disappears, without preserving a failing test."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Debugging and testing loop: direct case”: state its starting evidence, apply the Debugging and testing loop rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Debugging and testing loop: direct case.",
+        "Starting evidence: An off-by-one list failure is reproduced with a one-element case, the index is observed at the condition, the bound is corrected, and empty and multi-element regressions run.",
+        "Core rule: A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case.",
+        "Observable result: The case supports the declared outcome because Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired.",
+        "Boundary check: Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A total is wrong only after refunds; a focused test isolates one refund and a trace reveals the sign is added instead of subtracted.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A disciplined debug loop reproduces a failure, states a hypothesis, isolates a small case, observes relevant state, changes one likely cause, and reruns tests including a regression case.",
+        "Debugger inspection can perturb timing, one passing example does not establish the hypothesis, and changing several causes at once destroys evidence about which change mattered."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Debugging and testing loop, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Repair a flawed pseudocode routine and provide tests that expose the original defect.",
+        "Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.tools.debug-test.misconception",
+      "explanation": "Use observations to test one hypothesis at a time and keep the smallest exposing case as a regression test after the cause is repaired.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A total is wrong only after refunds; a focused test isolates one refund and a trace reveals the sign is added instead of subtracted."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to repair a flawed pseudocode routine and provide tests that expose the original defect. Keep this boundary in view: Debugger inspection can perturb timing, one passing example does not establish the hypothesis, and changing several causes at once destroys evidence about which change mattered.",
+    "retrievalPrompts": [
+      "Explain Debugging and testing loop without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Debugging means making plausible edits until the visible failure disappears, without preserving a failing test.",
+      "Apply the model to this case from memory: A total is wrong only after refunds; a focused test isolates one refund and a trace reveals the sign is added instead of subtracted."
+    ],
+    "nextReviewPrompt": "Next: continue to “Reading before writing”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

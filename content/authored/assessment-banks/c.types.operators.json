@@ -1,0 +1,213 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.c.types.operators.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.types",
+  "skillId": "c.types.operators",
+  "title": "Operators and precedence deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Added digest-pinned deterministic executable evidence for Operators and precedence; AI-assisted draft remains human-unreviewed and exam-ineligible."
+  },
+  "sourceRefs": [
+    "gnu-c"
+  ],
+  "items": [
+    {
+      "skillId": "c.types.operators",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.types.operators.mcq.misconception",
+      "title": "Operators and precedence: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this C misconception? Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects.",
+        "incorrect": "That option preserves the documented misconception. Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned C correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+      }
+    },
+    {
+      "skillId": "c.types.operators",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "c.types.operators.fill.checkpoint",
+      "title": "Operators and precedence: complete the language rule",
+      "prompt": "Complete the missing C checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: Higher precedence means an operand is always evaluated earlier in time than every lower-precedence operand."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'grouping'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact C token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Use precedence to determine {{key-rule}}, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "grouping"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Use precedence to determine grouping, not general evaluation order; rely only on documented sequencing and avoid multiple unsequenced accesses with side effects."
+      }
+    },
+    {
+      "id": "c.types.operators.code.apply",
+      "skillId": "c.types.operators",
+      "title": "Operators and precedence: executable application",
+      "kind": "code",
+      "prompt": "Read one integer x, compute x multiplied by two and then increased by one using a clear grouped C expression, and print only the resulting integer.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards, security, and assessment review."
+      },
+      "hints": [
+        "Start from input validation and the declared observable output, then apply only the target language rule before considering optimization."
+      ],
+      "feedback": {
+        "correct": "All visible and hidden deterministic behavior checks passed for the bounded source task.",
+        "incorrect": "At least one deterministic behavior check failed; inspect bounds, input state, and the target rule without exposing hidden cases."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "behavior",
+            "description": "Compiles in the pinned runtime and passes every normal and boundary behavior test.",
+            "points": 7,
+            "critical": true
+          },
+          {
+            "id": "target-rule",
+            "description": "Applies Operators and precedence without undefined behavior or an out-of-scope workaround.",
+            "points": 3,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "AI-assisted and human-unreviewed: formal exam eligibility is prohibited until independent technical and assessment approval.",
+        "Reference verification uses the digest-pinned local container with network=none, no package installation, a read-only source mount, and deterministic stdin/stdout.",
+        "Executable facet: existing bounded executable application retained from the authored language tranche"
+      ],
+      "starterCode": "#include <stdio.h>\n\nint main(void) {\n    long long x;\n    if (scanf(\"%lld\", &x) != 1) return 1;\n    /* compute and print */\n    return 0;\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "c",
+        "version": "C23 / GCC 14.2.0",
+        "imageDigest": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
+        "entrypoint": "main.c",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "operators-visible-positive",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "4\n",
+          "expectedStdout": "9\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "operators-hidden-zero",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0\n",
+          "expectedStdout": "1\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "operators-hidden-negative",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "-3\n",
+          "expectedStdout": "-5\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "#include <stdio.h>\n\nint main(void) {\n    long long x;\n    if (scanf(\"%lld\", &x) != 1) return 1;\n    printf(\"%lld\\n\", x * 2 + 1);\n    return 0;\n}\n",
+        "explanation": "The reference solution exercises existing bounded executable application retained from the authored language tranche under the bounded deterministic contract; it remains an AI-assisted draft pending human review."
+      }
+    }
+  ]
+}

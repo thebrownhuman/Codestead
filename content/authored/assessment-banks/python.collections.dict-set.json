@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.collections.dict-set.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.collections",
+  "skillId": "python.collections.dict-set",
+  "title": "Dictionaries and sets deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Dictionaries and sets; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "py-reference"
+  ],
+  "items": [
+    {
+      "id": "python.collections.dict-set.mcq.misconception",
+      "skillId": "python.collections.dict-set",
+      "title": "Dictionaries and sets: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault.",
+        "incorrect": "That choice preserves the misconception. Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+        },
+        {
+          "id": "misconception",
+          "text": "Sets and dictionaries sort their contents automatically and any Python object can be used safely as a key."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+      }
+    },
+    {
+      "id": "python.collections.dict-set.fill.checkpoint",
+      "skillId": "python.collections.dict-set",
+      "title": "Dictionaries and sets: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'stable hashable keys'. Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault.",
+        "incorrect": "The phrase must preserve the exact language rule. Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Use [[checkpoint]], distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "stable hashable keys"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Use stable hashable keys, distinguish insertion order from sorted order, and handle missing-key behavior deliberately with indexing, get, or setdefault."
+      }
+    },
+    {
+      "id": "python.collections.dict-set.code.core",
+      "skillId": "python.collections.dict-set",
+      "title": "Dictionaries and sets: runnable core task",
+      "kind": "code",
+      "prompt": "Read words. Count them with a dictionary and print sorted key=count pairs, followed by the sorted unique words.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.collections.dict-set.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "pear apple pear\n",
+          "expectedStdout": "apple=1 pear=2\napple pear",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.collections.dict-set.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "solo\n",
+          "expectedStdout": "solo=1\nsolo",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    words = data.split()\n    counts: dict[str, int] = {}\n    for word in words:\n        counts[word] = counts.get(word, 0) + 1\n    count_line = ' '.join(f\"{word}={counts[word]}\" for word in sorted(counts))\n    unique_line = ' '.join(sorted(set(words)))\n    return f\"{count_line}\\n{unique_line}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The dictionary provides keyed counting, the set provides uniqueness, and sorting is requested explicitly for deterministic presentation."
+      }
+    }
+  ]
+}

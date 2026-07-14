@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.dom.query-update.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.dom-events",
+  "skillId": "javascript.dom.query-update",
+  "title": "Query and update DOM",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Query and update DOM; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-dom",
+      "locator": "DOM Standard; living standard accessed 2026-07; provisions applicable to Query and update DOM",
+      "claim": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content."
+    },
+    {
+      "sourceRef": "owasp-xss",
+      "locator": "OWASP Cross Site Scripting Prevention Cheat Sheet; accessed 2026-07; provisions applicable to Query and update DOM",
+      "claim": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: querySelector is null-checked before textContent updates trusted text without parsing HTML. Your goal is to implement a DOM update without unsafe HTML parsing or unnecessary tree replacement. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scope, closures and modules; html project site; html document dom; Dependency boundaries. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ. This draft therefore rejects: innerHTML and textContent are interchangeable for displaying user text."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Select elements and update text, attributes, classes and properties with correct distinctions.",
+      "Implement a DOM update without unsafe HTML parsing or unnecessary tree replacement."
+    ],
+    "excludes": [
+      "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ."
+    ]
+  },
+  "outcomes": [
+    "Implement a DOM update without unsafe HTML parsing or unnecessary tree replacement."
+  ],
+  "examples": [
+    {
+      "id": "javascript.dom.query-update.example-a",
+      "title": "Query and update DOM: concrete case",
+      "situation": "querySelector is null-checked before textContent updates trusted text without parsing HTML.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: querySelector is null-checked before textContent updates trusted text without parsing HTML.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+      ],
+      "result": "The result follows because Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+    },
+    {
+      "id": "javascript.dom.query-update.example-b",
+      "title": "Query and update DOM: boundary case",
+      "situation": "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: innerHTML and textContent are interchangeable for displaying user text."
+      ],
+      "result": "The boundary requires this correction: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.dom.query-update.misconception",
+      "mistakenBelief": "innerHTML and textContent are interchangeable for displaying user text.",
+      "correction": "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: innerHTML and textContent are interchangeable for displaying user text."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Query and update DOM, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Query and update DOM before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "querySelector is null-checked before textContent updates trusted text without parsing HTML.",
+      "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
+      "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "querySelector is null-checked before textContent updates trusted text without parsing HTML."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: innerHTML and textContent are interchangeable for displaying user text."
+      }
+    ],
+    "textAlternative": "Starting artifact: querySelector is null-checked before textContent updates trusted text without parsing HTML. Step 1, Artifact. State: evidence: querySelector is null-checked before textContent updates trusted text without parsing HTML.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.. Check the result against the boundary and reject this misconception: innerHTML and textContent are interchangeable for displaying user text."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Query and update DOM: concrete case”: state its starting evidence, apply the Query and update DOM rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Query and update DOM: concrete case.",
+        "Starting evidence: querySelector is null-checked before textContent updates trusted text without parsing HTML.",
+        "Core rule: DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
+        "Observable result: The result follows because Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.",
+        "Boundary check: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
+        "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Query and update DOM and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement a DOM update without unsafe HTML parsing or unnecessary tree replacement.",
+        "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.dom.query-update.misconception",
+      "explanation": "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'textContent' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement a DOM update without unsafe HTML parsing or unnecessary tree replacement. Keep this boundary in view: Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
+    "retrievalPrompts": [
+      "Explain Query and update DOM using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: innerHTML and textContent are interchangeable for displaying user text.",
+      "Apply checkpoint 'textContent' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Create and remove nodes”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

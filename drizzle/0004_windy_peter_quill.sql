@@ -1,0 +1,1 @@
+ALTER TABLE "learner_profile" ADD COLUMN "storage_quota_bytes" bigint DEFAULT 2147483648 NOT NULL;

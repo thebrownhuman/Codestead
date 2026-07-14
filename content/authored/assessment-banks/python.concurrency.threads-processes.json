@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.concurrency.threads-processes.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.concurrency",
+  "skillId": "python.concurrency.threads-processes",
+  "title": "Threads and processes deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Threads and processes; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-stdlib"
+  ],
+  "items": [
+    {
+      "id": "python.concurrency.threads-processes.mcq.misconception",
+      "skillId": "python.concurrency.threads-processes",
+      "title": "Threads and processes: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs.",
+        "incorrect": "That choice preserves the misconception. Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+        },
+        {
+          "id": "misconception",
+          "text": "Processes share ordinary mutable objects automatically, and threads cannot have races because of the interpreter lock."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+      }
+    },
+    {
+      "id": "python.concurrency.threads-processes.fill.checkpoint",
+      "skillId": "python.concurrency.threads-processes",
+      "title": "Threads and processes: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'isolated memory'. Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs.",
+        "incorrect": "The phrase must preserve the exact language rule. Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Threads share mutable state and require coordination; processes use [[checkpoint]] and explicit communication, so choose after measuring workload and transfer costs.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "isolated memory"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Threads share mutable state and require coordination; processes use isolated memory and explicit communication, so choose after measuring workload and transfer costs."
+      }
+    }
+  ]
+}

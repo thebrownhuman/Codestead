@@ -1,0 +1,2 @@
+ALTER TABLE "learning_request" ADD COLUMN "request_id" uuid DEFAULT gen_random_uuid() NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "learning_request_user_request_unique" ON "learning_request" USING btree ("user_id","request_id");

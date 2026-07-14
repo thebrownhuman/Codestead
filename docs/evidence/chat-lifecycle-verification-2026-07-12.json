@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-12T16:37:00+05:30",
+  "scope": "Learner-owned tutor thread list/read/archive/reopen, per-message provider provenance, server-authoritative append denial for archived threads, export/privacy projection, and responsive TutorView integration.",
+  "controls": {
+    "ownership": "All list/read/mutation queries bind chat_thread.user_id to the authenticated session user. Missing and cross-owner thread identifiers share the same 404 projection.",
+    "statusDomain": "Learner history exposes only active and archived threads; deleted rows are excluded. Archived content remains readable but cannot be appended until an optimistic, server-owned reopen succeeds.",
+    "concurrency": "Archive/reopen uses SELECT FOR UPDATE and expected updated_at. Exact target-state retries are idempotent. Tutor persistence repeats an active-status owner predicate inside its transaction before inserting chat messages.",
+    "privacy": "No browser storage is used. UI and export expose only provider, model, prompt version, and learner/admin-fallback source; credential IDs and key material remain excluded.",
+    "pagination": "Thread and message history use bounded keyset cursors with strict UUID/timestamp decoding and maximum cursor length."
+  },
+  "verification": [
+    {
+      "command": "npx.cmd vitest run <7 focused chat/route/component/export files>",
+      "result": "pass",
+      "files": 7,
+      "tests": 35
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "result": "pass",
+      "files": 14,
+      "tests": 64,
+      "chatLifecycleTests": 3,
+      "database": "disposable PostgreSQL 17 container; migrations applied twice"
+    },
+    {
+      "command": "npm.cmd run security:api-surface",
+      "result": "pass",
+      "files": 91,
+      "operations": 110,
+      "matrixRows": 110,
+      "identifierOwnershipContracts": 23,
+      "errors": 0
+    },
+    {
+      "command": "npm.cmd run test:auth-boundary",
+      "result": "pass",
+      "tests": 3
+    },
+    {
+      "command": "npm.cmd run lint && npm.cmd run typecheck && npm.cmd run security:secrets",
+      "result": "pass"
+    }
+  ],
+  "sourceSha256": {
+    "src/lib/ai/chat-lifecycle.ts": "8ca5e2a88a7f2ac3f8e572d02ca8e33d83345f334703ba91cabba0f5a2763f5a",
+    "src/app/api/ai/threads/route.ts": "67d171b809b697e17554c82c9f27899291dcdd39f208462cd3acdb6671b28823",
+    "src/app/api/ai/threads/[threadId]/route.ts": "d00d59bb86b5ca78d038b418fab007e4e5645f4edf28af58bf87fc924da84e56",
+    "src/app/api/ai/tutor/route.ts": "7c3710049f5f03a5d23865d64c1310b8493a5a218785fada222753cba3ff0343",
+    "src/components/product/tutor-view.tsx": "7b55d07e5e5dfefd823ffc0ec70726567de198aad19a58d73acd8be3e196e82c",
+    "integration/chat-lifecycle.integration.test.ts": "fd6fa4d1919a7a86293e58e7a6c3d4f86ca8135d68044760040ba78749392339"
+  },
+  "remainingExternalEvidence": [
+    "No live external-provider call was made because real credentials must not be used without explicit permission.",
+    "No deployed Cloudflare/NUC browser session was exercised; verification is application, jsdom, and disposable-PostgreSQL evidence.",
+    "The full cross-device/manual accessibility matrix remains a release-level validation task outside this slice."
+  ],
+  "followupEvidence": [
+    "docs/evidence/tutor-structured-memory-verification-2026-07-12.json",
+    "docs/evidence/provider-operation-idempotency-verification-2026-07-12.json"
+  ],
+  "sourceHashNote": "The tutor route/UI hashes reflect the final follow-up revisions proven by the two linked reports; the original lifecycle-only checks remain represented by the unchanged lifecycle service, thread routes, and PostgreSQL fixture hashes."
+}

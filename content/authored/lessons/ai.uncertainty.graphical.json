@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.uncertainty.graphical.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.knowledge-uncertainty",
+  "skillId": "ai.uncertainty.graphical",
+  "title": "Probabilistic graphical models concept",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Probabilistic graphical models concept; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Knowledge Representation and Reasoning plus Reasoning Under Uncertainty; atomic topic: Probabilistic graphical models concept",
+      "claim": "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model. Your goal is to construct and reason over a small directed probabilistic model without claiming causal meaning automatically. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: AI problems and agents; Problem and environment characteristics; Conditional probability and Bayes rule; dsa graphs model. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions. The learner must reject this overclaim: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Read dependencies and conditional independence from a small Bayesian-network structure.",
+      "Construct and reason over a small directed probabilistic model without claiming causal meaning automatically."
+    ],
+    "excludes": [
+      "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions."
+    ]
+  },
+  "outcomes": [
+    "Construct and reason over a small directed probabilistic model without claiming causal meaning automatically."
+  ],
+  "examples": [
+    {
+      "id": "ai.uncertainty.graphical.example.direct",
+      "title": "Probabilistic graphical models concept: bounded direct case",
+      "situation": "Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+      ],
+      "result": "This example supports only the atomic outcome because Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+    },
+    {
+      "id": "ai.uncertainty.graphical.example.stress",
+      "title": "Probabilistic graphical models concept: stress and transfer case",
+      "situation": "A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent.",
+        "Step 2 — Keep the non-claim visible: An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions.",
+        "Step 3 — Reject the tempting overclaim: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+      ],
+      "result": "This case demonstrates the declared outcome: Construct and reason over a small directed probabilistic model without claiming causal meaning automatically."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.uncertainty.graphical.misconception",
+      "mistakenBelief": "Every directed edge in a Bayesian network proves that changing the parent will cause the child to change.",
+      "correction": "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an evidence board that distinguishes explicit facts, supported rule chains, missing knowledge, probabilities, and dependency assumptions can introduce Probabilistic graphical models concept only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "symbolic representation, inference, Bayesian updating, and graphical dependencies"
+    ],
+    "limitations": [
+      "encoded facts can be incomplete or inconsistent and probabilistic edges do not automatically establish causation",
+      "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
+      "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
+      "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+      }
+    ],
+    "textAlternative": "Starting artifact: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model. Step 1, Observe. State: boundedEvidence: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.. State what the evidence does not establish and reject the misconception: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Probabilistic graphical models concept: bounded direct case”: state its starting evidence, apply the Probabilistic graphical models concept rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Probabilistic graphical models concept: bounded direct case.",
+        "Starting evidence: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
+        "Core rule: A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
+        "Observable result: This example supports only the atomic outcome because Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.",
+        "Boundary check: Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
+        "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Probabilistic graphical models concept and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Construct and reason over a small directed probabilistic model without claiming causal meaning automatically.",
+        "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.uncertainty.graphical.misconception",
+      "explanation": "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to construct and reason over a small directed probabilistic model without claiming causal meaning automatically. Keep this boundary in view: An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions.",
+    "retrievalPrompts": [
+      "Explain Probabilistic graphical models concept with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change.",
+      "Apply the boundary to: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent."
+    ],
+    "nextReviewPrompt": "Next: continue to “Actions, preconditions and effects”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

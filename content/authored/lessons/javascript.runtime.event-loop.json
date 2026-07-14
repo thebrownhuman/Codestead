@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.runtime.event-loop.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.runtime",
+  "skillId": "javascript.runtime.event-loop",
+  "title": "Call stack and event loop model",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Call stack and event loop model; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Call stack and event loop model",
+      "claim": "The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Call stack and event loop model",
+      "claim": "The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A resolved Promise callback runs after current synchronous code but before a zero-delay timer task. Your goal is to predict logged output order for synchronous calls, promises and timer tasks. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; html document skeleton; Sources, console and debugger; pf abstraction calls. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time. This draft therefore rejects: setTimeout(fn,0) runs fn immediately before queued Promise callbacks."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish synchronous stack execution, tasks and microtasks at an introductory level.",
+      "Predict logged output order for synchronous calls, promises and timer tasks."
+    ],
+    "excludes": [
+      "Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time."
+    ]
+  },
+  "outcomes": [
+    "Predict logged output order for synchronous calls, promises and timer tasks."
+  ],
+  "examples": [
+    {
+      "id": "javascript.runtime.event-loop.example-a",
+      "title": "Call stack and event loop model: concrete case",
+      "situation": "A resolved Promise callback runs after current synchronous code but before a zero-delay timer task.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A resolved Promise callback runs after current synchronous code but before a zero-delay timer task.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Current synchronous work finishes first, then microtasks drain before the next timer task."
+      ],
+      "result": "The result follows because Current synchronous work finishes first, then microtasks drain before the next timer task."
+    },
+    {
+      "id": "javascript.runtime.event-loop.example-b",
+      "title": "Call stack and event loop model: boundary case",
+      "situation": "Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: setTimeout(fn,0) runs fn immediately before queued Promise callbacks."
+      ],
+      "result": "The boundary requires this correction: Current synchronous work finishes first, then microtasks drain before the next timer task."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.runtime.event-loop.misconception",
+      "mistakenBelief": "setTimeout(fn,0) runs fn immediately before queued Promise callbacks.",
+      "correction": "Current synchronous work finishes first, then microtasks drain before the next timer task.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: setTimeout(fn,0) runs fn immediately before queued Promise callbacks."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Call stack and event loop model, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Call stack and event loop model before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A resolved Promise callback runs after current synchronous code but before a zero-delay timer task.",
+      "The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks.",
+      "Current synchronous work finishes first, then microtasks drain before the next timer task."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A resolved Promise callback runs after current synchronous code but before a zero-delay timer task."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Current synchronous work finishes first, then microtasks drain before the next timer task."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: setTimeout(fn,0) runs fn immediately before queued Promise callbacks."
+      }
+    ],
+    "textAlternative": "Starting artifact: A resolved Promise callback runs after current synchronous code but before a zero-delay timer task. Step 1, Artifact. State: evidence: A resolved Promise callback runs after current synchronous code but before a zero-delay timer task.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Current synchronous work finishes first, then microtasks drain before the next timer task.. Check the result against the boundary and reject this misconception: setTimeout(fn,0) runs fn immediately before queued Promise callbacks."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Call stack and event loop model: concrete case”: state its starting evidence, apply the Call stack and event loop model rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Call stack and event loop model: concrete case.",
+        "Starting evidence: A resolved Promise callback runs after current synchronous code but before a zero-delay timer task.",
+        "Core rule: The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks.",
+        "Observable result: The result follows because Current synchronous work finishes first, then microtasks drain before the next timer task.",
+        "Boundary check: Current synchronous work finishes first, then microtasks drain before the next timer task."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "The event loop runs one task at a time, drains microtasks at defined checkpoints, and lets rendering occur between suitable tasks.",
+        "Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Call stack and event loop model and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Predict logged output order for synchronous calls, promises and timer tasks.",
+        "Current synchronous work finishes first, then microtasks drain before the next timer task."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.runtime.event-loop.misconception",
+      "explanation": "Current synchronous work finishes first, then microtasks drain before the next timer task.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'microtasks drain' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to predict logged output order for synchronous calls, promises and timer tasks. Keep this boundary in view: Long tasks block interaction, promise callbacks are microtasks, and timers specify minimum delay rather than exact execution time.",
+    "retrievalPrompts": [
+      "Explain Call stack and event loop model using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: setTimeout(fn,0) runs fn immediately before queued Promise callbacks.",
+      "Apply checkpoint 'microtasks drain' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Primitive values and typeof”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

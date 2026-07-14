@@ -1,0 +1,53 @@
+[Unit]
+Description=LearnCoding isolated code runner
+Documentation=/opt/learncoding/docs/runbooks/runner-isolation.md
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=learncoding-runner
+Group=learncoding-runner
+# Docker group access is root-equivalent inside this VM. This service must never
+# be installed on the trusted app/database host.
+SupplementaryGroups=docker
+WorkingDirectory=/opt/learncoding/services/runner
+EnvironmentFile=/etc/learncoding/runner.env
+ExecStartPre=/usr/bin/test -r /etc/learncoding/runner-shared-secret
+ExecStartPre=/usr/bin/docker info
+ExecStart=/usr/bin/sh /opt/learncoding/infra/runner/run-runner.sh
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=35s
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/learncoding-runner
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+StateDirectory=learncoding-runner
+# RUNNER_STATE_ROOT defaults to this systemd-managed directory. Its durable
+# journal is mode 0600 and contains public job state, never submitted bodies.
+StateDirectoryMode=0700
+TasksMax=512
+LimitNOFILE=8192
+LimitCORE=0
+MemoryMax=1G
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target

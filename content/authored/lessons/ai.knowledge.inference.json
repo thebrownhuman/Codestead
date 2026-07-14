@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.knowledge.inference.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.knowledge-uncertainty",
+  "skillId": "ai.knowledge.inference",
+  "title": "Logical inference and consistency",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Logical inference and consistency; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Knowledge Representation and Reasoning plus Reasoning Under Uncertainty; atomic topic: Logical inference and consistency",
+      "claim": "Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown."
+    },
+    {
+      "sourceRef": "cs2023-msf",
+      "locator": "CS2023 Mathematical and Statistical Foundations; August 2023; Probability, conditional probability, Bayes theorem, logic, relations, and graphical-model mathematical foundations; atomic topic: Logical inference and consistency",
+      "claim": "Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path. Your goal is to trace an inference chain and distinguish entailed, contradicted and unknown statements. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: AI problems and agents; Problem and environment characteristics; Symbols, predicates and rules. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Soundness differs from completeness, cyclic rules need termination control, inconsistent premises may derive both sides, absence is not contradiction, and a proof is relative to the encoded rules. The learner must reject this overclaim: A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Apply forward or backward rule reasoning and identify contradictions or unsupported conclusions.",
+      "Trace an inference chain and distinguish entailed, contradicted and unknown statements."
+    ],
+    "excludes": [
+      "Soundness differs from completeness, cyclic rules need termination control, inconsistent premises may derive both sides, absence is not contradiction, and a proof is relative to the encoded rules."
+    ]
+  },
+  "outcomes": [
+    "Trace an inference chain and distinguish entailed, contradicted and unknown statements."
+  ],
+  "examples": [
+    {
+      "id": "ai.knowledge.inference.example.direct",
+      "title": "Logical inference and consistency: bounded direct case",
+      "situation": "From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+      ],
+      "result": "This example supports only the atomic outcome because Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+    },
+    {
+      "id": "ai.knowledge.inference.example.stress",
+      "title": "Logical inference and consistency: stress and transfer case",
+      "situation": "Neither safe(route) nor not-safe(route) is derivable, so the query remains unknown instead of being labeled false.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Neither safe(route) nor not-safe(route) is derivable, so the query remains unknown instead of being labeled false.",
+        "Step 2 — Keep the non-claim visible: Soundness differs from completeness, cyclic rules need termination control, inconsistent premises may derive both sides, absence is not contradiction, and a proof is relative to the encoded rules.",
+        "Step 3 — Reject the tempting overclaim: A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace an inference chain and distinguish entailed, contradicted and unknown statements."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.knowledge.inference.misconception",
+      "mistakenBelief": "A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency.",
+      "correction": "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an evidence board that distinguishes explicit facts, supported rule chains, missing knowledge, probabilities, and dependency assumptions can introduce Logical inference and consistency only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "symbolic representation, inference, Bayesian updating, and graphical dependencies"
+    ],
+    "limitations": [
+      "encoded facts can be incomplete or inconsistent and probabilistic edges do not automatically establish causation",
+      "Soundness differs from completeness, cyclic rules need termination control, inconsistent premises may derive both sides, absence is not contradiction, and a proof is relative to the encoded rules."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path.",
+      "Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown.",
+      "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency."
+      }
+    ],
+    "textAlternative": "Starting artifact: From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path. Step 1, Observe. State: boundedEvidence: From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation.. State what the evidence does not establish and reject the misconception: A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Logical inference and consistency: bounded direct case”: state its starting evidence, apply the Logical inference and consistency rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Logical inference and consistency: bounded direct case.",
+        "Starting evidence: From bird(tweety) and bird(x) -> animal(x), forward chaining derives animal(tweety) with a recorded two-premise proof path.",
+        "Core rule: Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown.",
+        "Observable result: This example supports only the atomic outcome because Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation.",
+        "Boundary check: Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Neither safe(route) nor not-safe(route) is derivable, so the query remains unknown instead of being labeled false.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Inference applies sound rule steps to premises: forward chaining derives reachable consequences, backward reasoning reduces a query to supporting subgoals, and results can be entailed, contradicted, or unknown.",
+        "Soundness differs from completeness, cyclic rules need termination control, inconsistent premises may derive both sides, absence is not contradiction, and a proof is relative to the encoded rules."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Logical inference and consistency and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Trace an inference chain and distinguish entailed, contradicted and unknown statements.",
+        "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.knowledge.inference.misconception",
+      "explanation": "Track proof support and classify entailed, contradicted, both, or unknown according to the logic and consistency policy; lack of proof alone is not negation.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Neither safe(route) nor not-safe(route) is derivable, so the query remains unknown instead of being labeled false."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace an inference chain and distinguish entailed, contradicted and unknown statements. Keep this boundary in view: Soundness differs from completeness, cyclic rules need termination control, inconsistent premises may derive both sides, absence is not contradiction, and a proof is relative to the encoded rules.",
+    "retrievalPrompts": [
+      "Explain Logical inference and consistency with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A conclusion that cannot be proved is contradicted, and adding more rules can never create inconsistency.",
+      "Apply the boundary to: Neither safe(route) nor not-safe(route) is derivable, so the query remains unknown instead of being labeled false."
+    ],
+    "nextReviewPrompt": "Next: continue to “Conditional probability and Bayes rule”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

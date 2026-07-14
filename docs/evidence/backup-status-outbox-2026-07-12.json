@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T16:28:00.000Z",
+  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "scope": "Local deterministic validation of backup status reporting into the application email outbox; no external email was sent.",
+  "status": "passed",
+  "shellContract": {
+    "syntaxPassed": true,
+    "backupConfigRegressionPassed": true,
+    "successAndFailureHooksPresent": true,
+    "invalidOutcomeRejected": true,
+    "invalidIdempotencySeedRejected": true,
+    "missingAdministratorFailsToAcknowledge": true
+  },
+  "postgresqlContract": {
+    "database": "disposable PostgreSQL 17 with the complete migration chain",
+    "activeAdministrators": 1,
+    "successCalls": 2,
+    "successAcknowledgements": ["queued", "existing"],
+    "failureCalls": 1,
+    "failureAcknowledgements": ["queued"],
+    "durableRows": 2,
+    "template": "backup-status",
+    "initialStatus": "pending",
+    "exactRetryCreatedDuplicate": false,
+    "genericSuccessSummaryPreserved": true,
+    "genericFailureSummaryPreserved": true,
+    "protectedMetadataCanaryMatches": 0,
+    "scannedCanaries": [
+      "archive filename",
+      "archive extension",
+      "database dump name",
+      "age private identity marker",
+      "backup path",
+      "application data path"
+    ]
+  },
+  "cleanup": {
+    "containersRemoved": true,
+    "networkRemoved": true,
+    "volumesRemoved": true,
+    "realDataUsed": false,
+    "realCredentialsUsed": false,
+    "externalEmailsSent": 0
+  },
+  "sourceHashes": [
+    {
+      "path": "scripts/backup/common.sh",
+      "sha256": "f386c48ce03c8bc7eb184489392e3f864938dfd01a782b4ee08e383bbb56e064"
+    },
+    {
+      "path": "scripts/backup/backup.sh",
+      "sha256": "40b12423a17c4c661906375467380754211af57ee3ede4b988de93f6fc42adf5"
+    },
+    {
+      "path": "infra/tests/backup-config.test.sh",
+      "sha256": "db57ed0f6552fc2d6f7affaf2aa8ce459cfd92528d2054d8dbb76a4471377b7f"
+    },
+    {
+      "path": "docs/runbooks/backup-and-restore.md",
+      "sha256": "49de2fe7091443b4e25572cb80f13c431b2f63753d87470e1b28f5732cc50c53"
+    }
+  ],
+  "supersededDigests": [
+    {
+      "artifact": "docs/runbooks/backup-and-restore.md",
+      "priorDigest": "bbb5cc3480556f5023f311e7c9c0509c3bfd034b19a2772f72f68db8968c201b",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    }
+  ],
+  "limitations": [
+    "If PostgreSQL or Docker is unavailable, a failed backup cannot enqueue into that same unavailable database; journald and the root-owned alert hook remain the independent fallback.",
+    "This validates outbox creation and template safety, not configured Gmail delivery, bounce handling, SPF, DKIM, or DMARC.",
+    "The exact full backup and restore drill is recorded separately; this report exercises the reporting hook and its database contract."
+  ]
+}

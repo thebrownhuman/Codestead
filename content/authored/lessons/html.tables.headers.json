@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.tables.headers.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.tables",
+  "skillId": "html.tables.headers",
+  "title": "Headers and scope",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Headers and scope; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Headers and scope",
+      "claim": "th cells and scope associate simple row or column headers with data cells so values have context outside visual position."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Headers and scope",
+      "claim": "th cells and scope associate simple row or column headers with data cells so values have context outside visual position."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "th cells and scope associate simple row or column headers with data cells so values have context outside visual position.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Each score column uses th scope=col and each learner name uses th scope=row. Your goal is to mark up and inspect header relationships for a simple and a multi-level table. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Heading hierarchy; Rows, cells and sections. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "th cells and scope associate simple row or column headers with data cells so values have context outside visual position. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure. This draft therefore rejects: Bold text in the first row is enough for assistive technology to infer table headers."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Associate row and column headers with data cells using the simplest sufficient mechanism.",
+      "Mark up and inspect header relationships for a simple and a multi-level table."
+    ],
+    "excludes": [
+      "Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure."
+    ]
+  },
+  "outcomes": [
+    "Mark up and inspect header relationships for a simple and a multi-level table."
+  ],
+  "examples": [
+    {
+      "id": "html.tables.headers.example-a",
+      "title": "Headers and scope: concrete case",
+      "situation": "Each score column uses th scope=col and each learner name uses th scope=row.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Each score column uses th scope=col and each learner name uses th scope=row.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use th with correct scope for simple tables and explicit associations when header relationships are complex."
+      ],
+      "result": "The result follows because Use th with correct scope for simple tables and explicit associations when header relationships are complex."
+    },
+    {
+      "id": "html.tables.headers.example-b",
+      "title": "Headers and scope: boundary case",
+      "situation": "Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Bold text in the first row is enough for assistive technology to infer table headers."
+      ],
+      "result": "The boundary requires this correction: Use th with correct scope for simple tables and explicit associations when header relationships are complex."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.tables.headers.misconception",
+      "mistakenBelief": "Bold text in the first row is enough for assistive technology to infer table headers.",
+      "correction": "Use th with correct scope for simple tables and explicit associations when header relationships are complex.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Bold text in the first row is enough for assistive technology to infer table headers."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Headers and scope, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Headers and scope before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Each score column uses th scope=col and each learner name uses th scope=row.",
+      "th cells and scope associate simple row or column headers with data cells so values have context outside visual position.",
+      "Use th with correct scope for simple tables and explicit associations when header relationships are complex."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Each score column uses th scope=col and each learner name uses th scope=row."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "th cells and scope associate simple row or column headers with data cells so values have context outside visual position."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use th with correct scope for simple tables and explicit associations when header relationships are complex."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Bold text in the first row is enough for assistive technology to infer table headers."
+      }
+    ],
+    "textAlternative": "Starting artifact: Each score column uses th scope=col and each learner name uses th scope=row. Step 1, Artifact. State: evidence: Each score column uses th scope=col and each learner name uses th scope=row.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: th cells and scope associate simple row or column headers with data cells so values have context outside visual position.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use th with correct scope for simple tables and explicit associations when header relationships are complex.. Check the result against the boundary and reject this misconception: Bold text in the first row is enough for assistive technology to infer table headers."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Headers and scope: concrete case”: state its starting evidence, apply the Headers and scope rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Headers and scope: concrete case.",
+        "Starting evidence: Each score column uses th scope=col and each learner name uses th scope=row.",
+        "Core rule: th cells and scope associate simple row or column headers with data cells so values have context outside visual position.",
+        "Observable result: The result follows because Use th with correct scope for simple tables and explicit associations when header relationships are complex.",
+        "Boundary check: Use th with correct scope for simple tables and explicit associations when header relationships are complex."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "th cells and scope associate simple row or column headers with data cells so values have context outside visual position.",
+        "Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Headers and scope and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Mark up and inspect header relationships for a simple and a multi-level table.",
+        "Use th with correct scope for simple tables and explicit associations when header relationships are complex."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.tables.headers.misconception",
+      "explanation": "Use th with correct scope for simple tables and explicit associations when header relationships are complex.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'correct scope' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to mark up and inspect header relationships for a simple and a multi-level table. Keep this boundary in view: Multi-level or irregular tables may need explicit id and headers associations, and scope must match actual structure.",
+    "retrievalPrompts": [
+      "Explain Headers and scope using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Bold text in the first row is enough for assistive technology to infer table headers.",
+      "Apply checkpoint 'correct scope' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Captions and context”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

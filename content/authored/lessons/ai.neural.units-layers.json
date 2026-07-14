@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.neural.units-layers.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.neural",
+  "skillId": "ai.neural.units-layers",
+  "title": "Units, layers and activations",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Units, layers and activations; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Machine Learning and Neural Networks: units, optimization, generalization, and architecture families; atomic topic: Units, layers and activations",
+      "claim": "A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand. Your goal is to compute and visualize a forward pass through a tiny feed-forward network. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Supervised learning; Data and experimental workflow; Regression; Classification and probabilities. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Weights are learned parameters not explanations, nonlinear activations enable more than one linear map, shape errors can broadcast silently, output activation depends on task, and a tiny trace does not explain large networks. The learner must reject this overclaim: Each hidden unit learns one human-readable concept and adding more linear layers always creates nonlinear decision boundaries."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Trace weighted sums, nonlinear activations and composed representations through a small network.",
+      "Compute and visualize a forward pass through a tiny feed-forward network."
+    ],
+    "excludes": [
+      "Weights are learned parameters not explanations, nonlinear activations enable more than one linear map, shape errors can broadcast silently, output activation depends on task, and a tiny trace does not explain large networks."
+    ]
+  },
+  "outcomes": [
+    "Compute and visualize a forward pass through a tiny feed-forward network."
+  ],
+  "examples": [
+    {
+      "id": "ai.neural.units-layers.example.direct",
+      "title": "Units, layers and activations: bounded direct case",
+      "situation": "Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness."
+      ],
+      "result": "This example supports only the atomic outcome because Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness."
+    },
+    {
+      "id": "ai.neural.units-layers.example.stress",
+      "title": "Units, layers and activations: stress and transfer case",
+      "situation": "Removing all nonlinear activations collapses stacked dense layers into one affine transformation despite additional parameters.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: Removing all nonlinear activations collapses stacked dense layers into one affine transformation despite additional parameters.",
+        "Step 2 — Keep the non-claim visible: Weights are learned parameters not explanations, nonlinear activations enable more than one linear map, shape errors can broadcast silently, output activation depends on task, and a tiny trace does not explain large networks.",
+        "Step 3 — Reject the tempting overclaim: Each hidden unit learns one human-readable concept and adding more linear layers always creates nonlinear decision boundaries."
+      ],
+      "result": "This case demonstrates the declared outcome: Compute and visualize a forward pass through a tiny feed-forward network."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.neural.units-layers.misconception",
+      "mistakenBelief": "Each hidden unit learns one human-readable concept and adding more linear layers always creates nonlinear decision boundaries.",
+      "correction": "Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Each hidden unit learns one human-readable concept and adding more linear layers always creates nonlinear decision boundaries."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a layered numeric circuit whose weights, biases, activations, loss, and updates can be traced on a tiny example can introduce Units, layers and activations only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "forward passes, gradient updates, regularization evidence, and architectural roles"
+    ],
+    "limitations": [
+      "a toy circuit does not explain large-network representations, training data, emergent behavior, or deployment safety",
+      "Weights are learned parameters not explanations, nonlinear activations enable more than one linear map, shape errors can broadcast silently, output activation depends on task, and a tiny trace does not explain large networks."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand.",
+      "A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes.",
+      "Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Each hidden unit learns one human-readable concept and adding more linear layers always creates nonlinear decision boundaries."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand. Step 1, Observe. State: boundedEvidence: Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness.. State what the evidence does not establish and reject the misconception: Each hidden unit learns one human-readable concept and adding more linear layers always creates nonlinear decision boundaries."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Units, layers and activations: bounded direct case”: state its starting evidence, apply the Units, layers and activations rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Units, layers and activations: bounded direct case.",
+        "Starting evidence: Two inputs feed two hidden ReLU units and one linear output; every weighted sum, activation, and tensor shape is calculated by hand.",
+        "Core rule: A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes.",
+        "Observable result: This example supports only the atomic outcome because Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness.",
+        "Boundary check: Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: Removing all nonlinear activations collapses stacked dense layers into one affine transformation despite additional parameters.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A feed-forward neural unit computes a weighted sum plus bias and applies an activation; layers compose these transformations into representations and outputs with explicit shapes.",
+        "Weights are learned parameters not explanations, nonlinear activations enable more than one linear map, shape errors can broadcast silently, output activation depends on task, and a tiny trace does not explain large networks."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Units, layers and activations and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Compute and visualize a forward pass through a tiny feed-forward network.",
+        "Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.neural.units-layers.misconception",
+      "explanation": "Trace weighted sums, biases, activations, and shapes exactly; composed representations need not map to one human concept, and nonlinearity changes expressiveness.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Removing all nonlinear activations collapses stacked dense layers into one affine transformation despite additional parameters."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to compute and visualize a forward pass through a tiny feed-forward network. Keep this boundary in view: Weights are learned parameters not explanations, nonlinear activations enable more than one linear map, shape errors can broadcast silently, output activation depends on task, and a tiny trace does not explain large networks.",
+    "retrievalPrompts": [
+      "Explain Units, layers and activations with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Each hidden unit learns one human-readable concept and adding more linear layers always creates nonlinear decision boundaries.",
+      "Apply the boundary to: Removing all nonlinear activations collapses stacked dense layers into one affine transformation despite additional parameters."
+    ],
+    "nextReviewPrompt": "Next: continue to “Loss, gradients and optimization”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

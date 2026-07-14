@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.decision.sequential.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.planning-decision",
+  "skillId": "ai.decision.sequential",
+  "title": "Sequential decision and reinforcement concepts deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap for Sequential decision and reinforcement concepts; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-ai",
+    "nist-ai-rmf"
+  ],
+  "items": [
+    {
+      "id": "ai.decision.sequential.mcq.misconception",
+      "skillId": "ai.decision.sequential",
+      "title": "Sequential decision and reinforcement concepts: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score.",
+        "incorrect": "That option preserves the overclaim. Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+        },
+        {
+          "id": "overclaim",
+          "text": "A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+      }
+    },
+    {
+      "id": "ai.decision.sequential.fill.checkpoint",
+      "skillId": "ai.decision.sequential",
+      "title": "Sequential decision and reinforcement concepts: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'reward as a proxy'. Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Treat [[checkpoint]] chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "reward as a proxy"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+      }
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.testing.junit.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.packaging-quality",
+  "skillId": "java.testing.junit",
+  "title": "JUnit tests",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for JUnit tests; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "junit5",
+      "locator": "JUnit 5 User Guide; current accessed 2026-07; Writing Tests, Assertions, Exception Testing, and Parameterized Tests; atomic topic: JUnit tests",
+      "claim": "JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; CS2023 Software Development Fundamentals: programming practices, testing, debugging, abstraction, data, and concurrency outcomes as applicable; atomic topic: JUnit tests",
+      "claim": "JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract. Your goal is to create a deterministic unit test suite covering normal, boundary and failure behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Exceptions, resources and I/O; Lambdas, streams and optionals; Maven project lifecycle; Exception flow and stack traces. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Test order is not a state-sharing mechanism, sleeps and real external systems create flakiness, mocks can overfit implementation, and line coverage does not prove assertions or edge cases. The learner must reject this documented misconception: A green test with high line coverage proves the implementation is correct and makes boundary analysis unnecessary."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Write isolated assertions, parameterized cases and exception tests with readable fixtures.",
+      "Create a deterministic unit test suite covering normal, boundary and failure behavior."
+    ],
+    "excludes": [
+      "Test order is not a state-sharing mechanism, sleeps and real external systems create flakiness, mocks can overfit implementation, and line coverage does not prove assertions or edge cases."
+    ]
+  },
+  "outcomes": [
+    "Create a deterministic unit test suite covering normal, boundary and failure behavior."
+  ],
+  "examples": [
+    {
+      "id": "java.testing.junit.example.direct",
+      "title": "JUnit tests: direct language case",
+      "situation": "A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically."
+      ],
+      "result": "The example meets the atomic outcome because Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically."
+    },
+    {
+      "id": "java.testing.junit.example.boundary",
+      "title": "JUnit tests: boundary and transfer case",
+      "situation": "A repository dependency is replaced at its external boundary, but the test asserts service output rather than private helper call order.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A repository dependency is replaced at its external boundary, but the test asserts service output rather than private helper call order.",
+        "Step 2 — Keep the language boundary explicit: Test order is not a state-sharing mechanism, sleeps and real external systems create flakiness, mocks can overfit implementation, and line coverage does not prove assertions or edge cases.",
+        "Step 3 — Reject the tempting but incorrect rule: A green test with high line coverage proves the implementation is correct and makes boundary analysis unnecessary."
+      ],
+      "result": "This case demonstrates the declared outcome: Create a deterministic unit test suite covering normal, boundary and failure behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.testing.junit.misconception",
+      "mistakenBelief": "A green test with high line coverage proves the implementation is correct and makes boundary analysis unnecessary.",
+      "correction": "Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A green test with high line coverage proves the implementation is correct and makes boundary analysis unnecessary."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a versioned delivery line whose public labels, recipe, inspections, and investigation record make one artifact reproducible can introduce JUnit tests, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "packages, Maven, JUnit, debugging, and project evidence"
+    ],
+    "limitations": [
+      "access control is not a security boundary and caches, plugins, bytecode, secrets, and platform differences need technical controls",
+      "Test order is not a state-sharing mechanism, sleeps and real external systems create flakiness, mocks can overfit implementation, and line coverage does not prove assertions or edge cases."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract.",
+      "JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization.",
+      "Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A green test with high line coverage proves the implementation is correct and makes boundary analysis unnecessary."
+      }
+    ],
+    "textAlternative": "Starting artifact: A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract. Step 1, Observe. State: evidence: A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically.. Compare the observation with the correction and explain why the misconception fails: A green test with high line coverage proves the implementation is correct and makes boundary analysis unnecessary."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “JUnit tests: direct language case”: state its starting evidence, apply the JUnit tests rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: JUnit tests: direct language case.",
+        "Starting evidence: A parameterized test covers empty, singleton, normal, and boundary inputs, while assertThrows checks the exact invalid-input contract.",
+        "Core rule: JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization.",
+        "Observable result: The example meets the atomic outcome because Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically.",
+        "Boundary check: Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A repository dependency is replaced at its external boundary, but the test asserts service output rather than private helper call order.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "JUnit tests arrange isolated state, perform one observable behavior, and assert normal, boundary, and failure contracts with deterministic fixtures and readable parameterization.",
+        "Test order is not a state-sharing mechanism, sleeps and real external systems create flakiness, mocks can overfit implementation, and line coverage does not prove assertions or edge cases."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of JUnit tests, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Create a deterministic unit test suite covering normal, boundary and failure behavior.",
+        "Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.testing.junit.misconception",
+      "explanation": "Derive JUnit cases and assertions from the public contract, isolate each fixture, and cover normal, boundary, and failure behavior deterministically.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A repository dependency is replaced at its external boundary, but the test asserts service output rather than private helper call order."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create a deterministic unit test suite covering normal, boundary and failure behavior. Keep this boundary in view: Test order is not a state-sharing mechanism, sleeps and real external systems create flakiness, mocks can overfit implementation, and line coverage does not prove assertions or edge cases.",
+    "retrievalPrompts": [
+      "Explain JUnit tests using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A green test with high line coverage proves the implementation is correct and makes boundary analysis unnecessary.",
+      "Predict this case from memory: A repository dependency is replaced at its external boundary, but the test asserts service output rather than private helper call order."
+    ],
+    "nextReviewPrompt": "Next: continue to “Debugging, logging and final project”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12T09:27:54.6185596Z",
+  "purpose": "Keep the exhaustive route-import authorization sweep mandatory without treating transitively imported service modules as unit-covered code.",
+  "thresholdsChanged": false,
+  "unitThresholds": {
+    "statements": 80,
+    "branches": 75,
+    "functions": 80,
+    "lines": 80
+  },
+  "beforeSeparation": {
+    "command": "npm run test:coverage -- --reporter=dot",
+    "endpointBoundaryIncluded": true,
+    "testFilesPassed": 148,
+    "testsPassed": 1057,
+    "testsSkipped": 1,
+    "coverage": {
+      "statements": 68.70,
+      "branches": 61.43,
+      "functions": 69.37,
+      "lines": 70.70
+    },
+    "result": "failed thresholds because import-only API service graphs entered the denominator"
+  },
+  "afterSeparation": {
+    "unitCommand": "npm run test:coverage -- --reporter=dot",
+    "endpointBoundaryIncludedInUnitCoverage": false,
+    "unitTestFilesPassed": 147,
+    "unitTestsPassed": 1055,
+    "unitTestsSkipped": 1,
+    "coverage": {
+      "statements": 86.23,
+      "branches": 76.93,
+      "functions": 85.09,
+      "lines": 89.40
+    },
+    "unitResult": "passed unchanged thresholds",
+    "authBoundaryCommand": "npm run test:auth-boundary",
+    "authBoundaryTestFilesPassed": 1,
+    "authBoundaryTestsPassed": 3,
+    "authBoundaryResult": "passed 139 protected-operation denial invocations"
+  },
+  "mandatoryExecution": {
+    "packageCheck": true,
+    "githubActionsApplicationJob": true,
+    "configuration": "vitest.auth-boundary.config.ts"
+  },
+  "finalRepositoryFollowup": {
+    "verifiedOn": "2026-07-12",
+    "command": "npm run check",
+    "result": "passed",
+    "unitTestFilesPassed": 181,
+    "unitTestsPassed": 1383,
+    "unitTestsSkipped": 1,
+    "coverage": {
+      "statements": 86.38,
+      "branches": 77.68,
+      "functions": 85.01,
+      "lines": 89.52
+    },
+    "authBoundaryTestsPassed": 3,
+    "apiRouteFiles": 94,
+    "apiOperations": 114,
+    "apiErrors": 0,
+    "productionBuildPages": 72,
+    "thresholdsChanged": false
+  }
+}

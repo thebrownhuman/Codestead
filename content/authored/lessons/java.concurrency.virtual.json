@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.concurrency.virtual.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.runtime-concurrency",
+  "skillId": "java.concurrency.virtual",
+  "title": "Virtual-thread use cases",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Virtual-thread use cases; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; JVM/runtime concepts, Concurrency, and Virtual Threads learning paths; atomic topic: Virtual-thread use cases",
+      "claim": "Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy. Your goal is to choose between sequential, platform-thread, virtual-thread and stream-based execution for a stated workload. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Packages, builds and tests; List, Set, Map and Queue; Threads, tasks and executors; Race conditions and synchronization. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "CPU-bound work still needs bounded parallelism, scarce external resources need limits, pinning or thread-local usage can affect scale, cancellation remains cooperative, and task lifetime needs structure. The learner must reject this documented misconception: Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use virtual threads for numerous blocking tasks while distinguishing them from CPU parallelism.",
+      "Choose between sequential, platform-thread, virtual-thread and stream-based execution for a stated workload."
+    ],
+    "excludes": [
+      "CPU-bound work still needs bounded parallelism, scarce external resources need limits, pinning or thread-local usage can affect scale, cancellation remains cooperative, and task lifetime needs structure."
+    ]
+  },
+  "outcomes": [
+    "Choose between sequential, platform-thread, virtual-thread and stream-based execution for a stated workload."
+  ],
+  "examples": [
+    {
+      "id": "java.concurrency.virtual.example.direct",
+      "title": "Virtual-thread use cases: direct language case",
+      "situation": "Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+      ],
+      "result": "The example meets the atomic outcome because Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+    },
+    {
+      "id": "java.concurrency.virtual.example.boundary",
+      "title": "Virtual-thread use cases: boundary and transfer case",
+      "situation": "A CPU-heavy image transform uses a bounded executor sized for processors instead of launching thousands of virtual threads.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A CPU-heavy image transform uses a bounded executor sized for processors instead of launching thousands of virtual threads.",
+        "Step 2 — Keep the language boundary explicit: CPU-bound work still needs bounded parallelism, scarce external resources need limits, pinning or thread-local usage can affect scale, cancellation remains cooperative, and task lifetime needs structure.",
+        "Step 3 — Reject the tempting but incorrect rule: Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose between sequential, platform-thread, virtual-thread and stream-based execution for a stated workload."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.concurrency.virtual.misconception",
+      "mistakenBelief": "Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds.",
+      "correction": "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a dispatch center that tracks reachable work orders and assigns bounded tasks while protecting shared ledgers can introduce Virtual-thread use cases, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "reachability, executors, races, and virtual-thread workload choice"
+    ],
+    "limitations": [
+      "memory visibility, scheduling, atomicity, cancellation, and garbage-collection timing cannot be inferred from human dispatch",
+      "CPU-bound work still needs bounded parallelism, scarce external resources need limits, pinning or thread-local usage can affect scale, cancellation remains cooperative, and task lifetime needs structure."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy.",
+      "Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity.",
+      "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds."
+      }
+    ],
+    "textAlternative": "Starting artifact: Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy. Step 1, Observe. State: evidence: Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work.. Compare the observation with the correction and explain why the misconception fails: Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Virtual-thread use cases: direct language case”: state its starting evidence, apply the Virtual-thread use cases rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Virtual-thread use cases: direct language case.",
+        "Starting evidence: Each independent network request runs in a virtual thread while a semaphore limits the database connections they may occupy.",
+        "Core rule: Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity.",
+        "Observable result: The example meets the atomic outcome because Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work.",
+        "Boundary check: Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A CPU-heavy image transform uses a bounded executor sized for processors instead of launching thousands of virtual threads.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Java virtual threads make large numbers of mostly blocking tasks affordable while preserving the thread-per-task style; they do not create more CPU execution capacity.",
+        "CPU-bound work still needs bounded parallelism, scarce external resources need limits, pinning or thread-local usage can affect scale, cancellation remains cooperative, and task lifetime needs structure."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Virtual-thread use cases, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Choose between sequential, platform-thread, virtual-thread and stream-based execution for a stated workload.",
+        "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.concurrency.virtual.misconception",
+      "explanation": "Use virtual threads for numerous blocking tasks, but still bound scarce resources and use CPU-appropriate parallelism for compute-bound work.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A CPU-heavy image transform uses a bounded executor sized for processors instead of launching thousands of virtual threads."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose between sequential, platform-thread, virtual-thread and stream-based execution for a stated workload. Keep this boundary in view: CPU-bound work still needs bounded parallelism, scarce external resources need limits, pinning or thread-local usage can affect scale, cancellation remains cooperative, and task lifetime needs structure.",
+    "retrievalPrompts": [
+      "Explain Virtual-thread use cases using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Virtual threads make CPU-bound code run in parallel without limits and remove the need for timeouts, cancellation, or resource bounds.",
+      "Predict this case from memory: A CPU-heavy image transform uses a bounded executor sized for processors instead of launching thousands of virtual threads."
+    ],
+    "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

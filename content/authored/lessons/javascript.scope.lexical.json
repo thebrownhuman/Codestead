@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.scope.lexical.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.scope-modules",
+  "skillId": "javascript.scope.lexical",
+  "title": "Lexical scope and temporal dead zone",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Lexical scope and temporal dead zone; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Lexical scope and temporal dead zone",
+      "claim": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Lexical scope and temporal dead zone",
+      "claim": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: An inner block shadows outer count without changing it after the block ends. Your goal is to trace name resolution and repair shadowing or use-before-initialization defects. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Control flow and functions; Module loading baseline; let, const and binding; Function declarations, expressions and arrows. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Temporal dead zones, shadowing, modules, eval, and closures affect availability. This draft therefore rejects: JavaScript resolves a variable from whichever caller function invoked the current function."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Resolve names through nested blocks and functions without relying on var hoisting.",
+      "Trace name resolution and repair shadowing or use-before-initialization defects."
+    ],
+    "excludes": [
+      "Temporal dead zones, shadowing, modules, eval, and closures affect availability."
+    ]
+  },
+  "outcomes": [
+    "Trace name resolution and repair shadowing or use-before-initialization defects."
+  ],
+  "examples": [
+    {
+      "id": "javascript.scope.lexical.example-a",
+      "title": "Lexical scope and temporal dead zone: concrete case",
+      "situation": "An inner block shadows outer count without changing it after the block ends.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: An inner block shadows outer count without changing it after the block ends.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+      ],
+      "result": "The result follows because JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+    },
+    {
+      "id": "javascript.scope.lexical.example-b",
+      "title": "Lexical scope and temporal dead zone: boundary case",
+      "situation": "Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: JavaScript resolves a variable from whichever caller function invoked the current function."
+      ],
+      "result": "The boundary requires this correction: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.scope.lexical.misconception",
+      "mistakenBelief": "JavaScript resolves a variable from whichever caller function invoked the current function.",
+      "correction": "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: JavaScript resolves a variable from whichever caller function invoked the current function."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Lexical scope and temporal dead zone, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Lexical scope and temporal dead zone before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Temporal dead zones, shadowing, modules, eval, and closures affect availability."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "An inner block shadows outer count without changing it after the block ends.",
+      "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
+      "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "An inner block shadows outer count without changing it after the block ends."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: JavaScript resolves a variable from whichever caller function invoked the current function."
+      }
+    ],
+    "textAlternative": "Starting artifact: An inner block shadows outer count without changing it after the block ends. Step 1, Artifact. State: evidence: An inner block shadows outer count without changing it after the block ends.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.. Check the result against the boundary and reject this misconception: JavaScript resolves a variable from whichever caller function invoked the current function."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Lexical scope and temporal dead zone: concrete case”: state its starting evidence, apply the Lexical scope and temporal dead zone rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Lexical scope and temporal dead zone: concrete case.",
+        "Starting evidence: An inner block shadows outer count without changing it after the block ends.",
+        "Core rule: Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
+        "Observable result: The result follows because JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.",
+        "Boundary check: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
+        "Temporal dead zones, shadowing, modules, eval, and closures affect availability."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Lexical scope and temporal dead zone and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Trace name resolution and repair shadowing or use-before-initialization defects.",
+        "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.scope.lexical.misconception",
+      "explanation": "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'lexical scope' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace name resolution and repair shadowing or use-before-initialization defects. Keep this boundary in view: Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
+    "retrievalPrompts": [
+      "Explain Lexical scope and temporal dead zone using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: JavaScript resolves a variable from whichever caller function invoked the current function.",
+      "Apply checkpoint 'lexical scope' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Closures and lifetime”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.objects.inheritance.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.objects",
+  "skillId": "python.objects.inheritance",
+  "title": "Composition, inheritance and super",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Composition, inheritance and super; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapter 9: scopes, classes, instances, inheritance, private conventions, and iterators; atomic topic: Composition, inheritance and super",
+      "claim": "Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Data Model and Class Definitions: attribute access, special methods, MRO, equality, and hashing; atomic topic: Composition, inheritance and super",
+      "claim": "Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once. Your goal is to implement or refactor a small design using justified composition or inheritance. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scope and closures; Modules and imports; Classes, instances and attributes. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Multiple inheritance uses method resolution order, super means next in that order rather than a named parent, signatures and invariants must remain compatible, and fragile base state can couple subclasses. The learner must reject this documented misconception: super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Prefer composition and use inheritance only for substitutable behavior with cooperative initialization.",
+      "Implement or refactor a small design using justified composition or inheritance."
+    ],
+    "excludes": [
+      "Multiple inheritance uses method resolution order, super means next in that order rather than a named parent, signatures and invariants must remain compatible, and fragile base state can couple subclasses."
+    ]
+  },
+  "outcomes": [
+    "Implement or refactor a small design using justified composition or inheritance."
+  ],
+  "examples": [
+    {
+      "id": "python.objects.inheritance.example.direct",
+      "title": "Composition, inheritance and super: direct language case",
+      "situation": "Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+      ],
+      "result": "The example meets the atomic outcome because Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+    },
+    {
+      "id": "python.objects.inheritance.example.boundary",
+      "title": "Composition, inheritance and super: boundary and transfer case",
+      "situation": "A Stack owns a deque rather than inheriting from it, preventing callers from using queue operations that violate the stack contract.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A Stack owns a deque rather than inheriting from it, preventing callers from using queue operations that violate the stack contract.",
+        "Step 2 — Keep the language boundary explicit: Multiple inheritance uses method resolution order, super means next in that order rather than a named parent, signatures and invariants must remain compatible, and fragile base state can couple subclasses.",
+        "Step 3 — Reject the tempting but incorrect rule: super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement or refactor a small design using justified composition or inheritance."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.objects.inheritance.misconception",
+      "mistakenBelief": "super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap.",
+      "correction": "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a family of service records whose instance state, generated value methods, inheritance order, and protocols define observable behavior can introduce Composition, inheritance and super, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "classes, data classes, composition, inheritance, and special methods"
+    ],
+    "limitations": [
+      "descriptor lookup, MRO, hashing, NotImplemented, and shallow frozen state do not map cleanly to physical records",
+      "Multiple inheritance uses method resolution order, super means next in that order rather than a named parent, signatures and invariants must remain compatible, and fragile base state can couple subclasses."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once.",
+      "Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship.",
+      "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap."
+      }
+    ],
+    "textAlternative": "Starting artifact: Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once. Step 1, Observe. State: evidence: Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype.. Compare the observation with the correction and explain why the misconception fails: super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Composition, inheritance and super: direct language case”: state its starting evidence, apply the Composition, inheritance and super rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Composition, inheritance and super: direct language case.",
+        "Starting evidence: Two mixins use cooperative super with compatible signatures so every initializer in the MRO participates exactly once.",
+        "Core rule: Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship.",
+        "Observable result: The example meets the atomic outcome because Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype.",
+        "Boundary check: Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A Stack owns a deque rather than inheriting from it, preventing callers from using queue operations that violate the stack contract.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python inheritance should represent substitutable behavior with cooperative super calls, while composition delegates work without exposing an unnecessary subtype relationship.",
+        "Multiple inheritance uses method resolution order, super means next in that order rather than a named parent, signatures and invariants must remain compatible, and fragile base state can couple subclasses."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Composition, inheritance and super, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement or refactor a small design using justified composition or inheritance.",
+        "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.objects.inheritance.misconception",
+      "explanation": "Use inheritance only for substitutable behavior and follow the method resolution order cooperatively; prefer composition when reuse does not require a subtype.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A Stack owns a deque rather than inheriting from it, preventing callers from using queue operations that violate the stack contract."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement or refactor a small design using justified composition or inheritance. Keep this boundary in view: Multiple inheritance uses method resolution order, super means next in that order rather than a named parent, signatures and invariants must remain compatible, and fragile base state can couple subclasses.",
+    "retrievalPrompts": [
+      "Explain Composition, inheritance and super using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: super always calls one fixed parent class and inheritance is the best reuse mechanism whenever methods overlap.",
+      "Predict this case from memory: A Stack owns a deque rather than inheriting from it, preventing callers from using queue operations that violate the stack contract."
+    ],
+    "nextReviewPrompt": "Next: continue to “Representation, equality and container protocols”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

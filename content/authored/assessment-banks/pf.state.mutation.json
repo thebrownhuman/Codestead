@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.state.mutation.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.state",
+  "skillId": "pf.state.mutation",
+  "title": "Mutation and aliases deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Mutation and aliases; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.state.mutation.mcq.misconception",
+      "skillId": "pf.state.mutation",
+      "title": "Mutation and aliases: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Assigning or updating through one name can never affect a value observed through another name.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.",
+        "incorrect": "The selected statement preserves the documented misconception. First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Mutation and aliases instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Assigning or updating through one name can never affect a value observed through another name."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+      }
+    }
+  ]
+}

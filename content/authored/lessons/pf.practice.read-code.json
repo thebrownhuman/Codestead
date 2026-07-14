@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.practice.read-code.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.learning-practice",
+  "skillId": "pf.practice.read-code",
+  "title": "Reading before writing",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Reading before writing; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Reading before writing",
+      "claim": "Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace. Your goal is to explain a supplied routine's purpose, state changes and edge cases. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Debugging and testing loop. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Identifier names and comments can be stale or misleading, and a quick happy-path reading can miss exceptions, mutation, aliasing, or hidden dependencies. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Trace, annotate and explain existing code-like procedures before modifying them.",
+      "Explain a supplied routine's purpose, state changes and edge cases."
+    ],
+    "excludes": [
+      "Identifier names and comments can be stale or misleading, and a quick happy-path reading can miss exceptions, mutation, aliasing, or hidden dependencies."
+    ]
+  },
+  "outcomes": [
+    "Explain a supplied routine's purpose, state changes and edge cases."
+  ],
+  "examples": [
+    {
+      "id": "pf.practice.read-code.example-a",
+      "title": "Reading before writing: direct case",
+      "situation": "Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+      ],
+      "result": "The case supports the declared outcome because Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+    },
+    {
+      "id": "pf.practice.read-code.example-b",
+      "title": "Reading before writing: boundary case",
+      "situation": "A loop is annotated with its changing variables and termination condition before a new filtering rule is inserted.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A loop is annotated with its changing variables and termination condition before a new filtering rule is inserted.",
+        "Step 2 — Keep this boundary explicit: Identifier names and comments can be stale or misleading, and a quick happy-path reading can miss exceptions, mutation, aliasing, or hidden dependencies.",
+        "Step 3 — Reject the documented misconception: Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins."
+      ],
+      "result": "This case demonstrates the declared outcome: Explain a supplied routine's purpose, state changes and edge cases."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.practice.read-code.misconception",
+      "mistakenBelief": "Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins.",
+      "correction": "Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "Sports coaching can model Reading before writing: study a play, attempt it, use specific feedback, retry independently, and credit the people or material that helped.",
+    "usefulFor": [
+      "Connecting explanation, feedback, independent transfer, assistance, and integrity"
+    ],
+    "limitations": [
+      "Learning evidence and reuse permissions are governed by explicit course and software rules, not only informal coaching norms.",
+      "Identifier names and comments can be stale or misleading, and a quick happy-path reading can miss exceptions, mutation, aliasing, or hidden dependencies."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace.",
+      "Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits.",
+      "Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits."
+        },
+        "explanation": "Apply the declared Reading before writing model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins."
+      }
+    ],
+    "textAlternative": "Starting artifact: Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace. Step 1, Observe. State: evidence: Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits.. Apply the declared Reading before writing model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract.. Compare the observation with the correction and reject the misconception: Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Reading before writing: direct case”: state its starting evidence, apply the Reading before writing rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Reading before writing: direct case.",
+        "Starting evidence: Before changing a discount routine, a learner predicts outputs at zero, the threshold, and above the threshold and then confirms each branch in a trace.",
+        "Core rule: Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits.",
+        "Observable result: The case supports the declared outcome because Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract.",
+        "Boundary check: Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A loop is annotated with its changing variables and termination condition before a new filtering rule is inserted.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Reading code begins by naming its contract, tracing inputs and state changes, identifying control paths and calls, and checking edge cases before proposing edits.",
+        "Identifier names and comments can be stale or misleading, and a quick happy-path reading can miss exceptions, mutation, aliasing, or hidden dependencies."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Reading before writing, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Explain a supplied routine's purpose, state changes and edge cases.",
+        "Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.practice.read-code.misconception",
+      "explanation": "Build and test a behavioral model first, because purpose, data flow, effects, and edge cases determine whether a later edit preserves the contract.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A loop is annotated with its changing variables and termination condition before a new filtering rule is inserted."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to explain a supplied routine's purpose, state changes and edge cases. Keep this boundary in view: Identifier names and comments can be stale or misleading, and a quick happy-path reading can miss exceptions, mutation, aliasing, or hidden dependencies.",
+    "retrievalPrompts": [
+      "Explain Reading before writing without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Understanding code means reading each line's syntax; predicting state and behavior is unnecessary until editing begins.",
+      "Apply the model to this case from memory: A loop is annotated with its changing variables and termination condition before a new filtering rule is inserted."
+    ],
+    "nextReviewPrompt": "Next: continue to “Using feedback”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

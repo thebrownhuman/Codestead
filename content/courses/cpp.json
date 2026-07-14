@@ -1,0 +1,172 @@
+{
+  "$schema": "../schema/course.schema.json",
+  "id": "cpp",
+  "title": "C++: Beginner to Intermediate",
+  "version": "0.1.0",
+  "status": "beta",
+  "release": "launch-1",
+  "summary": "A modern C++ course centered on values, RAII, standard-library containers and algorithms, classes, generic programming, errors, builds and tests.",
+  "audience": {
+    "level": "beginner to intermediate",
+    "assumed_knowledge": ["Programming Foundations or equivalent diagnostic mastery"],
+    "target_capability": "Independently design, build, test and debug a multi-file modern C++ application using explicit interfaces, value semantics, RAII and appropriate standard-library facilities."
+  },
+  "scope": {
+    "includes": ["C++20 portable baseline with labeled C++23 additions", "Compilation, linking and namespaces", "Types, references, const and functions", "Classes and value semantics", "RAII, smart pointers and exception safety", "Inheritance and runtime polymorphism", "STL containers, iterators, algorithms and lambdas", "Templates and constrained generic design basics", "Build, test, debug and sanitizer workflows"],
+    "non_goals": ["Teaching C before C++", "Template metaprogramming internals", "Modules and coroutines as required skills", "GUI frameworks such as Qt", "Lock-free or advanced concurrent programming", "Every standard-library component"]
+  },
+  "authoritative_sources": [
+    { "id": "isocpp-status", "title": "Current ISO C++ Status", "url": "https://isocpp.org/std/status", "type": "standard", "version_or_date": "C++23 published; C++26 in progress, accessed 2026-07" },
+    { "id": "cpp-core", "title": "C++ Core Guidelines", "url": "https://isocpp.org/guidelines", "type": "official-docs", "version_or_date": "living guidelines accessed 2026-07" },
+    { "id": "isocpp-tour", "title": "Standard C++ Tour", "url": "https://isocpp.org/tour", "type": "official-docs", "version_or_date": "accessed 2026-07" },
+    { "id": "cs2023-sdf", "title": "CS2023 Software Development Fundamentals", "url": "https://csed.acm.org/wp-content/uploads/2023/09/SDF-Version-Gamma.pdf", "type": "curriculum", "version_or_date": "August 2023" }
+  ],
+  "runtime": {
+    "kind": "programming-language",
+    "language": "C++",
+    "standard": "C++20 baseline with C++23 additions labeled",
+    "toolchain": ["GCC or Clang", "GDB or LLDB", "CMake", "AddressSanitizer", "UndefinedBehaviorSanitizer"],
+    "execution_environment": "Isolated Linux container with warnings enabled and deterministic resource limits",
+    "file_extensions": [".cpp", ".hpp", ".h"],
+    "notes": ["The course teaches modern C++ directly rather than presenting C-style ownership first.", "Compiler-specific extensions are excluded unless explicitly marked."]
+  },
+  "modules": [
+    {
+      "id": "cpp.toolchain",
+      "title": "Programs, translation and namespaces",
+      "description": "Build and diagnose a minimal C++ program and understand its translation units.",
+      "required": true,
+      "prerequisites": ["pf.computing.execution", "pf.tools.terminal-editor"],
+      "skills": [
+        { "id": "cpp.toolchain.program", "title": "Program structure and main", "description": "Identify declarations, definitions, statements, headers and program entry.", "outcomes": ["Write and explain a minimal standard C++ program using standard I/O."], "prerequisites": ["pf.computing.execution"], "evidence_types": ["code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-status", "isocpp-tour"] },
+        { "id": "cpp.toolchain.translation", "title": "Compile and link model", "description": "Relate source files, headers, object files, libraries and the One Definition Rule at an introductory level.", "outcomes": ["Classify and repair preprocessing, compilation and linking failures."], "prerequisites": ["cpp.toolchain.program"], "evidence_types": ["visual", "debug", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.toolchain.namespaces", "title": "Namespaces and qualified names", "description": "Use namespaces to organize APIs and avoid broad using-directives in headers.", "outcomes": ["Resolve and correct ambiguous or hidden names using explicit qualification."], "prerequisites": ["cpp.toolchain.program"], "evidence_types": ["code", "debug", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.toolchain.diagnostics", "title": "Warnings and diagnostics", "description": "Read template-aware diagnostics from the earliest actionable cause and keep warnings enabled.", "outcomes": ["Repair a set of syntax, type and link errors using compiler evidence."], "prerequisites": ["cpp.toolchain.translation"], "evidence_types": ["debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "cs2023-sdf"] }
+      ]
+    },
+    {
+      "id": "cpp.fundamentals",
+      "title": "Values, types and control flow",
+      "description": "Represent values safely and compose expressions and control structures.",
+      "required": true,
+      "prerequisites": ["cpp.toolchain.program", "pf.state.expressions"],
+      "skills": [
+        { "id": "cpp.fundamentals.types", "title": "Fundamental types and initialization", "description": "Choose types and initialize objects using syntax that exposes narrowing.", "outcomes": ["Declare initialized Boolean, character, integer and floating objects without unjustified size assumptions."], "prerequisites": ["cpp.toolchain.program"], "evidence_types": ["code", "concept-check", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.fundamentals.expressions", "title": "Expressions, operators and conversions", "description": "Evaluate precedence, conversions, signedness and numeric boundaries deliberately.", "outcomes": ["Trace and repair mixed-type expressions including narrowing and overflow risks."], "prerequisites": ["cpp.fundamentals.types", "pf.state.expressions"], "evidence_types": ["trace", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.fundamentals.selection", "title": "if and switch", "description": "Implement complete decisions with scoped variables and clear conditions.", "outcomes": ["Write and test boundary-complete selection logic."], "prerequisites": ["cpp.fundamentals.expressions"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour"] },
+        { "id": "cpp.fundamentals.iteration", "title": "Loops and range iteration", "description": "Choose counted, condition-controlled and range-based iteration while preserving termination and bounds.", "outcomes": ["Implement and debug loops over numeric ranges and standard-library sequences."], "prerequisites": ["cpp.fundamentals.selection"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] }
+      ]
+    },
+    {
+      "id": "cpp.functions",
+      "title": "Functions, references and modular interfaces",
+      "description": "Design type-safe functions and organize declarations across files.",
+      "required": true,
+      "prerequisites": ["cpp.fundamentals.iteration", "pf.abstraction.calls"],
+      "skills": [
+        { "id": "cpp.functions.contracts", "title": "Function contracts and return values", "description": "Specify preconditions, outputs and effects and prefer return values for results.", "outcomes": ["Design and implement cohesive functions with testable contracts."], "prerequisites": ["pf.abstraction.functions", "cpp.fundamentals.types"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "cs2023-sdf"] },
+        { "id": "cpp.functions.parameters", "title": "Value, reference and const-reference parameters", "description": "Select parameter passing from ownership, optionality, mutation and cost requirements.", "outcomes": ["Choose and justify parameter forms for scalar and class-type values."], "prerequisites": ["cpp.functions.contracts"], "evidence_types": ["design", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.functions.overload", "title": "Overloading and default arguments", "description": "Create coherent overload sets without ambiguous or surprising conversions.", "outcomes": ["Resolve overload calls and repair ambiguity in a small API."], "prerequisites": ["cpp.functions.parameters", "cpp.fundamentals.expressions"], "evidence_types": ["trace", "debug", "design"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.functions.headers", "title": "Headers and source separation", "description": "Separate interface from implementation using self-contained guarded headers.", "outcomes": ["Create a multi-file function library with correct declarations and definitions."], "prerequisites": ["cpp.functions.contracts", "cpp.toolchain.translation"], "evidence_types": ["code", "artifact", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] }
+      ]
+    },
+    {
+      "id": "cpp.classes",
+      "title": "Classes and value semantics",
+      "description": "Model valid domain values with encapsulated invariants and predictable copying.",
+      "required": true,
+      "prerequisites": ["cpp.functions.parameters", "pf.data.records"],
+      "skills": [
+        { "id": "cpp.classes.encapsulation", "title": "Class interface and invariants", "description": "Hide representation and expose operations that preserve valid state.", "outcomes": ["Design a class whose constructor and methods maintain stated invariants."], "prerequisites": ["cpp.functions.contracts", "pf.data.records"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.classes.construction", "title": "Constructors and initialization", "description": "Initialize members in declaration order and distinguish default, converting and explicit construction.", "outcomes": ["Implement constructors without uninitialized members or unintended conversions."], "prerequisites": ["cpp.classes.encapsulation"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.classes.copy", "title": "Copy and assignment semantics", "description": "Reason about independent values, memberwise copying and when compiler-generated operations suffice.", "outcomes": ["Predict and test copying and assignment for a value-like class."], "prerequisites": ["cpp.classes.construction"], "evidence_types": ["trace", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.classes.operators", "title": "Operator overloading", "description": "Define only conventional operators that preserve value meaning and symmetry.", "outcomes": ["Implement and test comparison or arithmetic operators with unsurprising semantics."], "prerequisites": ["cpp.classes.copy", "cpp.functions.overload"], "evidence_types": ["code", "design", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] }
+      ]
+    },
+    {
+      "id": "cpp.resources",
+      "title": "RAII, ownership and exceptions",
+      "description": "Bind resources to object lifetimes and maintain safety through failures.",
+      "required": true,
+      "prerequisites": ["cpp.classes.construction", "cpp.functions.parameters"],
+      "skills": [
+        { "id": "cpp.resources.raii", "title": "RAII and deterministic cleanup", "description": "Acquire resources in constructors and release them in destructors or standard wrappers.", "outcomes": ["Refactor manual cleanup into an exception-safe RAII design."], "prerequisites": ["cpp.classes.construction"], "evidence_types": ["design", "code", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core"] },
+        { "id": "cpp.resources.smart-pointers", "title": "unique_ptr, shared_ptr and non-owning access", "description": "Prefer unique ownership and use shared ownership only when the lifetime model requires it.", "outcomes": ["Choose and justify an ownership representation without unnecessary shared ownership."], "prerequisites": ["cpp.resources.raii", "cpp.functions.parameters"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.resources.exceptions", "title": "Exceptions and guarantees", "description": "Throw meaningful failures, catch at responsible boundaries and preserve invariants.", "outcomes": ["Implement an operation with a stated basic or strong exception-safety guarantee."], "prerequisites": ["cpp.resources.raii", "cpp.classes.encapsulation"], "evidence_types": ["code", "debug", "test", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.resources.move", "title": "Move semantics basics", "description": "Recognize moved-from valid states and allow efficient resource transfer without premature optimization.", "outcomes": ["Trace copy versus move operations and use standard moves only when ownership transfer is intended."], "prerequisites": ["cpp.classes.copy", "cpp.resources.raii"], "evidence_types": ["trace", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] }
+      ]
+    },
+    {
+      "id": "cpp.polymorphism",
+      "title": "Composition and polymorphism",
+      "description": "Use composition by default and runtime polymorphism when substitutable interfaces are required.",
+      "required": true,
+      "prerequisites": ["cpp.classes.encapsulation", "cpp.resources.smart-pointers"],
+      "skills": [
+        { "id": "cpp.polymorphism.composition", "title": "Composition and delegation", "description": "Build behavior from owned member objects with explicit responsibilities.", "outcomes": ["Refactor an inheritance-shaped design into composition when substitution is not needed."], "prerequisites": ["cpp.classes.encapsulation"], "evidence_types": ["design", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core"] },
+        { "id": "cpp.polymorphism.inheritance", "title": "Public inheritance and substitution", "description": "Use inheritance only for a valid is-a relationship and maintain base-class contracts.", "outcomes": ["Evaluate whether derived objects safely substitute for a base interface."], "prerequisites": ["cpp.polymorphism.composition"], "evidence_types": ["design", "explain", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.polymorphism.virtual", "title": "Virtual dispatch and abstract interfaces", "description": "Define virtual operations, abstract bases and virtual destructors for polymorphic ownership.", "outcomes": ["Implement and trace runtime dispatch through a small abstract interface."], "prerequisites": ["cpp.polymorphism.inheritance", "cpp.resources.smart-pointers"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.polymorphism.slicing-casts", "title": "Slicing and safe downcasts", "description": "Avoid object slicing and minimize checked downcasts through better interface design.", "outcomes": ["Diagnose slicing and replace an unsafe cast with polymorphic behavior or a checked alternative."], "prerequisites": ["cpp.polymorphism.virtual"], "evidence_types": ["debug", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core"] }
+      ]
+    },
+    {
+      "id": "cpp.containers",
+      "title": "Standard-library data structures",
+      "description": "Choose and use standard containers instead of manual storage management.",
+      "required": true,
+      "prerequisites": ["cpp.fundamentals.iteration", "cpp.classes.copy"],
+      "skills": [
+        { "id": "cpp.containers.sequence", "title": "string, array and vector", "description": "Use primary sequence types with bounds, capacity and invalidation awareness.", "outcomes": ["Select and implement with string, array or vector for a stated ownership and size requirement."], "prerequisites": ["cpp.fundamentals.iteration"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.containers.associative", "title": "map, unordered_map and set", "description": "Use ordered and hashed associative containers with suitable keys and operations.", "outcomes": ["Choose and use an associative container while explaining ordering and expected lookup cost."], "prerequisites": ["cpp.containers.sequence"], "evidence_types": ["code", "design", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour"] },
+        { "id": "cpp.containers.adaptors", "title": "Stacks, queues and optional values", "description": "Use container adaptors and explicit absence rather than sentinel misuse.", "outcomes": ["Implement a small workflow with stack, queue or optional and test empty-state behavior."], "prerequisites": ["cpp.containers.sequence"], "evidence_types": ["code", "test", "transfer"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.containers.iterators", "title": "Iterators and invalidation", "description": "Traverse iterator ranges and reason about operations that invalidate iterators and references.", "outcomes": ["Repair an invalidated-iterator defect and document the governing container operation."], "prerequisites": ["cpp.containers.sequence", "cpp.containers.associative"], "evidence_types": ["trace", "debug", "code"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] }
+      ]
+    },
+    {
+      "id": "cpp.algorithms",
+      "title": "Algorithms, lambdas and ranges",
+      "description": "Express data processing through library algorithms and local callable behavior.",
+      "required": true,
+      "prerequisites": ["cpp.containers.iterators", "cpp.functions.overload"],
+      "skills": [
+        { "id": "cpp.algorithms.standard", "title": "Standard algorithms", "description": "Use find, count, transform, remove-style and sorting algorithms over ranges.", "outcomes": ["Replace a hand-written traversal with a clear standard algorithm and test it."], "prerequisites": ["cpp.containers.iterators"], "evidence_types": ["code", "review", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.algorithms.lambdas", "title": "Lambdas and captures", "description": "Define local callables and capture only intended state with explicit lifetime reasoning.", "outcomes": ["Implement and trace value and reference captures in an algorithm call."], "prerequisites": ["cpp.algorithms.standard", "cpp.functions.parameters"], "evidence_types": ["code", "trace", "debug"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.algorithms.comparators", "title": "Comparators and ordering", "description": "Supply strict weak orderings and avoid inconsistent comparison behavior.", "outcomes": ["Design and test a comparator for sorting and associative lookup."], "prerequisites": ["cpp.algorithms.lambdas", "cpp.classes.operators"], "evidence_types": ["design", "code", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "isocpp-tour"] },
+        { "id": "cpp.algorithms.ranges", "title": "Range-based composition basics", "description": "Read and use simple C++20 range views without hiding ownership or lifetime problems.", "outcomes": ["Build and explain a simple filtered and transformed range pipeline."], "prerequisites": ["cpp.algorithms.lambdas", "cpp.containers.iterators"], "evidence_types": ["code", "trace", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-status", "cpp-core"] }
+      ]
+    },
+    {
+      "id": "cpp.generics",
+      "title": "Templates and generic code",
+      "description": "Write modest generic functions and types with explicit requirements.",
+      "required": true,
+      "prerequisites": ["cpp.algorithms.standard", "cpp.classes.encapsulation"],
+      "skills": [
+        { "id": "cpp.generics.function-template", "title": "Function templates", "description": "Generalize an operation over types while relying only on documented requirements.", "outcomes": ["Implement and instantiate a type-safe generic function for multiple value types."], "prerequisites": ["cpp.functions.contracts", "cpp.algorithms.standard"], "evidence_types": ["code", "trace", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.generics.class-template", "title": "Class templates", "description": "Parameterize a small value or container-like type without duplicating implementation.", "outcomes": ["Implement and test a small class template with clear value semantics."], "prerequisites": ["cpp.generics.function-template", "cpp.classes.copy"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.generics.requirements", "title": "Conceptual constraints and diagnostics", "description": "State template requirements and read substitution diagnostics from the first failed requirement.", "outcomes": ["Explain why an instantiation fails and improve its requirement or call site."], "prerequisites": ["cpp.generics.function-template", "cpp.toolchain.diagnostics"], "evidence_types": ["debug", "explain", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-status", "cpp-core"] },
+        { "id": "cpp.generics.variants", "title": "variant and type-safe alternatives", "description": "Represent a closed union of alternatives and handle every active case.", "outcomes": ["Model and visit a small variant without unsafe type punning."], "prerequisites": ["cpp.generics.function-template", "cpp.polymorphism.composition"], "evidence_types": ["code", "design", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] }
+      ]
+    },
+    {
+      "id": "cpp.quality",
+      "title": "Build, test and debug modern C++",
+      "description": "Ship a maintainable command-line project with reproducible builds and tool evidence.",
+      "required": true,
+      "prerequisites": ["cpp.generics.requirements", "cpp.resources.exceptions"],
+      "skills": [
+        { "id": "cpp.quality.io", "title": "Streams, files and parsing", "description": "Use stream state and structured parsing without silently accepting malformed input.", "outcomes": ["Implement file-backed input and output with explicit failure handling."], "prerequisites": ["cpp.resources.exceptions", "cpp.containers.sequence"], "evidence_types": ["code", "debug", "test"], "status": "required", "coverage_status": "covered", "source_refs": ["isocpp-tour", "cpp-core"] },
+        { "id": "cpp.quality.tests", "title": "Unit and integration tests", "description": "Design deterministic tests for values, classes, exceptions and file boundaries.", "outcomes": ["Create a focused automated test suite with normal, boundary and failure cases."], "prerequisites": ["cpp.quality.io", "cpp.classes.encapsulation"], "evidence_types": ["test", "code", "review"], "status": "required", "coverage_status": "covered", "source_refs": ["cs2023-sdf", "cpp-core"] },
+        { "id": "cpp.quality.build", "title": "CMake project structure", "description": "Declare targets, include paths, warnings and test execution reproducibly.", "outcomes": ["Configure and build a multi-target CMake project without global mutable build settings."], "prerequisites": ["cpp.functions.headers", "cpp.toolchain.translation"], "evidence_types": ["artifact", "debug", "performance"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "cs2023-sdf"] },
+        { "id": "cpp.quality.sanitizers", "title": "Debugger, sanitizers and final project", "description": "Combine tests, debugger state and sanitizer reports to repair lifetime, bounds and undefined-behavior defects.", "outcomes": ["Deliver and explain a tested multi-file CLI application with no known sanitizer findings."], "prerequisites": ["cpp.quality.tests", "cpp.quality.build", "cpp.resources.smart-pointers"], "evidence_types": ["debug", "test", "project", "explain"], "status": "required", "coverage_status": "covered", "source_refs": ["cpp-core", "cs2023-sdf"] }
+      ]
+    }
+  ],
+  "exit_outcomes": [
+    "Build and diagnose a portable multi-file modern C++ application with reproducible configuration.",
+    "Model values and services using encapsulated classes, composition, RAII and explicit ownership.",
+    "Use standard containers, algorithms, lambdas and modest templates rather than manual low-level reinvention.",
+    "Demonstrate correctness and lifetime safety through tests, debugger evidence and sanitizers."
+  ],
+  "coverage_summary": { "required_skills": 40, "elective_skills": 0, "total_skills": 40, "covered": 40, "partial": 0, "planned": 0 }
+}

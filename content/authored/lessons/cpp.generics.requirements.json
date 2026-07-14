@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.generics.requirements.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.generics",
+  "skillId": "cpp.generics.requirements",
+  "title": "Conceptual constraints and diagnostics",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Conceptual constraints and diagnostics; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "isocpp-status",
+      "locator": "Current ISO C++ Status; C++23 published; C++26 in progress, accessed 2026-07; provisions applicable to Conceptual constraints and diagnostics",
+      "claim": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values."
+    },
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Conceptual constraints and diagnostics",
+      "claim": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary. Your goal is to explain why an instantiation fails and improve its requirement or call site. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Standard algorithms; Class interface and invariants; Function templates; Warnings and diagnostics. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions. Therefore the draft explicitly rejects this beginner failure model: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "State template requirements and read substitution diagnostics from the first failed requirement.",
+      "Explain why an instantiation fails and improve its requirement or call site."
+    ],
+    "excludes": [
+      "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions."
+    ]
+  },
+  "outcomes": [
+    "Explain why an instantiation fails and improve its requirement or call site."
+  ],
+  "examples": [
+    {
+      "id": "cpp.generics.requirements.example-a",
+      "title": "Conceptual constraints and diagnostics: defined case",
+      "situation": "A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+      ],
+      "result": "The defined result follows because Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+    },
+    {
+      "id": "cpp.generics.requirements.example-b",
+      "title": "Conceptual constraints and diagnostics: boundary case",
+      "situation": "A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition.",
+        "Step 2 — Keep this standard boundary visible: A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions.",
+        "Step 3 — Reject the tempting rule: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+      ],
+      "result": "This case demonstrates the declared outcome: Explain why an instantiation fails and improve its requirement or call site."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.generics.requirements.misconception",
+      "mistakenBelief": "A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value.",
+      "correction": "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Conceptual constraints and diagnostics: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
+      "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
+      "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+      }
+    ],
+    "textAlternative": "Starting artifact: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary. Step 1, Source and state. State: evidence: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.. Check the conclusion against the boundary and reject this misconception: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Conceptual constraints and diagnostics: defined case”: state its starting evidence, apply the Conceptual constraints and diagnostics rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Conceptual constraints and diagnostics: defined case.",
+        "Starting evidence: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
+        "Core rule: Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
+        "Observable result: The defined result follows because Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.",
+        "Boundary check: Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
+        "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Conceptual constraints and diagnostics, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Explain why an instantiation fails and improve its requirement or call site.",
+        "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.generics.requirements.misconception",
+      "explanation": "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compile-time requirements' and state the decisive evidence: A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to explain why an instantiation fails and improve its requirement or call site. Keep this boundary in view: A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions.",
+    "retrievalPrompts": [
+      "Explain Conceptual constraints and diagnostics using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value.",
+      "Apply the checkpoint 'compile-time requirements' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “variant and type-safe alternatives”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

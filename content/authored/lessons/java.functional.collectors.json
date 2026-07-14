@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.functional.collectors.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.functional",
+  "skillId": "java.functional.collectors",
+  "title": "Reduction and collectors",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Reduction and collectors; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Lambda Expressions and Stream API learning paths; atomic topic: Reduction and collectors",
+      "claim": "Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping. Your goal is to choose and implement a reduction or collector with correct identity and combination behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration, mutation and immutability; Interfaces; Stream pipelines. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "A non-associative operation can change under regrouping, an incorrect identity corrupts empty or parallel results, duplicate map keys need a merge policy, and mutable reduction must not share unsafe containers. The learner must reject this documented misconception: Any binary operation works in reduce because streams always combine values from left to right exactly once."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Aggregate values using associative reductions and standard collectors.",
+      "Choose and implement a reduction or collector with correct identity and combination behavior."
+    ],
+    "excludes": [
+      "A non-associative operation can change under regrouping, an incorrect identity corrupts empty or parallel results, duplicate map keys need a merge policy, and mutable reduction must not share unsafe containers."
+    ]
+  },
+  "outcomes": [
+    "Choose and implement a reduction or collector with correct identity and combination behavior."
+  ],
+  "examples": [
+    {
+      "id": "java.functional.collectors.example.direct",
+      "title": "Reduction and collectors: direct language case",
+      "situation": "Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract."
+      ],
+      "result": "The example meets the atomic outcome because Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract."
+    },
+    {
+      "id": "java.functional.collectors.example.boundary",
+      "title": "Reduction and collectors: boundary and transfer case",
+      "situation": "toMap receives an explicit merge function when two records can share a key, instead of failing unpredictably on production data.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: toMap receives an explicit merge function when two records can share a key, instead of failing unpredictably on production data.",
+        "Step 2 — Keep the language boundary explicit: A non-associative operation can change under regrouping, an incorrect identity corrupts empty or parallel results, duplicate map keys need a merge policy, and mutable reduction must not share unsafe containers.",
+        "Step 3 — Reject the tempting but incorrect rule: Any binary operation works in reduce because streams always combine values from left to right exactly once."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose and implement a reduction or collector with correct identity and combination behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.functional.collectors.misconception",
+      "mistakenBelief": "Any binary operation works in reduce because streams always combine values from left to right exactly once.",
+      "correction": "Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Any binary operation works in reduce because streams always combine values from left to right exactly once."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass processing line that transforms, filters, combines, or explicitly reports a missing result can introduce Reduction and collectors, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "lambdas, stream stages, reduction, and Optional"
+    ],
+    "limitations": [
+      "laziness, target typing, associativity, parallel regrouping, and single-use traversal have no complete conveyor analogy",
+      "A non-associative operation can change under regrouping, an incorrect identity corrupts empty or parallel results, duplicate map keys need a merge policy, and mutable reduction must not share unsafe containers."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping.",
+      "Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts.",
+      "Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Any binary operation works in reduce because streams always combine values from left to right exactly once."
+      }
+    ],
+    "textAlternative": "Starting artifact: Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping. Step 1, Observe. State: evidence: Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract.. Compare the observation with the correction and explain why the misconception fails: Any binary operation works in reduce because streams always combine values from left to right exactly once."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Reduction and collectors: direct language case”: state its starting evidence, apply the Reduction and collectors rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Reduction and collectors: direct language case.",
+        "Starting evidence: Integer values reduce with identity 0 and Integer::sum, producing 0 for an empty stream and the same result under valid regrouping.",
+        "Core rule: Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts.",
+        "Observable result: The example meets the atomic outcome because Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract.",
+        "Boundary check: Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: toMap receives an explicit merge function when two records can share a key, instead of failing unpredictably on production data.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Reduction combines values with an identity and associative accumulator, while collectors manage mutable result containers through supplier, accumulator, combiner, and finisher contracts.",
+        "A non-associative operation can change under regrouping, an incorrect identity corrupts empty or parallel results, duplicate map keys need a merge policy, and mutable reduction must not share unsafe containers."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Reduction and collectors, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Choose and implement a reduction or collector with correct identity and combination behavior.",
+        "Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.functional.collectors.misconception",
+      "explanation": "Use an associative operation with a true identity for reduction, and choose a collector whose combination and duplicate-key behavior matches the result contract.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: toMap receives an explicit merge function when two records can share a key, instead of failing unpredictably on production data."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and implement a reduction or collector with correct identity and combination behavior. Keep this boundary in view: A non-associative operation can change under regrouping, an incorrect identity corrupts empty or parallel results, duplicate map keys need a merge policy, and mutable reduction must not share unsafe containers.",
+    "retrievalPrompts": [
+      "Explain Reduction and collectors using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Any binary operation works in reduce because streams always combine values from left to right exactly once.",
+      "Predict this case from memory: toMap receives an explicit merge function when two records can share a key, instead of failing unpredictably on production data."
+    ],
+    "nextReviewPrompt": "Next: continue to “Optional and explicit absence”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

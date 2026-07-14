@@ -1,0 +1,203 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.html.navigation.external.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.navigation",
+  "skillId": "html.navigation.external",
+  "title": "External navigation safety deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "whatwg-html",
+    "mdn-html"
+  ],
+  "items": [
+    {
+      "skillId": "html.navigation.external",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.navigation.external.mcq.misconception",
+      "title": "External navigation safety: reject the invalid model",
+      "prompt": "Which statement correctly resolves this HTML: Semantic and Accessible Web Documents misconception? Every external link must open a new tab because that is always safer and more accessible.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.",
+        "incorrect": "That preserves the misconception. Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked HTML: Semantic and Accessible Web Documents correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+        },
+        {
+          "id": "misconception",
+          "text": "Every external link must open a new tab because that is always safer and more accessible."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      }
+    },
+    {
+      "skillId": "html.navigation.external",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.navigation.external.fill.checkpoint",
+      "title": "External navigation safety: complete the rule",
+      "prompt": "Complete the missing HTML: Semantic and Accessible Web Documents checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: disclose it.",
+        "incorrect": "Recheck the exact rule. Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Do not force a new browsing context by default; when one is required, {{key-rule}} and apply the appropriate rel policy.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "disclose it"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      }
+    },
+    {
+      "id": "html.navigation.external.code.verified-facet",
+      "skillId": "html.navigation.external",
+      "title": "External navigation safety: verified implementation facet",
+      "kind": "code",
+      "prompt": "Use download, target, rel and referrer-related behavior only when justified and disclosed. Build a bounded artifact demonstrating disclosed new-context external link with rel isolation; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><title>TODO</title></head><body><main><!-- TODO --></main></body></html>\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "html",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "index.html",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        }
+      },
+      "tests": [
+        {
+          "id": "html.navigation.external.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"new context is disclosed in visible text\",\n      \"expression\": \"document.querySelector('#external')?.textContent?.includes('opens in a new tab')\",\n      \"expected\": true\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "html.navigation.external.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"noopener and noreferrer are both present\",\n      \"expression\": \"['noopener','noreferrer'].every(v=>document.querySelector('#external')?.relList.contains(v))\",\n      \"expected\": true\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><base href=\"https://example.test/courses/html/\"><title>Navigation</title></head><body>\n<a class=\"skip\" href=\"#main\">Skip to main content</a><nav aria-label=\"Lessons\"><a id=\"relative\" href=\"../css/?mode=learn#intro\">Read the CSS introduction</a> <a id=\"external\" href=\"https://docs.example.test/guide\" target=\"_blank\" rel=\"noopener noreferrer\">Documentation (opens in a new tab)</a></nav><main id=\"main\" tabindex=\"-1\"><h1>Navigation lesson</h1></main>\n</body></html>",
+        "explanation": "The reference is a bounded html artifact for disclosed new-context external link with rel isolation. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.functional.streams.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.functional",
+  "skillId": "java.functional.streams",
+  "title": "Stream pipelines",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Stream pipelines; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Lambda Expressions and Stream API learning paths; atomic topic: Stream pipelines",
+      "claim": "A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection. Your goal is to build and explain map-filter-reduce style pipelines without reusing consumed streams. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration, mutation and immutability; Interfaces; Functional interfaces and lambdas; List, Set, Map and Queue. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Streams are not storage, infinite sources need bounded terminals, encounter order depends on source and operations, side effects can violate assumptions, and parallel execution is not automatically faster. The learner must reject this documented misconception: Intermediate operations run immediately and a Stream can be traversed repeatedly like a List."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use source, intermediate and terminal operations for finite in-memory processing.",
+      "Build and explain map-filter-reduce style pipelines without reusing consumed streams."
+    ],
+    "excludes": [
+      "Streams are not storage, infinite sources need bounded terminals, encounter order depends on source and operations, side effects can violate assumptions, and parallel execution is not automatically faster."
+    ]
+  },
+  "outcomes": [
+    "Build and explain map-filter-reduce style pipelines without reusing consumed streams."
+  ],
+  "examples": [
+    {
+      "id": "java.functional.streams.example.direct",
+      "title": "Stream pipelines: direct language case",
+      "situation": "A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass."
+      ],
+      "result": "The example meets the atomic outcome because Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass."
+    },
+    {
+      "id": "java.functional.streams.example.boundary",
+      "title": "Stream pipelines: boundary and transfer case",
+      "situation": "A second terminal operation on the same stream is replaced by creating a new stream from the reusable collection source.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A second terminal operation on the same stream is replaced by creating a new stream from the reusable collection source.",
+        "Step 2 — Keep the language boundary explicit: Streams are not storage, infinite sources need bounded terminals, encounter order depends on source and operations, side effects can violate assumptions, and parallel execution is not automatically faster.",
+        "Step 3 — Reject the tempting but incorrect rule: Intermediate operations run immediately and a Stream can be traversed repeatedly like a List."
+      ],
+      "result": "This case demonstrates the declared outcome: Build and explain map-filter-reduce style pipelines without reusing consumed streams."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.functional.streams.misconception",
+      "mistakenBelief": "Intermediate operations run immediately and a Stream can be traversed repeatedly like a List.",
+      "correction": "Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Intermediate operations run immediately and a Stream can be traversed repeatedly like a List."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a one-pass processing line that transforms, filters, combines, or explicitly reports a missing result can introduce Stream pipelines, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "lambdas, stream stages, reduction, and Optional"
+    ],
+    "limitations": [
+      "laziness, target typing, associativity, parallel regrouping, and single-use traversal have no complete conveyor analogy",
+      "Streams are not storage, infinite sources need bounded terminals, encounter order depends on source and operations, side effects can violate assumptions, and parallel execution is not automatically faster."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection.",
+      "A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption.",
+      "Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Intermediate operations run immediately and a Stream can be traversed repeatedly like a List."
+      }
+    ],
+    "textAlternative": "Starting artifact: A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection. Step 1, Observe. State: evidence: A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass.. Compare the observation with the correction and explain why the misconception fails: Intermediate operations run immediately and a Stream can be traversed repeatedly like a List."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Stream pipelines: direct language case”: state its starting evidence, apply the Stream pipelines rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Stream pipelines: direct language case.",
+        "Starting evidence: A finite list stream filters valid readings, maps units, and collects a new list without mutating the source collection.",
+        "Core rule: A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption.",
+        "Observable result: The example meets the atomic outcome because Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass.",
+        "Boundary check: Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A second terminal operation on the same stream is replaced by creating a new stream from the reusable collection source.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "A Java stream pipeline has a source, lazy intermediate transformations, and one terminal operation; it describes a traversal and cannot be reused after consumption.",
+        "Streams are not storage, infinite sources need bounded terminals, encounter order depends on source and operations, side effects can violate assumptions, and parallel execution is not automatically faster."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Stream pipelines, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Build and explain map-filter-reduce style pipelines without reusing consumed streams.",
+        "Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.functional.streams.misconception",
+      "explanation": "Intermediate stream operations are lazy until a terminal operation, and each stream traversal is single-use; recreate it from the source for another pass.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A second terminal operation on the same stream is replaced by creating a new stream from the reusable collection source."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to build and explain map-filter-reduce style pipelines without reusing consumed streams. Keep this boundary in view: Streams are not storage, infinite sources need bounded terminals, encounter order depends on source and operations, side effects can violate assumptions, and parallel execution is not automatically faster.",
+    "retrievalPrompts": [
+      "Explain Stream pipelines using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Intermediate operations run immediately and a Stream can be traversed repeatedly like a List.",
+      "Predict this case from memory: A second terminal operation on the same stream is replaced by creating a new stream from the reusable collection source."
+    ],
+    "nextReviewPrompt": "Next: continue to “Reduction and collectors”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

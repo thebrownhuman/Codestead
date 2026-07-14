@@ -1,0 +1,16 @@
+# Copy to /etc/learncoding/cloudflare/config.yml and replace both placeholders.
+# The credentials JSON is mounted separately as a Compose secret.
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: /run/secrets/cloudflare_tunnel_credentials
+
+originRequest:
+  connectTimeout: 10s
+  tcpKeepAlive: 30s
+  noHappyEyeballs: false
+
+ingress:
+  - hostname: learn.example.com
+    service: http://app:3000
+    originRequest:
+      httpHostHeader: learn.example.com
+  - service: http_status:404

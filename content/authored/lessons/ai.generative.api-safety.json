@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.generative.api-safety.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.generative",
+  "skillId": "ai.generative.api-safety",
+  "title": "API, tool and prompt-injection boundaries",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for API, tool and prompt-injection boundaries; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-genai",
+      "locator": "NIST AI 600-1 Generative AI Profile; July 2024; NIST AI 600-1 risk sections and suggested actions for confabulation, information integrity, security, privacy, and misuse; atomic topic: API, tool and prompt-injection boundaries",
+      "claim": "A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Govern/Map/Measure/Manage outcomes applied to provider, data, tool, and deployment boundaries; atomic topic: API, tool and prompt-injection boundaries",
+      "claim": "A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation. Your goal is to threat-model and test a mocked LLM API or tool call without exposing secrets or granting autonomous authority. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Convolution, sequence and attention roles; Natural-language processing; Embeddings and retrieval augmentation; git security secrets. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Model output is untrusted, prompt injection can arrive through any data channel, provider changes alter disclosure, retries can duplicate effects, allowlists can be bypassed by weak parsing, and human approval has usability limits. The learner must reject this overclaim: A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Keep keys server-side, minimize transmitted data, validate tool arguments and separate untrusted content from instructions.",
+      "Threat-model and test a mocked LLM API or tool call without exposing secrets or granting autonomous authority."
+    ],
+    "excludes": [
+      "Model output is untrusted, prompt injection can arrive through any data channel, provider changes alter disclosure, retries can duplicate effects, allowlists can be bypassed by weak parsing, and human approval has usability limits."
+    ]
+  },
+  "outcomes": [
+    "Threat-model and test a mocked LLM API or tool call without exposing secrets or granting autonomous authority."
+  ],
+  "examples": [
+    {
+      "id": "ai.generative.api-safety.example.direct",
+      "title": "API, tool and prompt-injection boundaries: bounded direct case",
+      "situation": "A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+      ],
+      "result": "This example supports only the atomic outcome because Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+    },
+    {
+      "id": "ai.generative.api-safety.example.stress",
+      "title": "API, tool and prompt-injection boundaries: stress and transfer case",
+      "situation": "A document tells the agent to reveal its API key; content remains data, the key is never in model context, and no reveal tool exists.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A document tells the agent to reveal its API key; content remains data, the key is never in model context, and no reveal tool exists.",
+        "Step 2 — Keep the non-claim visible: Model output is untrusted, prompt injection can arrive through any data channel, provider changes alter disclosure, retries can duplicate effects, allowlists can be bypassed by weak parsing, and human approval has usability limits.",
+        "Step 3 — Reject the tempting overclaim: A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly."
+      ],
+      "result": "This case demonstrates the declared outcome: Threat-model and test a mocked LLM API or tool call without exposing secrets or granting autonomous authority."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.generative.api-safety.misconception",
+      "mistakenBelief": "A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly.",
+      "correction": "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a bounded document desk that predicts tokens, validates structured drafts, retrieves cited passages, and exposes only authorized tools can introduce API, tool and prompt-injection boundaries only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "language-model context, output validation, RAG stages, and API/tool security"
+    ],
+    "limitations": [
+      "generation, retrieval, prompting, and provider trust remain fallible and cannot receive secrets or autonomous authority",
+      "Model output is untrusted, prompt injection can arrive through any data channel, provider changes alter disclosure, retries can duplicate effects, allowlists can be bypassed by weak parsing, and human approval has usability limits."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation.",
+      "A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes.",
+      "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly."
+      }
+    ],
+    "textAlternative": "Starting artifact: A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation. Step 1, Observe. State: boundedEvidence: A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result.. State what the evidence does not establish and reject the misconception: A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “API, tool and prompt-injection boundaries: bounded direct case”: state its starting evidence, apply the API, tool and prompt-injection boundaries rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: API, tool and prompt-injection boundaries: bounded direct case.",
+        "Starting evidence: A mocked scheduling tool accepts one typed date and approved calendar id, rejects unknown fields and external URLs, and requires confirmation before mutation.",
+        "Core rule: A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes.",
+        "Observable result: This example supports only the atomic outcome because Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result.",
+        "Boundary check: Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A document tells the agent to reveal its API key; content remains data, the key is never in model context, and no reveal tool exists.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A safe model/tool integration keeps credentials server-side, minimizes disclosed data, binds calls to user intent and authorization, validates typed tool arguments, restricts destinations and side effects, and audits outcomes.",
+        "Model output is untrusted, prompt injection can arrive through any data channel, provider changes alter disclosure, retries can duplicate effects, allowlists can be bypassed by weak parsing, and human approval has usability limits."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for API, tool and prompt-injection boundaries and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Threat-model and test a mocked LLM API or tool call without exposing secrets or granting autonomous authority.",
+        "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.generative.api-safety.misconception",
+      "explanation": "Keep secrets and authority outside model context, parse and authorize every tool call deterministically, bind side effects to confirmation and idempotency, and audit the result.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A document tells the agent to reveal its API key; content remains data, the key is never in model context, and no reveal tool exists."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to threat-model and test a mocked LLM API or tool call without exposing secrets or granting autonomous authority. Keep this boundary in view: Model output is untrusted, prompt injection can arrive through any data channel, provider changes alter disclosure, retries can duplicate effects, allowlists can be bypassed by weak parsing, and human approval has usability limits.",
+    "retrievalPrompts": [
+      "Explain API, tool and prompt-injection boundaries with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A trusted provider or system prompt makes tool arguments safe, so the application can execute model-produced JSON directly.",
+      "Apply the boundary to: A document tells the agent to reveal its API key; content remains data, the key is never in model context, and no reveal tool exists."
+    ],
+    "nextReviewPrompt": "Next: continue to “Metrics, thresholds and baselines”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

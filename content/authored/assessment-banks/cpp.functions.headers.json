@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.cpp.functions.headers.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.functions",
+  "skillId": "cpp.functions.headers",
+  "title": "Headers and source separation deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific deterministic MCQ and fill-gap evidence for Headers and source separation; human review required."
+  },
+  "sourceRefs": [
+    "cpp-core",
+    "isocpp-tour"
+  ],
+  "items": [
+    {
+      "skillId": "cpp.functions.headers",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.functions.headers.mcq.misconception",
+      "title": "Headers and source separation: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this CPP misconception? Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules.",
+        "incorrect": "That option preserves the documented misconception. Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned CPP correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+      }
+    },
+    {
+      "skillId": "cpp.functions.headers",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.functions.headers.fill.checkpoint",
+      "title": "Headers and source separation: complete the language rule",
+      "prompt": "Complete the missing CPP checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: Moving any function definition into a header is safe because include guards prevent duplicate definitions at link time."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'one-definition rules'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact CPP token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or {{key-rule}}.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "one-definition rules"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Include guards prevent repeated text in one translation unit; cross-unit definitions must still satisfy inline, template, or one-definition rules."
+      }
+    }
+  ]
+}

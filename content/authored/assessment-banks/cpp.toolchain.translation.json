@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.cpp.toolchain.translation.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.toolchain",
+  "skillId": "cpp.toolchain.translation",
+  "title": "Compile and link model deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific deterministic MCQ and fill-gap evidence for Compile and link model; human review required."
+  },
+  "sourceRefs": [
+    "isocpp-tour",
+    "cpp-core"
+  ],
+  "items": [
+    {
+      "skillId": "cpp.toolchain.translation",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.toolchain.translation.mcq.misconception",
+      "title": "Compile and link model: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this CPP misconception? If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program.",
+        "incorrect": "That option preserves the documented misconception. Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned CPP correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+      }
+    },
+    {
+      "skillId": "cpp.toolchain.translation",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.toolchain.translation.fill.checkpoint",
+      "title": "Compile and link model: complete the language rule",
+      "prompt": "Complete the missing CPP checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'one-definition rule'.",
+        "incorrect": "Recheck the exact language rule and its boundary. Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact CPP token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Translation units compile independently, but linked entities must still satisfy compatible declarations and the {{key-rule}} across the entire program.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "one-definition rule"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+      }
+    }
+  ]
+}

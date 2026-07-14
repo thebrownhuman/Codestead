@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.routing.routes.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.routing-context",
+  "skillId": "react.routing.routes",
+  "title": "Declarative routes and links",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Declarative routes and links; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-router",
+      "locator": "React Router Documentation; stable declarative mode accessed 2026-07; provisions applicable to Declarative routes and links",
+      "claim": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Declarative routes and links",
+      "claim": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting. Your goal is to implement nested routes and verify direct, link and back-forward navigation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Remote data and asynchronous UI; javascript browser url; Children and composition. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup. This draft therefore rejects: A client router makes every deep URL work on the server automatically."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Map paths to page-level components and navigate with real links that preserve browser behavior.",
+      "Implement nested routes and verify direct, link and back-forward navigation."
+    ],
+    "excludes": [
+      "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup."
+    ]
+  },
+  "outcomes": [
+    "Implement nested routes and verify direct, link and back-forward navigation."
+  ],
+  "examples": [
+    {
+      "id": "react.routing.routes.example-a",
+      "title": "Declarative routes and links: concrete case",
+      "situation": "Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+      ],
+      "result": "The result follows because Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+    },
+    {
+      "id": "react.routing.routes.example-b",
+      "title": "Declarative routes and links: boundary case",
+      "situation": "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A client router makes every deep URL work on the server automatically."
+      ],
+      "result": "The boundary requires this correction: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.routing.routes.misconception",
+      "mistakenBelief": "A client router makes every deep URL work on the server automatically.",
+      "correction": "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A client router makes every deep URL work on the server automatically."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Declarative routes and links, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Declarative routes and links before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
+      "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
+      "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A client router makes every deep URL work on the server automatically."
+      }
+    ],
+    "textAlternative": "Starting artifact: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting. Step 1, Artifact. State: evidence: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.. Check the result against the boundary and reject this misconception: A client router makes every deep URL work on the server automatically."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Declarative routes and links: concrete case”: state its starting evidence, apply the Declarative routes and links rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Declarative routes and links: concrete case.",
+        "Starting evidence: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
+        "Core rule: Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
+        "Observable result: The result follows because Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.",
+        "Boundary check: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
+        "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Declarative routes and links and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Implement nested routes and verify direct, link and back-forward navigation.",
+        "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.routing.routes.misconception",
+      "explanation": "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'direct route requests' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement nested routes and verify direct, link and back-forward navigation. Keep this boundary in view: Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
+    "retrievalPrompts": [
+      "Explain Declarative routes and links using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: A client router makes every deep URL work on the server automatically.",
+      "Apply checkpoint 'direct route requests' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Parameters, search state and not-found views”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

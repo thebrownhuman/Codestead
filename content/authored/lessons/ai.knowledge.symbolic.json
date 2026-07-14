@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.knowledge.symbolic.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.knowledge-uncertainty",
+  "skillId": "ai.knowledge.symbolic",
+  "title": "Symbols, predicates and rules",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Symbols, predicates and rules; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Knowledge Representation and Reasoning plus Reasoning Under Uncertainty; atomic topic: Symbols, predicates and rules",
+      "claim": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions."
+    },
+    {
+      "sourceRef": "cs2023-msf",
+      "locator": "CS2023 Mathematical and Statistical Foundations; August 2023; Probability, conditional probability, Bayes theorem, logic, relations, and graphical-model mathematical foundations; atomic topic: Symbols, predicates and rules",
+      "claim": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions. Your goal is to create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: AI problems and agents; Problem and environment characteristics; pf data records. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely. The learner must reject this overclaim: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Translate a bounded natural-language domain into facts, relations, rules and queries.",
+      "Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions."
+    ],
+    "excludes": [
+      "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely."
+    ]
+  },
+  "outcomes": [
+    "Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions."
+  ],
+  "examples": [
+    {
+      "id": "ai.knowledge.symbolic.example.direct",
+      "title": "Symbols, predicates and rules: bounded direct case",
+      "situation": "Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+      ],
+      "result": "This example supports only the atomic outcome because Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+    },
+    {
+      "id": "ai.knowledge.symbolic.example.stress",
+      "title": "Symbols, predicates and rules: stress and transfer case",
+      "situation": "The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated.",
+        "Step 2 — Keep the non-claim visible: Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely.",
+        "Step 3 — Reject the tempting overclaim: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+      ],
+      "result": "This case demonstrates the declared outcome: Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.knowledge.symbolic.misconception",
+      "mistakenBelief": "If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system.",
+      "correction": "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an evidence board that distinguishes explicit facts, supported rule chains, missing knowledge, probabilities, and dependency assumptions can introduce Symbols, predicates and rules only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "symbolic representation, inference, Bayesian updating, and graphical dependencies"
+    ],
+    "limitations": [
+      "encoded facts can be incomplete or inconsistent and probabilistic edges do not automatically establish causation",
+      "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
+      "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
+      "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+      }
+    ],
+    "textAlternative": "Starting artifact: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions. Step 1, Observe. State: boundedEvidence: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.. State what the evidence does not establish and reject the misconception: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Symbols, predicates and rules: bounded direct case”: state its starting evidence, apply the Symbols, predicates and rules rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Symbols, predicates and rules: bounded direct case.",
+        "Starting evidence: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
+        "Core rule: A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
+        "Observable result: This example supports only the atomic outcome because Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.",
+        "Boundary check: Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
+        "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Symbols, predicates and rules and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions.",
+        "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.knowledge.symbolic.misconception",
+      "explanation": "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions. Keep this boundary in view: Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely.",
+    "retrievalPrompts": [
+      "Explain Symbols, predicates and rules with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system.",
+      "Apply the boundary to: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated."
+    ],
+    "nextReviewPrompt": "Next: continue to “Logical inference and consistency”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

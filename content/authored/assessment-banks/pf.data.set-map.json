@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.data.set-map.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.data",
+  "skillId": "pf.data.set-map",
+  "title": "Sets and maps deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Sets and maps; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.data.set-map.mcq.misconception",
+      "skillId": "pf.data.set-map",
+      "title": "Sets and maps: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately.",
+        "incorrect": "The selected statement preserves the documented misconception. Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Sets and maps instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+      }
+    }
+  ]
+}

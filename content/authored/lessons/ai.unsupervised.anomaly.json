@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.unsupervised.anomaly.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.unsupervised",
+  "skillId": "ai.unsupervised.anomaly",
+  "title": "Anomaly detection",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Anomaly detection; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "sklearn",
+      "locator": "scikit-learn User Guide; 1.9.x target, accessed 2026-07; User Guide sections 2, 3.4.7, and 7.5: clustering, novelty/outlier detection, decomposition, and evaluation; atomic topic: Anomaly detection",
+      "claim": "Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Map/Measure outcomes for context, harmful bias, feedback, monitoring, and affected stakeholders; atomic topic: Anomaly detection",
+      "claim": "Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud. Your goal is to design and evaluate a simple anomaly detector without assuming every outlier is harmful. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Data and experimental workflow; Bias, variance and regularization; Clustering; Classification and probabilities. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Rare is not harmful, harmful can be common, contaminated training shifts the reference, tail estimates are unstable, labels are scarce, and feedback from reviewed alerts changes future data. The learner must reject this overclaim: An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Define unusual relative to a reference population and evaluate rare-event alerts with review costs.",
+      "Design and evaluate a simple anomaly detector without assuming every outlier is harmful."
+    ],
+    "excludes": [
+      "Rare is not harmful, harmful can be common, contaminated training shifts the reference, tail estimates are unstable, labels are scarce, and feedback from reviewed alerts changes future data."
+    ]
+  },
+  "outcomes": [
+    "Design and evaluate a simple anomaly detector without assuming every outlier is harmful."
+  ],
+  "examples": [
+    {
+      "id": "ai.unsupervised.anomaly.example.direct",
+      "title": "Anomaly detection: bounded direct case",
+      "situation": "A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+      ],
+      "result": "This example supports only the atomic outcome because Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+    },
+    {
+      "id": "ai.unsupervised.anomaly.example.stress",
+      "title": "Anomaly detection: stress and transfer case",
+      "situation": "A new seasonal pattern triggers many alerts, so monitoring distinguishes distribution drift from individual harmful events.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A new seasonal pattern triggers many alerts, so monitoring distinguishes distribution drift from individual harmful events.",
+        "Step 2 — Keep the non-claim visible: Rare is not harmful, harmful can be common, contaminated training shifts the reference, tail estimates are unstable, labels are scarce, and feedback from reviewed alerts changes future data.",
+        "Step 3 — Reject the tempting overclaim: An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector."
+      ],
+      "result": "This case demonstrates the declared outcome: Design and evaluate a simple anomaly detector without assuming every outlier is harmful."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.unsupervised.anomaly.misconception",
+      "mistakenBelief": "An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector.",
+      "correction": "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an exploratory sorting table whose representation, distance, projection, reference population, and exposure policy determine visible patterns can introduce Anomaly detection only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "clustering, dimensionality reduction, anomaly scoring, and recommendation"
+    ],
+    "limitations": [
+      "algorithmic groups and outliers are parameter-dependent summaries rather than discovered human categories or harms",
+      "Rare is not harmful, harmful can be common, contaminated training shifts the reference, tail estimates are unstable, labels are scarce, and feedback from reviewed alerts changes future data."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud.",
+      "Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences.",
+      "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector."
+      }
+    ],
+    "textAlternative": "Starting artifact: A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud. Step 1, Observe. State: boundedEvidence: A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation.. State what the evidence does not establish and reject the misconception: An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Anomaly detection: bounded direct case”: state its starting evidence, apply the Anomaly detection rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Anomaly detection: bounded direct case.",
+        "Starting evidence: A robust univariate baseline flags large median absolute deviations, then reports alert rate and reviewer-confirmed precision instead of calling every outlier fraud.",
+        "Core rule: Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences.",
+        "Observable result: This example supports only the atomic outcome because Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation.",
+        "Boundary check: Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A new seasonal pattern triggers many alerts, so monitoring distinguishes distribution drift from individual harmful events.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Anomaly detection scores observations as unusual relative to a defined reference population and representation; thresholds convert scores into alerts whose value depends on prevalence, review cost, and consequences.",
+        "Rare is not harmful, harmful can be common, contaminated training shifts the reference, tail estimates are unstable, labels are scarce, and feedback from reviewed alerts changes future data."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Anomaly detection and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Design and evaluate a simple anomaly detector without assuming every outlier is harmful.",
+        "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.unsupervised.anomaly.misconception",
+      "explanation": "Define unusual relative to a reference and evaluate thresholded alerts with prevalence, review capacity, false alarms, misses, drift, and domain confirmation.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A new seasonal pattern triggers many alerts, so monitoring distinguishes distribution drift from individual harmful events."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and evaluate a simple anomaly detector without assuming every outlier is harmful. Keep this boundary in view: Rare is not harmful, harmful can be common, contaminated training shifts the reference, tail estimates are unstable, labels are scarce, and feedback from reviewed alerts changes future data.",
+    "retrievalPrompts": [
+      "Explain Anomaly detection with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: An outlier score is a probability of fraud or danger, and a stricter threshold always improves the detector.",
+      "Apply the boundary to: A new seasonal pattern triggers many alerts, so monitoring distinguishes distribution drift from individual harmful events."
+    ],
+    "nextReviewPrompt": "Next: continue to “Recommendation concepts”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

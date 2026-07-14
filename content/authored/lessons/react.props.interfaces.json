@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.props.interfaces.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.props-composition",
+  "skillId": "react.props.interfaces",
+  "title": "Component API design",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Component API design; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Component API design",
+      "claim": "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Button requires children and onPress while variant has a documented default and disabled behavior. Your goal is to review and simplify a component interface while documenting its contract. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Components and JSX; Children and composition; javascript modules architecture. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design. This draft therefore rejects: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Keep component props minimal, cohesive, serializable where practical and semantically named.",
+      "Review and simplify a component interface while documenting its contract."
+    ],
+    "excludes": [
+      "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design."
+    ]
+  },
+  "outcomes": [
+    "Review and simplify a component interface while documenting its contract."
+  ],
+  "examples": [
+    {
+      "id": "react.props.interfaces.example-a",
+      "title": "Component API design: concrete case",
+      "situation": "A Button requires children and onPress while variant has a documented default and disabled behavior.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A Button requires children and onPress while variant has a documented default and disabled behavior.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+      ],
+      "result": "The result follows because Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+    },
+    {
+      "id": "react.props.interfaces.example-b",
+      "title": "Component API design: boundary case",
+      "situation": "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+      ],
+      "result": "The boundary requires this correction: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.props.interfaces.misconception",
+      "mistakenBelief": "TypeScript prop types automatically guarantee the component is accessible and semantically valid.",
+      "correction": "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Component API design, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Component API design before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Button requires children and onPress while variant has a documented default and disabled behavior.",
+      "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
+      "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A Button requires children and onPress while variant has a documented default and disabled behavior."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Button requires children and onPress while variant has a documented default and disabled behavior. Step 1, Artifact. State: evidence: A Button requires children and onPress while variant has a documented default and disabled behavior.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.. Check the result against the boundary and reject this misconception: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Component API design: concrete case”: state its starting evidence, apply the Component API design rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Component API design: concrete case.",
+        "Starting evidence: A Button requires children and onPress while variant has a documented default and disabled behavior.",
+        "Core rule: A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
+        "Observable result: The result follows because Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.",
+        "Boundary check: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
+        "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Component API design and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Review and simplify a component interface while documenting its contract.",
+        "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.props.interfaces.misconception",
+      "explanation": "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'semantic contracts' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to review and simplify a component interface while documenting its contract. Keep this boundary in view: Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
+    "retrievalPrompts": [
+      "Explain Component API design using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: TypeScript prop types automatically guarantee the component is accessible and semantically valid.",
+      "Apply checkpoint 'semantic contracts' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Render purity and Strict Mode”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

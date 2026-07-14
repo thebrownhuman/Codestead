@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.abstraction.calls.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.abstraction",
+  "skillId": "pf.abstraction.calls",
+  "title": "Calls, parameters and returns",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Calls, parameters and returns; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Calls, parameters and returns",
+      "claim": "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame. Your goal is to trace nested function calls using separate call frames. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Decomposition; Functions as contracts; Variables and assignment. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Trace argument binding, local execution and returned results.",
+      "Trace nested function calls using separate call frames."
+    ],
+    "excludes": [
+      "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function."
+    ]
+  },
+  "outcomes": [
+    "Trace nested function calls using separate call frames."
+  ],
+  "examples": [
+    {
+      "id": "pf.abstraction.calls.example-a",
+      "title": "Calls, parameters and returns: direct case",
+      "situation": "Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+      ],
+      "result": "The case supports the declared outcome because Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+    },
+    {
+      "id": "pf.abstraction.calls.example-b",
+      "title": "Calls, parameters and returns: boundary case",
+      "situation": "An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame.",
+        "Step 2 — Keep this boundary explicit: Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function.",
+        "Step 3 — Reject the documented misconception: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+      ],
+      "result": "This case demonstrates the declared outcome: Trace nested function calls using separate call frames."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.abstraction.calls.misconception",
+      "mistakenBelief": "Parameters permanently replace the caller's variable names, so a function has no separate local frame.",
+      "correction": "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A service counter can model Calls, parameters and returns: it advertises accepted requests and results while its internal work remains behind a named interface.",
+    "usefulFor": [
+      "Separating contracts, local work, calls, returned results, and repeated service use"
+    ],
+    "limitations": [
+      "A service counter does not capture language-specific frames, reference semantics, closures, or recursion limits.",
+      "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
+      "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
+      "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller."
+        },
+        "explanation": "Apply the declared Calls, parameters and returns model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+      }
+    ],
+    "textAlternative": "Starting artifact: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame. Step 1, Observe. State: evidence: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.. Apply the declared Calls, parameters and returns model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.. Compare the observation with the correction and reject the misconception: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Calls, parameters and returns: direct case”: state its starting evidence, apply the Calls, parameters and returns rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Calls, parameters and returns: direct case.",
+        "Starting evidence: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
+        "Core rule: A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
+        "Observable result: The case supports the declared outcome because Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.",
+        "Boundary check: Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
+        "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Calls, parameters and returns, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Trace nested function calls using separate call frames.",
+        "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.abstraction.calls.misconception",
+      "explanation": "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to trace nested function calls using separate call frames. Keep this boundary in view: Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function.",
+    "retrievalPrompts": [
+      "Explain Calls, parameters and returns without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Parameters permanently replace the caller's variable names, so a function has no separate local frame.",
+      "Apply the model to this case from memory: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame."
+    ],
+    "nextReviewPrompt": "Next: continue to “Local scope”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

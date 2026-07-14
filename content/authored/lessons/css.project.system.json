@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.css.project.system.v1",
+  "courseId": "css",
+  "courseVersion": "0.1.0",
+  "moduleId": "css.quality-project",
+  "skillId": "css.project.system",
+  "title": "Responsive site design system",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific CSS: Responsive and Accessible Styling draft for Responsive site design system; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "css-snapshot",
+      "locator": "CSS Snapshot 2024; W3C Working Group Note 2024; provisions applicable to Responsive site design system",
+      "claim": "A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Responsive site design system",
+      "claim": "A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states. Your goal is to deliver and explain a responsive, accessible and maintainable CSS system with documented compatibility targets. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Responsive design and motion; Stylesheet organization; Compatibility and progressive enhancement; Visual accessibility audit; html project site. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages. This draft therefore rejects: A design system is complete once colors and spacing variables are defined."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Integrate tokens, layers, typography, layout, components, states and preferences across a multi-page site.",
+      "Deliver and explain a responsive, accessible and maintainable CSS system with documented compatibility targets."
+    ],
+    "excludes": [
+      "A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages."
+    ]
+  },
+  "outcomes": [
+    "Deliver and explain a responsive, accessible and maintainable CSS system with documented compatibility targets."
+  ],
+  "examples": [
+    {
+      "id": "css.project.system.example-a",
+      "title": "Responsive site design system: concrete case",
+      "situation": "A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance."
+      ],
+      "result": "The result follows because A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance."
+    },
+    {
+      "id": "css.project.system.example-b",
+      "title": "Responsive site design system: boundary case",
+      "situation": "A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: A design system is complete once colors and spacing variables are defined."
+      ],
+      "result": "The boundary requires this correction: A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "css.project.system.misconception",
+      "mistakenBelief": "A design system is complete once colors and spacing variables are defined.",
+      "correction": "A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance.",
+      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A design system is complete once colors and spacing variables are defined."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A layered stage design can model Responsive site design system, where rules size, place, and paint existing content.",
+    "usefulFor": [
+      "Building a first mental model for Responsive site design system before using exact platform terms"
+    ],
+    "limitations": [
+      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
+      "A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states.",
+      "A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks.",
+      "A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks."
+        },
+        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: A design system is complete once colors and spacing variables are defined."
+      }
+    ],
+    "textAlternative": "Starting artifact: A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states. Step 1, Artifact. State: evidence: A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance.. Check the result against the boundary and reject this misconception: A design system is complete once colors and spacing variables are defined."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Responsive site design system: concrete case”: state its starting evidence, apply the Responsive site design system rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Responsive site design system: concrete case.",
+        "Starting evidence: A small site reuses spacing and color tokens while each component demonstrates default, focus, error, long-content, and narrow states.",
+        "Core rule: A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks.",
+        "Observable result: The result follows because A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance.",
+        "Boundary check: A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "A CSS project system combines documented tokens, layers, primitives, components, responsive rules, states, and visual regression or manual checks.",
+        "A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Responsive site design system and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Deliver and explain a responsive, accessible and maintainable CSS system with documented compatibility targets.",
+        "A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "css.project.system.misconception",
+      "explanation": "A CSS system also needs ownership, component contracts, state coverage, responsive behavior, accessibility checks, and change governance.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'component contracts' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to deliver and explain a responsive, accessible and maintainable CSS system with documented compatibility targets. Keep this boundary in view: A token catalog can still be inconsistent, component variants can explode, and global rules can leak across independently authored pages.",
+    "retrievalPrompts": [
+      "Explain Responsive site design system using exact CSS: Responsive and Accessible Styling terms.",
+      "Why is this claim incorrect: A design system is complete once colors and spacing variables are defined.",
+      "Apply checkpoint 'component contracts' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

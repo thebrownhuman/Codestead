@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.quality.typing.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.quality",
+  "skillId": "python.quality.typing",
+  "title": "Type hints and static checking concepts",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Type hints and static checking concepts; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Type annotation grammar and runtime annotation behavior; atomic topic: Type hints and static checking concepts",
+      "claim": "Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime."
+    },
+    {
+      "sourceRef": "py-stdlib",
+      "locator": "The Python Standard Library; Python 3.14; typing, unittest, logging, pdb, and development-tools documentation; atomic topic: Type hints and static checking concepts",
+      "claim": "Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide. Your goal is to annotate and review a module API and explain what remains a runtime responsibility. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Project metadata and command entry; Exceptions, files and resources; Classes and object protocols; Parameter kinds and argument binding; Representation, equality and container protocols. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "Any disables checking, variance affects generic compatibility, forward references and runtime introspection differ, casts make assertions without conversion, and external data still needs validation. The learner must reject this documented misconception: Annotations reject wrong values automatically at runtime and typing.cast converts an object into the requested type."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Annotate public interfaces using unions, collections, protocols and generics without treating hints as runtime enforcement.",
+      "Annotate and review a module API and explain what remains a runtime responsibility."
+    ],
+    "excludes": [
+      "Any disables checking, variance affects generic compatibility, forward references and runtime introspection differ, casts make assertions without conversion, and external data still needs validation."
+    ]
+  },
+  "outcomes": [
+    "Annotate and review a module API and explain what remains a runtime responsibility."
+  ],
+  "examples": [
+    {
+      "id": "python.quality.typing.example.direct",
+      "title": "Type hints and static checking concepts: direct language case",
+      "situation": "A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker."
+      ],
+      "result": "The example meets the atomic outcome because Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker."
+    },
+    {
+      "id": "python.quality.typing.example.boundary",
+      "title": "Type hints and static checking concepts: boundary and transfer case",
+      "situation": "JSON data is validated at runtime before being treated as a typed domain object; adding a cast alone does not change or check it.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: JSON data is validated at runtime before being treated as a typed domain object; adding a cast alone does not change or check it.",
+        "Step 2 — Keep the language boundary explicit: Any disables checking, variance affects generic compatibility, forward references and runtime introspection differ, casts make assertions without conversion, and external data still needs validation.",
+        "Step 3 — Reject the tempting but incorrect rule: Annotations reject wrong values automatically at runtime and typing.cast converts an object into the requested type."
+      ],
+      "result": "This case demonstrates the declared outcome: Annotate and review a module API and explain what remains a runtime responsibility."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.quality.typing.misconception",
+      "mistakenBelief": "Annotations reject wrong values automatically at runtime and typing.cast converts an object into the requested type.",
+      "correction": "Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Annotations reject wrong values automatically at runtime and typing.cast converts an object into the requested type."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an inspected delivery package whose interface notes, repeatable checks, safe incident log, and clean installation prove bounded quality claims can introduce Type hints and static checking concepts, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "typing, tests, logging, debugging, and project completion"
+    ],
+    "limitations": [
+      "annotations do not enforce runtime types, mocks can mislead, logs can leak, and local editable installs can hide packaging defects",
+      "Any disables checking, variance affects generic compatibility, forward references and runtime introspection differ, casts make assertions without conversion, and external data still needs validation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide.",
+      "Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime.",
+      "Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Annotations reject wrong values automatically at runtime and typing.cast converts an object into the requested type."
+      }
+    ],
+    "textAlternative": "Starting artifact: A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide. Step 1, Observe. State: evidence: A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker.. Compare the observation with the correction and explain why the misconception fails: Annotations reject wrong values automatically at runtime and typing.cast converts an object into the requested type."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Type hints and static checking concepts: direct language case”: state its starting evidence, apply the Type hints and static checking concepts rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Type hints and static checking concepts: direct language case.",
+        "Starting evidence: A function accepts Iterable[str] and returns dict[str, int], while a Protocol describes the one write method a collaborator must provide.",
+        "Core rule: Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime.",
+        "Observable result: The example meets the atomic outcome because Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker.",
+        "Boundary check: Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: JSON data is validated at runtime before being treated as a typed domain object; adding a cast alone does not change or check it.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python type hints describe interfaces for static tools and readers using unions, parameterized collections, protocols, and type variables, but do not generally enforce values at runtime.",
+        "Any disables checking, variance affects generic compatibility, forward references and runtime introspection differ, casts make assertions without conversion, and external data still needs validation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Type hints and static checking concepts, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Annotate and review a module API and explain what remains a runtime responsibility.",
+        "Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.quality.typing.misconception",
+      "explanation": "Type hints guide static analysis but are not runtime enforcement; validate untrusted values explicitly and use cast only to inform the checker.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: JSON data is validated at runtime before being treated as a typed domain object; adding a cast alone does not change or check it."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to annotate and review a module API and explain what remains a runtime responsibility. Keep this boundary in view: Any disables checking, variance affects generic compatibility, forward references and runtime introspection differ, casts make assertions without conversion, and external data still needs validation.",
+    "retrievalPrompts": [
+      "Explain Type hints and static checking concepts using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Annotations reject wrong values automatically at runtime and typing.cast converts an object into the requested type.",
+      "Predict this case from memory: JSON data is validated at runtime before being treated as a typed domain object; adding a cast alone does not change or check it."
+    ],
+    "nextReviewPrompt": "Next: continue to “Automated tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

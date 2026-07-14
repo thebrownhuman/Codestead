@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.practice.assistance.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.learning-practice",
+  "skillId": "pf.practice.assistance",
+  "title": "Documentation and AI assistance",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Documentation and AI assistance; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "acm-ethics",
+      "locator": "ACM Code of Ethics and Professional Conduct; 2018; section applicable to Documentation and AI assistance",
+      "claim": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Documentation and AI assistance",
+      "claim": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion. Your goal is to evaluate an assisted answer against a source, tests and the stated problem. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Debugging and testing loop; Using feedback. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Ask bounded questions, verify claims and retain ownership of reasoning and submitted work.",
+      "Evaluate an assisted answer against a source, tests and the stated problem."
+    ],
+    "excludes": [
+      "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another."
+    ]
+  },
+  "outcomes": [
+    "Evaluate an assisted answer against a source, tests and the stated problem."
+  ],
+  "examples": [
+    {
+      "id": "pf.practice.assistance.example-a",
+      "title": "Documentation and AI assistance: direct case",
+      "situation": "A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+      ],
+      "result": "The case supports the declared outcome because Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+    },
+    {
+      "id": "pf.practice.assistance.example-b",
+      "title": "Documentation and AI assistance: boundary case",
+      "situation": "An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example.",
+        "Step 2 — Keep this boundary explicit: Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another.",
+        "Step 3 — Reject the documented misconception: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+      ],
+      "result": "This case demonstrates the declared outcome: Evaluate an assisted answer against a source, tests and the stated problem."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.practice.assistance.misconception",
+      "mistakenBelief": "A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional.",
+      "correction": "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "Sports coaching can model Documentation and AI assistance: study a play, attempt it, use specific feedback, retry independently, and credit the people or material that helped.",
+    "usefulFor": [
+      "Connecting explanation, feedback, independent transfer, assistance, and integrity"
+    ],
+    "limitations": [
+      "Learning evidence and reuse permissions are governed by explicit course and software rules, not only informal coaching norms.",
+      "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
+      "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
+      "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests."
+        },
+        "explanation": "Apply the declared Documentation and AI assistance model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+      }
+    ],
+    "textAlternative": "Starting artifact: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion. Step 1, Observe. State: evidence: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.. Apply the declared Documentation and AI assistance model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.. Compare the observation with the correction and reject the misconception: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Documentation and AI assistance: direct case”: state its starting evidence, apply the Documentation and AI assistance rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Documentation and AI assistance: direct case.",
+        "Starting evidence: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
+        "Core rule: Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
+        "Observable result: The case supports the declared outcome because Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.",
+        "Boundary check: Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
+        "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Documentation and AI assistance, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Evaluate an assisted answer against a source, tests and the stated problem.",
+        "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.practice.assistance.misconception",
+      "explanation": "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to evaluate an assisted answer against a source, tests and the stated problem. Keep this boundary in view: Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another.",
+    "retrievalPrompts": [
+      "Explain Documentation and AI assistance without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional.",
+      "Apply the model to this case from memory: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example."
+    ],
+    "nextReviewPrompt": "Next: continue to “Integrity and attribution”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

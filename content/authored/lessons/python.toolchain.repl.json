@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.toolchain.repl.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.toolchain",
+  "skillId": "python.toolchain.repl",
+  "title": "Interactive interpreter",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Interactive interpreter; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 2-4 and 8: interpreter, first steps, control flow, and errors; atomic topic: Interactive interpreter",
+      "claim": "The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test. Your goal is to test an expression in the REPL and transfer the verified behavior into a script. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "The display hook shows expression representations differently from print, prior imports and bindings persist, multiline input follows interactive rules, and a successful scratch session is not a reproducible program. The learner must reject this documented misconception: REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use the REPL for bounded exploration and distinguish expression results from printed output.",
+      "Test an expression in the REPL and transfer the verified behavior into a script."
+    ],
+    "excludes": [
+      "The display hook shows expression representations differently from print, prior imports and bindings persist, multiline input follows interactive rules, and a successful scratch session is not a reproducible program."
+    ]
+  },
+  "outcomes": [
+    "Test an expression in the REPL and transfer the verified behavior into a script."
+  ],
+  "examples": [
+    {
+      "id": "python.toolchain.repl.example.direct",
+      "title": "Interactive interpreter: direct language case",
+      "situation": "The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+      ],
+      "result": "The example meets the atomic outcome because Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+    },
+    {
+      "id": "python.toolchain.repl.example.boundary",
+      "title": "Interactive interpreter: boundary and transfer case",
+      "situation": "A snippet fails after restarting because it depended on an earlier import, revealing the missing dependency before the idea enters saved source.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A snippet fails after restarting because it depended on an earlier import, revealing the missing dependency before the idea enters saved source.",
+        "Step 2 — Keep the language boundary explicit: The display hook shows expression representations differently from print, prior imports and bindings persist, multiline input follows interactive rules, and a successful scratch session is not a reproducible program.",
+        "Step 3 — Reject the tempting but incorrect rule: REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged."
+      ],
+      "result": "This case demonstrates the declared outcome: Test an expression in the REPL and transfer the verified behavior into a script."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.toolchain.repl.misconception",
+      "mistakenBelief": "REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged.",
+      "correction": "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "an experiment notebook that becomes a saved procedure executed by one identified interpreter in a known workspace can introduce Interactive interpreter, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "REPL experiments, scripts, environments, and tracebacks"
+    ],
+    "limitations": [
+      "import caching, module paths, display hooks, indentation grammar, and traceback chaining are Python-specific",
+      "The display hook shows expression representations differently from print, prior imports and bindings persist, multiline input follows interactive rules, and a successful scratch session is not a reproducible program."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test.",
+      "The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test.",
+      "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged."
+      }
+    ],
+    "textAlternative": "Starting artifact: The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test. Step 1, Observe. State: evidence: The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code.. Compare the observation with the correction and explain why the misconception fails: REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Interactive interpreter: direct language case”: state its starting evidence, apply the Interactive interpreter rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Interactive interpreter: direct language case.",
+        "Starting evidence: The learner evaluates 7 // 3 and repr of a Unicode string, records the observed values, then moves the verified behavior into a named function and test.",
+        "Core rule: The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test.",
+        "Observable result: The example meets the atomic outcome because Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code.",
+        "Boundary check: Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A snippet fails after restarting because it depended on an earlier import, revealing the missing dependency before the idea enters saved source.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "The Python REPL evaluates one interactive statement or expression at a time in persistent session state, making it useful for bounded observation before behavior is preserved in a script and test.",
+        "The display hook shows expression representations differently from print, prior imports and bindings persist, multiline input follows interactive rules, and a successful scratch session is not a reproducible program."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Interactive interpreter, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Test an expression in the REPL and transfer the verified behavior into a script.",
+        "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.toolchain.repl.misconception",
+      "explanation": "Use the REPL for a bounded observation, distinguish display-hook output from print, then preserve explicit imports, state, inputs, and assertions in saved code.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A snippet fails after restarting because it depended on an earlier import, revealing the missing dependency before the idea enters saved source."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to test an expression in the REPL and transfer the verified behavior into a script. Keep this boundary in view: The display hook shows expression representations differently from print, prior imports and bindings persist, multiline input follows interactive rules, and a successful scratch session is not a reproducible program.",
+    "retrievalPrompts": [
+      "Explain Interactive interpreter using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: REPL expression output is produced by print and any successful interactive sequence can be rerun as a complete script unchanged.",
+      "Predict this case from memory: A snippet fails after restarting because it depended on an earlier import, revealing the missing dependency before the idea enters saved source."
+    ],
+    "nextReviewPrompt": "Next: continue to “Scripts, indentation and main guard”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.project.design.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.project",
+  "skillId": "ai.project.design",
+  "title": "Project card and experiment plan",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Project card and experiment plan; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF lifecycle profiles, documentation, accountability, monitoring, residual risk, and management outcomes; atomic topic: Project card and experiment plan",
+      "claim": "An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting."
+    },
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Integrated AI project, evaluation, and professional-practice outcomes; atomic topic: Project card and experiment plan",
+      "claim": "An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm. Your goal is to produce an admin-reviewable project and experiment plan before model fitting. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Evaluation and responsible AI; Language, perception and embodied applications; Problem, target and success measure; Govern, map, measure and manage. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "A technical prototype may not improve the decision, available data may be unauthorized or unrepresentative, acceptance metrics can conflict, scope can expand silently, and project cancellation is a valid outcome. The learner must reject this overclaim: A project plan should start with the most promising model and add users, metrics, and risks after a prototype demonstrates accuracy."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Document users, decision context, data, baseline, metrics, risks, non-goals and acceptance or stop criteria.",
+      "Produce an admin-reviewable project and experiment plan before model fitting."
+    ],
+    "excludes": [
+      "A technical prototype may not improve the decision, available data may be unauthorized or unrepresentative, acceptance metrics can conflict, scope can expand silently, and project cancellation is a valid outcome."
+    ]
+  },
+  "outcomes": [
+    "Produce an admin-reviewable project and experiment plan before model fitting."
+  ],
+  "examples": [
+    {
+      "id": "ai.project.design.example.direct",
+      "title": "Project card and experiment plan: bounded direct case",
+      "situation": "A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting."
+      ],
+      "result": "This example supports only the atomic outcome because Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting."
+    },
+    {
+      "id": "ai.project.design.example.stress",
+      "title": "Project card and experiment plan: stress and transfer case",
+      "situation": "The team declines a model when a deterministic queue rule meets the outcome with lower privacy and operational risk.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: The team declines a model when a deterministic queue rule meets the outcome with lower privacy and operational risk.",
+        "Step 2 — Keep the non-claim visible: A technical prototype may not improve the decision, available data may be unauthorized or unrepresentative, acceptance metrics can conflict, scope can expand silently, and project cancellation is a valid outcome.",
+        "Step 3 — Reject the tempting overclaim: A project plan should start with the most promising model and add users, metrics, and risks after a prototype demonstrates accuracy."
+      ],
+      "result": "This case demonstrates the declared outcome: Produce an admin-reviewable project and experiment plan before model fitting."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.project.design.misconception",
+      "mistakenBelief": "A project plan should start with the most promising model and add users, metrics, and risks after a prototype demonstrates accuracy.",
+      "correction": "Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A project plan should start with the most promising model and add users, metrics, and risks after a prototype demonstrates accuracy."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a reviewable experiment package containing scope, baseline, data/version manifests, evaluation, model card, risk register, and reproduction commands can introduce Project card and experiment plan only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "project design, reproducibility, oversight documentation, and capstone defense"
+    ],
+    "limitations": [
+      "documentation and a polished demo are bounded evidence, not production authorization or proof of safe capability",
+      "A technical prototype may not improve the decision, available data may be unauthorized or unrepresentative, acceptance metrics can conflict, scope can expand silently, and project cancellation is a valid outcome."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm.",
+      "An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting.",
+      "Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A project plan should start with the most promising model and add users, metrics, and risks after a prototype demonstrates accuracy."
+      }
+    ],
+    "textAlternative": "Starting artifact: A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm. Step 1, Observe. State: boundedEvidence: A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting.. State what the evidence does not establish and reject the misconception: A project plan should start with the most promising model and add users, metrics, and risks after a prototype demonstrates accuracy."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Project card and experiment plan: bounded direct case”: state its starting evidence, apply the Project card and experiment plan rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Project card and experiment plan: bounded direct case.",
+        "Starting evidence: A ticket-routing card names intake-time prediction, reviewer workload baseline, urgent-miss tolerance, excluded decisions, data retention, appeal, and a stop rule for subgroup harm.",
+        "Core rule: An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting.",
+        "Observable result: This example supports only the atomic outcome because Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting.",
+        "Boundary check: Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: The team declines a model when a deterministic queue rule meets the outcome with lower privacy and operational risk.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "An AI project card defines users and affected non-users, decision context, target or task, data authority, baseline, metrics, slices, risks, non-goals, oversight, acceptance thresholds, and stop criteria before fitting.",
+        "A technical prototype may not improve the decision, available data may be unauthorized or unrepresentative, acceptance metrics can conflict, scope can expand silently, and project cancellation is a valid outcome."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Project card and experiment plan and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Produce an admin-reviewable project and experiment plan before model fitting.",
+        "Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.project.design.misconception",
+      "explanation": "Define the decision, stakeholders, data authority, baseline, evidence plan, non-goals, risks, acceptance, and stop criteria before model fitting.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: The team declines a model when a deterministic queue rule meets the outcome with lower privacy and operational risk."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to produce an admin-reviewable project and experiment plan before model fitting. Keep this boundary in view: A technical prototype may not improve the decision, available data may be unauthorized or unrepresentative, acceptance metrics can conflict, scope can expand silently, and project cancellation is a valid outcome.",
+    "retrievalPrompts": [
+      "Explain Project card and experiment plan with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A project plan should start with the most promising model and add users, metrics, and risks after a prototype demonstrates accuracy.",
+      "Apply the boundary to: The team declines a model when a deterministic queue rule meets the outcome with lower privacy and operational risk."
+    ],
+    "nextReviewPrompt": "Next: continue to “Reproducible pipeline”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

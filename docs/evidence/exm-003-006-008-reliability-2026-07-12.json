@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-13T00:45:40+05:30",
+  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "scope": [
+    "EXM-003",
+    "EXM-006",
+    "EXM-008",
+    "NFR-REL-001"
+  ],
+  "implementation": {
+    "migration": "drizzle/0029_slow_bulldozer.sql",
+    "migrationSha256": "48a771007e079397b253fa9b5586828f98cdeeea2f8ce02d0c9ea9d0faeff024",
+    "runnerGenerationMigration": "drizzle/0036_late_tony_stark.sql",
+    "runnerGenerationMigrationSha256": "7dcb3eb39070f03ab03a082d6f26ce3acb70a39bf07dad729d48b25c1a205c09",
+    "worker": "src/app/api/exams/_lib/finalization-worker.ts",
+    "workerSha256": "5a56bce1b838855df3fd489e98de213bd5fa84eeae9b5736fa1a594d712c5c5a",
+    "workerPolicy": "src/app/api/exams/_lib/finalization-worker-policy.ts",
+    "workerPolicySha256": "59e8071ce14a5f0bf9a045c64e2ddc4c1ccf6ed08cb85ec1376f412b46bc1df4",
+    "runnerReplayPolicy": "src/app/api/exams/_lib/runner-replay-policy.ts",
+    "runnerReplayPolicySha256": "4b48f4df04e5e68361c861c9e411a454f517292f10570d06dc1af45dcd897184",
+    "blueprint": "src/app/api/exams/_lib/blueprint.ts",
+    "blueprintSha256": "35a6a07deec76955b8eaf0ff308e95b1fbf05408912527e112ce1f64477c9e07",
+    "contracts": "src/app/api/exams/_lib/contracts.ts",
+    "contractsSha256": "262dde867189e1c990dd48a983db7fe46a7c749dee2eec615509e56c0297b589",
+    "examService": "src/app/api/exams/_lib/service.ts",
+    "examServiceSha256": "48949237a92277536e61488dc6bca1bede40c6214bebd45169433cd6f3c7cd62",
+    "runnerAdmission": "src/lib/runner/admission.ts",
+    "runnerAdmissionSha256": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
+    "runnerClient": "src/lib/runner/client.ts",
+    "runnerClientSha256": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
+    "postgresErrorClassifier": "src/lib/db/postgres-errors.ts",
+    "postgresErrorClassifierSha256": "178a1f4c1b2298994f8a44f3ee5dcedd453ba2bcba419b5f81b445beaeb69891",
+    "reexamGrantService": "src/lib/exams/reexam-grant.ts",
+    "reexamGrantServiceSha256": "5c8f016e799abded4f8e8d33a5b8cda5e13e00481b19caaf0864156a403a09c9",
+    "postgresJourney": "integration/exam-reliability.integration.test.ts",
+    "postgresJourneySha256": "7e47064d52944651acf0920df558fc29aa9fb89eab3479e0e60456bc41cd64e4",
+    "releaseAudit": "docs/release-audit.md",
+    "releaseAuditSha256": "3ebae1e679f91b01de22d3a99577c8da6448d36f6d01bbf21f5b5d2f535ea385",
+    "runtimeCommand": "npm run worker:exam-finalization",
+    "composeService": "exam-finalization-worker",
+    "artifactSha256": {
+      "drizzle/0029_slow_bulldozer.sql": "48a771007e079397b253fa9b5586828f98cdeeea2f8ce02d0c9ea9d0faeff024",
+      "drizzle/0036_late_tony_stark.sql": "7dcb3eb39070f03ab03a082d6f26ce3acb70a39bf07dad729d48b25c1a205c09",
+      "src/app/api/exams/_lib/finalization-worker.ts": "5a56bce1b838855df3fd489e98de213bd5fa84eeae9b5736fa1a594d712c5c5a",
+      "src/app/api/exams/_lib/finalization-worker-policy.ts": "59e8071ce14a5f0bf9a045c64e2ddc4c1ccf6ed08cb85ec1376f412b46bc1df4",
+      "src/app/api/exams/_lib/runner-replay-policy.ts": "4b48f4df04e5e68361c861c9e411a454f517292f10570d06dc1af45dcd897184",
+      "src/app/api/exams/_lib/blueprint.ts": "35a6a07deec76955b8eaf0ff308e95b1fbf05408912527e112ce1f64477c9e07",
+      "src/app/api/exams/_lib/contracts.ts": "262dde867189e1c990dd48a983db7fe46a7c749dee2eec615509e56c0297b589",
+      "src/app/api/exams/_lib/service.ts": "48949237a92277536e61488dc6bca1bede40c6214bebd45169433cd6f3c7cd62",
+      "src/lib/runner/admission.ts": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
+      "src/lib/runner/client.ts": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
+      "src/lib/db/postgres-errors.ts": "178a1f4c1b2298994f8a44f3ee5dcedd453ba2bcba419b5f81b445beaeb69891",
+      "src/lib/exams/reexam-grant.ts": "5c8f016e799abded4f8e8d33a5b8cda5e13e00481b19caaf0864156a403a09c9",
+      "integration/exam-reliability.integration.test.ts": "7e47064d52944651acf0920df558fc29aa9fb89eab3479e0e60456bc41cd64e4",
+      "docs/release-audit.md": "3ebae1e679f91b01de22d3a99577c8da6448d36f6d01bbf21f5b5d2f535ea385"
+    }
+  },
+  "supersededDigests": [
+    {
+      "artifact": "src/app/api/exams/_lib/runner-replay-policy.ts",
+      "priorDigest": "534fd7dfbe9a5ebeecb7174e6d5bf662609583b1225b569af50dacc7ae7a2d52",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/app/api/exams/_lib/contracts.ts",
+      "priorDigest": "ff067e6560e1b1c6f58031aa213dd2bccfd2f36b7411c996395e03544859a918",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/app/api/exams/_lib/service.ts",
+      "priorDigest": "feab3e6187920b3c345ccc732674c5c16dad4800e9c9f6cef08e6597cc0993f9",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/runner/admission.ts",
+      "priorDigest": "1d9cb8a6a90c45a06c8011947c8378d5bef67803dcf2959c531da7415fec23e1",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/runner/client.ts",
+      "priorDigest": "fe5a1444b329a02b8cf68b0283b6a9c2d4207d6db65c558328f95753ccb8de11",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/runner/client.ts",
+      "priorDigest": "ab1fb85f16a1848c6edd61e0bbcb326ae8defb0cd08ae45cd91b001726de851a",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "integration/exam-reliability.integration.test.ts",
+      "priorDigest": "d089beaf99df4b280fd86ce5e961fa5be51958a02d83ff5eae207181b73b9755",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "1aab12b8f54b4a39edafb40a5b43355b1c9ca2fe164aaa22f3138b395fa3bb3b",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "5ea7124e20911615a1f4575a9cd82e8419d4c4336c063a278ed5f36c30a491cc",
+      "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "63b387e65756dde78b5570e3cfde2545da1a71fcb87556503aaadc92132d1042",
+      "replacedAt": "2026-07-14T13:34:00+05:30"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "0a08131bbb3f519f73f814a90298c4a807cdf2f8ae038a1a80baf20640e7d1df",
+      "replacedAt": "2026-07-14T13:38:00+05:30"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "1dbe9dd612cc183a6b91684c1c9f6b3e43b4b4b207f12b412c2792b917dcb10c",
+      "replacedAt": "2026-07-14T13:42:57+05:30"
+    }
+  ],
+  "verification": {
+    "typecheck": {
+      "command": "npm.cmd run typecheck",
+      "passed": true
+    },
+    "focusedExamRunnerReliability": {
+      "command": "npm.cmd exec vitest -- run src/app/api/exams/_lib/authored-blueprint.test.ts src/app/api/exams/_lib/policy.test.ts src/app/api/exams/_lib/reliability-boundaries.test.ts src/app/api/exams/_lib/finalization-worker.test.ts src/app/api/exams/_lib/finalization-worker-concurrency.test.ts src/app/api/exams/_lib/runner-replay-policy.test.ts src/lib/runner/__tests__/client.test.ts src/lib/runner/__tests__/admission.test.ts",
+      "files": 8,
+      "tests": 79,
+      "passed": 79,
+      "failed": 0
+    },
+    "coverageIsolation": {
+      "command": "npm.cmd exec vitest -- run src/app/api/exams/_lib/finalization-worker.test.ts src/app/api/exams/_lib/finalization-worker-concurrency.test.ts src/app/api/exams/_lib/runner-replay-policy.test.ts --coverage --coverage.reporter=text",
+      "files": 3,
+      "tests": 18,
+      "passed": 18,
+      "failed": 0,
+      "serviceImported": false,
+      "thresholdsChanged": false,
+      "coveragePercent": {
+        "statements": 89.65,
+        "branches": 79.41,
+        "functions": 92.85,
+        "lines": 97.29
+      }
+    },
+    "postgres": {
+      "files": 1,
+      "tests": 5,
+      "passed": 5,
+      "failed": 0,
+      "migrationsAppliedTwice": true,
+      "independentlyReproducedByRoot": true
+    }
+  },
+  "proven": [
+    "A leased independent worker finalizes an expired active session without a browser request.",
+    "The official result row is unique and a second worker run performs no duplicate decision.",
+    "Worker completion and retry writes require leased status, exact owner, monotonic lease generation and an unexpired fresh clock; result-bearing jobs alone reconcile owner-independently because their official truth is already terminal.",
+    "A real PostgreSQL race pauses one worker immediately before official persistence, reclaims its expired lease, persists a winner, and proves the stale worker cannot change the winning result or any later attempt, session or job projection.",
+    "A separate durable runner-request generation remains stable across indeterminate dispatch and lease expiry but advances after determinate failure, without ever reusing the monotonic lease fence generation.",
+    "Official runner dispatch persists its local boundary before HTTP; a known immutable remote job resumes only through signed GET polling, a new job is posted once, and terminal CAS replay refreshes and returns the persisted winner.",
+    "Signed runner evidence must match the immutable submission/correlation/request binding, authored runtime version and image digest, and the exact visible/hidden test id, visibility, category, count and totals manifest before it can affect grading.",
+    "Learner deletion winning either runner-admission boundary maps to non-retryable LEARNER_NOT_ACTIVE and cannot create official exam evidence.",
+    "The worker policy and replay classifiers are unit-isolated: focused coverage passes unchanged global thresholds without importing the full exam service.",
+    "The highest autosave revision before the server deadline is graded.",
+    "A 105-second server-observed disconnect is persisted with bounded material-outage evidence.",
+    "Administrator re-exam grants are one-use, concurrent-request-idempotent, reasoned, fresh-MFA gated at the route, require durable material evidence, and bind to the current authoritative failed session.",
+    "Grant issuance and exam admission acquire the module advisory lock before the source attempt; a staged PostgreSQL waiter regression completes without a deadlock.",
+    "Serializable exam admission retries nested SQLSTATE 40001 failures boundedly, re-evaluates authoritative state, and returns the existing active-session domain conflict to the concurrent loser.",
+    "Pending-review, passed, mastered, infrastructure-failure and superseded source sessions cannot use the administrator grant override.",
+    "Database checks enforce grant/recheck state shape, and triggers reject mutation of grant/recheck source evidence, attempt binding, and terminal state.",
+    "Retake admission fails closed unless content version, policy version, duration, structural blueprint and pinned runtime identity parity match and seed/form identifiers are fresh.",
+    "A passing 80-percent result schedules a shorter target-only recheck; a failed recheck completes without changing the source attempt's passing status, and finalization replay cannot rewrite its terminal outcome or timestamps.",
+    "Recheck admission locks and revalidates the source attempt, blueprint, effective result, versions and target sets inside its serializable transaction.",
+    "Learner lifecycle export includes bounded exam finalization, re-exam grant and mastery-recheck records without worker or administrator identities.",
+    "Public forms and grant reports expose neither answer oracles nor hidden tests."
+  ],
+  "remaining": [
+    "No deployed physical-browser offline/reconnect or clock-tamper run was performed.",
+    "The committed assessment corpus remains unreviewed and therefore cannot supply a production calibrated equivalent-form bank.",
+    "The full failed-exam remediation-to-cooldown-to-retake browser journey remains open.",
+    "No deployed crash-loss report proves durability of the isolated runner service's remote queue/idempotency state; known remote identities are therefore reconciled without automatic reposting.",
+    "No deployed multi-worker crash/lease-expiry chaos report or operator dead-letter UI was produced."
+  ]
+}

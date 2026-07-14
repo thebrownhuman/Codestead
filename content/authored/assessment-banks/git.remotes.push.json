@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.remotes.push.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.remotes",
+  "skillId": "git.remotes.push",
+  "title": "Push and non-fast-forward rejection deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Push and non-fast-forward rejection; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.remotes.push.mcq.misconception",
+      "skillId": "git.remotes.push",
+      "title": "Push and non-fast-forward rejection: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy.",
+        "incorrect": "The selected statement preserves the documented misconception. Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Push and non-fast-forward rejection instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+      }
+    }
+  ]
+}

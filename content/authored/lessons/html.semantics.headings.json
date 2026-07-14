@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.semantics.headings.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.semantics",
+  "skillId": "html.semantics.headings",
+  "title": "Heading hierarchy",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Heading hierarchy; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Heading hierarchy",
+      "claim": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation."
+    },
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Heading hierarchy",
+      "claim": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule. Your goal is to create and review a logical heading hierarchy for a multi-section page. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Standards-mode document skeleton. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them. This draft therefore rejects: Heading elements should be chosen by the font size the design needs."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use descriptive headings to communicate document outline rather than visual size.",
+      "Create and review a logical heading hierarchy for a multi-section page."
+    ],
+    "excludes": [
+      "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them."
+    ]
+  },
+  "outcomes": [
+    "Create and review a logical heading hierarchy for a multi-section page."
+  ],
+  "examples": [
+    {
+      "id": "html.semantics.headings.example-a",
+      "title": "Heading hierarchy: concrete case",
+      "situation": "A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+      ],
+      "result": "The result follows because Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+    },
+    {
+      "id": "html.semantics.headings.example-b",
+      "title": "Heading hierarchy: boundary case",
+      "situation": "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Heading elements should be chosen by the font size the design needs."
+      ],
+      "result": "The boundary requires this correction: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.semantics.headings.misconception",
+      "mistakenBelief": "Heading elements should be chosen by the font size the design needs.",
+      "correction": "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Heading elements should be chosen by the font size the design needs."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Heading hierarchy, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Heading hierarchy before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
+      "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
+      "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Heading elements should be chosen by the font size the design needs."
+      }
+    ],
+    "textAlternative": "Starting artifact: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule. Step 1, Artifact. State: evidence: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.. Check the result against the boundary and reject this misconception: Heading elements should be chosen by the font size the design needs."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Heading hierarchy: concrete case”: state its starting evidence, apply the Heading hierarchy rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Heading hierarchy: concrete case.",
+        "Starting evidence: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
+        "Core rule: Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
+        "Observable result: The result follows because Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.",
+        "Boundary check: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
+        "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Heading hierarchy and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Create and review a logical heading hierarchy for a multi-section page.",
+        "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.semantics.headings.misconception",
+      "explanation": "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'section hierarchy' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and review a logical heading hierarchy for a multi-section page. Keep this boundary in view: Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
+    "retrievalPrompts": [
+      "Explain Heading hierarchy using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Heading elements should be chosen by the font size the design needs.",
+      "Apply checkpoint 'section hierarchy' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Paragraph and inline meaning”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

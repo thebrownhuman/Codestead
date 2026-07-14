@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.problem.pseudocode.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.problem-solving",
+  "skillId": "pf.problem.pseudocode",
+  "title": "Pseudocode deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Pseudocode; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.problem.pseudocode.mcq.misconception",
+      "skillId": "pf.problem.pseudocode",
+      "title": "Pseudocode: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Any informal paragraph counts as pseudocode even when two readers could execute different steps from it.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions.",
+        "incorrect": "The selected statement preserves the documented misconception. Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Pseudocode instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Any informal paragraph counts as pseudocode even when two readers could execute different steps from it."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+      }
+    }
+  ]
+}

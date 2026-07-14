@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.history.tags.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.history",
+  "skillId": "git.history.tags",
+  "title": "Tags and release points deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Tags and release points; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "git-docs",
+    "pro-git"
+  ],
+  "items": [
+    {
+      "id": "git.history.tags.mcq.misconception",
+      "skillId": "git.history.tags",
+      "title": "Tags and release points: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? A tag is a read-only branch that automatically follows new commits and appears on every remote.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy.",
+        "incorrect": "The selected statement preserves the documented misconception. Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Tags and release points instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "A tag is a read-only branch that automatically follows new commits and appears on every remote."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Treat a tag as a named pointer to one chosen object, verify its target, and publish or protect it according to project policy."
+      }
+    }
+  ]
+}

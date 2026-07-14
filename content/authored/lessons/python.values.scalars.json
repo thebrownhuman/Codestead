@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.python.values.scalars.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.values-control",
+  "skillId": "python.values.scalars",
+  "title": "Numbers, booleans, None and text",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Numbers, booleans, None and text; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "py-tutorial",
+      "locator": "The Python Tutorial; Python 3.14; Tutorial chapters 3-5: values, control flow, and data structures; atomic topic: Numbers, booleans, None and text",
+      "claim": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules."
+    },
+    {
+      "sourceRef": "py-reference",
+      "locator": "The Python Language Reference; Python 3.14; Language Reference chapters 6 and 8: expressions and compound statements including match; atomic topic: Numbers, booleans, None and text",
+      "claim": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width. Your goal is to choose and operate on suitable scalar values while explaining precision and absence semantics. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Scripts, indentation and main guard; pf state expressions. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity. The learner must reject this documented misconception: Python floats store decimal values exactly and any falsey value is equivalent to None."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use core immutable scalar values and distinguish type, value and truthiness.",
+      "Choose and operate on suitable scalar values while explaining precision and absence semantics."
+    ],
+    "excludes": [
+      "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity."
+    ]
+  },
+  "outcomes": [
+    "Choose and operate on suitable scalar values while explaining precision and absence semantics."
+  ],
+  "examples": [
+    {
+      "id": "python.values.scalars.example.direct",
+      "title": "Numbers, booleans, None and text: direct language case",
+      "situation": "A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      ],
+      "result": "The example meets the atomic outcome because Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+    },
+    {
+      "id": "python.values.scalars.example.boundary",
+      "title": "Numbers, booleans, None and text: boundary and transfer case",
+      "situation": "An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value.",
+        "Step 2 — Keep the language boundary explicit: bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity.",
+        "Step 3 — Reject the tempting but incorrect rule: Python floats store decimal values exactly and any falsey value is equivalent to None."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose and operate on suitable scalar values while explaining precision and absence semantics."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "python.values.scalars.misconception",
+      "mistakenBelief": "Python floats store decimal values exactly and any falsey value is equivalent to None.",
+      "correction": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Python floats store decimal values exactly and any falsey value is equivalent to None."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a labeled decision board whose current objects feed expressions, branches, patterns, and repeatable progress rules can introduce Numbers, booleans, None and text, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "scalar semantics, comparisons, selection, and iteration"
+    ],
+    "limitations": [
+      "identity, truthiness, protocol dispatch, chained comparisons, and iterator behavior do not follow ordinary board-game rules",
+      "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
+      "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
+      "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules."
+        },
+        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: Python floats store decimal values exactly and any falsey value is equivalent to None."
+      }
+    ],
+    "textAlternative": "Starting artifact: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width. Step 1, Observe. State: evidence: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.. Compare the observation with the correction and explain why the misconception fails: Python floats store decimal values exactly and any falsey value is equivalent to None."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Numbers, booleans, None and text: direct language case”: state its starting evidence, apply the Numbers, booleans, None and text rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Numbers, booleans, None and text: direct language case.",
+        "Starting evidence: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
+        "Core rule: Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
+        "Observable result: The example meets the atomic outcome because Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
+        "Boundary check: Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
+        "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Numbers, booleans, None and text, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Choose and operate on suitable scalar values while explaining precision and absence semantics.",
+        "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "python.values.scalars.misconception",
+      "explanation": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose and operate on suitable scalar values while explaining precision and absence semantics. Keep this boundary in view: bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity.",
+    "retrievalPrompts": [
+      "Explain Numbers, booleans, None and text using canonical Python: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: Python floats store decimal values exactly and any falsey value is equivalent to None.",
+      "Predict this case from memory: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value."
+    ],
+    "nextReviewPrompt": "Next: continue to “Operators and comparisons”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.c.aggregates.typedef.v1",
+  "courseId": "c",
+  "courseVersion": "0.1.0",
+  "moduleId": "c.aggregates",
+  "skillId": "c.aggregates.typedef",
+  "title": "Type aliases and API clarity",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C: Beginner to Intermediate draft for Type aliases and API clarity; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "gnu-c",
+      "locator": "GNU C Language Introduction and Reference Manual; accessed 2026-07; provisions applicable to Type aliases and API clarity",
+      "claim": "A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type. Your goal is to create readable public type names while preserving const and pointer meaning. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: One-dimensional arrays; Addresses and dereference; Structures; const-correct pointer interfaces. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Aliases can hide pointer constness or ownership expectations, names share ordinary identifier namespaces, and opaque interfaces require incomplete structure techniques beyond a simple alias. Therefore the draft explicitly rejects this beginner failure model: A typedef creates a new strongly distinct type that prevents accidental mixing with its underlying type."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use typedef to name existing types without confusing aliases with new runtime representations.",
+      "Create readable public type names while preserving const and pointer meaning."
+    ],
+    "excludes": [
+      "Aliases can hide pointer constness or ownership expectations, names share ordinary identifier namespaces, and opaque interfaces require incomplete structure techniques beyond a simple alias."
+    ]
+  },
+  "outcomes": [
+    "Create readable public type names while preserving const and pointer meaning."
+  ],
+  "examples": [
+    {
+      "id": "c.aggregates.typedef.example-a",
+      "title": "Type aliases and API clarity: defined case",
+      "situation": "typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone."
+      ],
+      "result": "The defined result follows because typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone."
+    },
+    {
+      "id": "c.aggregates.typedef.example-b",
+      "title": "Type aliases and API clarity: boundary case",
+      "situation": "typedef struct Node Node shortens self-referential declarations while the structure tag and typedef name occupy different namespaces.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: typedef struct Node Node shortens self-referential declarations while the structure tag and typedef name occupy different namespaces.",
+        "Step 2 — Keep this standard boundary visible: Aliases can hide pointer constness or ownership expectations, names share ordinary identifier namespaces, and opaque interfaces require incomplete structure techniques beyond a simple alias.",
+        "Step 3 — Reject the tempting rule: A typedef creates a new strongly distinct type that prevents accidental mixing with its underlying type."
+      ],
+      "result": "This case demonstrates the declared outcome: Create readable public type names while preserving const and pointer meaning."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "c.aggregates.typedef.misconception",
+      "mistakenBelief": "A typedef creates a new strongly distinct type that prevents accidental mixing with its underlying type.",
+      "correction": "typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone.",
+      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A typedef creates a new strongly distinct type that prevents accidental mixing with its underlying type."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A manually managed workshop can model Type aliases and API clarity: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "usefulFor": [
+      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+    ],
+    "limitations": [
+      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
+      "Aliases can hide pointer constness or ownership expectations, names share ordinary identifier namespaces, and opaque interfaces require incomplete structure techniques beyond a simple alias."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type.",
+      "A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility.",
+      "typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility."
+        },
+        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: A typedef creates a new strongly distinct type that prevents accidental mixing with its underlying type."
+      }
+    ],
+    "textAlternative": "Starting artifact: typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type. Step 1, Source and state. State: evidence: typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone.. Check the conclusion against the boundary and reject this misconception: A typedef creates a new strongly distinct type that prevents accidental mixing with its underlying type."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Type aliases and API clarity: defined case”: state its starting evidence, apply the Type aliases and API clarity rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Type aliases and API clarity: defined case.",
+        "Starting evidence: typedef unsigned long Counter creates the alias Counter, but Counter and unsigned long remain compatible names for the same type.",
+        "Core rule: A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility.",
+        "Observable result: The defined result follows because typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone.",
+        "Boundary check: typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same C rule to this related boundary case: typedef struct Node Node shortens self-referential declarations while the structure tag and typedef name occupy different namespaces.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "A typedef introduces an alias for an existing type, simplifying declarations without creating a distinct type or changing representation and compatibility.",
+        "Aliases can hide pointer constness or ownership expectations, names share ordinary identifier namespaces, and opaque interfaces require incomplete structure techniques beyond a simple alias."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new C example for Type aliases and API clarity, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Create readable public type names while preserving const and pointer meaning.",
+        "typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "c.aggregates.typedef.misconception",
+      "explanation": "typedef creates a type alias, not a new distinct type; enforce domain separation through APIs, structures, and validation rather than the alias alone.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'type alias' and state the decisive evidence: typedef struct Node Node shortens self-referential declarations while the structure tag and typedef name occupy different namespaces."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create readable public type names while preserving const and pointer meaning. Keep this boundary in view: Aliases can hide pointer constness or ownership expectations, names share ordinary identifier namespaces, and opaque interfaces require incomplete structure techniques beyond a simple alias.",
+    "retrievalPrompts": [
+      "Explain Type aliases and API clarity using a concrete C rule rather than the optional analogy.",
+      "Why is this claim incorrect: A typedef creates a new strongly distinct type that prevents accidental mixing with its underlying type.",
+      "Apply the checkpoint 'type alias' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: continue to “Object lifetime and ownership”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

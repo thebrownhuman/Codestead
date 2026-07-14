@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.java.io.files.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.errors-io",
+  "skillId": "java.io.files",
+  "title": "Paths, files and text I/O deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and no code task for Paths, files and text I/O; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "dev-java"
+  ],
+  "items": [
+    {
+      "id": "java.io.files.mcq.misconception",
+      "skillId": "java.io.files",
+      "title": "Paths, files and text I/O: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Java: Beginner to Intermediate and corrects this misconception? A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
+        "incorrect": "That choice preserves the misconception. Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+        },
+        {
+          "id": "misconception",
+          "text": "A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      }
+    },
+    {
+      "id": "java.io.files.fill.checkpoint",
+      "skillId": "java.io.files",
+      "title": "Paths, files and text I/O: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Java: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'explicit base'. Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
+        "incorrect": "The phrase must preserve the exact language rule. Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Resolve paths from an [[checkpoint]] and specify the charset and replacement/failure policy; do not infer location from the source tree.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "explicit base"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      }
+    }
+  ]
+}

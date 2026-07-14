@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.generative.embeddings-rag.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.generative",
+  "skillId": "ai.generative.embeddings-rag",
+  "title": "Embeddings and retrieval augmentation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Embeddings and retrieval augmentation; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "rag-paper",
+      "locator": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks; 2020; Lewis et al. (2020), abstract and method sections: parametric plus non-parametric memory, retrieval, generation, and provenance motivation; atomic topic: Embeddings and retrieval augmentation",
+      "claim": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages."
+    },
+    {
+      "sourceRef": "transformers",
+      "locator": "Transformers Documentation; 5.x target, accessed 2026-07; Transformers Tokenizers and Text Generation documentation: tokens, context inputs, decoding, and retrieval-related components; atomic topic: Embeddings and retrieval augmentation",
+      "claim": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages."
+    },
+    {
+      "sourceRef": "nist-genai",
+      "locator": "NIST AI 600-1 Generative AI Profile; July 2024; NIST AI 600-1 risk sections and suggested actions for confabulation, information integrity, security, privacy, and misuse; atomic topic: Embeddings and retrieval augmentation",
+      "claim": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages. Your goal is to build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Convolution, sequence and attention roles; Natural-language processing; Dimensionality reduction; Prompts and constrained outputs; dsa heaps priority queue. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence. The learner must reject this overclaim: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Retrieve relevant versioned passages, preserve provenance and distinguish retrieval failure from generation failure.",
+      "Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately."
+    ],
+    "excludes": [
+      "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence."
+    ]
+  },
+  "outcomes": [
+    "Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately."
+  ],
+  "examples": [
+    {
+      "id": "ai.generative.embeddings-rag.example.direct",
+      "title": "Embeddings and retrieval augmentation: bounded direct case",
+      "situation": "A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+      ],
+      "result": "This example supports only the atomic outcome because Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+    },
+    {
+      "id": "ai.generative.embeddings-rag.example.stress",
+      "title": "Embeddings and retrieval augmentation: stress and transfer case",
+      "situation": "The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation.",
+        "Step 2 — Keep the non-claim visible: Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence.",
+        "Step 3 — Reject the tempting overclaim: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+      ],
+      "result": "This case demonstrates the declared outcome: Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.generative.embeddings-rag.misconception",
+      "mistakenBelief": "RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context.",
+      "correction": "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a bounded document desk that predicts tokens, validates structured drafts, retrieves cited passages, and exposes only authorized tools can introduce Embeddings and retrieval augmentation only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "language-model context, output validation, RAG stages, and API/tool security"
+    ],
+    "limitations": [
+      "generation, retrieval, prompting, and provider trust remain fallible and cannot receive secrets or autonomous authority",
+      "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
+      "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
+      "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+      }
+    ],
+    "textAlternative": "Starting artifact: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages. Step 1, Observe. State: boundedEvidence: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.. State what the evidence does not establish and reject the misconception: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Embeddings and retrieval augmentation: bounded direct case”: state its starting evidence, apply the Embeddings and retrieval augmentation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Embeddings and retrieval augmentation: bounded direct case.",
+        "Starting evidence: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
+        "Core rule: Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
+        "Observable result: This example supports only the atomic outcome because Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.",
+        "Boundary check: Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
+        "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Embeddings and retrieval augmentation and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately.",
+        "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.generative.embeddings-rag.misconception",
+      "explanation": "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately. Keep this boundary in view: Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence.",
+    "retrievalPrompts": [
+      "Explain Embeddings and retrieval augmentation with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context.",
+      "Apply the boundary to: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation."
+    ],
+    "nextReviewPrompt": "Next: continue to “API, tool and prompt-injection boundaries”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

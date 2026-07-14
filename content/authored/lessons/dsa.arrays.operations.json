@@ -1,0 +1,215 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.arrays.operations.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.arrays-strings",
+  "skillId": "dsa.arrays.operations",
+  "title": "Array representation and operations",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Array representation and operations; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Array representation and operations",
+      "claim": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; material applicable to Array representation and operations",
+      "claim": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Inserting at index two of five values shifts three existing values before writing the new one. Your goal is to implement and test core array operations and explain their complexity. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Time, space and asymptotic growth; Selected-language readiness. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ. The draft therefore rejects: Every array operation is constant time because indexing is constant time."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Analyze indexed access, traversal, insertion, deletion, resizing and copying costs.",
+      "Implement and test core array operations and explain their complexity.",
+      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+    ],
+    "excludes": [
+      "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+    ]
+  },
+  "outcomes": [
+    "Implement and test core array operations and explain their complexity."
+  ],
+  "examples": [
+    {
+      "id": "dsa.arrays.operations.example-a",
+      "title": "Array representation and operations: language-neutral trace",
+      "situation": "Inserting at index two of five values shifts three existing values before writing the new one.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Inserting at index two of five values shifts three existing values before writing the new one.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+      ],
+      "result": "The conceptual result follows because Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+    },
+    {
+      "id": "dsa.arrays.operations.example-b",
+      "title": "Array representation and operations: implementation transfer",
+      "situation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
+        "Step 3 — Retest this boundary in the selected implementation: Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.arrays.operations.misconception",
+      "mistakenBelief": "Every array operation is constant time because indexing is constant time.",
+      "correction": "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Every array operation is constant time because indexing is constant time."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Array representation and operations, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Inserting at index two of five values shifts three existing values before writing the new one.",
+      "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
+      "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
+      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Inserting at index two of five values shifts three existing values before writing the new one."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+        },
+        "explanation": "Verify the result and reject this misconception: Every array operation is constant time because indexing is constant time."
+      }
+    ],
+    "textAlternative": "Starting artifact: Inserting at index two of five values shifts three existing values before writing the new one. Step 1, Specification. State: scenario: Inserting at index two of five values shifts three existing values before writing the new one.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead. Step 4, Conclusion. State: correction: Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.. Verify the result and reject this misconception: Every array operation is constant time because indexing is constant time."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Array representation and operations: language-neutral trace”: state its starting evidence, apply the Array representation and operations rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Array representation and operations: language-neutral trace.",
+        "Starting evidence: Inserting at index two of five values shifts three existing values before writing the new one.",
+        "Core rule: Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
+        "Observable result: The conceptual result follows because Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
+        "Boundary check: Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
+        "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Array representation and operations case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Implement and test core array operations and explain their complexity.",
+        "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.arrays.operations.misconception",
+      "explanation": "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'linear movement', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement and test core array operations and explain their complexity. Keep this boundary in view: Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ.",
+    "retrievalPrompts": [
+      "State the Array representation and operations invariant and complexity without code.",
+      "Why is this claim false: Every array operation is constant time because indexing is constant time.",
+      "Map checkpoint 'linear movement' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Two-dimensional arrays and matrices”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

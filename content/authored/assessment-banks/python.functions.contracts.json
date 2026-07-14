@@ -1,0 +1,197 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.functions.contracts.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.functions",
+  "skillId": "python.functions.contracts",
+  "title": "Function contracts and returns deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Function contracts and returns; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-tutorial",
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "python.functions.contracts.mcq.misconception",
+      "skillId": "python.functions.contracts",
+      "title": "Function contracts and returns: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? A return annotation forces Python to return that type and a docstring makes invalid calls impossible.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence.",
+        "incorrect": "That choice preserves the misconception. Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+        },
+        {
+          "id": "misconception",
+          "text": "A return annotation forces Python to return that type and a docstring makes invalid calls impossible."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+      }
+    },
+    {
+      "id": "python.functions.contracts.fill.checkpoint",
+      "skillId": "python.functions.contracts",
+      "title": "Function contracts and returns: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'describe the contract'. Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence.",
+        "incorrect": "The phrase must preserve the exact language rule. Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Annotations and docstrings [[checkpoint]]; implementation checks, narrow effects, and deterministic tests provide runtime evidence.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "describe the contract"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Annotations and docstrings describe the contract; implementation checks, narrow effects, and deterministic tests provide runtime evidence."
+      }
+    },
+    {
+      "id": "python.functions.contracts.code.core",
+      "skillId": "python.functions.contracts",
+      "title": "Function contracts and returns: runnable core task",
+      "kind": "code",
+      "prompt": "Read value, minimum, and maximum integers. Implement a clamp function with a clear returned result and print it.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.functions.contracts.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "12 0 10\n",
+          "expectedStdout": "10",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.functions.contracts.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "-3 -3 7\n",
+          "expectedStdout": "-3",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\n\ndef solve(data: str) -> str:\n    def clamp(value: int, minimum: int, maximum: int) -> int:\n        \"\"\"Return value limited to the inclusive bounds.\"\"\"\n        return max(minimum, min(maximum, value))\n\n    value, minimum, maximum = map(int, data.split())\n    return str(clamp(value, minimum, maximum))\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The function has one documented input/output contract, no hidden mutation, and explicit boundary behavior."
+      }
+    }
+  ]
+}

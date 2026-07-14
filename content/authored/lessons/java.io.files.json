@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.java.io.files.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.errors-io",
+  "skillId": "java.io.files",
+  "title": "Paths, files and text I/O",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific source-linked draft lesson for Paths, files and text I/O; independent technical, source, pedagogy, accessibility, and runnable-example review remains required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "dev-java",
+      "locator": "Learn Java; accessed 2026-07; Exceptions and Java I/O learning paths; atomic topic: Paths, files and text I/O",
+      "claim": "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content. Your goal is to implement tested file persistence using modern path and file APIs. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Constructors and invariants; String and text processing; Checked and unchecked exception design. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language-specific operational model",
+        "body": "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+      },
+      {
+        "heading": "Boundary and failure model",
+        "body": "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file. The learner must reject this documented misconception: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Read and write text with explicit charset, path and failure handling.",
+      "Implement tested file persistence using modern path and file APIs."
+    ],
+    "excludes": [
+      "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file."
+    ]
+  },
+  "outcomes": [
+    "Implement tested file persistence using modern path and file APIs."
+  ],
+  "examples": [
+    {
+      "id": "java.io.files.example.direct",
+      "title": "Paths, files and text I/O: direct language case",
+      "situation": "A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
+      "walkthrough": [
+        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the result with this correction: Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      ],
+      "result": "The example meets the atomic outcome because Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+    },
+    {
+      "id": "java.io.files.example.boundary",
+      "title": "Paths, files and text I/O: boundary and transfer case",
+      "situation": "A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic.",
+      "walkthrough": [
+        "Step 1 — Name what changed from the direct case: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic.",
+        "Step 2 — Keep the language boundary explicit: The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file.",
+        "Step 3 — Reject the tempting but incorrect rule: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+      ],
+      "result": "This case demonstrates the declared outcome: Implement tested file persistence using modern path and file APIs."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "java.io.files.misconception",
+      "mistakenBelief": "A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding.",
+      "correction": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
+      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a document desk that records a failure chain, handles only recoverable cases, and always closes borrowed equipment can introduce Paths, files and text I/O, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "usefulFor": [
+      "exception boundaries, paths, text encodings, and resource cleanup"
+    ],
+    "limitations": [
+      "suppressed exceptions, stack unwinding, filesystem semantics, and serialization attacks need exact technical treatment",
+      "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
+      "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
+      "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content."
+        },
+        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+      },
+      {
+        "step": 2,
+        "focus": "Apply",
+        "state": {
+          "rule": "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution."
+        },
+        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+        },
+        "explanation": "Compare the observation with the correction and explain why the misconception fails: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+      }
+    ],
+    "textAlternative": "Starting artifact: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content. Step 1, Observe. State: evidence: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.. Compare the observation with the correction and explain why the misconception fails: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Paths, files and text I/O: direct language case”: state its starting evidence, apply the Paths, files and text I/O rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Paths, files and text I/O: direct language case.",
+        "Starting evidence: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
+        "Core rule: Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
+        "Observable result: The example meets the atomic outcome because Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
+        "Boundary check: Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same atomic skill to this changed case: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic.",
+      "scaffold": [
+        "Identify the changed input, state, type, environment, or lifecycle condition.",
+        "Preserve the declared boundary before predicting."
+      ],
+      "expectedEvidence": [
+        "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
+        "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Paths, files and text I/O, predict its output or failure, and explain why the documented misconception would fail.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare every relevant input and language/runtime assumption."
+      ],
+      "expectedEvidence": [
+        "Implement tested file persistence using modern path and file APIs.",
+        "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "java.io.files.misconception",
+      "explanation": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
+      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to implement tested file persistence using modern path and file APIs. Keep this boundary in view: The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file.",
+    "retrievalPrompts": [
+      "Explain Paths, files and text I/O using canonical Java: Beginner to Intermediate terms and one observable consequence.",
+      "Why is this belief incorrect: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding.",
+      "Predict this case from memory: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic."
+    ],
+    "nextReviewPrompt": "Next: continue to “Resource management and serialization boundaries”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

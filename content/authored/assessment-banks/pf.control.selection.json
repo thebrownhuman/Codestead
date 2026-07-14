@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.control.selection.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.control",
+  "skillId": "pf.control.selection",
+  "title": "Selection deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Selection; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-sdf"
+  ],
+  "items": [
+    {
+      "id": "pf.control.selection.mcq.misconception",
+      "skillId": "pf.control.selection",
+      "title": "Selection: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? Separate if statements and one if-else-if chain always have identical behavior when several conditions are true.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path.",
+        "incorrect": "The selected statement preserves the documented misconception. Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Selection instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "Separate if statements and one if-else-if chain always have identical behavior when several conditions are true."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+      }
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.collaboration.issue.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.collaboration",
+  "skillId": "git.collaboration.issue",
+  "title": "Actionable issues",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Actionable issues; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "github-docs",
+      "locator": "GitHub Documentation; accessed 2026-07; section applicable to Actionable issues",
+      "claim": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Actionable issues",
+      "claim": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data. Your goal is to write a scoped issue that another learner can understand and verify. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Remotes and synchronization; pf problem io; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Describe problem, context, reproduction or desired outcome and acceptance criteria.",
+      "Write a scoped issue that another learner can understand and verify."
+    ],
+    "excludes": [
+      "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation."
+    ]
+  },
+  "outcomes": [
+    "Write a scoped issue that another learner can understand and verify."
+  ],
+  "examples": [
+    {
+      "id": "git.collaboration.issue.example-a",
+      "title": "Actionable issues: direct case",
+      "situation": "A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+      ],
+      "result": "The case supports the declared outcome because Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+    },
+    {
+      "id": "git.collaboration.issue.example-b",
+      "title": "Actionable issues: boundary case",
+      "situation": "A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed.",
+        "Step 2 — Keep this boundary explicit: Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation.",
+        "Step 3 — Reject the documented misconception: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+      ],
+      "result": "This case demonstrates the declared outcome: Write a scoped issue that another learner can understand and verify."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.collaboration.issue.misconception",
+      "mistakenBelief": "A short title such as login broken is enough because developers can discover the environment and expected behavior themselves.",
+      "correction": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "An editorial desk can model Actionable issues: a request defines the change, a draft presents evidence, reviewers comment, and approved work enters the edition.",
+    "usefulFor": [
+      "Connecting issues, bounded changes, actionable review, checks, and controlled integration"
+    ],
+    "limitations": [
+      "Repository permissions, automated checks, security disclosure, and commit identity require explicit technical controls.",
+      "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
+      "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
+      "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets."
+        },
+        "explanation": "Apply the declared Actionable issues model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+      }
+    ],
+    "textAlternative": "Starting artifact: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data. Step 1, Observe. State: evidence: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.. Apply the declared Actionable issues model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.. Compare the observation with the correction and reject the misconception: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Actionable issues: direct case”: state its starting evidence, apply the Actionable issues rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Actionable issues: direct case.",
+        "Starting evidence: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
+        "Core rule: A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
+        "Observable result: The case supports the declared outcome because Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.",
+        "Boundary check: Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
+        "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Actionable issues, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Write a scoped issue that another learner can understand and verify.",
+        "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.collaboration.issue.misconception",
+      "explanation": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to write a scoped issue that another learner can understand and verify. Keep this boundary in view: Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation.",
+    "retrievalPrompts": [
+      "Explain Actionable issues without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves.",
+      "Apply the model to this case from memory: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed."
+    ],
+    "nextReviewPrompt": "Next: continue to “Pull request narrative”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

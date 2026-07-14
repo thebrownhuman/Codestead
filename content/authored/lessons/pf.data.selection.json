@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.data.selection.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.data",
+  "skillId": "pf.data.selection",
+  "title": "Data-structure choice",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Data-structure choice; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Data-structure choice",
+      "claim": "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates. Your goal is to defend a data-structure choice and identify a reasonable alternative's trade-off. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Values and types; Records and entities; Sets and maps. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: One structure, such as a list, is always best because it can represent every small dataset somehow."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Compare data structures using order, duplicates, lookup, update and traversal needs.",
+      "Defend a data-structure choice and identify a reasonable alternative's trade-off."
+    ],
+    "excludes": [
+      "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload."
+    ]
+  },
+  "outcomes": [
+    "Defend a data-structure choice and identify a reasonable alternative's trade-off."
+  ],
+  "examples": [
+    {
+      "id": "pf.data.selection.example-a",
+      "title": "Data-structure choice: direct case",
+      "situation": "A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+      ],
+      "result": "The case supports the declared outcome because List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+    },
+    {
+      "id": "pf.data.selection.example-b",
+      "title": "Data-structure choice: boundary case",
+      "situation": "A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record.",
+        "Step 2 — Keep this boundary explicit: Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload.",
+        "Step 3 — Reject the documented misconception: One structure, such as a list, is always best because it can represent every small dataset somehow."
+      ],
+      "result": "This case demonstrates the declared outcome: Defend a data-structure choice and identify a reasonable alternative's trade-off."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.data.selection.misconception",
+      "mistakenBelief": "One structure, such as a list, is always best because it can represent every small dataset somehow.",
+      "correction": "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: One structure, such as a list, is always best because it can represent every small dataset somehow."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "An organized storeroom can model Data-structure choice: shelves preserve order, labeled bins group fields, membership lists avoid duplicates, and indexes locate values.",
+    "usefulFor": [
+      "Comparing organization by order, name, membership, lookup, and update needs"
+    ],
+    "limitations": [
+      "Physical storage hides concrete complexity, equality, hashing, mutation, allocation, and concurrency guarantees.",
+      "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
+      "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
+      "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints."
+        },
+        "explanation": "Apply the declared Data-structure choice model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: One structure, such as a list, is always best because it can represent every small dataset somehow."
+      }
+    ],
+    "textAlternative": "Starting artifact: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates. Step 1, Observe. State: evidence: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.. Apply the declared Data-structure choice model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.. Compare the observation with the correction and reject the misconception: One structure, such as a list, is always best because it can represent every small dataset somehow."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Data-structure choice: direct case”: state its starting evidence, apply the Data-structure choice rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Data-structure choice: direct case.",
+        "Starting evidence: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
+        "Core rule: Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
+        "Observable result: The case supports the declared outcome because List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.",
+        "Boundary check: List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
+        "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Data-structure choice, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Defend a data-structure choice and identify a reasonable alternative's trade-off.",
+        "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.data.selection.misconception",
+      "explanation": "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to defend a data-structure choice and identify a reasonable alternative's trade-off. Keep this boundary in view: Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload.",
+    "retrievalPrompts": [
+      "Explain Data-structure choice without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: One structure, such as a list, is always best because it can represent every small dataset somehow.",
+      "Apply the model to this case from memory: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record."
+    ],
+    "nextReviewPrompt": "Next: continue to “Files, folders and paths”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

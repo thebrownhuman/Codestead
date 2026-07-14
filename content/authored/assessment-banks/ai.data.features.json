@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.ai.data.features.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.data-workflow",
+  "skillId": "ai.data.features",
+  "title": "Features and preprocessing deterministic AI draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, evidence-boundary fill-gap for Features and preprocessing; all items remain blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "sklearn"
+  ],
+  "items": [
+    {
+      "id": "ai.data.features.mcq.misconception",
+      "skillId": "ai.data.features",
+      "title": "Features and preprocessing: reject the overclaim",
+      "kind": "mcq",
+      "prompt": "Which statement is source-bounded and corrects this AI misconception? It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Choose the statement that names mechanism, evidence conditions, and the boundary of the claim rather than a fluent or benchmark-based overgeneralization."
+      ],
+      "feedback": {
+        "correct": "Correct. Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time.",
+        "incorrect": "That option preserves the overclaim. Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "bounded-correction",
+            "description": "Selects the source-bounded correction and rejects the documented AI overclaim.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against cited sources and ensure the distractor does not normalize unsafe or overstated claims."
+      ],
+      "options": [
+        {
+          "id": "bounded",
+          "text": "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+        },
+        {
+          "id": "overclaim",
+          "text": "It is safe to fit a scaler or category vocabulary on the full dataset because preprocessing does not use the target directly."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "bounded"
+        ],
+        "explanation": "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+      }
+    },
+    {
+      "id": "ai.data.features.fill.checkpoint",
+      "skillId": "ai.data.features",
+      "title": "Features and preprocessing: canonical evidence boundary",
+      "kind": "fill-gap",
+      "prompt": "Complete the exact source-bounded correction phrase; the complete sentence must remain an honest beginner-to-intermediate claim.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted unreviewed draft; independent human technical, source, pedagogy, safety, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint from the correction and ensure it narrows rather than expands the evidence claim."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'training partition or fold only'. Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time.",
+        "incorrect": "The phrase must preserve the technical and responsible-AI boundary. Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "boundary-phrase",
+            "description": "Supplies the exact canonical phrase that completes the bounded source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and technically equivalent variants before learner use."
+      ],
+      "template": "Fit every data-derived preprocessing step on the [[checkpoint]], and exclude features unavailable at the real prediction time.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Bounded canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "training partition or fold only"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Fit every data-derived preprocessing step on the training partition or fold only, and exclude features unavailable at the real prediction time."
+      }
+    }
+  ]
+}

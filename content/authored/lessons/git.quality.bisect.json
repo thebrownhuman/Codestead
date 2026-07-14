@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.quality.bisect.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.quality-debug",
+  "skillId": "git.quality.bisect",
+  "title": "History-based regression isolation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for History-based regression isolation; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "git-docs",
+      "locator": "Git Reference Documentation; current stable accessed 2026-07; section applicable to History-based regression isolation",
+      "claim": "Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes."
+    },
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to History-based regression isolation",
+      "claim": "Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains. Your goal is to locate a seeded regression with bisect and verify the causative patch. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Dependencies and reproducible builds; Commits and history; Log, show and graph; Build and task commands. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Flaky tests, merge topology, unbuildable commits, environmental drift, and an incorrect known-good point can produce a misleading culprit. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use a reproducible good/bad test and binary search over commits to find a regression introduction.",
+      "Locate a seeded regression with bisect and verify the causative patch."
+    ],
+    "excludes": [
+      "Flaky tests, merge topology, unbuildable commits, environmental drift, and an incorrect known-good point can produce a misleading culprit."
+    ]
+  },
+  "outcomes": [
+    "Locate a seeded regression with bisect and verify the causative patch."
+  ],
+  "examples": [
+    {
+      "id": "git.quality.bisect.example-a",
+      "title": "History-based regression isolation: direct case",
+      "situation": "A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+      ],
+      "result": "The case supports the declared outcome because Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+    },
+    {
+      "id": "git.quality.bisect.example-b",
+      "title": "History-based regression isolation: boundary case",
+      "situation": "An untestable midpoint is skipped with a recorded reason rather than guessed good or bad.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: An untestable midpoint is skipped with a recorded reason rather than guessed good or bad.",
+        "Step 2 — Keep this boundary explicit: Flaky tests, merge topology, unbuildable commits, environmental drift, and an incorrect known-good point can produce a misleading culprit.",
+        "Step 3 — Reject the documented misconception: Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test."
+      ],
+      "result": "This case demonstrates the declared outcome: Locate a seeded regression with bisect and verify the causative patch."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.quality.bisect.misconception",
+      "mistakenBelief": "Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test.",
+      "correction": "Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A controlled investigation can model History-based regression isolation: preserve evidence, state a hypothesis, inspect one clue, automate repeatable checks, and narrow the change point.",
+    "usefulFor": [
+      "Linking debugging, static checks, history search, and automated local gates"
+    ],
+    "limitations": [
+      "Debuggers and hooks can alter timing or execute code, and tool findings remain bounded evidence rather than proof.",
+      "Flaky tests, merge topology, unbuildable commits, environmental drift, and an incorrect known-good point can produce a misleading culprit."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains.",
+      "Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes.",
+      "Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes."
+        },
+        "explanation": "Apply the declared History-based regression isolation model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test."
+      }
+    ],
+    "textAlternative": "Starting artifact: A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains. Step 1, Observe. State: evidence: A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes.. Apply the declared History-based regression isolation model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame.. Compare the observation with the correction and reject the misconception: Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “History-based regression isolation: direct case”: state its starting evidence, apply the History-based regression isolation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: History-based regression isolation: direct case.",
+        "Starting evidence: A deterministic regression script marks release v1 good and current main bad, then classifies midpoint commits until one introducing commit remains.",
+        "Core rule: Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes.",
+        "Observable result: The case supports the declared outcome because Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame.",
+        "Boundary check: Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: An untestable midpoint is skipped with a recorded reason rather than guessed good or bad.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Bisect performs a binary search over an ordered commit ancestry using a reliable good/bad test to identify the first commit where behavior changes.",
+        "Flaky tests, merge topology, unbuildable commits, environmental drift, and an incorrect known-good point can produce a misleading culprit."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of History-based regression isolation, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Locate a seeded regression with bisect and verify the causative patch.",
+        "Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.quality.bisect.misconception",
+      "explanation": "Provide trustworthy boundary commits and a deterministic classifier, then inspect and verify the identified commit as evidence rather than blame.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An untestable midpoint is skipped with a recorded reason rather than guessed good or bad."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to locate a seeded regression with bisect and verify the causative patch. Keep this boundary in view: Flaky tests, merge topology, unbuildable commits, environmental drift, and an incorrect known-good point can produce a misleading culprit.",
+    "retrievalPrompts": [
+      "Explain History-based regression isolation without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Bisect examines code changes automatically and determines which developer caused a bug without a reproducible test.",
+      "Apply the model to this case from memory: An untestable midpoint is skipped with a recorded reason rather than guessed good or bad."
+    ],
+    "nextReviewPrompt": "Next: continue to “Local hooks and server checks”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

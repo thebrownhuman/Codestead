@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.tools.build.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.tools-build",
+  "skillId": "git.tools.build",
+  "title": "Build and task commands",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Build and task commands; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to Build and task commands",
+      "claim": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit."
+    },
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Build and task commands",
+      "claim": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory. Your goal is to run a clean checkout through setup, build, test and start without undocumented manual steps. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Ignore policy; Commits and history; Dependency manifests and lockfiles; pf tools terminal editor. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Expose documented, non-interactive build, test, lint and run commands through the language's normal tooling.",
+      "Run a clean checkout through setup, build, test and start without undocumented manual steps."
+    ],
+    "excludes": [
+      "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible."
+    ]
+  },
+  "outcomes": [
+    "Run a clean checkout through setup, build, test and start without undocumented manual steps."
+  ],
+  "examples": [
+    {
+      "id": "git.tools.build.example-a",
+      "title": "Build and task commands: direct case",
+      "situation": "A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+      ],
+      "result": "The case supports the declared outcome because Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+    },
+    {
+      "id": "git.tools.build.example-b",
+      "title": "Build and task commands: boundary case",
+      "situation": "A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact.",
+        "Step 2 — Keep this boundary explicit: Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible.",
+        "Step 3 — Reject the documented misconception: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+      ],
+      "result": "This case demonstrates the declared outcome: Run a clean checkout through setup, build, test and start without undocumented manual steps."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.tools.build.misconception",
+      "mistakenBelief": "If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere.",
+      "correction": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A recipe and packing line can model Build and task commands: declared ingredients resolve to exact supplies, controlled steps produce an artifact, and labels preserve provenance.",
+    "usefulFor": [
+      "Understanding dependency resolution, configuration, repeatable builds, and generated artifacts"
+    ],
+    "limitations": [
+      "Software supply chains include executable dependencies, caches, signatures, platform variance, and secret handling beyond a kitchen process.",
+      "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
+      "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
+      "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit."
+        },
+        "explanation": "Apply the declared Build and task commands model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+      }
+    ],
+    "textAlternative": "Starting artifact: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory. Step 1, Observe. State: evidence: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.. Apply the declared Build and task commands model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.. Compare the observation with the correction and reject the misconception: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Build and task commands: direct case”: state its starting evidence, apply the Build and task commands rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Build and task commands: direct case.",
+        "Starting evidence: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
+        "Core rule: A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
+        "Observable result: The case supports the declared outcome because Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.",
+        "Boundary check: Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
+        "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Build and task commands, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Run a clean checkout through setup, build, test and start without undocumented manual steps.",
+        "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.tools.build.misconception",
+      "explanation": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to run a clean checkout through setup, build, test and start without undocumented manual steps. Keep this boundary in view: Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible.",
+    "retrievalPrompts": [
+      "Explain Build and task commands without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere.",
+      "Apply the model to this case from memory: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Configuration and environment”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

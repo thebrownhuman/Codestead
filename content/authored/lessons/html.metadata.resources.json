@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.html.metadata.resources.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.metadata-accessibility",
+  "skillId": "html.metadata.resources",
+  "title": "Linked resources and loading hints",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific HTML: Semantic and Accessible Web Documents draft for Linked resources and loading hints; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "whatwg-html",
+      "locator": "HTML Living Standard; living standard accessed 2026-07; provisions applicable to Linked resources and loading hints",
+      "claim": "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency. Your goal is to configure document resources and explain their loading relationship. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Document foundations; Text and page semantics; Forms and native controls; Relative and absolute URLs; Standards-mode document skeleton. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior. This draft therefore rejects: Adding preload to every resource always improves page speed."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Link icons, styles and selected resource hints without redundant or harmful preloading.",
+      "Configure document resources and explain their loading relationship."
+    ],
+    "excludes": [
+      "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior."
+    ]
+  },
+  "outcomes": [
+    "Configure document resources and explain their loading relationship."
+  ],
+  "examples": [
+    {
+      "id": "html.metadata.resources.example-a",
+      "title": "Linked resources and loading hints: concrete case",
+      "situation": "A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+      ],
+      "result": "The result follows because Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+    },
+    {
+      "id": "html.metadata.resources.example-b",
+      "title": "Linked resources and loading hints: boundary case",
+      "situation": "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Adding preload to every resource always improves page speed."
+      ],
+      "result": "The boundary requires this correction: Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "html.metadata.resources.misconception",
+      "mistakenBelief": "Adding preload to every resource always improves page speed.",
+      "correction": "Declare only measured critical resource hints and understand each resource's fetch and execution behavior.",
+      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Adding preload to every resource always improves page speed."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled document outline can model Linked resources and loading hints, with structure carrying meaning before decoration.",
+    "usefulFor": [
+      "Building a first mental model for Linked resources and loading hints before using exact platform terms"
+    ],
+    "limitations": [
+      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
+      "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
+      "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
+      "Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance."
+        },
+        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Adding preload to every resource always improves page speed."
+      }
+    ],
+    "textAlternative": "Starting artifact: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency. Step 1, Artifact. State: evidence: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Declare only measured critical resource hints and understand each resource's fetch and execution behavior.. Check the result against the boundary and reject this misconception: Adding preload to every resource always improves page speed."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Linked resources and loading hints: concrete case”: state its starting evidence, apply the Linked resources and loading hints rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Linked resources and loading hints: concrete case.",
+        "Starting evidence: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
+        "Core rule: Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
+        "Observable result: The result follows because Declare only measured critical resource hints and understand each resource's fetch and execution behavior.",
+        "Boundary check: Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
+        "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Linked resources and loading hints and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Configure document resources and explain their loading relationship.",
+        "Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "html.metadata.resources.misconception",
+      "explanation": "Declare only measured critical resource hints and understand each resource's fetch and execution behavior.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'measured critical resource hints' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to configure document resources and explain their loading relationship. Keep this boundary in view: Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
+    "retrievalPrompts": [
+      "Explain Linked resources and loading hints using exact HTML: Semantic and Accessible Web Documents terms.",
+      "Why is this claim incorrect: Adding preload to every resource always improves page speed.",
+      "Apply checkpoint 'measured critical resource hints' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Native semantics before ARIA”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

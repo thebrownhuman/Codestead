@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.state.expressions.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.state",
+  "skillId": "pf.state.expressions",
+  "title": "Expressions and evaluation",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Expressions and evaluation; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Expressions and evaluation",
+      "claim": "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping. Your goal is to evaluate mixed arithmetic, comparison and Boolean expressions step by step. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Pseudocode; Variables and assignment. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Evaluate operations using operands, precedence and intermediate results.",
+      "Evaluate mixed arithmetic, comparison and Boolean expressions step by step."
+    ],
+    "excludes": [
+      "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe."
+    ]
+  },
+  "outcomes": [
+    "Evaluate mixed arithmetic, comparison and Boolean expressions step by step."
+  ],
+  "examples": [
+    {
+      "id": "pf.state.expressions.example-a",
+      "title": "Expressions and evaluation: direct case",
+      "situation": "The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+      ],
+      "result": "The case supports the declared outcome because Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+    },
+    {
+      "id": "pf.state.expressions.example-b",
+      "title": "Expressions and evaluation: boundary case",
+      "situation": "The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction.",
+        "Step 2 — Keep this boundary explicit: Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe.",
+        "Step 3 — Reject the documented misconception: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+      ],
+      "result": "This case demonstrates the declared outcome: Evaluate mixed arithmetic, comparison and Boolean expressions step by step."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.state.expressions.misconception",
+      "mistakenBelief": "Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence.",
+      "correction": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled scoreboard can model Expressions and evaluation: each label exposes a current value and each recorded event produces the next visible state.",
+    "usefulFor": [
+      "Reasoning about values, expressions, named state, and changes across time"
+    ],
+    "limitations": [
+      "The scoreboard does not accurately model binary representation, scope, aliases, object identity, or language coercion.",
+      "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
+      "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
+      "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results."
+        },
+        "explanation": "Apply the declared Expressions and evaluation model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+      }
+    ],
+    "textAlternative": "Starting artifact: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping. Step 1, Observe. State: evidence: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.. Apply the declared Expressions and evaluation model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.. Compare the observation with the correction and reject the misconception: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Expressions and evaluation: direct case”: state its starting evidence, apply the Expressions and evaluation rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Expressions and evaluation: direct case.",
+        "Starting evidence: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
+        "Core rule: An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
+        "Observable result: The case supports the declared outcome because Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.",
+        "Boundary check: Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
+        "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Expressions and evaluation, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Evaluate mixed arithmetic, comparison and Boolean expressions step by step.",
+        "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.state.expressions.misconception",
+      "explanation": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to evaluate mixed arithmetic, comparison and Boolean expressions step by step. Keep this boundary in view: Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe.",
+    "retrievalPrompts": [
+      "Explain Expressions and evaluation without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence.",
+      "Apply the model to this case from memory: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction."
+    ],
+    "nextReviewPrompt": "Next: continue to “Mutation and aliases”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

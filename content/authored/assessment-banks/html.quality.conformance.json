@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.html.quality.conformance.v1",
+  "courseId": "html",
+  "courseVersion": "0.1.0",
+  "moduleId": "html.validation-project",
+  "skillId": "html.quality.conformance",
+  "title": "Markup conformance deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; executable evidence is intentionally absent because Formal conformance requires a pinned standards validator and interpretation of its findings; that service is not installed in the offline verifier."
+  },
+  "sourceRefs": [
+    "whatwg-html"
+  ],
+  "items": [
+    {
+      "skillId": "html.quality.conformance",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.quality.conformance.mcq.misconception",
+      "title": "Markup conformance: reject the invalid model",
+      "prompt": "Which statement correctly resolves this HTML: Semantic and Accessible Web Documents misconception? If a page looks correct in one browser, HTML conformance errors cannot matter.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward.",
+        "incorrect": "That preserves the misconception. Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked HTML: Semantic and Accessible Web Documents correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+        },
+        {
+          "id": "misconception",
+          "text": "If a page looks correct in one browser, HTML conformance errors cannot matter."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+      }
+    },
+    {
+      "skillId": "html.quality.conformance",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "html.quality.conformance.fill.checkpoint",
+      "title": "Markup conformance: complete the rule",
+      "prompt": "Complete the missing HTML: Semantic and Accessible Web Documents checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: rendered HTML.",
+        "incorrect": "Recheck the exact rule. Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Validate authored and {{key-rule}}, fix structural errors, and still perform accessibility and content review afterward.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "rendered HTML"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Validate authored and rendered HTML, fix structural errors, and still perform accessibility and content review afterward."
+      }
+    }
+  ]
+}

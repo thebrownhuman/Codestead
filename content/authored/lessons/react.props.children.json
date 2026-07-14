@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.props.children.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.props-composition",
+  "skillId": "react.props.children",
+  "title": "Children and composition",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Children and composition; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Children and composition",
+      "claim": "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A Card renders its children inside semantic article structure without assuming their concrete type. Your goal is to design and implement a reusable composition boundary for varied child content. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Components and JSX; Props and one-way data flow; JSX expressions and attributes. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer. This draft therefore rejects: children is always an array and can be indexed safely."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Compose layout and behavior through children or focused slots rather than prop explosions.",
+      "Design and implement a reusable composition boundary for varied child content."
+    ],
+    "excludes": [
+      "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer."
+    ]
+  },
+  "outcomes": [
+    "Design and implement a reusable composition boundary for varied child content."
+  ],
+  "examples": [
+    {
+      "id": "react.props.children.example-a",
+      "title": "Children and composition: concrete case",
+      "situation": "A Card renders its children inside semantic article structure without assuming their concrete type.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A Card renders its children inside semantic article structure without assuming their concrete type.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      ],
+      "result": "The result follows because children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+    },
+    {
+      "id": "react.props.children.example-b",
+      "title": "Children and composition: boundary case",
+      "situation": "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: children is always an array and can be indexed safely."
+      ],
+      "result": "The boundary requires this correction: children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.props.children.misconception",
+      "mistakenBelief": "children is always an array and can be indexed safely.",
+      "correction": "children is an opaque renderable value; use supported React helpers only when traversal is actually required.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: children is always an array and can be indexed safely."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Children and composition, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Children and composition before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A Card renders its children inside semantic article structure without assuming their concrete type.",
+      "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
+      "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A Card renders its children inside semantic article structure without assuming their concrete type."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: children is always an array and can be indexed safely."
+      }
+    ],
+    "textAlternative": "Starting artifact: A Card renders its children inside semantic article structure without assuming their concrete type. Step 1, Artifact. State: evidence: A Card renders its children inside semantic article structure without assuming their concrete type.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: children is an opaque renderable value; use supported React helpers only when traversal is actually required.. Check the result against the boundary and reject this misconception: children is always an array and can be indexed safely."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Children and composition: concrete case”: state its starting evidence, apply the Children and composition rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Children and composition: concrete case.",
+        "Starting evidence: A Card renders its children inside semantic article structure without assuming their concrete type.",
+        "Core rule: children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
+        "Observable result: The result follows because children is an opaque renderable value; use supported React helpers only when traversal is actually required.",
+        "Boundary check: children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
+        "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Children and composition and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Design and implement a reusable composition boundary for varied child content.",
+        "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.props.children.misconception",
+      "explanation": "children is an opaque renderable value; use supported React helpers only when traversal is actually required.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'opaque renderable value' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and implement a reusable composition boundary for varied child content. Keep this boundary in view: Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
+    "retrievalPrompts": [
+      "Explain Children and composition using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: children is always an array and can be indexed safely.",
+      "Apply checkpoint 'opaque renderable value' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Component API design”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

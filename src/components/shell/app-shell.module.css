@@ -1,0 +1,1018 @@
+.shell {
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background: var(--canvas);
+}
+
+.sidebar {
+  position: fixed;
+  z-index: 30;
+  inset: 0 auto 0 0;
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  padding: calc(22px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
+  backdrop-filter: blur(24px);
+}
+
+.sidebar::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--signal-cyan),
+    var(--signal-violet),
+    var(--signal-amber),
+    var(--signal-coral)
+  );
+  content: "";
+  opacity: 0.82;
+}
+
+.focusGuard {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 7px 18px;
+}
+
+.closeMenu {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 11px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.searchBox {
+  display: flex;
+  min-height: var(--control-min);
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  font-size: 0.78rem;
+}
+
+.searchBox span {
+  flex: 1;
+}
+
+.searchBox[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.sideNav {
+  display: grid;
+  gap: 4px;
+  padding-top: 20px;
+}
+
+.sideNav > a {
+  position: relative;
+  display: flex;
+  min-height: var(--control-min);
+  align-items: center;
+  gap: 11px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--ink-soft);
+  font-size: 0.83rem;
+  font-weight: 650;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.sideNav > a > svg {
+  flex: 0 0 auto;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    transform var(--motion-base) var(--ease-out);
+}
+
+.sideNav > a:active,
+.closeMenu:active,
+.menuButton:active,
+.profileButton:active,
+.profileDropdown a:active,
+.profileDropdown button:active,
+.mobileNav a:active {
+  transform: scale(0.975);
+}
+
+.sideNav > a small {
+  min-width: 20px;
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--brand);
+  background: var(--brand-soft);
+  text-align: center;
+  font-size: 0.66rem;
+}
+
+.sideNav > a i {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--signal-coral);
+  box-shadow: 0 0 0 3px var(--signal-coral-soft);
+}
+
+.sideNav .activeNav {
+  border-color: color-mix(in srgb, var(--signal-cyan) 18%, var(--line));
+  color: var(--brand-strong);
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--brand-soft) 88%, var(--surface-solid)),
+    color-mix(in srgb, var(--signal-cyan-soft) 62%, var(--surface-solid))
+  );
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-solid) 56%, transparent);
+}
+
+.sideNav .activeNav > svg {
+  color: var(--signal-cyan);
+  transform: scale(1.06);
+}
+
+.sideNav .activeNav::before {
+  position: absolute;
+  left: -17px;
+  width: 4px;
+  height: 28px;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, var(--signal-cyan), var(--signal-violet));
+  content: "";
+}
+
+.navLabel {
+  margin: 15px 12px 6px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.sidebarFoot {
+  position: relative;
+  margin-top: auto;
+  padding: 17px 15px 15px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.sidebarFoot::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--signal-cyan), var(--signal-violet), var(--signal-amber));
+  content: "";
+}
+
+.levelTop {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+}
+
+.levelTop span {
+  font-weight: 800;
+}
+
+.levelTop strong {
+  color: var(--brand);
+  font-size: 0.7rem;
+}
+
+.levelBar {
+  height: 6px;
+  margin: 9px 0 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--canvas-deep);
+}
+
+.levelBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.sidebarFoot small {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+}
+
+.contentColumn {
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-left: 248px;
+}
+
+.topbar {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  min-height: calc(72px + env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: env(safe-area-inset-top) 30px 0;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--canvas) 84%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.topbar::after {
+  position: absolute;
+  right: 30px;
+  bottom: -1px;
+  left: 30px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--signal-cyan) 52%, transparent),
+    color-mix(in srgb, var(--signal-violet) 46%, transparent),
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.topbarSpacer {
+  flex: 1;
+}
+
+.menuButton,
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.iconButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.menuButton,
+.mobileBrand {
+  display: none;
+}
+
+.notificationDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--canvas);
+  border-radius: 50%;
+  background: var(--signal-coral);
+}
+
+.profileButton {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 7px 5px 5px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.profileButton[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--signal-violet) 24%, var(--line));
+  background: color-mix(in srgb, var(--signal-violet-soft) 46%, var(--surface));
+}
+
+.avatar {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  color: var(--on-brand);
+  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 18%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 800;
+}
+
+.profileCopy {
+  display: grid;
+  min-width: 95px;
+  max-width: 18ch;
+  text-align: left;
+}
+
+.profileCopy strong,
+.profileCopy small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profileCopy strong {
+  font-size: 0.76rem;
+}
+
+.profileCopy small {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.profileMenu {
+  position: relative;
+}
+
+.notificationMenu {
+  position: relative;
+}
+
+.notificationPanel {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(420px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  transform-origin: top right;
+  animation: menu-enter var(--motion-base) var(--ease-out) both;
+}
+
+.notificationPanel > header,
+.notificationPanel > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.notificationPanel > footer {
+  justify-content: center;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.notificationPanel > header > div {
+  display: grid;
+}
+
+.notificationPanel > header strong {
+  font-size: 0.9rem;
+}
+
+.notificationPanel > header small,
+.notificationPanel p,
+.notificationPanel footer a {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.notificationPanel > header button,
+.notificationState button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.notificationPanel > header button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.notificationList {
+  max-height: min(480px, calc(100dvh - 180px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.notificationList > a,
+.notificationList > button {
+  display: block;
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.notificationList > a:last-child,
+.notificationList > button:last-child {
+  border-bottom: 0;
+}
+
+.notificationList > a:hover,
+.notificationList > button:hover {
+  background: color-mix(in srgb, var(--brand-soft) 55%, transparent);
+}
+
+.notificationList > a:focus-visible,
+.notificationList > button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.notificationList span {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.notificationList span i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--signal-coral);
+}
+
+.notificationList .notificationRead i {
+  background: transparent;
+}
+
+.notificationList span strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+
+.notificationList span small {
+  white-space: nowrap;
+}
+
+.notificationList p {
+  margin: 5px 0 0 16px;
+  line-height: 1.5;
+}
+
+.notificationState {
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+}
+
+.notificationPanel footer a {
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.themeMenu {
+  position: relative;
+}
+
+.profileDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: 190px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-small);
+  transform-origin: top right;
+  animation: menu-enter var(--motion-base) var(--ease-out) both;
+}
+
+.themeDropdown {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, calc(100vw - 24px));
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  transform-origin: top right;
+  animation: menu-enter var(--motion-base) var(--ease-out) both;
+}
+
+.themeMenuHeading {
+  padding: 8px 10px 6px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.themeDropdown button {
+  display: grid;
+  min-height: 50px;
+  grid-template-columns: 22px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--ink-soft);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.themeDropdown button > span {
+  display: grid;
+  min-width: 0;
+}
+
+.themeDropdown button strong,
+.themeDropdown button small {
+  overflow-wrap: anywhere;
+}
+
+.themeDropdown button strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.themeDropdown button small {
+  margin-top: 1px;
+  font-size: var(--text-xs);
+}
+
+.themeDropdown .themeOptionActive {
+  border-color: color-mix(in srgb, var(--signal-violet) 28%, var(--line));
+  color: var(--signal-violet);
+  background: color-mix(in srgb, var(--signal-violet-soft) 62%, var(--surface-solid));
+}
+
+.themeCheck {
+  opacity: 0;
+}
+
+.themeOptionActive .themeCheck {
+  opacity: 1;
+}
+
+.themeSettingsLink {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  color: var(--brand-strong);
+  font-size: var(--text-xs);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.profileDropdown a,
+.profileDropdown button {
+  display: flex;
+  min-height: var(--control-min);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--ink-soft);
+  background: transparent;
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.main {
+  width: min(1220px, calc(100% - 52px));
+  margin-inline: auto;
+  padding: 36px 0 70px;
+}
+
+.routeStage {
+  min-width: 0;
+  animation: route-stage-enter var(--motion-slow) var(--ease-out) both;
+}
+
+:global(html[data-motion="reduce"]) .routeStage,
+:global(html[data-reduce-motion="true"]) .routeStage {
+  animation: none;
+}
+
+.mobileNav,
+.scrim {
+  display: none;
+}
+
+.examLockBackdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, #09120d 82%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.examLockDialog {
+  display: grid;
+  width: min(540px, 100%);
+  justify-items: start;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line));
+  border-radius: 20px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+}
+
+.examLockIcon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 16px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-muted));
+}
+
+.examLockDialog h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  letter-spacing: -0.035em;
+}
+
+.examLockDialog p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.examLockDialog small {
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+@keyframes route-stage-enter {
+  from {
+    transform: translateY(8px) scale(0.995);
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes scrim-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) {
+  .sideNav > a:hover {
+    border-color: color-mix(in srgb, var(--signal-cyan) 14%, var(--line));
+    color: var(--ink);
+    background: color-mix(in srgb, var(--signal-cyan-soft) 30%, var(--surface-muted));
+    transform: translateX(2px);
+  }
+
+  .sideNav > a:hover > svg {
+    color: var(--signal-cyan);
+    transform: scale(1.05);
+  }
+
+  .profileButton:hover,
+  .closeMenu:hover,
+  .menuButton:hover {
+    border-color: color-mix(in srgb, var(--signal-violet) 24%, var(--line));
+    color: var(--ink);
+    background: color-mix(in srgb, var(--signal-violet-soft) 40%, var(--surface-muted));
+  }
+
+  .profileDropdown a:hover,
+  .profileDropdown button:hover,
+  .themeDropdown button:hover,
+  .themeSettingsLink:hover {
+    color: var(--ink);
+    background: var(--surface-muted);
+  }
+
+  .mobileNav a:hover {
+    color: var(--ink);
+    background: var(--surface-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(html:not([data-motion="normal"])) .routeStage {
+    animation: none;
+  }
+}
+
+@media (max-width: 920px) {
+  .sidebar {
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-105%);
+    transition:
+      transform var(--motion-base) var(--ease-out),
+      visibility 0s linear var(--motion-base);
+    box-shadow: var(--shadow);
+  }
+
+  .sidebarOpen {
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(0);
+    transition-delay: 0s;
+  }
+
+  .closeMenu,
+  .menuButton,
+  .mobileBrand {
+    display: inline-flex;
+  }
+
+  .scrim {
+    position: fixed;
+    z-index: 25;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(10, 15, 11, 0.48);
+    backdrop-filter: blur(2px);
+    cursor: pointer;
+    animation: scrim-enter var(--motion-base) var(--ease-out) both;
+  }
+
+  .contentColumn {
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    min-height: calc(62px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 12px 0;
+  }
+
+  .topbar::after {
+    right: 12px;
+    left: 12px;
+  }
+
+  .profileCopy,
+  .profileButton > svg {
+    display: none;
+  }
+
+  .themeDropdown {
+    position: fixed;
+    top: calc(62px + env(safe-area-inset-top) + 6px);
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100dvh - 86px - env(safe-area-inset-top));
+    overflow-y: auto;
+    transform-origin: top center;
+  }
+
+  .main {
+    width: calc(100% - 24px);
+    padding: 22px 0 calc(max(92px, 5.75rem) + env(safe-area-inset-bottom));
+  }
+
+  .mobileNav {
+    position: fixed;
+    z-index: 20;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
+    box-shadow: var(--shadow-small);
+    backdrop-filter: blur(20px);
+  }
+
+  .mobileNav a {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 56px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px;
+    padding: 5px 2px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    color: var(--ink-soft);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    transition:
+      color var(--motion-base) var(--ease-out),
+      background-color var(--motion-base) var(--ease-out),
+      border-color var(--motion-base) var(--ease-out),
+      transform var(--motion-fast) var(--ease-out);
+  }
+
+  .mobileNav a > svg {
+    transition: transform var(--motion-base) var(--ease-out);
+  }
+
+  .mobileNav a > span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .mobileNav .mobileActive {
+    border-color: color-mix(in srgb, var(--signal-cyan) 18%, var(--line));
+    color: var(--brand-strong);
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--brand-soft) 80%, var(--surface-solid)),
+      color-mix(in srgb, var(--signal-cyan-soft) 54%, var(--surface-solid))
+    );
+  }
+
+  .mobileNav .mobileActive > svg {
+    color: var(--signal-cyan);
+    transform: translateY(-1px) scale(1.06);
+  }
+
+  :global(html[data-text-size="150"]) .sidebar,
+  :global(html[data-text-size="200"]) .sidebar {
+    width: min(100vw, 360px);
+  }
+
+  :global(html[data-text-size="150"]) .sidebarHeader,
+  :global(html[data-text-size="200"]) .sidebarHeader {
+    padding-inline: 0;
+  }
+
+  :global(html[data-text-size="150"]) .mobileNav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  :global(html[data-text-size="150"]) .main {
+    padding-bottom: calc(160px + env(safe-area-inset-bottom));
+  }
+
+  :global(html[data-text-size="200"]) .mobileNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :global(html[data-text-size="200"]) .main {
+    padding-bottom: calc(248px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 380px) {
+  .mobileNav {
+    right: 5px;
+    left: 5px;
+    padding: 4px;
+  }
+
+  .mobileNav a {
+    font-size: 0.68rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .sidebar::before,
+  .sidebarFoot::before,
+  .topbar::after,
+  .sideNav .activeNav::before {
+    background: Highlight;
+  }
+
+  .activeNav,
+  .mobileActive,
+  .themeOptionActive {
+    border-color: Highlight;
+  }
+
+  .scrim {
+    background: Canvas;
+    opacity: 0.72;
+  }
+}

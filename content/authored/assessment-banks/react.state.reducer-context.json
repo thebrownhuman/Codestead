@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.react.state.reducer-context.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.forms-reducers",
+  "skillId": "react.state.reducer-context",
+  "title": "Reducer and context boundary deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "react-docs"
+  ],
+  "items": [
+    {
+      "skillId": "react.state.reducer-context",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.state.reducer-context.mcq.misconception",
+      "title": "Reducer and context boundary: reject the invalid model",
+      "prompt": "Which statement correctly resolves this React: Component-Based Browser Applications misconception? Context should replace all props and local state throughout an application.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern.",
+        "incorrect": "That preserves the misconception. Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked React: Component-Based Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+        },
+        {
+          "id": "misconception",
+          "text": "Context should replace all props and local state throughout an application."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+      }
+    },
+    {
+      "skillId": "react.state.reducer-context",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.state.reducer-context.fill.checkpoint",
+      "title": "Reducer and context boundary: complete the rule",
+      "prompt": "Complete the missing React: Component-Based Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: keep local state local.",
+        "incorrect": "Recheck the exact rule. Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "Use context for genuinely cross-cutting subtree data, {{key-rule}}, and split contexts by change pattern.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "keep local state local"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+      }
+    },
+    {
+      "id": "react.state.reducer-context.code.verified-facet",
+      "skillId": "react.state.reducer-context",
+      "title": "Reducer and context boundary: verified implementation facet",
+      "kind": "code",
+      "prompt": "Share a reducer-backed feature state through a focused provider without making all state global. Build a bounded artifact demonstrating focused reducer-backed provider boundary; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nfunction App(){ return <main><h1>TODO</h1></main>; }\ncreateRoot(document.getElementById(\"root\")!).render(<App/>);\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "react",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "App.tsx",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        },
+        "bundler": {
+          "name": "esbuild",
+          "version": "0.25.12"
+        }
+      },
+      "tests": [
+        {
+          "id": "react.state.reducer-context.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"consumer reads provider default\",\n      \"expression\": \"document.querySelector('button').textContent\",\n      \"expected\": \"Theme light\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "react.state.reducer-context.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"provider transition reaches consumer\",\n      \"expression\": \"document.querySelector('button').textContent\",\n      \"expected\": \"Theme dark\"\n    }\n  ],\n  \"actions\": [\n    {\n      \"type\": \"click\",\n      \"selector\": \"button\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import React, { createContext, useContext, useReducer } from \"react\"; import { createRoot } from \"react-dom/client\";\ntype State={theme:\"light\"|\"dark\"};const Theme=createContext<{state:State;toggle:()=>void}|null>(null);function Provider({children}:{children:React.ReactNode}){const [state,dispatch]=useReducer((value:State)=>({theme:value.theme===\"light\"?\"dark\":\"light\"}),{theme:\"light\"});return <Theme.Provider value={{state,toggle:()=>dispatch()}}>{children}</Theme.Provider>}function Control(){const value=useContext(Theme);if(!value)throw new Error(\"missing provider\");return <button aria-pressed={value.state.theme===\"dark\"} onClick={value.toggle}>Theme {value.state.theme}</button>}function App(){return <Provider><main><h1>Settings</h1><Control/></main></Provider>}createRoot(document.getElementById(\"root\")!).render(<App/>);",
+        "explanation": "The reference is a bounded react artifact for focused reducer-backed provider boundary. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

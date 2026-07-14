@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.ci.pipeline.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.ci-security-recovery",
+  "skillId": "git.ci.pipeline",
+  "title": "Continuous integration pipeline",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Continuous integration pipeline; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "github-docs",
+      "locator": "GitHub Documentation; accessed 2026-07; section applicable to Continuous integration pipeline",
+      "claim": "A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results."
+    },
+    {
+      "sourceRef": "nist-ssdf",
+      "locator": "NIST Secure Software Development Framework; SP 800-218 v1.1; section applicable to Continuous integration pipeline",
+      "claim": "A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge. Your goal is to create and explain a minimal CI pipeline whose result gates integration. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Issues, pull requests and review; Debugging and quality automation; Build and task commands; Formatter and linter; Pull request narrative. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Secrets, caches, untrusted pull requests, matrix variants, flaky tests, mutable actions, and stale approvals introduce risk even when a pipeline is green. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A green pipeline proves the software is correct and secure for every environment and remains valid after later commits."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Run clean setup, build, lint and tests on proposed changes with least required permissions.",
+      "Create and explain a minimal CI pipeline whose result gates integration."
+    ],
+    "excludes": [
+      "Secrets, caches, untrusted pull requests, matrix variants, flaky tests, mutable actions, and stale approvals introduce risk even when a pipeline is green."
+    ]
+  },
+  "outcomes": [
+    "Create and explain a minimal CI pipeline whose result gates integration."
+  ],
+  "examples": [
+    {
+      "id": "git.ci.pipeline.example-a",
+      "title": "Continuous integration pipeline: direct case",
+      "situation": "A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+      ],
+      "result": "The case supports the declared outcome because Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+    },
+    {
+      "id": "git.ci.pipeline.example-b",
+      "title": "Continuous integration pipeline: boundary case",
+      "situation": "An untrusted contribution receives no production secret and builds in a restricted job before any privileged deployment stage.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: An untrusted contribution receives no production secret and builds in a restricted job before any privileged deployment stage.",
+        "Step 2 — Keep this boundary explicit: Secrets, caches, untrusted pull requests, matrix variants, flaky tests, mutable actions, and stale approvals introduce risk even when a pipeline is green.",
+        "Step 3 — Reject the documented misconception: A green pipeline proves the software is correct and secure for every environment and remains valid after later commits."
+      ],
+      "result": "This case demonstrates the declared outcome: Create and explain a minimal CI pipeline whose result gates integration."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.ci.pipeline.misconception",
+      "mistakenBelief": "A green pipeline proves the software is correct and secure for every environment and remains valid after later commits.",
+      "correction": "Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A green pipeline proves the software is correct and secure for every environment and remains valid after later commits."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A secured checkpoint system can model Continuous integration pipeline: each revision is inspected, credentials are restricted, incidents revoke access, and recovery preserves known-good state.",
+    "usefulFor": [
+      "Connecting pipeline evidence, secret response, reversible change, and collaborative policy"
+    ],
+    "limitations": [
+      "CI isolation, credential propagation, Git reachability, and distributed copies require technical controls beyond checkpoint paperwork.",
+      "Secrets, caches, untrusted pull requests, matrix variants, flaky tests, mutable actions, and stale approvals introduce risk even when a pipeline is green."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge.",
+      "A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results.",
+      "Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results."
+        },
+        "explanation": "Apply the declared Continuous integration pipeline model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: A green pipeline proves the software is correct and secure for every environment and remains valid after later commits."
+      }
+    ],
+    "textAlternative": "Starting artifact: A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge. Step 1, Observe. State: evidence: A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results.. Apply the declared Continuous integration pipeline model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes.. Compare the observation with the correction and reject the misconception: A green pipeline proves the software is correct and secure for every environment and remains valid after later commits."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Continuous integration pipeline: direct case”: state its starting evidence, apply the Continuous integration pipeline rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Continuous integration pipeline: direct case.",
+        "Starting evidence: A pull request runs lint, unit tests, and build against its current commit, and branch protection requires those exact checks before merge.",
+        "Core rule: A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results.",
+        "Observable result: The case supports the declared outcome because Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes.",
+        "Boundary check: Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: An untrusted contribution receives no production secret and builds in a restricted job before any privileged deployment stage.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A CI pipeline runs versioned jobs for an exact revision in a controlled environment, preserving logs and artifacts and gating integration on declared required results.",
+        "Secrets, caches, untrusted pull requests, matrix variants, flaky tests, mutable actions, and stale approvals introduce risk even when a pipeline is green."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Continuous integration pipeline, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Create and explain a minimal CI pipeline whose result gates integration.",
+        "Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.ci.pipeline.misconception",
+      "explanation": "Interpret CI as scoped evidence for one revision and declared matrix, protect secrets and dependencies, and rerun required checks whenever the reviewed revision changes.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An untrusted contribution receives no production secret and builds in a restricted job before any privileged deployment stage."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to create and explain a minimal CI pipeline whose result gates integration. Keep this boundary in view: Secrets, caches, untrusted pull requests, matrix variants, flaky tests, mutable actions, and stale approvals introduce risk even when a pipeline is green.",
+    "retrievalPrompts": [
+      "Explain Continuous integration pipeline without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: A green pipeline proves the software is correct and secure for every environment and remains valid after later commits.",
+      "Apply the model to this case from memory: An untrusted contribution receives no production secret and builds in a restricted job before any privileged deployment stage."
+    ],
+    "nextReviewPrompt": "Next: continue to “Secret prevention and response”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

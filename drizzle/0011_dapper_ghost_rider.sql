@@ -1,0 +1,2 @@
+ALTER TABLE "appeal_event" DROP CONSTRAINT "appeal_event_type_check";--> statement-breakpoint
+ALTER TABLE "appeal_event" ADD CONSTRAINT "appeal_event_type_check" CHECK ("appeal_event"."event" IN ('submitted', 'learner_response', 'needs_learner_input', 'upheld', 'overturned', 'closed'));

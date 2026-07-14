@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.foundations.problem-characteristics.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.foundations",
+  "skillId": "ai.foundations.problem-characteristics",
+  "title": "Problem and environment characteristics",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Problem and environment characteristics; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; AI Knowledge Area: fundamental issues, intelligent agents, history, and societal context; atomic topic: Problem and environment characteristics",
+      "claim": "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search. Your goal is to characterize an AI task and explain how its properties constrain solution choices. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf problem io; python quality project; AI, automation and intelligence claims. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details. The learner must reject this overclaim: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Classify observability, determinism, dynamics, discreteness, agents and uncertainty.",
+      "Characterize an AI task and explain how its properties constrain solution choices."
+    ],
+    "excludes": [
+      "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details."
+    ]
+  },
+  "outcomes": [
+    "Characterize an AI task and explain how its properties constrain solution choices."
+  ],
+  "examples": [
+    {
+      "id": "ai.foundations.problem-characteristics.example.direct",
+      "title": "Problem and environment characteristics: bounded direct case",
+      "situation": "A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+      ],
+      "result": "This example supports only the atomic outcome because Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+    },
+    {
+      "id": "ai.foundations.problem-characteristics.example.stress",
+      "title": "Problem and environment characteristics: stress and transfer case",
+      "situation": "A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees.",
+        "Step 2 — Keep the non-claim visible: These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details.",
+        "Step 3 — Reject the tempting overclaim: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+      ],
+      "result": "This case demonstrates the declared outcome: Characterize an AI task and explain how its properties constrain solution choices."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.foundations.problem-characteristics.misconception",
+      "mistakenBelief": "Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined.",
+      "correction": "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a map that labels what an automated system observes, claims, chooses, and cannot establish can introduce Problem and environment characteristics only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "separating techniques, environments, agents, evidence, and historical limits"
+    ],
+    "limitations": [
+      "maps simplify contested intelligence concepts and cannot turn benchmark evidence into general capability",
+      "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
+      "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
+      "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+      }
+    ],
+    "textAlternative": "Starting artifact: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search. Step 1, Observe. State: boundedEvidence: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.. State what the evidence does not establish and reject the misconception: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Problem and environment characteristics: bounded direct case”: state its starting evidence, apply the Problem and environment characteristics rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Problem and environment characteristics: bounded direct case.",
+        "Starting evidence: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
+        "Core rule: An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
+        "Observable result: This example supports only the atomic outcome because Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.",
+        "Boundary check: Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
+        "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Problem and environment characteristics and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Characterize an AI task and explain how its properties constrain solution choices.",
+        "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.foundations.problem-characteristics.misconception",
+      "explanation": "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to characterize an AI task and explain how its properties constrain solution choices. Keep this boundary in view: These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details.",
+    "retrievalPrompts": [
+      "Explain Problem and environment characteristics with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined.",
+      "Apply the boundary to: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees."
+    ],
+    "nextReviewPrompt": "Next: continue to “Agent, goal and utility models”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

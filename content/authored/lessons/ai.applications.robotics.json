@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.applications.robotics.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.applications",
+  "skillId": "ai.applications.robotics",
+  "title": "Robotics and embodied agents",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Robotics and embodied agents; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Perception and application areas: language, vision, robotics, and integrated systems; atomic topic: Robotics and embodied agents",
+      "claim": "A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Map/Measure/Manage outcomes for sociotechnical context, testing conditions, safety, and fallback; atomic topic: Robotics and embodied agents",
+      "claim": "A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area. Your goal is to map an embodied task into perception, state, planning and action components with fallback behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Neural networks and learned representations; Knowledge representation and uncertainty; Agent, goal and utility models; Actions, preconditions and effects; Computer vision and perception. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "Simulation omits friction and rare events, sensors fail, latency destabilizes control, plans can be valid but unsafe, physical actions are not instantly reversible, and learning must remain inside safety constraints. The learner must reject this overclaim: A planner or learned policy that succeeds in simulation can control a real robot safely once sensors are connected."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Connect sensing, localization, planning, control and actuation under physical safety constraints.",
+      "Map an embodied task into perception, state, planning and action components with fallback behavior."
+    ],
+    "excludes": [
+      "Simulation omits friction and rare events, sensors fail, latency destabilizes control, plans can be valid but unsafe, physical actions are not instantly reversible, and learning must remain inside safety constraints."
+    ]
+  },
+  "outcomes": [
+    "Map an embodied task into perception, state, planning and action components with fallback behavior."
+  ],
+  "examples": [
+    {
+      "id": "ai.applications.robotics.example.direct",
+      "title": "Robotics and embodied agents: bounded direct case",
+      "situation": "A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths."
+      ],
+      "result": "This example supports only the atomic outcome because Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths."
+    },
+    {
+      "id": "ai.applications.robotics.example.stress",
+      "title": "Robotics and embodied agents: stress and transfer case",
+      "situation": "A simulation policy scores well but collides after wheel slip, so hardware testing proceeds through bounded speed and emergency-stop stages.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A simulation policy scores well but collides after wheel slip, so hardware testing proceeds through bounded speed and emergency-stop stages.",
+        "Step 2 — Keep the non-claim visible: Simulation omits friction and rare events, sensors fail, latency destabilizes control, plans can be valid but unsafe, physical actions are not instantly reversible, and learning must remain inside safety constraints.",
+        "Step 3 — Reject the tempting overclaim: A planner or learned policy that succeeds in simulation can control a real robot safely once sensors are connected."
+      ],
+      "result": "This case demonstrates the declared outcome: Map an embodied task into perception, state, planning and action components with fallback behavior."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.applications.robotics.misconception",
+      "mistakenBelief": "A planner or learned policy that succeeds in simulation can control a real robot safely once sensors are connected.",
+      "correction": "Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A planner or learned policy that succeeds in simulation can control a real robot safely once sensors are connected."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a sensing-and-decision pipeline that names modality inputs, task outputs, affected populations, operating conditions, and fallback paths can introduce Robotics and embodied agents only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "NLP, vision, robotics, and multimodal evaluation"
+    ],
+    "limitations": [
+      "more modalities or fluent outputs do not establish understanding, truth, physical safety, or universal coverage",
+      "Simulation omits friction and rare events, sensors fail, latency destabilizes control, plans can be valid but unsafe, physical actions are not instantly reversible, and learning must remain inside safety constraints."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area.",
+      "A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior.",
+      "Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A planner or learned policy that succeeds in simulation can control a real robot safely once sensors are connected."
+      }
+    ],
+    "textAlternative": "Starting artifact: A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area. Step 1, Observe. State: boundedEvidence: A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths.. State what the evidence does not establish and reject the misconception: A planner or learned policy that succeeds in simulation can control a real robot safely once sensors are connected."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Robotics and embodied agents: bounded direct case”: state its starting evidence, apply the Robotics and embodied agents rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Robotics and embodied agents: bounded direct case.",
+        "Starting evidence: A mobile robot slows on uncertain localization, stops on sensor disagreement, and requires human clearance before leaving a mapped area.",
+        "Core rule: A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior.",
+        "Observable result: This example supports only the atomic outcome because Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths.",
+        "Boundary check: Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A simulation policy scores well but collides after wheel slip, so hardware testing proceeds through bounded speed and emergency-stop stages.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A robotic system links sensing, state estimation, planning, control, and actuation in a physical feedback loop with explicit safe states, limits, human roles, and fallback behavior.",
+        "Simulation omits friction and rare events, sensors fail, latency destabilizes control, plans can be valid but unsafe, physical actions are not instantly reversible, and learning must remain inside safety constraints."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Robotics and embodied agents and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Map an embodied task into perception, state, planning and action components with fallback behavior.",
+        "Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.applications.robotics.misconception",
+      "explanation": "Validate the complete perception-to-actuation loop under bounded physical tests, enforce independent safety limits, and define stop, fallback, and human escalation paths.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A simulation policy scores well but collides after wheel slip, so hardware testing proceeds through bounded speed and emergency-stop stages."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to map an embodied task into perception, state, planning and action components with fallback behavior. Keep this boundary in view: Simulation omits friction and rare events, sensors fail, latency destabilizes control, plans can be valid but unsafe, physical actions are not instantly reversible, and learning must remain inside safety constraints.",
+    "retrievalPrompts": [
+      "Explain Robotics and embodied agents with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A planner or learned policy that succeeds in simulation can control a real robot safely once sensors are connected.",
+      "Apply the boundary to: A simulation policy scores well but collides after wheel slip, so hardware testing proceeds through bounded speed and emergency-stop stages."
+    ],
+    "nextReviewPrompt": "Next: continue to “Multimodal systems”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.react.props.children.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.props-composition",
+  "skillId": "react.props.children",
+  "title": "Children and composition deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "react-docs"
+  ],
+  "items": [
+    {
+      "skillId": "react.props.children",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.props.children.mcq.misconception",
+      "title": "Children and composition: reject the invalid model",
+      "prompt": "Which statement correctly resolves this React: Component-Based Browser Applications misconception? children is always an array and can be indexed safely.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. children is an opaque renderable value; use supported React helpers only when traversal is actually required.",
+        "incorrect": "That preserves the misconception. children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked React: Component-Based Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+        },
+        {
+          "id": "misconception",
+          "text": "children is always an array and can be indexed safely."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      }
+    },
+    {
+      "skillId": "react.props.children",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.props.children.fill.checkpoint",
+      "title": "Children and composition: complete the rule",
+      "prompt": "Complete the missing React: Component-Based Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: opaque renderable value.",
+        "incorrect": "Recheck the exact rule. children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "children is an {{key-rule}}; use supported React helpers only when traversal is actually required.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "opaque renderable value"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      }
+    },
+    {
+      "id": "react.props.children.code.verified-facet",
+      "skillId": "react.props.children",
+      "title": "Children and composition: verified implementation facet",
+      "kind": "code",
+      "prompt": "Compose layout and behavior through children or focused slots rather than prop explosions. Build a bounded artifact demonstrating focused children composition slot; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nfunction App(){ return <main><h1>TODO</h1></main>; }\ncreateRoot(document.getElementById(\"root\")!).render(<App/>);\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "react",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "App.tsx",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        },
+        "bundler": {
+          "name": "esbuild",
+          "version": "0.25.12"
+        }
+      },
+      "tests": [
+        {
+          "id": "react.props.children.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"children paragraph is inside card content\",\n      \"expression\": \"document.querySelector('article div p').textContent\",\n      \"expected\": \"Browser programming\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "react.props.children.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"composition preserves article heading and action\",\n      \"expression\": \"!!document.querySelector('article h2') && !!document.querySelector('article button')\",\n      \"expected\": true\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import React, { StrictMode } from \"react\"; import { createRoot } from \"react-dom/client\";\ntype CardProps={title:string; children:React.ReactNode; onChoose:(title:string)=>void};\nfunction Card({title,children,onChoose}:CardProps){ return <article><h2>{title}</h2><div>{children}</div><button onClick={()=>onChoose(title)}>Choose {title}</button></article>; }\nfunction App(){ const selected:string[]=[]; return <main><h1>Tracks</h1><Card title=\"JavaScript\" onChoose={(title)=>selected.push(title)}><p>Browser programming</p></Card><output aria-live=\"polite\">{selected.join(\",\")}</output></main>; }\ncreateRoot(document.getElementById(\"root\")!).render(<StrictMode><App/></StrictMode>);",
+        "explanation": "The reference is a bounded react artifact for focused children composition slot. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

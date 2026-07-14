@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.cpp.quality.sanitizers.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.quality",
+  "skillId": "cpp.quality.sanitizers",
+  "title": "Debugger, sanitizers and final project",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-specific C++: Beginner to Intermediate draft for Debugger, sanitizers and final project; human standards, technical, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cpp-core",
+      "locator": "C++ Core Guidelines; living guidelines accessed 2026-07; provisions applicable to Debugger, sanitizers and final project",
+      "claim": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning."
+    },
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; provisions applicable to Debugger, sanitizers and final project",
+      "claim": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report. Your goal is to deliver and explain a tested multi-file CLI application with no known sanitizer findings. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Conceptual constraints and diagnostics; Exceptions and guarantees; Unit and integration tests; CMake project structure; unique_ptr, shared_ptr and non-owning access. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Language rule and operational model",
+        "body": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof. Therefore the draft explicitly rejects this beginner failure model: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Combine tests, debugger state and sanitizer reports to repair lifetime, bounds and undefined-behavior defects.",
+      "Deliver and explain a tested multi-file CLI application with no known sanitizer findings."
+    ],
+    "excludes": [
+      "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof."
+    ]
+  },
+  "outcomes": [
+    "Deliver and explain a tested multi-file CLI application with no known sanitizer findings."
+  ],
+  "examples": [
+    {
+      "id": "cpp.quality.sanitizers.example-a",
+      "title": "Debugger, sanitizers and final project: defined case",
+      "situation": "AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
+      "walkthrough": [
+        "Step 1 — Inspect the concrete source or state: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the conclusion: Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      ],
+      "result": "The defined result follows because Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+    },
+    {
+      "id": "cpp.quality.sanitizers.example-b",
+      "title": "Debugger, sanitizers and final project: boundary case",
+      "situation": "UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic.",
+      "walkthrough": [
+        "Step 1 — Identify the changed source or state: UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic.",
+        "Step 2 — Keep this standard boundary visible: They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof.",
+        "Step 3 — Reject the tempting rule: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+      ],
+      "result": "This case demonstrates the declared outcome: Deliver and explain a tested multi-file CLI application with no known sanitizer findings."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "cpp.quality.sanitizers.misconception",
+      "mistakenBelief": "Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects.",
+      "correction": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
+      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A system of self-managing components can model Debugger, sanitizers and final project: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "usefulFor": [
+      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+    ],
+    "limitations": [
+      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
+      "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
+      "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
+      "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Source and state",
+        "state": {
+          "evidence": "AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report."
+        },
+        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Language rule",
+        "state": {
+          "rule": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning."
+        },
+        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+      },
+      {
+        "step": 3,
+        "focus": "Defined conclusion",
+        "state": {
+          "conclusion": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+        },
+        "explanation": "Check the conclusion against the boundary and reject this misconception: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+      }
+    ],
+    "textAlternative": "Starting artifact: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report. Step 1, Source and state. State: evidence: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.. Check the conclusion against the boundary and reject this misconception: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Debugger, sanitizers and final project: defined case”: state its starting evidence, apply the Debugger, sanitizers and final project rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Debugger, sanitizers and final project: defined case.",
+        "Starting evidence: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
+        "Core rule: C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
+        "Observable result: The defined result follows because Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
+        "Boundary check: Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same CPP rule to this related boundary case: UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic.",
+      "scaffold": [
+        "Identify which assumption changed.",
+        "Do not infer behavior beyond the declared boundary."
+      ],
+      "expectedEvidence": [
+        "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
+        "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new CPP example for Debugger, sanitizers and final project, include a normal and boundary input, and explain why the misconception fails.",
+      "scaffold": [
+        "Use complete source or a complete traceable fragment.",
+        "Declare standard version and implementation assumptions."
+      ],
+      "expectedEvidence": [
+        "Deliver and explain a tested multi-file CLI application with no known sanitizer findings.",
+        "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "cpp.quality.sanitizers.misconception",
+      "explanation": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
+      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'path-limited evidence' and state the decisive evidence: UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to deliver and explain a tested multi-file CLI application with no known sanitizer findings. Keep this boundary in view: They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof.",
+    "retrievalPrompts": [
+      "Explain Debugger, sanitizers and final project using a concrete CPP rule rather than the optional analogy.",
+      "Why is this claim incorrect: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects.",
+      "Apply the checkpoint 'path-limited evidence' to the boundary case from memory."
+    ],
+    "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

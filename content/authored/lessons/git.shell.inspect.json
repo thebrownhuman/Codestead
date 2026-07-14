@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.git.shell.inspect.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.shell-files",
+  "skillId": "git.shell.inspect",
+  "title": "List, read and search",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for List, read and search; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "pro-git",
+      "locator": "Pro Git; second edition online; section applicable to List, read and search",
+      "claim": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state."
+    },
+    {
+      "sourceRef": "cs2023-se",
+      "locator": "CS2023 Software Engineering; August 2023; section applicable to List, read and search",
+      "claim": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file. Your goal is to locate a configuration or symbol in a project without modifying files. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: pf tools files; Paths and project trees. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "List hidden files, inspect text and search names or content with bounded commands.",
+      "Locate a configuration or symbol in a project without modifying files."
+    ],
+    "excludes": [
+      "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete."
+    ]
+  },
+  "outcomes": [
+    "Locate a configuration or symbol in a project without modifying files."
+  ],
+  "examples": [
+    {
+      "id": "git.shell.inspect.example-a",
+      "title": "List, read and search: direct case",
+      "situation": "Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+      ],
+      "result": "The case supports the declared outcome because Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+    },
+    {
+      "id": "git.shell.inspect.example-b",
+      "title": "List, read and search: boundary case",
+      "situation": "After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository.",
+        "Step 2 — Keep this boundary explicit: Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete.",
+        "Step 3 — Reject the documented misconception: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+      ],
+      "result": "This case demonstrates the declared outcome: Locate a configuration or symbol in a project without modifying files."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "git.shell.inspect.misconception",
+      "mistakenBelief": "Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately.",
+      "correction": "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A labeled filing room can model List, read and search: current location changes how relative directions resolve, and moving differs from copying a folder.",
+    "usefulFor": [
+      "Reasoning about exact locations, inspection, file operations, and destructive scope"
+    ],
+    "limitations": [
+      "Shell expansion, permissions, links, filesystem rules, and command execution can behave unlike physical folders.",
+      "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
+      "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
+      "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state."
+        },
+        "explanation": "Apply the declared List, read and search model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+      }
+    ],
+    "textAlternative": "Starting artifact: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file. Step 1, Observe. State: evidence: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.. Apply the declared List, read and search model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.. Compare the observation with the correction and reject the misconception: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “List, read and search: direct case”: state its starting evidence, apply the List, read and search rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: List, read and search: direct case.",
+        "Starting evidence: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
+        "Core rule: Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
+        "Observable result: The case supports the declared outcome because Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.",
+        "Boundary check: Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
+        "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of List, read and search, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Locate a configuration or symbol in a project without modifying files.",
+        "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "git.shell.inspect.misconception",
+      "explanation": "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to locate a configuration or symbol in a project without modifying files. Keep this boundary in view: Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete.",
+    "retrievalPrompts": [
+      "Explain List, read and search without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately.",
+      "Apply the model to this case from memory: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository."
+    ],
+    "nextReviewPrompt": "Next: continue to “Create, copy, move and rename”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

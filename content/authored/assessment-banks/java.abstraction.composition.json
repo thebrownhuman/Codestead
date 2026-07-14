@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.java.abstraction.composition.v1",
+  "courseId": "java",
+  "courseVersion": "0.1.0",
+  "moduleId": "java.abstraction",
+  "skillId": "java.abstraction.composition",
+  "title": "Composition over inheritance deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Composition over inheritance; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "dev-java"
+  ],
+  "items": [
+    {
+      "id": "java.abstraction.composition.mcq.misconception",
+      "skillId": "java.abstraction.composition",
+      "title": "Composition over inheritance: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Java: Beginner to Intermediate and corrects this misconception? Composition means copying another class's methods into a wrapper and exposing all of them unchanged.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
+        "incorrect": "That choice preserves the misconception. Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+        },
+        {
+          "id": "misconception",
+          "text": "Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      }
+    },
+    {
+      "id": "java.abstraction.composition.fill.checkpoint",
+      "skillId": "java.abstraction.composition",
+      "title": "Composition over inheritance: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Java: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'purpose-built contract'. Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
+        "incorrect": "The phrase must preserve the exact language rule. Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Compose a collaborator behind a [[checkpoint]] and delegate only behavior that preserves the owning object's invariants.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "purpose-built contract"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      }
+    },
+    {
+      "id": "java.abstraction.composition.code.core",
+      "skillId": "java.abstraction.composition",
+      "title": "Composition over inheritance: runnable core task",
+      "kind": "code",
+      "prompt": "Read whitespace-separated integers. Push them into a Stack that owns an ArrayDeque, then print values in LIFO order.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Java: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        // TODO: implement the stated input/output contract.\n    }\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "java",
+        "version": "Java SE 21",
+        "imageDigest": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+        "entrypoint": "Main.java",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 256
+      },
+      "tests": [
+        {
+          "id": "java.abstraction.composition.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "1 2 3\n",
+          "expectedStdout": "3 2 1",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "java.abstraction.composition.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "9\n",
+          "expectedStdout": "9",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import java.util.*;\nimport java.util.stream.*;\n\npublic class Main {\n    static final class Stack {\n        private final ArrayDeque<Integer> values = new ArrayDeque<>();\n        void push(int value) { values.push(value); }\n        boolean isEmpty() { return values.isEmpty(); }\n        int pop() { return values.pop(); }\n    }\n\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        Stack stack = new Stack();\n        while (input.hasNextInt()) stack.push(input.nextInt());\n        boolean first = true;\n        while (!stack.isEmpty()) { if (!first) System.out.print(\" \" ); System.out.print(stack.pop()); first = false; }\n        System.out.println();\n    }\n}\n",
+        "explanation": "The purpose-built Stack exposes only LIFO behavior and delegates storage without inheriting unrelated deque operations."
+      }
+    }
+  ]
+}

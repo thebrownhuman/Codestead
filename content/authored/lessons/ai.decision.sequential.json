@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.ai.decision.sequential.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.planning-decision",
+  "skillId": "ai.decision.sequential",
+  "title": "Sequential decision and reinforcement concepts",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-ai",
+      "displayName": "Codex-assisted AI Foundations tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Source-linked AI Foundations draft for Sequential decision and reinforcement concepts; all claims, examples, metrics, code, safety boundaries, and answer oracles require independent human review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-ai",
+      "locator": "CS2023 Artificial Intelligence; August 2023; Planning Systems, Constraint Satisfaction, Decision Making, and Reinforcement Learning foundations; atomic topic: Sequential decision and reinforcement concepts",
+      "claim": "A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates."
+    },
+    {
+      "sourceRef": "nist-ai-rmf",
+      "locator": "NIST AI Risk Management Framework; AI RMF 1.0; revision status monitored; AI RMF Map and Measure outcomes for context, impacts, human values, and risk tolerances; atomic topic: Sequential decision and reinforcement concepts",
+      "claim": "A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes. Your goal is to specify a small sequential decision problem and identify reward-hacking risks. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: State-space and adversarial search; Knowledge representation and uncertainty; Utility and expected decisions; Agent, goal and utility models. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Bounded operational model",
+        "body": "A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+      },
+      {
+        "heading": "Failure boundary and non-claim",
+        "body": "The Markov assumption may fail, reward is a proxy, delayed effects complicate credit, offline data limits exploration, unsafe actions need hard constraints, and simulated performance may not transfer. The learner must reject this overclaim: A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Recognize state, action, reward, policy and exploration in a Markov decision process without treating reward as neutral.",
+      "Specify a small sequential decision problem and identify reward-hacking risks."
+    ],
+    "excludes": [
+      "The Markov assumption may fail, reward is a proxy, delayed effects complicate credit, offline data limits exploration, unsafe actions need hard constraints, and simulated performance may not transfer."
+    ]
+  },
+  "outcomes": [
+    "Specify a small sequential decision problem and identify reward-hacking risks."
+  ],
+  "examples": [
+    {
+      "id": "ai.decision.sequential.example.direct",
+      "title": "Sequential decision and reinforcement concepts: bounded direct case",
+      "situation": "A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes.",
+      "walkthrough": [
+        "Step 1 — Observe the exact data, state, metric, or tool behavior: A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the claim boundary with: Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+      ],
+      "result": "This example supports only the atomic outcome because Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+    },
+    {
+      "id": "ai.decision.sequential.example.stress",
+      "title": "Sequential decision and reinforcement concepts: stress and transfer case",
+      "situation": "A recommender maximizes clicks and learns sensational content, so retention, harm, diversity, and user control are added as measures and constraints rather than assumed from reward.",
+      "walkthrough": [
+        "Step 1 — Name the changed population, input, assumption, or failure: A recommender maximizes clicks and learns sensational content, so retention, harm, diversity, and user control are added as measures and constraints rather than assumed from reward.",
+        "Step 2 — Keep the non-claim visible: The Markov assumption may fail, reward is a proxy, delayed effects complicate credit, offline data limits exploration, unsafe actions need hard constraints, and simulated performance may not transfer.",
+        "Step 3 — Reject the tempting overclaim: A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail."
+      ],
+      "result": "This case demonstrates the declared outcome: Specify a small sequential decision problem and identify reward-hacking risks."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "ai.decision.sequential.misconception",
+      "mistakenBelief": "A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail.",
+      "correction": "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score.",
+      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "a bounded operations desk that checks action preconditions, resource constraints, uncertain outcomes, and proxy rewards before acting can introduce Sequential decision and reinforcement concepts only after its canonical technical definition and evidence boundary are stated.",
+    "usefulFor": [
+      "planning, constraints, expected utility, and sequential decisions"
+    ],
+    "limitations": [
+      "real preferences, uncertainty, stakeholders, safety constraints, and dynamics exceed one plan or reward score",
+      "The Markov assumption may fail, reward is a proxy, delayed effects complicate credit, offline data limits exploration, unsafe actions need hard constraints, and simulated performance may not transfer."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes.",
+      "A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates.",
+      "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "boundedEvidence": "A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes."
+        },
+        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+      },
+      {
+        "step": 2,
+        "focus": "Model",
+        "state": {
+          "operationalRule": "A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates."
+        },
+        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Limit",
+        "state": {
+          "correction": "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+        },
+        "explanation": "State what the evidence does not establish and reject the misconception: A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail."
+      }
+    ],
+    "textAlternative": "Starting artifact: A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes. Step 1, Observe. State: boundedEvidence: A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score.. State what the evidence does not establish and reject the misconception: A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Sequential decision and reinforcement concepts: bounded direct case”: state its starting evidence, apply the Sequential decision and reinforcement concepts rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Sequential decision and reinforcement concepts: bounded direct case.",
+        "Starting evidence: A small grid MDP penalizes each step, rewards a goal, and blocks hazardous cells while a policy is evaluated over repeated episodes.",
+        "Core rule: A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates.",
+        "Observable result: This example supports only the atomic outcome because Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score.",
+        "Boundary check: Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed case: A recommender maximizes clicks and learns sensational content, so retention, harm, diversity, and user control are added as measures and constraints rather than assumed from reward.",
+      "scaffold": [
+        "Identify which assumption, population, input, or objective changed.",
+        "Preserve provenance and the declared failure boundary."
+      ],
+      "expectedEvidence": [
+        "A sequential decision model defines states, actions, transitions, rewards, and a policy over time; exploration gathers information while exploitation uses current estimates.",
+        "The Markov assumption may fail, reward is a proxy, delayed effects complicate credit, offline data limits exploration, unsafe actions need hard constraints, and simulated performance may not transfer."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Design a neutral-context example or evaluation for Sequential decision and reinforcement concepts and list the evidence that would support and falsify its bounded claim.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+      ],
+      "expectedEvidence": [
+        "Specify a small sequential decision problem and identify reward-hacking risks.",
+        "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "ai.decision.sequential.misconception",
+      "explanation": "Treat reward as a proxy chosen by people, test reward-hacking and distribution shift, and enforce safety or rights constraints outside a single optimized score.",
+      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A recommender maximizes clicks and learns sensational content, so retention, harm, diversity, and user control are added as measures and constraints rather than assumed from reward."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to specify a small sequential decision problem and identify reward-hacking risks. Keep this boundary in view: The Markov assumption may fail, reward is a proxy, delayed effects complicate credit, offline data limits exploration, unsafe actions need hard constraints, and simulated performance may not transfer.",
+    "retrievalPrompts": [
+      "Explain Sequential decision and reinforcement concepts with one technical mechanism, one evidence requirement, and one non-claim.",
+      "Why is this overclaim invalid: A reinforcement-learning agent discovers the true objective automatically from experience, so reward design is only a technical detail.",
+      "Apply the boundary to: A recommender maximizes clicks and learns sensational content, so retention, harm, diversity, and user control are added as measures and constraints rather than assumed from reward."
+    ],
+    "nextReviewPrompt": "Next: continue to “Problem, target and success measure”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

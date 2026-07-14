@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.objects.composition.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.object-model",
+  "skillId": "javascript.objects.composition",
+  "title": "Composition and inheritance",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Composition and inheritance; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Composition and inheritance",
+      "claim": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Composition and inheritance",
+      "claim": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A logger and storage adapter are passed into a service rather than inherited from one base class. Your goal is to review and refactor an object design using justified composition or inheritance. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows; Classes and private state. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Shared mutable state and ad-hoc mixins can still create coupling or name collisions. This draft therefore rejects: Inheritance is required whenever two objects share any behavior."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Prefer composed functions or collaborators and use extends only for substitutable behavior.",
+      "Review and refactor an object design using justified composition or inheritance."
+    ],
+    "excludes": [
+      "Shared mutable state and ad-hoc mixins can still create coupling or name collisions."
+    ]
+  },
+  "outcomes": [
+    "Review and refactor an object design using justified composition or inheritance."
+  ],
+  "examples": [
+    {
+      "id": "javascript.objects.composition.example-a",
+      "title": "Composition and inheritance: concrete case",
+      "situation": "A logger and storage adapter are passed into a service rather than inherited from one base class.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A logger and storage adapter are passed into a service rather than inherited from one base class.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+      ],
+      "result": "The result follows because Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+    },
+    {
+      "id": "javascript.objects.composition.example-b",
+      "title": "Composition and inheritance: boundary case",
+      "situation": "Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Inheritance is required whenever two objects share any behavior."
+      ],
+      "result": "The boundary requires this correction: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.objects.composition.misconception",
+      "mistakenBelief": "Inheritance is required whenever two objects share any behavior.",
+      "correction": "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Inheritance is required whenever two objects share any behavior."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Composition and inheritance, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Composition and inheritance before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Shared mutable state and ad-hoc mixins can still create coupling or name collisions."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A logger and storage adapter are passed into a service rather than inherited from one base class.",
+      "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
+      "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A logger and storage adapter are passed into a service rather than inherited from one base class."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Inheritance is required whenever two objects share any behavior."
+      }
+    ],
+    "textAlternative": "Starting artifact: A logger and storage adapter are passed into a service rather than inherited from one base class. Step 1, Artifact. State: evidence: A logger and storage adapter are passed into a service rather than inherited from one base class.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.. Check the result against the boundary and reject this misconception: Inheritance is required whenever two objects share any behavior."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Composition and inheritance: concrete case”: state its starting evidence, apply the Composition and inheritance rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Composition and inheritance: concrete case.",
+        "Starting evidence: A logger and storage adapter are passed into a service rather than inherited from one base class.",
+        "Core rule: Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
+        "Observable result: The result follows because Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.",
+        "Boundary check: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
+        "Shared mutable state and ad-hoc mixins can still create coupling or name collisions."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Composition and inheritance and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Review and refactor an object design using justified composition or inheritance.",
+        "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.objects.composition.misconception",
+      "explanation": "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'has-a collaboration' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to review and refactor an object design using justified composition or inheritance. Keep this boundary in view: Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
+    "retrievalPrompts": [
+      "Explain Composition and inheritance using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: Inheritance is required whenever two objects share any behavior.",
+      "Apply checkpoint 'has-a collaboration' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Lexical scope and temporal dead zone”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

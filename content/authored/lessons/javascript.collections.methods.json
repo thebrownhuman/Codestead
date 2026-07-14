@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.collections.methods.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.collections",
+  "skillId": "javascript.collections.methods",
+  "title": "Array transformation methods",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Array transformation methods; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "ecma262",
+      "locator": "ECMAScript Language Specification; living specification accessed 2026-07; provisions applicable to Array transformation methods",
+      "claim": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts."
+    },
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Array transformation methods",
+      "claim": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: filter retains matching values and map transforms each retained value in a separate step. Your goal is to construct and explain a transformation pipeline and compare it with an explicit loop. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Control flow and functions; pf data selection; Arrays and indexed data; Function declarations, expressions and arrows. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays. This draft therefore rejects: map should be used for side effects when its returned array is ignored."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use map, filter, find, some, every and reduce with callbacks whose effects are clear.",
+      "Construct and explain a transformation pipeline and compare it with an explicit loop."
+    ],
+    "excludes": [
+      "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays."
+    ]
+  },
+  "outcomes": [
+    "Construct and explain a transformation pipeline and compare it with an explicit loop."
+  ],
+  "examples": [
+    {
+      "id": "javascript.collections.methods.example-a",
+      "title": "Array transformation methods: concrete case",
+      "situation": "filter retains matching values and map transforms each retained value in a separate step.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: filter retains matching values and map transforms each retained value in a separate step.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use map when its transformed result is needed; use iteration for deliberate side effects."
+      ],
+      "result": "The result follows because Use map when its transformed result is needed; use iteration for deliberate side effects."
+    },
+    {
+      "id": "javascript.collections.methods.example-b",
+      "title": "Array transformation methods: boundary case",
+      "situation": "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: map should be used for side effects when its returned array is ignored."
+      ],
+      "result": "The boundary requires this correction: Use map when its transformed result is needed; use iteration for deliberate side effects."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.collections.methods.misconception",
+      "mistakenBelief": "map should be used for side effects when its returned array is ignored.",
+      "correction": "Use map when its transformed result is needed; use iteration for deliberate side effects.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: map should be used for side effects when its returned array is ignored."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Array transformation methods, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Array transformation methods before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "filter retains matching values and map transforms each retained value in a separate step.",
+      "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
+      "Use map when its transformed result is needed; use iteration for deliberate side effects."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "filter retains matching values and map transforms each retained value in a separate step."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use map when its transformed result is needed; use iteration for deliberate side effects."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: map should be used for side effects when its returned array is ignored."
+      }
+    ],
+    "textAlternative": "Starting artifact: filter retains matching values and map transforms each retained value in a separate step. Step 1, Artifact. State: evidence: filter retains matching values and map transforms each retained value in a separate step.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use map when its transformed result is needed; use iteration for deliberate side effects.. Check the result against the boundary and reject this misconception: map should be used for side effects when its returned array is ignored."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Array transformation methods: concrete case”: state its starting evidence, apply the Array transformation methods rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Array transformation methods: concrete case.",
+        "Starting evidence: filter retains matching values and map transforms each retained value in a separate step.",
+        "Core rule: Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
+        "Observable result: The result follows because Use map when its transformed result is needed; use iteration for deliberate side effects.",
+        "Boundary check: Use map when its transformed result is needed; use iteration for deliberate side effects."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
+        "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Array transformation methods and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Construct and explain a transformation pipeline and compare it with an explicit loop.",
+        "Use map when its transformed result is needed; use iteration for deliberate side effects."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.collections.methods.misconception",
+      "explanation": "Use map when its transformed result is needed; use iteration for deliberate side effects.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'transformed result' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to construct and explain a transformation pipeline and compare it with an explicit loop. Keep this boundary in view: Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
+    "retrievalPrompts": [
+      "Explain Array transformation methods using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: map should be used for side effects when its returned array is ignored.",
+      "Apply checkpoint 'transformed result' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Object records and property access”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.react.state.use-state.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.state-events",
+  "skillId": "react.state.use-state",
+  "title": "useState and snapshots deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Original misconception and checkpoint items retained; added one AI-assisted, human-unreviewed, exam-ineligible browser-verifier implementation facet with visible and hidden checks."
+  },
+  "sourceRefs": [
+    "react-docs"
+  ],
+  "items": [
+    {
+      "skillId": "react.state.use-state",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.state.use-state.mcq.misconception",
+      "title": "useState and snapshots: reject the invalid model",
+      "prompt": "Which statement correctly resolves this React: Component-Based Browser Applications misconception? Calling setCount(count+1) three times always increases count by three.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare both options with platform semantics and observable user or browser evidence."
+      ],
+      "feedback": {
+        "correct": "Correct. When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.",
+        "incorrect": "That preserves the misconception. When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "platform-rule",
+            "description": "Selects the source-linked React: Component-Based Browser Applications correction rather than the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+        },
+        {
+          "id": "misconception",
+          "text": "Calling setCount(count+1) three times always increases count by three."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      }
+    },
+    {
+      "skillId": "react.state.use-state",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent standards, browser, and assessment review."
+      },
+      "privateAuthorNotes": [
+        "Human review must verify platform-version accuracy, equivalence, accessibility, and deterministic grading before formal use."
+      ],
+      "id": "react.state.use-state.fill.checkpoint",
+      "title": "useState and snapshots: complete the rule",
+      "prompt": "Complete the missing React: Component-Based Browser Applications checkpoint using the exact token or phrase from the draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that separates the platform rule from the misconception."
+      ],
+      "feedback": {
+        "correct": "Correct: functional updater.",
+        "incorrect": "Recheck the exact rule. When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "checkpoint",
+            "description": "Supplies the exact source-linked platform token or phrase.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "When next state depends on previous state, pass a {{key-rule}} to avoid stale snapshot calculations.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing platform checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "functional updater"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      }
+    },
+    {
+      "id": "react.state.use-state.code.verified-facet",
+      "skillId": "react.state.use-state",
+      "title": "useState and snapshots: verified implementation facet",
+      "kind": "code",
+      "prompt": "Treat render state as a snapshot and use updater functions for queued changes based on prior state. Build a bounded artifact demonstrating state snapshot updated through setter; the locked browser verifier checks observable structure, behavior, or computed presentation.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted authoring draft. Runtime evidence does not replace independent human standards, pedagogy, accessibility, answer-oracle, and formal-exam review."
+      },
+      "hints": [
+        "Implement the smallest artifact that satisfies the declared observable contract, then check the visible case before considering the hidden boundary."
+      ],
+      "feedback": {
+        "correct": "The locked authoring verifier observed the declared bounded facet in both visible and hidden cases.",
+        "incorrect": "At least one deterministic authoring check failed; inspect the exact artifact, interaction state, viewport, and observable result without assuming hidden-case details."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "verified-facet",
+            "description": "Passes the visible and hidden deterministic checks for the declared implementation facet in its pinned authoring environment.",
+            "points": 10,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "This code item and its oracle are AI-assisted draft material with reviewer=null and examEligibility=false.",
+        "Browser-verifier items are authoring evidence only and must never be routed to the official untrusted-code runner or formal exam pipeline."
+      ],
+      "starterCode": "import React from \"react\";\nimport { createRoot } from \"react-dom/client\";\nfunction App(){ return <main><h1>TODO</h1></main>; }\ncreateRoot(document.getElementById(\"root\")!).render(<App/>);\n",
+      "runtime": {
+        "engine": "browser-verifier",
+        "language": "react",
+        "version": "chromium 149.0.7827.55 / Playwright 1.61.1",
+        "entrypoint": "App.tsx",
+        "timeLimitMs": 5000,
+        "memoryLimitMb": 256,
+        "browser": {
+          "name": "chromium",
+          "revision": "1228",
+          "version": "149.0.7827.55",
+          "playwrightVersion": "1.61.1"
+        },
+        "bundler": {
+          "name": "esbuild",
+          "version": "0.25.12"
+        }
+      },
+      "tests": [
+        {
+          "id": "react.state.use-state.browser.visible",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 1024,\n    \"height\": 768\n  },\n  \"assertions\": [\n    {\n      \"description\": \"initial snapshot is zero\",\n      \"expression\": \"document.querySelector('button').textContent\",\n      \"expected\": \"Count 0\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "react.state.use-state.browser.hidden",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "{\n  \"viewport\": {\n    \"width\": 320,\n    \"height\": 568\n  },\n  \"assertions\": [\n    {\n      \"description\": \"click commits next snapshot and derived value\",\n      \"expression\": \"document.querySelector('button').textContent+':'+document.querySelector('[data-testid=double]').textContent\",\n      \"expected\": \"Count 1:Double 2\"\n    }\n  ],\n  \"actions\": [\n    {\n      \"type\": \"click\",\n      \"selector\": \"main>button:first-of-type\"\n    }\n  ]\n}\n",
+          "expectedStdout": "pass\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import React, { useState } from \"react\"; import { createRoot } from \"react-dom/client\";\nfunction Counter({value,onChange}:{value:number;onChange:(next:number)=>void}){return <button onClick={()=>onChange(value+1)}>Count {value}</button>}\nfunction App(){const [count,setCount]=useState(0);const [name,setName]=useState(\"\");const doubled=count*2;return <main><h1>Practice</h1><Counter value={count} onChange={setCount}/><Counter value={count} onChange={setCount}/><output data-testid=\"double\">Double {doubled}</output><label>Name <input value={name} onChange={(event)=>setName(event.target.value)}/></label><p>Hello {name || \"learner\"}</p></main>}\ncreateRoot(document.getElementById(\"root\")!).render(<App/>);",
+        "explanation": "The reference is a bounded react artifact for state snapshot updated through setter. Passing proves only the declared observable facet, not holistic mastery or human accessibility approval."
+      }
+    }
+  ]
+}

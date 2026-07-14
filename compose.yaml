@@ -1,0 +1,542 @@
+name: learncoding
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-hardened: &hardened
+  init: true
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE to a reviewed PostgreSQL 17 image tag or digest}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-learncoding}
+      POSTGRES_USER: ${POSTGRES_USER:-learncoding}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF8
+    secrets:
+      - postgres_password
+    volumes:
+      - type: bind
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/postgres
+        target: /var/lib/postgresql/data
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /var/run/postgresql:rw,noexec,nosuid,nodev,size=16m
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    shm_size: 256mb
+    mem_limit: 6g
+    cpus: 2.5
+    pids_limit: 256
+    logging: *default-logging
+
+  migrate:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-tooling
+    build:
+      context: .
+      target: tooling
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+    secrets:
+      - database_url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    logging: *default-logging
+    restart: "no"
+
+  app:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      AUTH_REQUIRED: "true"
+      REQUIRE_APP_SECRETS: "1"
+      APP_NAME: ${APP_NAME:-Codestead}
+      APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+      NEXT_PUBLIC_APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+      SOURCE_CODE_URL: ${SOURCE_CODE_URL:?Set SOURCE_CODE_URL to this deployment's corresponding source}
+      DATABASE_URL_FILE: /run/secrets/database_url
+      BETTER_AUTH_SECRET_FILE: /run/secrets/better_auth_secret
+      LOST_DEVICE_PROOF_KEY_FILE: /run/secrets/lost_device_proof_key
+      DELETION_TOMBSTONE_KEY_FILE: /run/secrets/deletion_tombstone_key
+      CREDENTIAL_MASTER_KEY_FILE: /run/secrets/credential_master_key
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET_FILE: /run/secrets/google_client_secret
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
+      RUNNER_MAX_CONCURRENCY: "2"
+      OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
+      MAIL_ADAPTER: ${MAIL_ADAPTER:-outbox}
+      MAIL_FROM: ${MAIL_FROM:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    secrets:
+      - database_url
+      - better_auth_secret
+      - lost_device_proof_key
+      - deletion_tombstone_key
+      - credential_master_key
+      - google_client_secret
+      - runner_shared_secret
+    volumes:
+      - type: bind
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/next-cache
+        target: /app/.next/cache
+      - type: bind
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
+        target: /var/lib/learncoding
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - frontend
+      - data
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(r.status>=500)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 4g
+    cpus: 2.0
+    pids_limit: 256
+    logging: *default-logging
+
+  mail-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-worker
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      LOST_DEVICE_PROOF_KEY_FILE: /run/secrets/lost_device_proof_key
+      REQUIRE_LOST_DEVICE_PROOF_KEY: "1"
+      APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+      MAIL_ADAPTER: ${MAIL_ADAPTER:-console}
+      MAIL_FROM: ${MAIL_FROM:-Codestead <noreply@example.com>}
+      GMAIL_CLIENT_ID_FILE: /run/secrets/gmail_client_id
+      GMAIL_CLIENT_SECRET_FILE: /run/secrets/gmail_client_secret
+      GMAIL_REFRESH_TOKEN_FILE: /run/secrets/gmail_refresh_token
+      OUTBOX_POLL_SECONDS: ${OUTBOX_POLL_SECONDS:-60}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - database_url
+      - lost_device_proof_key
+      - gmail_client_id
+      - gmail_client_secret
+      - gmail_refresh_token
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+      - mail-egress
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  reward-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-worker
+    build:
+      context: .
+      target: worker
+    command: ["node", "--import", "tsx", "/app/scripts/process-rewards.ts"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REWARD_POLL_SECONDS: ${REWARD_POLL_SECONDS:-5}
+      REWARD_BATCH_SIZE: ${REWARD_BATCH_SIZE:-20}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - database_url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 64
+    logging: *default-logging
+
+  regrade-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-regrade-worker
+    build:
+      context: .
+      target: regrade-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
+      REGRADE_POLL_SECONDS: ${REGRADE_POLL_SECONDS:-10}
+      REGRADE_BATCH_SIZE: ${REGRADE_BATCH_SIZE:-2}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - database_url
+      - runner_shared_secret
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+      - runner-egress
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  exam-finalization-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-regrade-worker
+    build:
+      context: .
+      target: regrade-worker
+    command: ["node", "--import", "tsx", "/app/scripts/process-exam-finalizations.ts"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
+      EXAM_FINALIZATION_POLL_SECONDS: ${EXAM_FINALIZATION_POLL_SECONDS:-5}
+      EXAM_FINALIZATION_BATCH_SIZE: ${EXAM_FINALIZATION_BATCH_SIZE:-2}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - database_url
+      - runner_shared_secret
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+      - runner-egress
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  practice-runner-recovery-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-regrade-worker
+    build:
+      context: .
+      target: regrade-worker
+    command: ["node", "--import", "tsx", "/app/scripts/process-practice-runner-recoveries.ts"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
+      PRACTICE_RECOVERY_POLL_SECONDS: ${PRACTICE_RECOVERY_POLL_SECONDS:-5}
+      PRACTICE_RECOVERY_BATCH_SIZE: ${PRACTICE_RECOVERY_BATCH_SIZE:-2}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - database_url
+      - runner_shared_secret
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+      - runner-egress
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  project-review-correction-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-project-review-correction-worker
+    build:
+      context: .
+      target: project-review-correction-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      PROJECT_REVIEW_CORRECTION_POLL_SECONDS: ${PROJECT_REVIEW_CORRECTION_POLL_SECONDS:-10}
+      PROJECT_REVIEW_CORRECTION_BATCH_SIZE: ${PROJECT_REVIEW_CORRECTION_BATCH_SIZE:-2}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - database_url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+      - github-egress
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  clamav:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${CLAMAV_IMAGE:?Set CLAMAV_IMAGE to a reviewed immutable clamav/clamav digest}
+    init: true
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        source: clamav-signatures
+        target: /var/lib/clamav
+    networks:
+      - scanner
+      - signature-egress
+    read_only: true
+    cap_drop:
+      - ALL
+    # The upstream entrypoint drops to the clamav account after preparing its
+    # writable signature/runtime directories; no network or admin capability is
+    # retained by clamd itself.
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /run/clamav:rw,noexec,nosuid,nodev,size=16m,uid=100,gid=101
+      - /var/log/clamav:rw,noexec,nosuid,nodev,size=32m,uid=100,gid=101
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "1", "--wait", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    # ClamAV's official container guidance warns that 2 GB may be
+    # insufficient once the signature databases are loaded.
+    mem_limit: 4g
+    cpus: 1.5
+    pids_limit: 256
+    logging: *default-logging
+
+  scan-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-scanner
+    build:
+      context: .
+      target: scanner-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
+      CLAMD_HOST: clamav
+      CLAMD_PORT: "3310"
+      CLAMD_TIMEOUT_SECONDS: ${CLAMD_TIMEOUT_SECONDS:-120}
+      UPLOAD_SCAN_POLL_SECONDS: ${UPLOAD_SCAN_POLL_SECONDS:-10}
+      UPLOAD_SCAN_BATCH_SIZE: ${UPLOAD_SCAN_BATCH_SIZE:-10}
+      UPLOAD_SCAN_LEASE_SECONDS: ${UPLOAD_SCAN_LEASE_SECONDS:-180}
+      UPLOAD_SCAN_MAX_ATTEMPTS: ${UPLOAD_SCAN_MAX_ATTEMPTS:-8}
+      UPLOAD_SCAN_RETRY_BASE_SECONDS: ${UPLOAD_SCAN_RETRY_BASE_SECONDS:-5}
+      UPLOAD_SCAN_RETRY_MAX_SECONDS: ${UPLOAD_SCAN_RETRY_MAX_SECONDS:-900}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - database_url
+    volumes:
+      - type: bind
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
+        target: /var/lib/learncoding
+        read_only: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    networks:
+      - data
+      - scanner
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  lifecycle:
+    profiles: ["operations"]
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-worker
+    build:
+      context: .
+      target: worker
+    command:
+      - node
+      - --import
+      - tsx
+      - /app/scripts/data-lifecycle.ts
+      - retention
+      - --apply
+      - --confirm
+      - 2026-07-12.v3
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
+    secrets:
+      - database_url
+    volumes:
+      - type: bind
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
+        target: /var/lib/learncoding
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  cloudflared:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${CLOUDFLARED_IMAGE:?Set CLOUDFLARED_IMAGE to a reviewed cloudflared tag or digest}
+    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run
+    restart: unless-stopped
+    configs:
+      - source: cloudflared_config
+        target: /etc/cloudflared/config.yml
+        mode: 0444
+    secrets:
+      - source: cloudflare_tunnel_credentials
+        target: cloudflare_tunnel_credentials
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - frontend
+    <<: *hardened
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+networks:
+  frontend:
+    driver: bridge
+  mail-egress:
+    driver: bridge
+  runner-egress:
+    driver: bridge
+  github-egress:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
+  scanner:
+    driver: bridge
+    internal: true
+  signature-egress:
+    driver: bridge
+
+volumes:
+  clamav-signatures:
+
+configs:
+  cloudflared_config:
+    file: ${CLOUDFLARE_CONFIG_FILE:-./infra/cloudflare/config.example.yml}
+
+secrets:
+  postgres_password:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/postgres_password
+  database_url:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_url
+  better_auth_secret:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/better_auth_secret
+  lost_device_proof_key:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/lost_device_proof_key
+  deletion_tombstone_key:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/deletion_tombstone_key
+  credential_master_key:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/credential_master_key
+  google_client_secret:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/google_client_secret
+  runner_shared_secret:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/runner_shared_secret
+  gmail_client_id:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/gmail_client_id
+  gmail_client_secret:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/gmail_client_secret
+  gmail_refresh_token:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/gmail_refresh_token
+  cloudflare_tunnel_credentials:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/cloudflare_tunnel_credentials.json

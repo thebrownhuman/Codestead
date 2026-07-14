@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.git.tools.build.v1",
+  "courseId": "git-tooling",
+  "courseVersion": "0.1.0",
+  "moduleId": "git.tools-build",
+  "skillId": "git.tools.build",
+  "title": "Build and task commands deterministic misconception check",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Deterministic misconception item for Build and task commands; blocked from formal exams until independent human review."
+  },
+  "sourceRefs": [
+    "cs2023-se",
+    "nist-ssdf"
+  ],
+  "items": [
+    {
+      "id": "git.tools.build.mcq.misconception",
+      "skillId": "git.tools.build",
+      "title": "Build and task commands: correct the failure model",
+      "kind": "mcq",
+      "prompt": "Which statement correctly resolves this documented beginner mistake? If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "The deterministic answer and rubric are AI-assisted draft content awaiting independent human approval."
+      },
+      "hints": [
+        "Compare both options with the canonical model, declared boundary, and observable evidence in the lesson."
+      ],
+      "feedback": {
+        "correct": "Correct. Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.",
+        "incorrect": "The selected statement preserves the documented misconception. Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "correct-model",
+            "description": "Selects the source-aligned correction for Build and task commands instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the correction against the cited source and ensure the misconception option is plausible without reinforcing it."
+      ],
+      "options": [
+        {
+          "id": "correct-model",
+          "text": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-model"
+        ],
+        "explanation": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+      }
+    }
+  ]
+}

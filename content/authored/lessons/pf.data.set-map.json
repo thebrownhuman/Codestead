@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.data.set-map.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.data",
+  "skillId": "pf.data.set-map",
+  "title": "Sets and maps",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Sets and maps; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Sets and maps",
+      "claim": "A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A set of completed badge identifiers answers whether a badge is present without storing duplicate completions. Your goal is to choose between sequence, set and map for a stated access requirement. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Values and types; Sequences and indexes. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Iteration order, hashability, equality, duplicate handling, and lookup complexity vary by implementation, and maps do not permit duplicate keys simultaneously. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish unique membership from key-to-value lookup.",
+      "Choose between sequence, set and map for a stated access requirement."
+    ],
+    "excludes": [
+      "Iteration order, hashability, equality, duplicate handling, and lookup complexity vary by implementation, and maps do not permit duplicate keys simultaneously."
+    ]
+  },
+  "outcomes": [
+    "Choose between sequence, set and map for a stated access requirement."
+  ],
+  "examples": [
+    {
+      "id": "pf.data.set-map.example-a",
+      "title": "Sets and maps: direct case",
+      "situation": "A set of completed badge identifiers answers whether a badge is present without storing duplicate completions.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A set of completed badge identifiers answers whether a badge is present without storing duplicate completions.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+      ],
+      "result": "The case supports the declared outcome because Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+    },
+    {
+      "id": "pf.data.set-map.example-b",
+      "title": "Sets and maps: boundary case",
+      "situation": "A map from learner id to current streak retrieves the streak associated with one unique learner key.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A map from learner id to current streak retrieves the streak associated with one unique learner key.",
+        "Step 2 — Keep this boundary explicit: Iteration order, hashability, equality, duplicate handling, and lookup complexity vary by implementation, and maps do not permit duplicate keys simultaneously.",
+        "Step 3 — Reject the documented misconception: Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages."
+      ],
+      "result": "This case demonstrates the declared outcome: Choose between sequence, set and map for a stated access requirement."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.data.set-map.misconception",
+      "mistakenBelief": "Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages.",
+      "correction": "Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "An organized storeroom can model Sets and maps: shelves preserve order, labeled bins group fields, membership lists avoid duplicates, and indexes locate values.",
+    "usefulFor": [
+      "Comparing organization by order, name, membership, lookup, and update needs"
+    ],
+    "limitations": [
+      "Physical storage hides concrete complexity, equality, hashing, mutation, allocation, and concurrency guarantees.",
+      "Iteration order, hashability, equality, duplicate handling, and lookup complexity vary by implementation, and maps do not permit duplicate keys simultaneously."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A set of completed badge identifiers answers whether a badge is present without storing duplicate completions.",
+      "A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items.",
+      "Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A set of completed badge identifiers answers whether a badge is present without storing duplicate completions."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items."
+        },
+        "explanation": "Apply the declared Sets and maps model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages."
+      }
+    ],
+    "textAlternative": "Starting artifact: A set of completed badge identifiers answers whether a badge is present without storing duplicate completions. Step 1, Observe. State: evidence: A set of completed badge identifiers answers whether a badge is present without storing duplicate completions.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items.. Apply the declared Sets and maps model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately.. Compare the observation with the correction and reject the misconception: Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Sets and maps: direct case”: state its starting evidence, apply the Sets and maps rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Sets and maps: direct case.",
+        "Starting evidence: A set of completed badge identifiers answers whether a badge is present without storing duplicate completions.",
+        "Core rule: A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items.",
+        "Observable result: The case supports the declared outcome because Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately.",
+        "Boundary check: Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A map from learner id to current streak retrieves the streak associated with one unique learner key.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A set represents unique membership, while a map associates unique keys with values; neither structure is chosen merely because it can hold several items.",
+        "Iteration order, hashability, equality, duplicate handling, and lookup complexity vary by implementation, and maps do not permit duplicate keys simultaneously."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Sets and maps, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Choose between sequence, set and map for a stated access requirement.",
+        "Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.data.set-map.misconception",
+      "explanation": "Choose a set for membership of unique values and a map when each unique key must retrieve an associated value; state order needs separately.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A map from learner id to current streak retrieves the streak associated with one unique learner key."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to choose between sequence, set and map for a stated access requirement. Keep this boundary in view: Iteration order, hashability, equality, duplicate handling, and lookup complexity vary by implementation, and maps do not permit duplicate keys simultaneously.",
+    "retrievalPrompts": [
+      "Explain Sets and maps without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Sets and maps are interchangeable because both usually offer fast lookup and use braces in some languages.",
+      "Apply the model to this case from memory: A map from learner id to current streak retrieves the streak associated with one unique learner key."
+    ],
+    "nextReviewPrompt": "Next: continue to “Data-structure choice”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

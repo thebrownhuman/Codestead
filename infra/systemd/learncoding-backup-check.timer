@@ -1,0 +1,12 @@
+[Unit]
+Description=Check LearnCoding backups every six hours
+
+[Timer]
+OnBootSec=15m
+OnUnitActiveSec=6h
+RandomizedDelaySec=10m
+Persistent=true
+Unit=learncoding-backup-check.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,214 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.cpp.resources.move.v1",
+  "courseId": "cpp",
+  "courseVersion": "0.1.0",
+  "moduleId": "cpp.resources",
+  "skillId": "cpp.resources.move",
+  "title": "Move semantics basics deterministic evidence bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted C and C++ tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Added digest-pinned deterministic executable evidence for Move semantics basics; AI-assisted draft remains human-unreviewed and exam-ineligible."
+  },
+  "sourceRefs": [
+    "cpp-core",
+    "isocpp-tour"
+  ],
+  "items": [
+    {
+      "skillId": "cpp.resources.move",
+      "kind": "mcq",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.resources.move.mcq.misconception",
+      "title": "Move semantics basics: reject the invalid rule",
+      "prompt": "Which statement correctly resolves this CPP misconception? std::move immediately empties an object and guarantees exactly which value remains in the source.",
+      "evidenceLevel": "interpret",
+      "hints": [
+        "Compare each option with the exact language rule, standard boundary, and observable evidence in the authored draft."
+      ],
+      "feedback": {
+        "correct": "Correct. std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented.",
+        "incorrect": "That option preserves the documented misconception. std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "language-rule",
+            "description": "Selects the source-aligned CPP correction instead of the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "correct-rule",
+          "text": "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+        },
+        {
+          "id": "documented-misconception",
+          "text": "std::move immediately empties an object and guarantees exactly which value remains in the source."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "correct-rule"
+        ],
+        "explanation": "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+      }
+    },
+    {
+      "skillId": "cpp.resources.move",
+      "kind": "fill-gap",
+      "points": 4,
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards and assessment review."
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify language-version accuracy, distractor validity, equivalence, and grading evidence before formal use."
+      ],
+      "id": "cpp.resources.move.fill.checkpoint",
+      "title": "Move semantics basics: complete the language rule",
+      "prompt": "Complete the missing CPP checkpoint in the source-aligned correction. Use the exact token or phrase required by this draft.",
+      "evidenceLevel": "recall",
+      "hints": [
+        "Use the checkpoint that distinguishes the valid rule from this misconception: std::move immediately empties an object and guarantees exactly which value remains in the source."
+      ],
+      "feedback": {
+        "correct": "Correct. The required checkpoint is 'valid'.",
+        "incorrect": "Recheck the exact language rule and its boundary. std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "exact-checkpoint",
+            "description": "Supplies the exact CPP token or phrase that completes the reviewed rule candidate.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "template": "std::move only enables move overload selection; after an actual move, rely only on the source being {{key-rule}} unless a stronger state is documented.",
+      "gaps": [
+        {
+          "id": "key-rule",
+          "label": "Missing language checkpoint"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "key-rule": [
+            "valid"
+          ]
+        },
+        "caseSensitive": true,
+        "explanation": "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+      }
+    },
+    {
+      "id": "cpp.resources.move.code.apply",
+      "skillId": "cpp.resources.move",
+      "title": "Move semantics basics: executable application",
+      "kind": "code",
+      "prompt": "Implement move construction for a Token owning an int through unique_ptr, transfer ownership while leaving the source empty, then print empty and the destination value.",
+      "points": 10,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted deterministic draft awaiting independent human standards, security, and assessment review."
+      },
+      "hints": [
+        "Begin with the declared input and exact output contract, then implement the named language facet without relying on undefined behavior."
+      ],
+      "feedback": {
+        "correct": "The reference-aligned visible and hidden deterministic checks passed in the pinned isolated runtime.",
+        "incorrect": "At least one deterministic check failed; inspect input validation, boundary behavior, and the named language rule without exposing hidden cases."
+      },
+      "rubric": {
+        "passPoints": 10,
+        "criteria": [
+          {
+            "id": "deterministic-behavior",
+            "description": "Compiles in the pinned runtime and passes every visible and hidden exact-output case.",
+            "points": 7,
+            "critical": true
+          },
+          {
+            "id": "language-facet",
+            "description": "Uses the target C or C++ language facet with declared bounds and without an out-of-scope workaround.",
+            "points": 3,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "AI-assisted and human-unreviewed: formal exam eligibility is prohibited until independent technical and assessment approval.",
+        "Reference verification uses the digest-pinned local container with network=none, no package installation, a read-only source mount, and deterministic stdin/stdout.",
+        "Executable facet: explicit moved-from state in a move-only owner"
+      ],
+      "starterCode": "#include <iostream>\n#include <memory>\n\nclass Token {\n    std::unique_ptr<int> value_;\npublic:\n    explicit Token(int value);\n    Token(Token&& other) noexcept;\n    bool empty() const;\n    int value() const;\n};\n\nint main() {\n    // construct, move, inspect\n}\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "cpp",
+        "version": "C++20 / G++ 14.2.0",
+        "imageDigest": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
+        "entrypoint": "main.cpp",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "cpp-resources-move-case-1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "12\n",
+          "expectedStdout": "empty 12\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "cpp-resources-move-case-2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0\n",
+          "expectedStdout": "empty 0\n",
+          "comparison": "exact",
+          "critical": true
+        },
+        {
+          "id": "cpp-resources-move-case-3",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "-9\n",
+          "expectedStdout": "empty -9\n",
+          "comparison": "exact",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "#include <iostream>\n#include <memory>\n#include <utility>\n\nclass Token {\n    std::unique_ptr<int> value_;\npublic:\n    explicit Token(int value) : value_(std::make_unique<int>(value)) {}\n    Token(Token&& other) noexcept : value_(std::move(other.value_)) {}\n    Token(const Token&) = delete;\n    Token& operator=(const Token&) = delete;\n    bool empty() const { return !value_; }\n    int value() const { return *value_; }\n};\n\nint main() {\n    int value{};\n    if (!(std::cin >> value)) return 1;\n    Token source(value);\n    Token destination(std::move(source));\n    std::cout << (source.empty() ? \"empty\" : \"owned\") << ' ' << destination.value() << '\\n';\n}\n",
+        "explanation": "The reference solution exercises explicit moved-from state in a move-only owner under the bounded deterministic contract; it remains an AI-assisted draft pending human review."
+      }
+    }
+  ]
+}

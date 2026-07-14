@@ -1,0 +1,82 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.pf.state.variables.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.state",
+  "skillId": "pf.state.variables",
+  "title": "Variable state and assignment checks",
+  "publication": {
+    "stage": "draft",
+    "author": { "id": "codex-assisted-draft", "displayName": "Codex-assisted pilot draft", "kind": "ai-assisted" },
+    "authoredAt": "2026-07-12T05:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific MCQ, fill-gap, and isolated-runner code items awaiting human review before exam use."
+  },
+  "sourceRefs": ["cs2023-sdf"],
+  "items": [
+    {
+      "id": "pf-variables-mcq-assignment-state",
+      "skillId": "pf.state.variables",
+      "title": "Trace one assignment",
+      "kind": "mcq",
+      "prompt": "Trace these statements in order: balance = 40, spent = 12, balance = balance - spent. Which option describes the stored state immediately after the third statement?",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": { "eligible": false, "rationale": "The deterministic answer is complete, but this AI-assisted draft has not completed independent human review." },
+      "hints": ["Evaluate the expression on the right using the current stored values before replacing the value on the left."],
+      "feedback": { "correct": "Correct: the right-hand side reads 40 and 12, computes 28, and assignment replaces balance while spent stays unchanged.", "incorrect": "Trace the right-hand side first, then update only the variable named on the left of the assignment." },
+      "rubric": { "passPoints": 4, "criteria": [{ "id": "assignment-state", "description": "Identifies the values stored after evaluating and applying the assignment in order.", "points": 4, "critical": true }] },
+      "privateAuthorNotes": ["Human reviewer must confirm that distractors test state replacement, ordered evaluation, and variable independence without ambiguous language."],
+      "options": [
+        { "id": "state-28-12", "text": "balance stores 28 and spent stores 12." },
+        { "id": "state-40-12", "text": "balance still stores 40 and spent stores 12 because expressions do not change variables." },
+        { "id": "state-28-28", "text": "Both balance and spent store 28 because they were used in the same expression." },
+        { "id": "state-expression", "text": "balance stores the unevaluated text balance - spent until it is printed." }
+      ],
+      "answer": { "correctOptionIds": ["state-28-12"], "explanation": "The expression reads the current values 40 and 12, evaluates to 28, and assignment replaces only balance. spent remains 12." }
+    },
+    {
+      "id": "pf-variables-fill-state",
+      "skillId": "pf.state.variables",
+      "title": "Complete the state trace",
+      "kind": "fill-gap",
+      "prompt": "Complete both gaps after tracing balance = 100, balance = balance - 35, refund = 10, and balance = balance + refund.",
+      "points": 6,
+      "evidenceLevel": "apply",
+      "examEligibility": { "eligible": false, "rationale": "The exact accepted values exist, but the item has not completed human review." },
+      "hints": ["Evaluate each right-hand side using values from the immediately preceding state."],
+      "feedback": { "correct": "Correct: the purchase leaves 65 and adding the refund produces a final balance of 75.", "incorrect": "Rebuild one state-table row per assignment and do not use the final refund before it is assigned." },
+      "rubric": { "passPoints": 6, "criteria": [{ "id": "after-purchase", "description": "Calculates the balance immediately after subtracting the purchase amount.", "points": 3, "critical": true }, { "id": "final-balance", "description": "Uses the intermediate balance and refund to calculate the final state.", "points": 3, "critical": true }] },
+      "privateAuthorNotes": ["Both gaps are required because the item measures ordered state rather than final-output guessing."],
+      "template": "After the purchase, balance is {{after-purchase}}. After assigning refund and adding it, balance is {{final-balance}}.",
+      "gaps": [{ "id": "after-purchase", "label": "Balance after purchase" }, { "id": "final-balance", "label": "Final balance" }],
+      "answer": { "acceptedByGap": { "after-purchase": ["65"], "final-balance": ["75"] }, "caseSensitive": false, "explanation": "The ordered states use 100 - 35 = 65, then 65 + 10 = 75." }
+    },
+    {
+      "id": "pf-variables-code-counter",
+      "skillId": "pf.state.variables",
+      "title": "Implement two state updates",
+      "kind": "code",
+      "prompt": "Complete the Python program so it reads an integer start value, adds 3 to the same named state, doubles that updated value, and prints only the final integer.",
+      "points": 10,
+      "evidenceLevel": "transfer",
+      "examEligibility": { "eligible": false, "rationale": "Runner metadata and tests are complete, but formal use remains blocked until independent human approval." },
+      "hints": ["The second update must read the value produced by the first update, not the original input."],
+      "feedback": { "correct": "Correct: both assignments update the same state in order before the final value is printed.", "incorrect": "Check whether your doubling step reads the value after adding three and whether output contains only the integer." },
+      "rubric": { "passPoints": 10, "criteria": [{ "id": "ordered-updates", "description": "Applies addition before doubling using the same updated variable state.", "points": 6, "critical": true }, { "id": "observable-output", "description": "Prints exactly the final integer for normal and boundary inputs.", "points": 4, "critical": true }] },
+      "privateAuthorNotes": ["The negative hidden case detects solutions that concatenate or mishandle the input as text."],
+      "starterCode": "value = int(input())\n# Update value twice, then print it.\n",
+      "runtime": { "engine": "isolated-runner", "language": "python", "version": "Python 3.14", "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657", "entrypoint": "main.py", "timeLimitMs": 2000, "memoryLimitMb": 128 },
+      "tests": [
+        { "id": "counter-visible-normal", "visibility": "visible", "category": "normal", "stdin": "4\n", "expectedStdout": "14\n", "comparison": "trimmed", "critical": true },
+        { "id": "counter-hidden-zero", "visibility": "hidden", "category": "boundary", "stdin": "0\n", "expectedStdout": "6\n", "comparison": "trimmed", "critical": true },
+        { "id": "counter-hidden-negative", "visibility": "hidden", "category": "boundary", "stdin": "-5\n", "expectedStdout": "-4\n", "comparison": "trimmed", "critical": true }
+      ],
+      "answer": { "referenceSolution": "value = int(input())\nvalue = value + 3\nvalue = value * 2\nprint(value)\n", "explanation": "Assignment first stores start plus three; the next expression reads that updated state, doubles it, and output exposes the final value." }
+    }
+  ]
+}

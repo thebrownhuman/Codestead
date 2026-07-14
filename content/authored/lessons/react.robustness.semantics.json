@@ -1,0 +1,201 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.react.robustness.semantics.v1",
+  "courseId": "react",
+  "courseVersion": "0.1.0",
+  "moduleId": "react.robustness",
+  "skillId": "react.robustness.semantics",
+  "title": "Semantic and keyboard-accessible components",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific React: Component-Based Browser Applications draft for Semantic and keyboard-accessible components; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "wcag22",
+      "locator": "Web Content Accessibility Guidelines 2.2; W3C Recommendation 2023; provisions applicable to Semantic and keyboard-accessible components",
+      "claim": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML."
+    },
+    {
+      "sourceRef": "react-docs",
+      "locator": "React Learn and Reference; React 19.2; provisions applicable to Semantic and keyboard-accessible components",
+      "claim": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior. Your goal is to audit and repair component names, roles, states, focus order and keyboard behavior. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Routing and application context; Remote data and asynchronous UI; html accessibility audit; JSX expressions and attributes. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement. This draft therefore rejects: Because React handles events, div elements are preferable to native buttons."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Render native elements, visible focus and logical order instead of div-based imitation controls.",
+      "Audit and repair component names, roles, states, focus order and keyboard behavior."
+    ],
+    "excludes": [
+      "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement."
+    ]
+  },
+  "outcomes": [
+    "Audit and repair component names, roles, states, focus order and keyboard behavior."
+  ],
+  "examples": [
+    {
+      "id": "react.robustness.semantics.example-a",
+      "title": "Semantic and keyboard-accessible components: concrete case",
+      "situation": "A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+      ],
+      "result": "The result follows because Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+    },
+    {
+      "id": "react.robustness.semantics.example-b",
+      "title": "Semantic and keyboard-accessible components: boundary case",
+      "situation": "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: Because React handles events, div elements are preferable to native buttons."
+      ],
+      "result": "The boundary requires this correction: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "react.robustness.semantics.misconception",
+      "mistakenBelief": "Because React handles events, div elements are preferable to native buttons.",
+      "correction": "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.",
+      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Because React handles events, div elements are preferable to native buttons."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A state-driven component workshop can model Semantic and keyboard-accessible components, where inputs and state produce a UI description.",
+    "usefulFor": [
+      "Building a first mental model for Semantic and keyboard-accessible components before using exact platform terms"
+    ],
+    "limitations": [
+      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
+      "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
+      "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
+      "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML."
+        },
+        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: Because React handles events, div elements are preferable to native buttons."
+      }
+    ],
+    "textAlternative": "Starting artifact: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior. Step 1, Artifact. State: evidence: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.. Check the result against the boundary and reject this misconception: Because React handles events, div elements are preferable to native buttons."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Semantic and keyboard-accessible components: concrete case”: state its starting evidence, apply the Semantic and keyboard-accessible components rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Semantic and keyboard-accessible components: concrete case.",
+        "Starting evidence: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
+        "Core rule: React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
+        "Observable result: The result follows because Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.",
+        "Boundary check: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
+        "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new React: Component-Based Browser Applications example for Semantic and keyboard-accessible components and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Audit and repair component names, roles, states, focus order and keyboard behavior.",
+        "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "react.robustness.semantics.misconception",
+      "explanation": "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'native semantic controls' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to audit and repair component names, roles, states, focus order and keyboard behavior. Keep this boundary in view: Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
+    "retrievalPrompts": [
+      "Explain Semantic and keyboard-accessible components using exact React: Component-Based Browser Applications terms.",
+      "Why is this claim incorrect: Because React handles events, div elements are preferable to native buttons.",
+      "Apply checkpoint 'native semantic controls' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Error boundaries and recovery”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

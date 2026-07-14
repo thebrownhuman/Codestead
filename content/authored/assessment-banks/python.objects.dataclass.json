@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "bank.python.objects.dataclass.v1",
+  "courseId": "python",
+  "courseVersion": "0.1.0",
+  "moduleId": "python.objects",
+  "skillId": "python.objects.dataclass",
+  "title": "Data classes and value modeling deterministic draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-java-python",
+      "displayName": "Codex-assisted Java and Python tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T08:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Misconception MCQ, canonical fill-gap, and runnable core task for Data classes and value modeling; every item remains blocked from formal exams pending independent human review."
+  },
+  "sourceRefs": [
+    "py-stdlib"
+  ],
+  "items": [
+    {
+      "id": "python.objects.dataclass.mcq.misconception",
+      "skillId": "python.objects.dataclass",
+      "title": "Data classes and value modeling: reject the misconception",
+      "kind": "mcq",
+      "prompt": "Which statement is source-aligned for Python: Beginner to Intermediate and corrects this misconception? @dataclass validates annotations and creates a fresh copy of any default list for every instance.",
+      "points": 4,
+      "evidenceLevel": "interpret",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Compare each option with both the language-specific boundary case and the cited operational model."
+      ],
+      "feedback": {
+        "correct": "Correct. Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly.",
+        "incorrect": "That choice preserves the misconception. Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "source-aligned-choice",
+            "description": "Selects the source-aligned correction and rejects the documented misconception.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "A human reviewer must verify source fidelity and ensure the distractor remains plausible without teaching it as fact."
+      ],
+      "options": [
+        {
+          "id": "source-aligned",
+          "text": "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+        },
+        {
+          "id": "misconception",
+          "text": "@dataclass validates annotations and creates a fresh copy of any default list for every instance."
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "source-aligned"
+        ],
+        "explanation": "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+      }
+    },
+    {
+      "id": "python.objects.dataclass.fill.checkpoint",
+      "skillId": "python.objects.dataclass",
+      "title": "Data classes and value modeling: canonical checkpoint",
+      "kind": "fill-gap",
+      "prompt": "Complete the source-aligned Python: Beginner to Intermediate correction with the exact canonical phrase used by this lesson.",
+      "points": 4,
+      "evidenceLevel": "recall",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Retrieve the short checkpoint phrase from the operational correction, then read the complete sentence for semantic fit."
+      ],
+      "feedback": {
+        "correct": "Correct. The checkpoint is 'default_factory'. Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly.",
+        "incorrect": "The phrase must preserve the exact language rule. Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+      },
+      "rubric": {
+        "passPoints": 4,
+        "criteria": [
+          {
+            "id": "canonical-phrase",
+            "description": "Supplies the exact canonical checkpoint phrase that completes the source-aligned correction.",
+            "points": 4,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Human reviewer must verify the accepted phrase and whether additional spelling variants are technically equivalent."
+      ],
+      "template": "Dataclass annotations drive generated methods rather than runtime validation; use [[checkpoint]] for per-instance mutable defaults and validate invariants explicitly.",
+      "gaps": [
+        {
+          "id": "checkpoint",
+          "label": "Canonical phrase"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "checkpoint": [
+            "default_factory"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Dataclass annotations drive generated methods rather than runtime validation; use default_factory for per-instance mutable defaults and validate invariants explicitly."
+      }
+    },
+    {
+      "id": "python.objects.dataclass.code.core",
+      "skillId": "python.objects.dataclass",
+      "title": "Data classes and value modeling: runnable core task",
+      "kind": "code",
+      "prompt": "Read point coordinates x and y. Model the point as a frozen data class and print Manhattan distance followed by its generated representation.",
+      "points": 8,
+      "evidenceLevel": "apply",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "AI-assisted draft item; independent human source, technical, pedagogy, accessibility, and answer-oracle review is required before formal-exam eligibility."
+      },
+      "hints": [
+        "Start from the stated input/output contract, implement the smallest language-specific operation, and run the visible boundary before changing structure."
+      ],
+      "feedback": {
+        "correct": "The visible and hidden Python: Beginner to Intermediate runner checks match the declared contract.",
+        "incorrect": "At least one deterministic runner check differs; inspect input parsing, boundary behavior, and exact output before retrying."
+      },
+      "rubric": {
+        "passPoints": 8,
+        "criteria": [
+          {
+            "id": "runner-contract",
+            "description": "Compiles or parses and passes every visible and hidden deterministic runner check for the declared contract.",
+            "points": 8,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Reference solution and both tests are AI-assisted draft material. Execute in the pinned runner and obtain independent human review before any exam use."
+      ],
+      "starterCode": "import sys\n\ndef solve(data: str) -> str:\n    # TODO: implement the stated input/output contract.\n    return \"\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+      "runtime": {
+        "engine": "isolated-runner",
+        "language": "python",
+        "version": "Python 3.14",
+        "imageDigest": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+        "entrypoint": "main.py",
+        "timeLimitMs": 2000,
+        "memoryLimitMb": 128
+      },
+      "tests": [
+        {
+          "id": "python.objects.dataclass.case.1",
+          "visibility": "visible",
+          "category": "normal",
+          "stdin": "3 -4\n",
+          "expectedStdout": "7\nPoint(x=3, y=-4)",
+          "comparison": "trimmed",
+          "critical": true
+        },
+        {
+          "id": "python.objects.dataclass.case.2",
+          "visibility": "hidden",
+          "category": "boundary",
+          "stdin": "0 0\n",
+          "expectedStdout": "0\nPoint(x=0, y=0)",
+          "comparison": "trimmed",
+          "critical": true
+        }
+      ],
+      "answer": {
+        "referenceSolution": "import sys\nfrom dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass Point:\n    x: int\n    y: int\n\ndef solve(data: str) -> str:\n    x, y = map(int, data.split())\n    point = Point(x, y)\n    return f\"{abs(point.x) + abs(point.y)}\\n{point!r}\"\n\nif __name__ == \"__main__\":\n    print(solve(sys.stdin.read()), end=\"\")\n",
+        "explanation": "The frozen data class provides transparent fields, generated representation, and field-based value behavior."
+      }
+    }
+  ]
+}

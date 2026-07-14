@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.javascript.modules.architecture.v1",
+  "courseId": "javascript",
+  "courseVersion": "0.1.0",
+  "moduleId": "javascript.scope-modules",
+  "skillId": "javascript.modules.architecture",
+  "title": "Dependency boundaries",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted web tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T09:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Technology-specific JavaScript: Language and Browser Applications draft for Dependency boundaries; independent standards, browser, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "mdn-js",
+      "locator": "MDN JavaScript Guide; accessed 2026-07; provisions applicable to Dependency boundaries",
+      "claim": "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A domain module accepts a storage port instead of importing localStorage throughout business logic. Your goal is to design and implement a module graph without circular feature dependencies or hidden globals. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Control flow and functions; Module loading baseline; Imports, exports and module graph; Composition and inheritance. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Technology rule",
+        "body": "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+      },
+      {
+        "heading": "Boundary and browser reality",
+        "body": "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests. This draft therefore rejects: More modules always mean lower coupling regardless of dependency direction."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Separate domain logic, browser adapters and presentation so core behavior is directly testable.",
+      "Design and implement a module graph without circular feature dependencies or hidden globals."
+    ],
+    "excludes": [
+      "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests."
+    ]
+  },
+  "outcomes": [
+    "Design and implement a module graph without circular feature dependencies or hidden globals."
+  ],
+  "examples": [
+    {
+      "id": "javascript.modules.architecture.example-a",
+      "title": "Dependency boundaries: concrete case",
+      "situation": "A domain module accepts a storage port instead of importing localStorage throughout business logic.",
+      "walkthrough": [
+        "Step 1 — Inspect the exact artifact and starting state: A domain module accepts a storage port instead of importing localStorage throughout business logic.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+      ],
+      "result": "The result follows because Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+    },
+    {
+      "id": "javascript.modules.architecture.example-b",
+      "title": "Dependency boundaries: boundary case",
+      "situation": "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
+      "walkthrough": [
+        "Step 1 — Start from the documented boundary: Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Reject the misconception: More modules always mean lower coupling regardless of dependency direction."
+      ],
+      "result": "The boundary requires this correction: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "javascript.modules.architecture.misconception",
+      "mistakenBelief": "More modules always mean lower coupling regardless of dependency direction.",
+      "correction": "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.",
+      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: More modules always mean lower coupling regardless of dependency direction."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A coordinated event desk can model Dependency boundaries, with values, tasks, callbacks, and external messages changing observable state.",
+    "usefulFor": [
+      "Building a first mental model for Dependency boundaries before using exact platform terms"
+    ],
+    "limitations": [
+      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
+      "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A domain module accepts a storage port instead of importing localStorage throughout business logic.",
+      "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
+      "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Artifact",
+        "state": {
+          "evidence": "A domain module accepts a storage port instead of importing localStorage throughout business logic."
+        },
+        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+      },
+      {
+        "step": 2,
+        "focus": "Platform rule",
+        "state": {
+          "rule": "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries."
+        },
+        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+      },
+      {
+        "step": 3,
+        "focus": "Observable result",
+        "state": {
+          "correction": "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+        },
+        "explanation": "Check the result against the boundary and reject this misconception: More modules always mean lower coupling regardless of dependency direction."
+      }
+    ],
+    "textAlternative": "Starting artifact: A domain module accepts a storage port instead of importing localStorage throughout business logic. Step 1, Artifact. State: evidence: A domain module accepts a storage port instead of importing localStorage throughout business logic.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.. Check the result against the boundary and reject this misconception: More modules always mean lower coupling regardless of dependency direction."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Dependency boundaries: concrete case”: state its starting evidence, apply the Dependency boundaries rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Dependency boundaries: concrete case.",
+        "Starting evidence: A domain module accepts a storage port instead of importing localStorage throughout business logic.",
+        "Core rule: Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
+        "Observable result: The result follows because Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.",
+        "Boundary check: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this boundary: Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
+      "scaffold": [
+        "Identify which condition changed.",
+        "Keep semantics and user impact visible."
+      ],
+      "expectedEvidence": [
+        "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
+        "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new JavaScript: Language and Browser Applications example for Dependency boundaries and explain why the misconception fails.",
+      "scaffold": [
+        "Do not reuse the analogy.",
+        "Declare browser, input, state, and accessibility assumptions."
+      ],
+      "expectedEvidence": [
+        "Design and implement a module graph without circular feature dependencies or hidden globals.",
+        "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "javascript.modules.architecture.misconception",
+      "explanation": "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.",
+      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'dependency direction' and state the decisive evidence."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to design and implement a module graph without circular feature dependencies or hidden globals. Keep this boundary in view: Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
+    "retrievalPrompts": [
+      "Explain Dependency boundaries using exact JavaScript: Language and Browser Applications terms.",
+      "Why is this claim incorrect: More modules always mean lower coupling regardless of dependency direction.",
+      "Apply checkpoint 'dependency direction' to a new artifact."
+    ],
+    "nextReviewPrompt": "Next: continue to “Query and update DOM”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

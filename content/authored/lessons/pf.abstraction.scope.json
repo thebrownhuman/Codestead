@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.abstraction.scope.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.abstraction",
+  "skillId": "pf.abstraction.scope",
+  "title": "Local scope",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Local scope; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Local scope",
+      "claim": "Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated. Your goal is to predict name visibility and avoid accidental dependence on global state. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Decomposition; Calls, parameters and returns. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "Languages differ in block, function, module, class, closure, and dynamic scope rules, and a captured value may outlive the call that created its local name. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: If two variables share the same spelling anywhere in a program, they must refer to one global value."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Distinguish local names from state visible outside a function.",
+      "Predict name visibility and avoid accidental dependence on global state."
+    ],
+    "excludes": [
+      "Languages differ in block, function, module, class, closure, and dynamic scope rules, and a captured value may outlive the call that created its local name."
+    ]
+  },
+  "outcomes": [
+    "Predict name visibility and avoid accidental dependence on global state."
+  ],
+  "examples": [
+    {
+      "id": "pf.abstraction.scope.example-a",
+      "title": "Local scope: direct case",
+      "situation": "A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity."
+      ],
+      "result": "The case supports the declared outcome because Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity."
+    },
+    {
+      "id": "pf.abstraction.scope.example-b",
+      "title": "Local scope: boundary case",
+      "situation": "Two functions can each use a local index name because each call resolves that name in a separate scope and frame.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: Two functions can each use a local index name because each call resolves that name in a separate scope and frame.",
+        "Step 2 — Keep this boundary explicit: Languages differ in block, function, module, class, closure, and dynamic scope rules, and a captured value may outlive the call that created its local name.",
+        "Step 3 — Reject the documented misconception: If two variables share the same spelling anywhere in a program, they must refer to one global value."
+      ],
+      "result": "This case demonstrates the declared outcome: Predict name visibility and avoid accidental dependence on global state."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.abstraction.scope.misconception",
+      "mistakenBelief": "If two variables share the same spelling anywhere in a program, they must refer to one global value.",
+      "correction": "Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: If two variables share the same spelling anywhere in a program, they must refer to one global value."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A service counter can model Local scope: it advertises accepted requests and results while its internal work remains behind a named interface.",
+    "usefulFor": [
+      "Separating contracts, local work, calls, returned results, and repeated service use"
+    ],
+    "limitations": [
+      "A service counter does not capture language-specific frames, reference semantics, closures, or recursion limits.",
+      "Languages differ in block, function, module, class, closure, and dynamic scope rules, and a captured value may outlive the call that created its local name."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated.",
+      "Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame.",
+      "Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame."
+        },
+        "explanation": "Apply the declared Local scope model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: If two variables share the same spelling anywhere in a program, they must refer to one global value."
+      }
+    ],
+    "textAlternative": "Starting artifact: A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated. Step 1, Observe. State: evidence: A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame.. Apply the declared Local scope model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity.. Compare the observation with the correction and reject the misconception: If two variables share the same spelling anywhere in a program, they must refer to one global value."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Local scope: direct case”: state its starting evidence, apply the Local scope rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Local scope: direct case.",
+        "Starting evidence: A local variable named total inside calculate does not overwrite an unrelated total in the caller unless an explicit shared object or global is updated.",
+        "Core rule: Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame.",
+        "Observable result: The case supports the declared outcome because Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity.",
+        "Boundary check: Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: Two functions can each use a local index name because each call resolves that name in a separate scope and frame.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "Scope determines where a name can be resolved, while lifetime determines how long its associated storage or value exists; a local name normally belongs to its block or call frame.",
+        "Languages differ in block, function, module, class, closure, and dynamic scope rules, and a captured value may outlive the call that created its local name."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Local scope, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Predict name visibility and avoid accidental dependence on global state.",
+        "Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.abstraction.scope.misconception",
+      "explanation": "Resolve each use from its lexical context and active frame, and make cross-scope state explicit rather than assuming identical spelling implies identity.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Two functions can each use a local index name because each call resolves that name in a separate scope and frame."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to predict name visibility and avoid accidental dependence on global state. Keep this boundary in view: Languages differ in block, function, module, class, closure, and dynamic scope rules, and a captured value may outlive the call that created its local name.",
+    "retrievalPrompts": [
+      "Explain Local scope without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: If two variables share the same spelling anywhere in a program, they must refer to one global value.",
+      "Apply the model to this case from memory: Two functions can each use a local index name because each call resolves that name in a separate scope and frame."
+    ],
+    "nextReviewPrompt": "Next: continue to “Recursion concept”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

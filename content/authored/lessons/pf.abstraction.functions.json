@@ -1,0 +1,196 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.pf.abstraction.functions.v1",
+  "courseId": "programming-foundations",
+  "courseVersion": "0.1.0",
+  "moduleId": "pf.abstraction",
+  "skillId": "pf.abstraction.functions",
+  "title": "Functions as contracts",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted curriculum tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T06:30:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Topic-specific draft for Functions as contracts; requires human source, technical, pedagogy, and accessibility review. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-sdf",
+      "locator": "CS2023 Software Development Fundamentals; August 2023; section applicable to Functions as contracts",
+      "claim": "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state. Your goal is to specify a small function contract independently of its implementation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Iteration; Decomposition. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Operational model",
+        "body": "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps. The learner should use this model to predict an observable result rather than merely repeat terminology."
+      },
+      {
+        "heading": "Boundary and failure point",
+        "body": "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Describe a function by purpose, inputs, outputs and observable effects.",
+      "Specify a small function contract independently of its implementation."
+    ],
+    "excludes": [
+      "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees."
+    ]
+  },
+  "outcomes": [
+    "Specify a small function contract independently of its implementation."
+  ],
+  "examples": [
+    {
+      "id": "pf.abstraction.functions.example-a",
+      "title": "Functions as contracts: direct case",
+      "situation": "A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
+      "walkthrough": [
+        "Step 1 — Observe the starting evidence: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Check the result against this correction: Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+      ],
+      "result": "The case supports the declared outcome because Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+    },
+    {
+      "id": "pf.abstraction.functions.example-b",
+      "title": "Functions as contracts: boundary case",
+      "situation": "A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail.",
+      "walkthrough": [
+        "Step 1 — Identify the changed context: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail.",
+        "Step 2 — Keep this boundary explicit: A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees.",
+        "Step 3 — Reject the documented misconception: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+      ],
+      "result": "This case demonstrates the declared outcome: Specify a small function contract independently of its implementation."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "pf.abstraction.functions.misconception",
+      "mistakenBelief": "Knowing a function's name and parameter count is enough to use it safely without understanding its contract.",
+      "correction": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.",
+      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A service counter can model Functions as contracts: it advertises accepted requests and results while its internal work remains behind a named interface.",
+    "usefulFor": [
+      "Separating contracts, local work, calls, returned results, and repeated service use"
+    ],
+    "limitations": [
+      "A service counter does not capture language-specific frames, reference semantics, closures, or recursion limits.",
+      "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
+      "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
+      "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Observe",
+        "state": {
+          "evidence": "A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state."
+        },
+        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+      },
+      {
+        "step": 2,
+        "focus": "Apply model",
+        "state": {
+          "model": "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps."
+        },
+        "explanation": "Apply the declared Functions as contracts model and preserve its inputs, state, ordering, and environment assumptions."
+      },
+      {
+        "step": 3,
+        "focus": "Verify",
+        "state": {
+          "correction": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+        },
+        "explanation": "Compare the observation with the correction and reject the misconception: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+      }
+    ],
+    "textAlternative": "Starting artifact: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state. Step 1, Observe. State: evidence: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.. Apply the declared Functions as contracts model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.. Compare the observation with the correction and reject the misconception: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Functions as contracts: direct case”: state its starting evidence, apply the Functions as contracts rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Functions as contracts: direct case.",
+        "Starting evidence: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
+        "Core rule: A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
+        "Observable result: The case supports the declared outcome because Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.",
+        "Boundary check: Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Apply the same skill to this changed but related case: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail.",
+      "scaffold": [
+        "Identify what changed from the first case.",
+        "Keep the declared boundary visible before deciding."
+      ],
+      "expectedEvidence": [
+        "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
+        "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Create a new neutral-context example of Functions as contracts, predict its result, and explain why the documented misconception would fail there.",
+      "scaffold": [
+        "Do not reuse the optional analogy.",
+        "Declare inputs, state, tool or environment assumptions before the prediction."
+      ],
+      "expectedEvidence": [
+        "Specify a small function contract independently of its implementation.",
+        "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "pf.abstraction.functions.misconception",
+      "explanation": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.",
+      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to specify a small function contract independently of its implementation. Keep this boundary in view: A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees.",
+    "retrievalPrompts": [
+      "Explain Functions as contracts without using the optional analogy and include one observable consequence.",
+      "Why is this statement incorrect: Knowing a function's name and parameter count is enough to use it safely without understanding its contract.",
+      "Apply the model to this case from memory: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail."
+    ],
+    "nextReviewPrompt": "Next: continue to “Calls, parameters and returns”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

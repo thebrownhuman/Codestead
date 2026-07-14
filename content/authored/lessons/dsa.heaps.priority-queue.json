@@ -1,0 +1,210 @@
+{
+  "$schema": "../../schema/authored-lesson.schema.json",
+  "format": "authored-lesson",
+  "schemaVersion": "1.0.0",
+  "id": "lesson.dsa.heaps.priority-queue.v1",
+  "courseId": "dsa",
+  "courseVersion": "0.1.0",
+  "moduleId": "dsa.heaps",
+  "skillId": "dsa.heaps.priority-queue",
+  "title": "Priority queue applications",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "codex-assisted-draft",
+      "displayName": "Codex-assisted DSA tranche",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-07-12T10:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Language-neutral DSA draft with explicit C/C++/Java/Python mapping for Priority queue applications; independent algorithm, implementation, pedagogy, and accessibility review required. Beginner-quality contract 1.0.0 applied deterministically from existing source-linked draft facts; publication stage and reviewer state are unchanged."
+  },
+  "sources": [
+    {
+      "sourceRef": "cs2023-al",
+      "locator": "CS2023 Algorithmic Foundations; August 2023; material applicable to Priority queue applications",
+      "claim": "A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap."
+    }
+  ],
+  "canonicalExplanation": {
+    "summary": "A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap.",
+    "sections": [
+      {
+        "heading": "Start here",
+        "body": "Start with this case: Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table. Your goal is to solve and analyze a priority-driven problem with the selected language's library or implementation. Work through the example one step at a time, then use the boundary to check your answer."
+      },
+      {
+        "heading": "Before you begin",
+        "body": "Review these declared prerequisites first: Array representation and operations; Tree terminology and representation; Heapify, insert and extract. If one is unfamiliar, revisit it before continuing."
+      },
+      {
+        "heading": "Shared concept and invariant",
+        "body": "A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap. This claim is assessed independently from syntax so conceptual evidence can transfer."
+      },
+      {
+        "heading": "C, C++, Java, and Python implementation map",
+        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "heading": "Boundary and common failure",
+        "body": "Equal-priority stability is not automatic, decrease-key support varies, and stale-entry techniques may be needed. The draft therefore rejects: A priority queue always dequeues equal-priority items in insertion order."
+      }
+    ]
+  },
+  "scope": {
+    "includes": [
+      "Use prioritized removal for scheduling, top-k selection and graph frontiers with stable tie policy when required.",
+      "Solve and analyze a priority-driven problem with the selected language's library or implementation.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "excludes": [
+      "Equal-priority stability is not automatic, decrease-key support varies, and stale-entry techniques may be needed."
+    ]
+  },
+  "outcomes": [
+    "Solve and analyze a priority-driven problem with the selected language's library or implementation."
+  ],
+  "examples": [
+    {
+      "id": "dsa.heaps.priority-queue.example-a",
+      "title": "Priority queue applications: language-neutral trace",
+      "situation": "Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table.",
+      "walkthrough": [
+        "Step 1 — State the abstract input and invariant: Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table.",
+        "Step 2 — Use the core rule above to predict one observable result.",
+        "Step 3 — Verify the correction: Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it."
+      ],
+      "result": "The conceptual result follows because Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it."
+    },
+    {
+      "id": "dsa.heaps.priority-queue.example-b",
+      "title": "Priority queue applications: implementation transfer",
+      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "walkthrough": [
+        "Step 1 — Keep the same specification and invariant across all four languages.",
+        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Step 3 — Retest this boundary in the selected implementation: Equal-priority stability is not automatic, decrease-key support varies, and stale-entry techniques may be needed."
+      ],
+      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "dsa.heaps.priority-queue.misconception",
+      "mistakenBelief": "A priority queue always dequeues equal-priority items in insertion order.",
+      "correction": "Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it.",
+      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A priority queue always dequeues equal-priority items in insertion order."
+    }
+  ],
+  "analogy": {
+    "optional": true,
+    "example": "A carefully labeled physical arrangement can introduce Priority queue applications, while the canonical invariant and operations remain the actual algorithmic model.",
+    "usefulFor": [
+      "Introducing structure, order, connectivity, or state transition before formal notation"
+    ],
+    "limitations": [
+      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
+      "Equal-priority stability is not automatic, decrease-key support varies, and stale-entry techniques may be needed."
+    ],
+    "canonicalExplanationStandsAlone": true
+  },
+  "trace": {
+    "artifact": [
+      "Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table.",
+      "A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap.",
+      "Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it.",
+      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "focus": "Specification",
+        "state": {
+          "scenario": "Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table."
+        },
+        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+      },
+      {
+        "step": 2,
+        "focus": "Invariant and transition",
+        "state": {
+          "invariant": "A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap."
+        },
+        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+      },
+      {
+        "step": 3,
+        "focus": "Implementation facet",
+        "state": {
+          "languages": "C, C++, Java, Python"
+        },
+        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      },
+      {
+        "step": 4,
+        "focus": "Conclusion",
+        "state": {
+          "correction": "Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it."
+        },
+        "explanation": "Verify the result and reject this misconception: A priority queue always dequeues equal-priority items in insertion order."
+      }
+    ],
+    "textAlternative": "Starting artifact: Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table. Step 1, Specification. State: scenario: Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it.. Verify the result and reject this misconception: A priority queue always dequeues equal-priority items in insertion order."
+  },
+  "practice": {
+    "faded": {
+      "prompt": "Quick check for “Priority queue applications: language-neutral trace”: state its starting evidence, apply the Priority queue applications rule, and give the observable result in three short lines.",
+      "scaffold": [
+        "Line 1: name the starting evidence.",
+        "Line 2: state the part of the core rule that applies.",
+        "Line 3: give the result and reject the common mistake."
+      ],
+      "expectedEvidence": [
+        "Named example: Priority queue applications: language-neutral trace.",
+        "Starting evidence: Dijkstra pushes an improved distance and ignores a popped stale pair whose distance no longer matches the best table.",
+        "Core rule: A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap.",
+        "Observable result: The conceptual result follows because Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it.",
+        "Boundary check: Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it."
+      ]
+    },
+    "nearTransfer": {
+      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A priority queue exposes the highest- or lowest-priority item rather than arrival order and is commonly implemented with a heap.",
+      "scaffold": [
+        "Keep the specification unchanged.",
+        "Name the selected language's implementation rules."
+      ],
+      "expectedEvidence": [
+        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+        "Equal-priority stability is not automatic, decrease-key support varies, and stale-entry techniques may be needed."
+      ]
+    },
+    "farTransfer": {
+      "prompt": "Solve a surface-different Priority queue applications case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "scaffold": [
+        "Do not use the analogy.",
+        "Separate concept evidence from language evidence."
+      ],
+      "expectedEvidence": [
+        "Solve and analyze a priority-driven problem with the selected language's library or implementation.",
+        "Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it."
+      ]
+    }
+  },
+  "remediation": [
+    {
+      "misconceptionId": "dsa.heaps.priority-queue.misconception",
+      "explanation": "Stability among equal priorities requires an explicit tie-breaker; ordinary heap priority alone does not guarantee it.",
+      "retryPrompt": "Re-evaluate the example using checkpoint 'explicit tie-breaker', then state one implementation-specific risk in the selected language."
+    }
+  ],
+  "recap": {
+    "summary": "You should now be able to solve and analyze a priority-driven problem with the selected language's library or implementation. Keep this boundary in view: Equal-priority stability is not automatic, decrease-key support varies, and stale-entry techniques may be needed.",
+    "retrievalPrompts": [
+      "State the Priority queue applications invariant and complexity without code.",
+      "Why is this claim false: A priority queue always dequeues equal-priority items in insertion order.",
+      "Map checkpoint 'explicit tie-breaker' to C, C++, Java, and Python."
+    ],
+    "nextReviewPrompt": "Next: continue to “Heapsort and selection”. Before moving on, answer one retrieval prompt without reopening the explanation."
+  }
+}

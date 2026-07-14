@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceKind": "deterministic-storage-reconciliation-verification",
+  "policyVersion": "storage-reconciliation-2026-07.v1",
+  "generatedAt": "2026-07-12T12:00:00.000Z",
+  "scope": {
+    "database": "disposable PostgreSQL migrated twice",
+    "filesystem": "real temporary object root with verified, missing, changed, deleted-retained, and orphan fixtures",
+    "productionDataUsed": false,
+    "externalProviderCalls": 0
+  },
+  "verification": {
+    "storageUnit": {
+      "file": "src/lib/storage/__tests__/reconciliation.test.ts",
+      "tests": 22,
+      "passed": 22,
+      "failed": 0
+    },
+    "fileApiBoundary": {
+      "file": "src/app/api/files/__tests__/route.test.ts",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    "postgresFilesystemIntegration": {
+      "file": "integration/storage-reconciliation.integration.test.ts",
+      "suiteFiles": 8,
+      "suiteTests": 36,
+      "passed": 36,
+      "failed": 0,
+      "migrationPasses": 2
+    }
+  },
+  "verifiedContracts": {
+    "dryRunDefault": true,
+    "applyConfirmation": "storage-reconciliation-2026-07.v1",
+    "activeRowSizeAndHashVerified": true,
+    "missingOrChangedObjectsFailClosed": true,
+    "ledgerAdjustmentLockedAndIdempotent": true,
+    "postApplyLedgerRechecked": true,
+    "quotaRangeBytes": {
+      "minimum": 2147483648,
+      "maximum": 3221225472
+    },
+    "capacityThresholdsBasisPoints": [
+      7000,
+      8500,
+      9500
+    ],
+    "unknownFilesDeleted": 0,
+    "metadataRewrittenFromDisk": 0,
+    "learnerFileResponsesExposeSha256": false
+  },
+  "reportPrivacy": {
+    "containsFilenames": false,
+    "containsHashes": false,
+    "containsStorageKeysOrPaths": false,
+    "containsLearnerIdentifiers": false
+  },
+  "remainingDeploymentEvidence": [
+    "Production clamd and EICAR acceptance exercise",
+    "Delivered 70/85/95 capacity alerts and disk-fill drill",
+    "Restore of a real missing object from a verified encrypted backup",
+    "Persisted latest-report administrator dashboard card",
+    "Dedicated durable replay record for administrator quota mutations"
+  ]
+}
