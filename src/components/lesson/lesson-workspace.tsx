@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -783,9 +784,44 @@ function DraftSyncNotice({
   </div>;
 }
 
-function TutorPanel({ courseId, skillId, onClose }: { courseId: string; skillId: string; onClose: () => void }) {
+function MentorPet({ state }: { state: "ready" | "thinking" }) {
+  return <div
+    aria-hidden="true"
+    className={styles.mentorPet}
+    data-state={state}
+    data-testid="codestead-mentor-pet"
+  >
+    <svg viewBox="0 0 80 80">
+      <circle className={styles.petOrbit} cx="40" cy="39" r="31" />
+      <ellipse className={styles.petShadow} cx="40" cy="69" rx="18" ry="4" />
+      <g className={styles.petCharacter}>
+        <path className={styles.petStem} d="M40 24V17" />
+        <path className={styles.petLeaf} d="M40 18c1-8 8-10 13-8-1 7-6 11-13 8Z" />
+        <path className={styles.petLeaf} d="M40 20c-1-6-6-9-11-7 1 6 5 9 11 7Z" />
+        <rect className={styles.petBody} height="39" rx="17" width="48" x="16" y="24" />
+        <rect className={styles.petFace} height="23" rx="10" width="36" x="22" y="32" />
+        <g className={styles.petEyes}>
+          <ellipse cx="32" cy="42" rx="2.4" ry="3.2" />
+          <ellipse cx="48" cy="42" rx="2.4" ry="3.2" />
+        </g>
+        <path className={styles.petSmile} d="M35 48c3 3 7 3 10 0" />
+        <path className={styles.petArm} d="M16 42c-5 1-6 5-4 8" />
+        <path className={styles.petArm} d="M64 42c5 1 6 5 4 8" />
+        <path className={styles.petFoot} d="M27 62v4m26-4v4" />
+      </g>
+    </svg>
+  </div>;
+}
+
+const mentorStarterPrompts = [
+  { label: "Explain with an analogy", prompt: "Explain this skill with a simple everyday analogy." },
+  { label: "Show a tiny example", prompt: "Show me one tiny example, then ask me what it does." },
+  { label: "Quiz me gently", prompt: "Quiz me with one beginner-friendly question about this skill." },
+] as const;
+
+function TutorPanel({ courseId, skillId, skillTitle, onClose }: { courseId: string; skillId: string; skillTitle: string; onClose: () => void }) {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; content: string }>>([{ id: "buddy-welcome", role: "assistant", content: "Hey buddy—what part feels unclear? I’ll start with one small question, not dump the answer." }]);
+  const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; content: string }>>([]);
   const [busy, setBusy] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -860,18 +896,41 @@ function TutorPanel({ courseId, skillId, onClose }: { courseId: string; skillId:
     }
   }
 
-  return <aside
+  return createPortal(<div
     aria-labelledby="lesson-buddy-title"
     className={styles.tutorPanel}
     id="lesson-buddy-tutor"
     onKeyDown={(event) => { if (event.key === "Escape") onClose(); }}
     role="dialog"
   >
-    <div className={styles.tutorHead}><span><Bot size={18} /><span><strong id="lesson-buddy-title">Codestead mentor</strong><small>Friendly and grounded in this skill</small></span></span><button aria-label="Close tutor" onClick={onClose}><X size={17} /></button></div>
-    <div aria-live="polite" className={styles.chatMessages} ref={messageListRef} role="log">{messages.map((item) => <div className={item.role === "user" ? styles.userMessage : styles.aiMessage} key={item.id}>{item.content}</div>)}{busy && <div className={styles.aiMessage}>Thinking from your course context…</div>}</div>
-    <div className={styles.chatInput}><textarea aria-label="Message Codestead" autoFocus disabled={busy} placeholder="Ask why, request another example, or paste an error…" value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} /><button aria-label="Send message" onClick={send} disabled={busy || !message.trim()}><Send size={16} /></button></div>
-    <p>Codestead uses this lesson’s context. Hidden tests and keys are never included.</p>
-  </aside>;
+    <div className={styles.tutorHead}>
+      <div className={styles.mentorIdentity}>
+        <MentorPet state={busy ? "thinking" : "ready"} />
+        <span>
+          <strong id="lesson-buddy-title">Codestead mentor</strong>
+          <small aria-live="polite" className={styles.petStatus} role="status"><i />{busy ? "Patch is thinking" : "Patch is ready"}</small>
+        </span>
+      </div>
+      <button aria-label="Close tutor" onClick={onClose} type="button"><X size={18} /></button>
+    </div>
+    {messages.length === 0 && !busy && <section className={styles.mentorWelcome}>
+      <span className={styles.mentorEyebrow}><Sparkles aria-hidden="true" size={14} /> Learning sidekick</span>
+      <h2>What should we untangle?</h2>
+      <p>I know you are working on <strong>{skillTitle}</strong>. Pick a starting point or ask in your own words.</p>
+      <div aria-label="Starter prompts" className={styles.mentorPrompts}>
+        {mentorStarterPrompts.map((starter) => <button key={starter.label} onClick={() => setMessage(starter.prompt)} type="button">{starter.label}</button>)}
+      </div>
+    </section>}
+    {(messages.length > 0 || busy) && <div aria-busy={busy} aria-live="polite" className={styles.chatMessages} ref={messageListRef} role="log">
+      {messages.map((item) => <div className={item.role === "user" ? styles.userMessage : styles.aiMessage} key={item.id}>{item.content}</div>)}
+      {busy && <div className={`${styles.aiMessage} ${styles.thinkingMessage}`}><span>Thinking from this skill</span><i /><i /><i /></div>}
+    </div>}
+    <form className={styles.chatInput} onSubmit={(event) => { event.preventDefault(); void send(); }}>
+      <textarea aria-label="Message Codestead" autoFocus disabled={busy} placeholder="Ask Patch about this skill…" rows={1} value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} />
+      <button aria-label="Send message" disabled={busy || !message.trim()} type="submit">{busy ? <LoaderCircle aria-hidden="true" className={styles.sendSpinner} size={18} /> : <Send aria-hidden="true" size={17} />}</button>
+    </form>
+    <p className={styles.mentorPrivacy}><span aria-hidden="true">✦</span> Lesson context only. Hidden tests and keys stay private.</p>
+  </div>, document.body);
 }
 
 export function AuthoredLessonCard({ lesson }: { lesson: AuthoredLesson }) {
@@ -998,12 +1057,14 @@ export function DsaLanguageRequired() {
 function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, skill, courseTitle, moduleTitle, dsaRunnerLanguage, previousHref, nextHref }: LessonWorkspaceProps & { authoredLesson: AuthoredLesson }) {
   const [mode, setMode] = useState<LearningMode>("lesson");
   const [tutor, setTutor] = useState(false);
+  const tutorTriggerRef = useRef<HTMLButtonElement>(null);
+  const closeTutor = () => { setTutor(false); tutorTriggerRef.current?.focus(); };
   return <div className={`${styles.workspace} ${tutor ? styles.withTutor : ""}`}>
     <header className={styles.header}>
       <Link href={`/courses/${blueprint.courseId}`}><ArrowLeft size={16} /> {courseTitle}</Link>
       <div className={styles.lessonTitle}><span>{moduleTitle}</span><strong>{skill.title}</strong></div>
       <div className={styles.headerProgress}><span>Draft preview</span></div>
-      <button className={styles.askButton} onClick={() => setTutor(!tutor)} type="button"><Bot size={16} /> Ask Codestead</button>
+      <button aria-controls="lesson-buddy-tutor" aria-expanded={tutor} className={styles.askButton} onClick={() => setTutor(!tutor)} ref={tutorTriggerRef} type="button"><Bot size={16} /> Ask Codestead</button>
     </header>
     <div className={styles.body}>
       <aside className={styles.outline}>
@@ -1024,7 +1085,7 @@ function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, sk
           {nextHref ? <Link className="button button-primary" href={nextHref}>Next skill <ArrowRight size={15} /></Link> : <Link className="button button-primary" href={`/courses/${blueprint.courseId}`}>Return to roadmap <CheckCircle2 size={15} /></Link>}
         </footer>
       </main>
-      {tutor && <TutorPanel courseId={blueprint.courseId} skillId={skill.id} onClose={() => setTutor(false)} />}
+      {tutor && <TutorPanel courseId={blueprint.courseId} skillId={skill.id} skillTitle={skill.title} onClose={closeTutor} />}
     </div>
   </div>;
 }
@@ -1033,6 +1094,8 @@ function BlueprintLessonWorkspace({ assessmentBank, blueprint, skill, courseTitl
   const [active, setActive] = useState(0);
   const [mode, setMode] = useState<LearningMode>("lesson");
   const [tutor, setTutor] = useState(false);
+  const tutorTriggerRef = useRef<HTMLButtonElement>(null);
+  const closeTutor = () => { setTutor(false); tutorTriggerRef.current?.focus(); };
   const block = blueprint.blocks[active];
   const progress = Math.round(((active + 1) / blueprint.blocks.length) * 100);
   return <div className={`${styles.workspace} ${tutor ? styles.withTutor : ""}`}>
@@ -1040,7 +1103,7 @@ function BlueprintLessonWorkspace({ assessmentBank, blueprint, skill, courseTitl
       <Link href={`/courses/${blueprint.courseId}`}><ArrowLeft size={16} /> {courseTitle}</Link>
       <div className={styles.lessonTitle}><span>{moduleTitle}</span><strong>{skill.title}</strong></div>
       <div className={styles.headerProgress}><span>{progress}%</span><div><i style={{ width: `${progress}%` }} /></div></div>
-      <button className={styles.askButton} onClick={() => setTutor(!tutor)} type="button"><Bot size={16} /> Ask Codestead</button>
+      <button aria-controls="lesson-buddy-tutor" aria-expanded={tutor} className={styles.askButton} onClick={() => setTutor(!tutor)} ref={tutorTriggerRef} type="button"><Bot size={16} /> Ask Codestead</button>
     </header>
     <div className={styles.body}>
       <aside className={styles.outline}>
@@ -1070,7 +1133,7 @@ function BlueprintLessonWorkspace({ assessmentBank, blueprint, skill, courseTitl
               : <Link className="button button-primary" href={`/courses/${blueprint.courseId}`}>Return to roadmap <CheckCircle2 size={15} /></Link>}
         </footer>
       </main>
-      {tutor && <TutorPanel courseId={blueprint.courseId} skillId={skill.id} onClose={() => setTutor(false)} />}
+      {tutor && <TutorPanel courseId={blueprint.courseId} skillId={skill.id} skillTitle={skill.title} onClose={closeTutor} />}
     </div>
   </div>;
 }

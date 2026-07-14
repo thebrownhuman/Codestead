@@ -137,6 +137,62 @@ describe("lesson workspace interactions", () => {
     expect(screen.queryByRole("textbox", { name: "Message Codestead" })).not.toBeInTheDocument();
   });
 
+  it("introduces Patch as a ready learning pet and lets starter prompts prepare a message", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    render(<LessonWorkspace {...baseProps()} authoredLesson={authoredLesson} />);
+
+    const trigger = screen.getByRole("button", { name: /Ask Codestead/i });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await user.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("codestead-mentor-pet")).toHaveAttribute("data-state", "ready");
+    expect(screen.getByText("Patch is ready")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Explain with an analogy" }));
+    expect(screen.getByRole("textbox", { name: "Message Codestead" }))
+      .toHaveValue("Explain this skill with a simple everyday analogy.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows Patch thinking while a mentor response is in flight", async () => {
+    const user = userEvent.setup();
+    let resolveResponse!: (response: Response) => void;
+    const response = new Promise<Response>((resolve) => { resolveResponse = resolve; });
+    vi.spyOn(globalThis, "fetch").mockReturnValueOnce(response);
+    render(<LessonWorkspace {...baseProps()} authoredLesson={authoredLesson} />);
+
+    await user.click(screen.getByRole("button", { name: /Ask Codestead/i }));
+    await user.type(screen.getByRole("textbox", { name: "Message Codestead" }), "Help me understand{enter}");
+
+    expect(screen.getByTestId("codestead-mentor-pet")).toHaveAttribute("data-state", "thinking");
+    expect(screen.getByText("Patch is thinking")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+
+    resolveResponse(new Response(JSON.stringify({
+      callId: "call-patch",
+      content: "Let us unpack it together.",
+      threadId: "b3000000-0000-4000-8000-000000000003",
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    expect(await screen.findByText("Let us unpack it together.")).toBeInTheDocument();
+    expect(screen.getByTestId("codestead-mentor-pet")).toHaveAttribute("data-state", "ready");
+  });
+
+  it("returns keyboard focus to the mentor trigger when Escape closes the cockpit", async () => {
+    const user = userEvent.setup();
+    render(<LessonWorkspace {...baseProps()} authoredLesson={authoredLesson} />);
+
+    const trigger = screen.getByRole("button", { name: /Ask Codestead/i });
+    await user.click(trigger);
+    const composer = screen.getByRole("textbox", { name: "Message Codestead" });
+    composer.focus();
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog", { name: "Codestead mentor" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it("reuses the exact Codestead request when the first transport response is lost", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(globalThis, "fetch")

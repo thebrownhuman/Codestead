@@ -190,6 +190,44 @@ select {
   font: inherit;
 }
 
+:where(select) {
+  min-height: var(--control-min, 44px);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background-color: var(--surface-solid);
+}
+
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-inline-end: 2.75rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-soft) 50%),
+    linear-gradient(135deg, var(--ink-soft) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) 50%,
+    calc(100% - 0.85rem) 50%;
+  background-repeat: no-repeat;
+  background-size: 0.32rem 0.32rem;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out);
+}
+
+select:not([multiple]):not([size]):disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+select option,
+select optgroup {
+  color: var(--ink);
+  background: var(--surface-solid);
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -292,6 +330,11 @@ a {
 }
 
 @media (hover: hover) {
+  select:not([multiple]):not([size]):not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--brand) 42%, var(--line));
+    background-color: color-mix(in srgb, var(--brand-soft) 22%, var(--surface-solid));
+  }
+
   .button:not(:disabled):hover {
     transform: translateY(-2px);
   }
@@ -452,5 +495,11 @@ html[data-reduce-motion="true"] *::after {
     border: 2px solid ButtonText;
     color: ButtonText;
     background: ButtonFace;
+  }
+
+  select:not([multiple]):not([size]) {
+    appearance: auto;
+    padding-inline-end: 0.75rem;
+    background-image: none;
   }
 }

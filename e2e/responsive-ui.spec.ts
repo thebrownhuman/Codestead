@@ -66,6 +66,84 @@ test.describe("responsive UI regressions", () => {
     await expectNoDocumentOverflow(page);
   });
 
+  test("mentor cockpit keeps its composer reachable in a short phone viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 480 });
+    await page.goto("/courses/python/skills/python.toolchain.repl");
+    await page.getByRole("button", { name: /Ask Codestead/i }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Codestead mentor" });
+    const composer = page.getByRole("textbox", { name: "Message Codestead" });
+    await expect(dialog).toBeVisible();
+    await expect(composer).toBeVisible();
+    const geometry = await dialog.evaluate((element) => {
+      const input = element.querySelector("textarea");
+      if (!input) throw new Error("Mentor composer is missing.");
+      const dialogBox = element.getBoundingClientRect();
+      const inputBox = input.getBoundingClientRect();
+      return {
+        dialogBottom: dialogBox.bottom,
+        dialogTop: dialogBox.top,
+        inputBottom: inputBox.bottom,
+        inputTop: inputBox.top,
+      };
+    });
+
+    expect(geometry.dialogTop).toBeGreaterThanOrEqual(0);
+    expect(geometry.dialogBottom).toBeLessThanOrEqual(481);
+    expect(geometry.inputTop).toBeGreaterThanOrEqual(geometry.dialogTop);
+    expect(geometry.inputBottom).toBeLessThanOrEqual(geometry.dialogBottom);
+    await expectNoDocumentOverflow(page);
+  });
+
+  test("mentor cockpit keeps its close control and composer visible in phone landscape", async ({ page }) => {
+    await page.setViewportSize({ width: 667, height: 375 });
+    await page.goto("/courses/python/skills/python.toolchain.repl");
+    await page.getByRole("button", { name: /Ask Codestead/i }).click();
+    await page.waitForTimeout(500);
+
+    const dialog = page.getByRole("dialog", { name: "Codestead mentor" });
+    const geometry = await dialog.evaluate((element) => {
+      const close = element.querySelector<HTMLButtonElement>('button[aria-label="Close tutor"]');
+      const input = element.querySelector("textarea");
+      if (!close || !input) throw new Error("Mentor cockpit controls are missing.");
+      const dialogBox = element.getBoundingClientRect();
+      const closeBox = close.getBoundingClientRect();
+      const inputBox = input.getBoundingClientRect();
+      return {
+        closeBottom: closeBox.bottom,
+        closeTop: closeBox.top,
+        dialogBottom: dialogBox.bottom,
+        dialogTop: dialogBox.top,
+        inputBottom: inputBox.bottom,
+        inputTop: inputBox.top,
+      };
+    });
+
+    expect(geometry.closeTop).toBeGreaterThanOrEqual(geometry.dialogTop);
+    expect(geometry.closeBottom).toBeLessThanOrEqual(geometry.dialogBottom);
+    expect(geometry.inputTop).toBeGreaterThanOrEqual(geometry.dialogTop);
+    expect(geometry.inputBottom).toBeLessThanOrEqual(geometry.dialogBottom);
+    await expectNoDocumentOverflow(page);
+  });
+
+  test("mentor composer keeps a visible focus ring in forced colors", async ({ page }) => {
+    await page.emulateMedia({ forcedColors: "active" });
+    await page.goto("/courses/python/skills/python.toolchain.repl");
+    await page.getByRole("button", { name: /Ask Codestead/i }).click();
+    const composer = page.getByRole("textbox", { name: "Message Codestead" });
+    await composer.focus();
+
+    const focusStyle = await composer.evaluate((element) => {
+      const wrapper = element.closest("form");
+      if (!wrapper) throw new Error("Mentor composer wrapper is missing.");
+      const style = getComputedStyle(wrapper);
+      return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    });
+
+    expect(focusStyle.outlineStyle).not.toBe("none");
+    expect(Number.parseFloat(focusStyle.outlineWidth)).toBeGreaterThanOrEqual(2);
+  });
+
   test("review empty state and fixed navigation fit at 375px with 200 percent text", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/review");

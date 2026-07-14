@@ -281,21 +281,69 @@
 .practiceResult small { display: block; color: var(--ink-soft); }
 .practiceResult article { margin-top: 12px; padding: 12px; border-left: 3px solid var(--brand); background: var(--surface-solid); }
 .practiceResult article pre { overflow: auto; padding: 10px; border-radius: 8px; color: #d8e4d8; background: #141a15; white-space: pre-wrap; }
-.tutorPanel { position: fixed; z-index: 60; top: 84px; right: 16px; display: grid; width: min(390px,calc(100vw - 32px)); height: min(640px,calc(100dvh - 100px)); max-height: calc(100dvh - 100px); min-width: 0; min-height: 420px; overflow: hidden; grid-template-rows: auto minmax(0,1fr) auto auto; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-solid); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
-.tutorHead { display: flex; align-items: center; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--line); }
-.tutorHead > span { display: flex; align-items: center; gap: 8px; }
-.tutorHead span span { display: grid; }
-.tutorHead strong { font-size: var(--text-sm,.875rem); }
+.tutorPanel { position: fixed; z-index: 60; top: 84px; right: 16px; display: flex; width: min(430px,calc(100vw - 32px)); max-height: min(620px,calc(100dvh - 100px)); min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; border: 1px solid color-mix(in srgb,var(--brand) 25%,var(--line)); border-radius: 22px; background: linear-gradient(145deg,color-mix(in srgb,var(--brand-soft) 34%,var(--surface-solid)) 0,var(--surface-solid) 32%); box-shadow: 0 26px 80px color-mix(in srgb,#000 34%,transparent),0 0 0 1px color-mix(in srgb,var(--brand) 8%,transparent); animation: mentor-cockpit-enter .24s var(--ease-out) both; isolation: isolate; }
+.tutorPanel::before { position: absolute; z-index: -1; top: -85px; left: -70px; width: 210px; height: 210px; border-radius: 50%; background: radial-gradient(circle,color-mix(in srgb,var(--signal-cyan) 14%,transparent),transparent 68%); content: ""; pointer-events: none; }
+.tutorHead { display: flex; min-height: 82px; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px 9px 9px; border-bottom: 1px solid var(--line); background: linear-gradient(105deg,color-mix(in srgb,var(--brand-soft) 72%,transparent),color-mix(in srgb,var(--signal-cyan-soft) 28%,transparent)); }
+.mentorIdentity { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.mentorIdentity > span { display: grid; min-width: 0; gap: 3px; }
+.tutorHead strong { overflow: hidden; font-size: var(--text-sm,.875rem); text-overflow: ellipsis; white-space: nowrap; }
 .tutorHead small { color: var(--ink-soft); font-size: var(--text-xs,.75rem); }
-.tutorHead button { display: grid; width: var(--control-min,44px); height: var(--control-min,44px); place-items: center; border: 0; color: var(--ink-soft); background: transparent; cursor: pointer; }
-.chatMessages { display: flex; min-height: 0; overflow-y: auto; flex-direction: column; gap: 8px; padding: 13px; overscroll-behavior: contain; scrollbar-gutter: stable; }
-.aiMessage, .userMessage { max-width: 90%; padding: 9px 11px; border-radius: 11px 11px 11px 3px; background: var(--surface-muted); font-size: var(--text-sm,.875rem); line-height: 1.55; white-space: pre-wrap; }
-.userMessage { align-self: flex-end; border-radius: 11px 11px 3px 11px; color: var(--on-brand); background: var(--brand); }
-.chatInput { display: flex; gap: 7px; padding: 10px; border-top: 1px solid var(--line); }
-.chatInput textarea { min-height: 46px; max-height: 108px; flex: 1; padding: 9px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface); resize: vertical; }
-.chatInput textarea:disabled { opacity: .72; }
-.chatInput button { align-self: flex-end; display: grid; width: var(--control-min,44px); height: var(--control-min,44px); place-items: center; border: 0; border-radius: 9px; color: var(--on-brand); background: var(--brand); cursor: pointer; }
-.tutorPanel > p { margin: 0; padding: 0 12px 10px; color: var(--ink-soft); font-size: var(--text-xs,.75rem); }
+.petStatus { display: inline-flex; align-items: center; gap: 6px; }
+.petStatus i { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px color-mix(in srgb,var(--brand) 12%,transparent); }
+.mentorIdentity:has(.mentorPet[data-state="thinking"]) .petStatus i { background: var(--signal-cyan); animation: pet-status-pulse 1s ease-in-out infinite; }
+.tutorHead > button { display: grid; width: var(--control-min,44px); height: var(--control-min,44px); flex: 0 0 auto; place-items: center; border: 1px solid transparent; border-radius: 50%; color: var(--ink-soft); background: transparent; transition: color var(--motion-fast) var(--ease-out),background var(--motion-fast) var(--ease-out),transform var(--motion-fast) var(--ease-out); cursor: pointer; }
+.tutorHead > button:hover { color: var(--ink); background: color-mix(in srgb,var(--ink) 7%,transparent); }
+.mentorPet { position: relative; width: 64px; height: 64px; flex: 0 0 64px; color: var(--brand); }
+.mentorPet svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.petOrbit { fill: none; stroke: color-mix(in srgb,var(--signal-cyan) 48%,transparent); stroke-width: 1.5; stroke-dasharray: 4 6; transform-box: fill-box; transform-origin: center; }
+.petShadow { fill: color-mix(in srgb,var(--ink) 16%,transparent); }
+.petCharacter { transform-box: fill-box; transform-origin: center bottom; animation: pet-arrive .42s cubic-bezier(.2,.85,.35,1.25) both; }
+.petStem,.petSmile,.petArm,.petFoot { fill: none; stroke: var(--brand-strong); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.4; }
+.petLeaf { fill: var(--signal-cyan); stroke: color-mix(in srgb,var(--signal-cyan) 76%,var(--ink)); stroke-width: 1.2; transform-box: fill-box; transform-origin: bottom center; animation: pet-leaf-wave 5.5s ease-in-out 1s infinite; }
+.petBody { fill: color-mix(in srgb,var(--brand) 76%,var(--signal-cyan)); stroke: color-mix(in srgb,var(--brand-strong) 74%,var(--ink)); stroke-width: 1.5; }
+.petFace { fill: var(--surface-solid); stroke: color-mix(in srgb,var(--brand-strong) 42%,var(--line)); stroke-width: 1.4; }
+.petEyes { fill: var(--ink); transform-box: fill-box; transform-origin: center; animation: pet-blink 6s ease-in-out 1.2s infinite; }
+.mentorPet[data-state="thinking"] .petCharacter { animation: pet-thinking-bob .8s ease-in-out infinite; }
+.mentorPet[data-state="thinking"] .petOrbit { animation: pet-orbit 2.1s linear infinite; stroke: var(--signal-cyan); }
+.mentorPet[data-state="thinking"] .petLeaf { animation: pet-leaf-think .7s ease-in-out infinite alternate; }
+.mentorWelcome { display: grid; gap: 8px; padding: 17px 18px 13px; }
+.mentorEyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--signal-violet); font-size: .67rem; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+.mentorWelcome h2 { margin: 0; font-size: clamp(1.22rem,4vw,1.55rem); letter-spacing: -.035em; line-height: 1.1; }
+.mentorWelcome > p { margin: 0; color: var(--ink-soft); font-size: .82rem; line-height: 1.5; }
+.mentorWelcome > p strong { color: var(--ink); }
+.mentorPrompts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 4px; }
+.mentorPrompts button { min-height: var(--control-min,44px); padding: 8px 11px; border: 1px solid color-mix(in srgb,var(--brand) 28%,var(--line)); border-radius: 999px; color: var(--brand-strong); background: color-mix(in srgb,var(--brand-soft) 54%,var(--surface-solid)); font-size: .75rem; font-weight: 760; transition: border-color var(--motion-fast) var(--ease-out),background var(--motion-fast) var(--ease-out),transform var(--motion-fast) var(--ease-out); cursor: pointer; }
+.mentorPrompts button:hover { border-color: var(--brand); background: var(--brand-soft); transform: translateY(-1px); }
+.chatMessages { display: flex; min-height: 104px; max-height: min(40dvh,310px); overflow-y: auto; flex: 0 1 auto; flex-direction: column; gap: 9px; padding: 14px 16px; border-top: 1px solid color-mix(in srgb,var(--line) 72%,transparent); overscroll-behavior: contain; scrollbar-gutter: stable; }
+.aiMessage,.userMessage { max-width: 88%; padding: 10px 12px; border: 1px solid color-mix(in srgb,var(--line) 70%,transparent); border-radius: 14px 14px 14px 4px; background: color-mix(in srgb,var(--signal-cyan-soft) 22%,var(--surface-muted)); box-shadow: 0 5px 15px color-mix(in srgb,#000 7%,transparent); font-size: var(--text-sm,.875rem); line-height: 1.55; white-space: pre-wrap; animation: mentor-message-enter .18s var(--ease-out) both; }
+.userMessage { align-self: flex-end; border-color: color-mix(in srgb,var(--brand) 60%,transparent); border-radius: 14px 14px 4px 14px; color: var(--on-brand); background: linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 76%,var(--signal-cyan))); }
+.thinkingMessage { display: flex; align-items: center; gap: 4px; color: var(--ink-soft); }
+.thinkingMessage span { margin-right: 3px; }
+.thinkingMessage i { width: 5px; height: 5px; border-radius: 50%; background: var(--signal-cyan); animation: mentor-thinking-dot 1s ease-in-out infinite; }
+.thinkingMessage i:nth-of-type(2) { animation-delay: .13s; }
+.thinkingMessage i:nth-of-type(3) { animation-delay: .26s; }
+.chatInput { display: flex; flex: 0 0 auto; align-items: flex-end; gap: 8px; margin: 0 11px; padding: 6px 6px 6px 12px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb,var(--surface) 82%,transparent); box-shadow: inset 0 1px 0 color-mix(in srgb,var(--ink) 5%,transparent); transition: border-color var(--motion-fast) var(--ease-out),box-shadow var(--motion-fast) var(--ease-out); }
+.chatInput:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb,var(--brand) 16%,transparent); }
+.chatInput textarea { field-sizing: content; min-height: 34px; max-height: 112px; flex: 1; padding: 7px 0 5px; border: 0; outline: 0; color: var(--ink); background: transparent; line-height: 1.45; resize: none; }
+.chatInput textarea::placeholder { color: color-mix(in srgb,var(--ink-soft) 82%,transparent); }
+.chatInput textarea:disabled { opacity: .7; }
+.chatInput button { display: grid; width: var(--control-min,44px); height: var(--control-min,44px); flex: 0 0 auto; place-items: center; border: 0; border-radius: 13px; color: var(--on-brand); background: linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 74%,var(--signal-cyan))); box-shadow: 0 8px 20px color-mix(in srgb,var(--brand) 22%,transparent); transition: filter var(--motion-fast) var(--ease-out),opacity var(--motion-fast) var(--ease-out),transform var(--motion-fast) var(--ease-out); cursor: pointer; }
+.chatInput button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px) scale(1.02); }
+.chatInput button:disabled { box-shadow: none; cursor: not-allowed; filter: saturate(.25); opacity: .48; }
+.sendSpinner { animation: pet-orbit .9s linear infinite; }
+.mentorPrivacy { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; margin: 0; padding: 8px 14px 11px; color: var(--ink-soft); font-size: .72rem; }
+.mentorPrivacy span { color: var(--signal-violet); }
+@keyframes mentor-cockpit-enter { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes mentor-message-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pet-arrive { 0% { opacity: 0; transform: translateY(8px) scale(.8) rotate(-5deg); } 68% { opacity: 1; transform: translateY(-2px) scale(1.03) rotate(2deg); } 100% { opacity: 1; transform: none; } }
+@keyframes pet-blink { 0%,45%,49%,100% { transform: scaleY(1); } 47% { transform: scaleY(.1); } }
+@keyframes pet-leaf-wave { 0%,82%,100% { transform: rotate(0); } 88% { transform: rotate(8deg); } 94% { transform: rotate(-5deg); } }
+@keyframes pet-thinking-bob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-3px) rotate(1deg); } }
+@keyframes pet-leaf-think { from { transform: rotate(-7deg); } to { transform: rotate(8deg); } }
+@keyframes pet-orbit { to { transform: rotate(1turn); } }
+@keyframes pet-status-pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb,var(--signal-cyan) 5%,transparent); opacity: .72; } }
+@keyframes mentor-thinking-dot { 0%,60%,100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+@media (forced-colors: active) { .chatInput:focus-within { outline: 3px solid Highlight; outline-offset: 2px; } }
 .eyebrow { color: var(--brand); font-size: .68rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
 .codeLabLanguageGate { display: flex; align-items: flex-start; gap: 12px; padding: 20px; border: 1px solid color-mix(in srgb,var(--warning,#b56b00) 42%,var(--line)); border-radius: 18px; background: color-mix(in srgb,var(--warning,#b56b00) 8%,var(--surface-solid)); }
 .codeLabLanguageGate > svg { flex: 0 0 auto; color: var(--warning,#b56b00); }
@@ -310,11 +358,11 @@
 .languageGateCard a { margin-top: 8px; }
 
 @media (max-width: 1180px) { .withTutor .body { grid-template-columns: 205px minmax(0,1fr); } }
-@media (max-width: 640px) { .workspace { margin: -22px -12px; } .tutorPanel { inset: 62px 0 76px; width: auto; height: auto; max-height: none; min-height: 0; border-right: 0; border-left: 0; border-radius: 0; } }
+@media (max-width: 640px) { .workspace { margin: -22px -12px; } .tutorPanel { inset: auto 8px max(8px,env(safe-area-inset-bottom)); width: auto; max-height: min(calc(78dvh - max(8px,env(safe-area-inset-bottom))),620px); border-radius: 22px; } .mentorWelcome { min-height: 0; overflow-y: auto; flex: 1 1 auto; padding: 14px 15px 11px; overscroll-behavior: contain; } .chatMessages { min-height: 0; max-height: none; flex: 1 1 auto; } }
 @media (max-width: 720px) { .stdinPanel { grid-template-columns: 1fr; align-items: stretch; } .stdinPanel label > span, .codeLanguageSelector label { font-size: 1rem; } .stdinPanel > small { text-align: left; } }
 @media (max-width: 520px) { .codeLanguageSelector,.codeToolbar,.draftSync { align-items: stretch; flex-direction: column; } .codeLanguageSelector label { align-items: stretch; flex-direction: column; } .codeLanguageSelector select { width: 100%; } .codeToolbar > div, .draftSync > div { width: 100%; } .codeToolbar button { flex: 1; justify-content: center; } .console > span { min-height: 44px; } .runFeedback { padding: 12px 10px; } .runFeedback button { width: 100%; } }
 @media (max-width: 520px) { .resetBackdrop { padding: 12px; } .resetDialog { grid-template-columns: 1fr; padding: 20px; } .resetDialogActions { grid-column: 1; flex-direction: column-reverse; } .resetDialogActions button { width: 100%; } }
-@media (max-height: 580px) and (min-width: 641px) { .tutorPanel { top: 74px; bottom: 10px; height: auto; max-height: none; min-height: 0; } }
+@media (max-height: 580px) and (min-width: 641px) { .tutorPanel { top: 74px; bottom: 10px; max-height: none; } .mentorPet { width: 54px; height: 54px; flex-basis: 54px; } .tutorHead { min-height: 66px; } .mentorWelcome { min-height: 0; overflow-y: auto; flex: 1 1 auto; overscroll-behavior: contain; } .chatMessages { min-height: 0; max-height: none; flex: 1 1 auto; } }
 @media (max-width: 800px) { .workspace { margin: -24px -18px; } .header { grid-template-columns: 1fr auto; } .lessonTitle { text-align: left; } .headerProgress, .header > a { display: none; } .body { grid-template-columns: 1fr; } .outline { display: none; } .content { width: min(100% - 20px,940px); padding-bottom: 90px; } .modeTabs { overflow-x: auto; } .modeTabs button { white-space: nowrap; } .exampleGrid, .scopeGrid, .authoredExamples, .practiceGrid { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .workspace { margin: -22px 0; } }
 @media (max-width: 520px) { .languageGatePage { min-height: auto; padding: 20px 0; } .languageGateCard { grid-template-columns: 1fr; } }
