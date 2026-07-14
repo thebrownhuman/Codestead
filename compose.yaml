@@ -14,8 +14,13 @@ x-hardened: &hardened
   security_opt:
     - no-new-privileges:true
 
+x-codestead-managed: &codestead-managed
+  labels:
+    com.centurylinklabs.watchtower.enable: "false"
+
 services:
   postgres:
+    <<: *codestead-managed
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE to a reviewed PostgreSQL 17 image tag or digest}
     restart: unless-stopped
@@ -52,7 +57,7 @@ services:
 
   migrate:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-tooling
+    image: ${APP_TOOLING_IMAGE:?Set APP_TOOLING_IMAGE to a reviewed immutable tooling image digest}
     build:
       context: .
       target: tooling
@@ -65,7 +70,7 @@ services:
         condition: service_healthy
     networks:
       - data
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m
     mem_limit: 1g
@@ -76,7 +81,7 @@ services:
 
   app:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}
+    image: ${APP_RUNTIME_IMAGE:?Set APP_RUNTIME_IMAGE to a reviewed immutable runtime image digest}
     build:
       context: .
       target: runtime
@@ -100,6 +105,7 @@ services:
       RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       RUNNER_MAX_CONCURRENCY: "2"
+      UPLOADS_ENABLED: ${UPLOADS_ENABLED:-false}
       OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
       MAIL_ADAPTER: ${MAIL_ADAPTER:-outbox}
       MAIL_FROM: ${MAIL_FROM:-}
@@ -126,7 +132,7 @@ services:
     networks:
       - frontend
       - data
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=128m
     healthcheck:
@@ -142,7 +148,7 @@ services:
 
   mail-worker:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-worker
+    image: ${APP_WORKER_IMAGE:?Set APP_WORKER_IMAGE to a reviewed immutable worker image digest}
     build:
       context: .
       target: worker
@@ -172,7 +178,7 @@ services:
     networks:
       - data
       - mail-egress
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 512m
@@ -182,7 +188,7 @@ services:
 
   reward-worker:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-worker
+    image: ${APP_WORKER_IMAGE:?Set APP_WORKER_IMAGE to a reviewed immutable worker image digest}
     build:
       context: .
       target: worker
@@ -201,7 +207,7 @@ services:
         condition: service_completed_successfully
     networks:
       - data
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 256m
@@ -211,7 +217,7 @@ services:
 
   regrade-worker:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-regrade-worker
+    image: ${APP_REGRADE_WORKER_IMAGE:?Set APP_REGRADE_WORKER_IMAGE to a reviewed immutable regrade worker image digest}
     build:
       context: .
       target: regrade-worker
@@ -234,7 +240,7 @@ services:
     networks:
       - data
       - runner-egress
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 512m
@@ -244,7 +250,7 @@ services:
 
   exam-finalization-worker:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-regrade-worker
+    image: ${APP_REGRADE_WORKER_IMAGE:?Set APP_REGRADE_WORKER_IMAGE to a reviewed immutable regrade worker image digest}
     build:
       context: .
       target: regrade-worker
@@ -268,7 +274,7 @@ services:
     networks:
       - data
       - runner-egress
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 512m
@@ -278,7 +284,7 @@ services:
 
   practice-runner-recovery-worker:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-regrade-worker
+    image: ${APP_REGRADE_WORKER_IMAGE:?Set APP_REGRADE_WORKER_IMAGE to a reviewed immutable regrade worker image digest}
     build:
       context: .
       target: regrade-worker
@@ -301,7 +307,7 @@ services:
     networks:
       - data
       - runner-egress
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 384m
@@ -311,7 +317,7 @@ services:
 
   project-review-correction-worker:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-project-review-correction-worker
+    image: ${APP_PROJECT_REVIEW_WORKER_IMAGE:?Set APP_PROJECT_REVIEW_WORKER_IMAGE to a reviewed immutable project review worker image digest}
     build:
       context: .
       target: project-review-correction-worker
@@ -330,7 +336,7 @@ services:
     networks:
       - data
       - github-egress
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 512m
@@ -339,8 +345,10 @@ services:
     logging: *default-logging
 
   clamav:
+    profiles: ["uploads"]
+    <<: *codestead-managed
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${CLAMAV_IMAGE:?Set CLAMAV_IMAGE to a reviewed immutable clamav/clamav digest}
+    image: ${CLAMAV_IMAGE:-clamav/clamav:pilot-disabled}
     init: true
     restart: unless-stopped
     volumes:
@@ -382,8 +390,9 @@ services:
     logging: *default-logging
 
   scan-worker:
+    profiles: ["uploads"]
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-scanner
+    image: ${APP_SCANNER_WORKER_IMAGE:?Set APP_SCANNER_WORKER_IMAGE to a reviewed immutable scanner worker image digest}
     build:
       context: .
       target: scanner-worker
@@ -417,7 +426,7 @@ services:
     networks:
       - data
       - scanner
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 512m
@@ -428,10 +437,10 @@ services:
   lifecycle:
     profiles: ["operations"]
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_IMAGE:-learncoding-app}:${APP_IMAGE_TAG:-local}-worker
+    image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
     build:
       context: .
-      target: worker
+      target: operations
     command:
       - node
       - --import
@@ -457,7 +466,66 @@ services:
         condition: service_completed_successfully
     networks:
       - data
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  platform-seed:
+    profiles: ["operations"]
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
+    build:
+      context: .
+      target: operations
+    command: ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"]
+    restart: "no"
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+    secrets:
+      - database_url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  admin-bootstrap:
+    profiles: ["operations"]
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
+    build:
+      context: .
+      target: operations
+    command: ["node", "--import", "tsx", "/app/scripts/bootstrap-admin.ts"]
+    restart: "no"
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      BETTER_AUTH_SECRET_FILE: /run/secrets/better_auth_secret
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/bootstrap_admin_password
+      APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+      APP_NAME: ${APP_NAME:-Codestead}
+    secrets:
+      - database_url
+      - better_auth_secret
+      - bootstrap_admin_password
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 512m
@@ -482,7 +550,7 @@ services:
         condition: service_healthy
     networks:
       - frontend
-    <<: *hardened
+    <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
     mem_limit: 256m
@@ -522,6 +590,8 @@ secrets:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_url
   better_auth_secret:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/better_auth_secret
+  bootstrap_admin_password:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/bootstrap_admin_password
   lost_device_proof_key:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/lost_device_proof_key
   deletion_tombstone_key:

@@ -30,6 +30,7 @@ function dockerStage(name) {
 
 const dockerfile = read("Dockerfile");
 const compose = read("compose.yaml");
+const composeEnv = read("infra/env/compose.env.example");
 const toolingStage = dockerStage("tooling");
 const operationsStage = dockerStage("operations");
 const migrationScript = read("scripts/migrate-production.mjs");
@@ -94,7 +95,32 @@ expect(
 expect(/FROM worker AS scanner-worker/.test(dockerfile) && /scripts\/scan-uploads\.ts/.test(dockerfile), "scanner worker image target is required");
 expect(/FROM worker AS regrade-worker/.test(dockerfile) && /scripts\/process-assessment-regrades\.ts/.test(dockerfile), "assessment regrade worker image target is required");
 expect(/FROM final-base AS worker[\s\S]*?scripts\/data-lifecycle\.ts/.test(dockerfile), "worker image must retain the lifecycle operations entrypoint");
-expect(/lifecycle:[\s\S]*?target: worker[\s\S]*?process-data-lifecycle|lifecycle:[\s\S]*?target: worker[\s\S]*?data-lifecycle\.ts/.test(compose), "lifecycle operations must use the worker target after tooling is narrowed");
+expect(
+  /lifecycle:[\s\S]*?image: \$\{APP_OPERATIONS_IMAGE:\?[^}\n]+\}[\s\S]*?target: operations[\s\S]*?data-lifecycle\.ts/.test(compose),
+  "lifecycle operations must use the dedicated operations image and target",
+);
+
+const applicationImageVariables = [
+  "APP_RUNTIME_IMAGE",
+  "APP_TOOLING_IMAGE",
+  "APP_WORKER_IMAGE",
+  "APP_REGRADE_WORKER_IMAGE",
+  "APP_PROJECT_REVIEW_WORKER_IMAGE",
+  "APP_SCANNER_WORKER_IMAGE",
+  "APP_OPERATIONS_IMAGE",
+];
+const applicationImageRepositories = [];
+for (const variable of applicationImageVariables) {
+  const value = new RegExp(`^${variable}=(\\S+)$`, "m").exec(composeEnv)?.[1] ?? "";
+  const image = /^(ghcr\.io\/thebrownhuman\/[a-z0-9][a-z0-9._-]*):[^@\s]+@sha256:(?:[0-9a-f]{64}|REPLACE_WITH_64_HEX)$/.exec(value);
+  expect(Boolean(image), `${variable} must be a GHCR digest-form example under ghcr.io/thebrownhuman/`);
+  if (image) applicationImageRepositories.push(image[1]);
+}
+expect(
+  new Set(applicationImageRepositories).size === applicationImageVariables.length,
+  "application image examples must use seven independently named repositories",
+);
+expect(!/^APP_IMAGE(?:_TAG)?=/m.test(composeEnv), "derived APP_IMAGE tags must not remain in the Compose environment");
 
 expect(!/^\s+ports:/m.test(compose), "trusted Compose stack must publish no host ports");
 expect(!/^  runner:/m.test(compose), "runner must not be a service in the trusted Compose stack");
@@ -110,7 +136,10 @@ expect(/internal: true/.test(compose), "database network must be internal");
 expect(/condition: service_healthy/.test(compose), "migration must wait for PostgreSQL health");
 expect(/condition: service_completed_successfully/.test(compose), "app must wait for migration success");
 expect(/^  clamav:/m.test(compose) && /^  scan-worker:/m.test(compose), "isolated ClamAV and upload scanner services are required");
-expect(/CLAMAV_IMAGE:\?Set CLAMAV_IMAGE to a reviewed immutable/.test(compose), "ClamAV image must be operator-pinned");
+expect(
+  /image: \$\{CLAMAV_IMAGE:-clamav\/clamav:pilot-disabled\}/.test(compose),
+  "ClamAV must use the harmless pilot-disabled fallback when inactive",
+);
 expect(/scan-worker:[\s\S]*?target: scanner-worker[\s\S]*?CLAMD_HOST: clamav/.test(compose), "scan worker must use the dedicated image target and clamd service");
 expect(/scan-worker:[\s\S]*?target: \/var\/lib\/learncoding[\s\S]*?read_only: true/.test(compose), "scan worker object storage mount must be read-only");
 expect(/^  regrade-worker:/m.test(compose), "dedicated assessment regrade worker service is required");
@@ -187,7 +216,7 @@ for (const required of [
 
 const scanned = [
   compose,
-  read("infra/env/compose.env.example"),
+  composeEnv,
   read("infra/env/backup.env.example"),
   cloudflare,
 ].join("\n");
