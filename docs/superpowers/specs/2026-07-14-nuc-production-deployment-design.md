@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-14
 
-**Status:** Proposed for implementation
+**Status:** Approved for implementation with mandatory power-loss recovery gate
 
 **Audience:** Codestead administrator and maintainers
 
@@ -274,7 +274,54 @@ The retention confirmation token must be identical in `package.json`, Compose, s
 15. Reboot the NUC once and prove automatic recovery without changing existing services.
 16. Invite the first learner only after all required evidence passes.
 
-## 13. Rollback
+## 13. Power-loss recovery
+
+Power-cut recovery is a release gate, not an assumption.
+
+### 13.1 Automatic startup chain
+
+Deployment evidence must confirm the NUC firmware setting **Restore on AC Power Loss: Power On**. After power returns:
+
+1. Ubuntu boots without an interactive prompt and mounts the required Codestead data filesystem by stable UUID. Optional removable backup disks use `nofail`/automount semantics so their absence alerts but never blocks application boot.
+2. Docker, libvirtd, the libvirt default NAT network, cloudflared dependencies, and systemd timers start automatically.
+3. The Codestead runner VM is marked for libvirt autostart.
+4. The runner service inside the guest is enabled and uses `Restart=on-failure` with its durable journal.
+5. The Codestead Compose systemd unit declares `RequiresMountsFor` for the application tree, configuration tree, and primary data root; waits for Docker; validates configuration; and starts already-reviewed pinned images with `--no-build` and no implicit pull. A bounded `Restart=on-failure`/backoff policy retries transient boot failures and alerts after exhaustion. Building and migration-coupled release work remain separate from boot recovery.
+6. Long-running containers use `restart: unless-stopped`; one-shot migration, seed, bootstrap, retention, reconciliation, backup, and restore services do not loop.
+7. Persistent systemd timers run a missed backup, retention, or health check after boot according to their timer semantics.
+8. The health monitor waits for PostgreSQL recovery, application readiness, workers, runner, and tunnel, then records recovery or raises an external alert.
+
+The target is public application readiness within 15 minutes of power restoration under the verified pilot load. Existing NUC services must recover exactly as they did before Codestead was installed.
+
+PostgreSQL receives a 120-second graceful-stop budget and the application/workers receive 60 seconds for controlled reboot or shutdown. This reduces unnecessary SIGKILL recovery while sudden AC loss still relies on the crash-consistency contract below.
+
+### 13.2 Durable-data contract
+
+PostgreSQL uses its persistent bind mount with checksums and keeps `fsync=on`, `synchronous_commit=on`, and `full_page_writes=on`. Production configuration must reject unsafe durability overrides. PostgreSQL crash recovery replays WAL before the application readiness endpoint succeeds.
+
+Every user-visible mutation is committed transactionally before success is returned. Idempotency keys protect retries after an ambiguous disconnect. Authoritative lesson/code drafts, exam autosaves, progress, rewards, audit records, provider budgets, mail outbox items, and work queues live in PostgreSQL rather than container filesystems. Object writes use write-temporary, file-fsync, atomic-rename, directory-fsync, then transactional metadata publication; deletion uses the inverse recoverable sequence and reconciliation detects divergence.
+
+Lesson drafts and exam answers also use a browser-durable outbox rather than React memory or `sessionStorage` alone. Each entry is scoped to the authenticated user, session/device, course/skill or exam, and idempotency key; it contains no hidden tests, provider credentials, or server secrets. The client persists locally before showing `Saved locally`, retries on startup and bounded reachability probes, and deletes the entry only after an authoritative server acknowledgement. Logout, session revocation, exam finalization, and administrator deletion purge the relevant local records. Tests prove that offline edits survive tab/browser close and synchronize exactly once after recovery.
+
+The runner fsyncs its privacy-safe job journal through atomic replacement. On guest restart, accepted queued or running work becomes a durable retryable recovery result rather than disappearing or awarding unknown evidence. Application reconciliation retains the original request identity.
+
+No acknowledged, committed learning record may be lost after sudden power removal. The UI distinguishes `Saving locally`, `Saved locally`, `Syncing`, `Saved to Codestead`, and `Needs attention`. Browser-durable local work survives close/reopen, while the server guarantee begins at `Saved to Codestead`. Without a UPS, no system can truthfully guarantee the final keystroke before local persistence, an unacknowledged network request, or hardware writes falsely reported as durable. A UPS remains the only way to materially reduce that final in-flight window and uncontrolled hardware-shutdown risk.
+
+### 13.3 Recovery rehearsal
+
+After a verified backup and before learner invitations, perform one administrator-supervised AC-loss rehearsal:
+
+- Record a known saved draft, progress mutation, audit event, queued mail item, and two runner jobs.
+- Remove power without a graceful shutdown, restore it, and rely on firmware autostart.
+- Verify filesystems are clean/recovered, PostgreSQL has no checksum errors, every acknowledged marker remains, ambiguous requests reconcile idempotently, runner jobs recover safely, and no duplicate XP/mail/evidence appears.
+- Verify an offline lesson draft and exam answer persisted in the browser-durable outbox survive browser close/reopen and synchronize once after service recovery.
+- Verify Docker services, runner VM, tunnel, persistent timers, existing NUC containers, and public HTTPS recover automatically.
+- Run an immediate encrypted backup and compare database/object reconciliation reports.
+- Record outage duration, recovery duration, SMART/NVMe health, container restart counts, PostgreSQL recovery logs, and the exact Git/image versions.
+
+A failed rehearsal blocks learner invitations. Repeating destructive AC-loss tests is unnecessary after the mechanism is proven; subsequent releases use crash/restart simulations plus periodic controlled reboot tests.
+
+## 14. Rollback
 
 Every release records the previous application image tag/digest and Git commit.
 
@@ -285,7 +332,7 @@ Every release records the previous application image tag/digest and Git commit.
 - Pilot upload mode remains off unless full mode was explicitly approved.
 - Existing NUC containers and host services are never part of Codestead rollback commands.
 
-## 14. Test strategy
+## 15. Test strategy
 
 Implementation follows test-driven development. Required automated gates are:
 
@@ -298,6 +345,7 @@ Implementation follows test-driven development. Required automated gates are:
 - CI build, typecheck, lint, security scanners, unit/integration suites, and Compose rendering.
 - Builds of every application and runner target, SBOM generation, dependency/image vulnerability scanning, and recording of the exact deployable image identities.
 - Deployment-only evidence for Cloudflare connectivity, KVM isolation, public HTTPS, Gmail delivery, backup destination, restore timing, reboot recovery, and real provider validation.
+- Crash tests for PostgreSQL, every worker, the application, Docker daemon, runner guest/service, and interrupted backup; a same-NUC supervised AC-loss rehearsal proves the complete startup chain once.
 
 The first implementation gate repairs the current semantic Compose inventory failure caused by the existing `reward-worker` service, then extends that validator for the new operations services and pilot/full profiles. CI must not skip PostgreSQL, browser, or curriculum-runtime jobs because an earlier application gate is red.
 
@@ -305,13 +353,13 @@ A disposable Linux production-topology test starts PostgreSQL, runs migrations t
 
 Tests may use fakes for external services, but the final production checklist clearly distinguishes automated proof from NUC evidence.
 
-## 15. Resource envelope
+## 16. Resource envelope
 
 Expected pilot steady-state memory is about 12–18 GB including the 8 GB runner VM, PostgreSQL, application, workers, Docker overhead, and existing services. Full mode with ClamAV may reach about 18–24 GB. CPU is bursty and bounded; the two-job runner limit protects the 4-core host.
 
 At least 8 GB host memory and 15% root-disk capacity must remain available under the pilot load test. If those guards fail, invitations stop and capacity is adjusted before adding learners.
 
-## 16. Non-goals
+## 17. Non-goals
 
 This rollout does not:
 
@@ -324,7 +372,7 @@ This rollout does not:
 - Promise 24/7 availability.
 - Solve physical theft risk on the currently unencrypted root disk.
 
-## 17. Acceptance criteria
+## 18. Acceptance criteria
 
 Production pilot is ready only when all of the following are true:
 
@@ -340,5 +388,6 @@ Production pilot is ready only when all of the following are true:
 - Gmail invitation delivery is proven.
 - Backup creation, offsite copy, download, decrypt, restore, and credential recovery are proven.
 - NUC reboot recovery is proven.
+- Sudden AC-loss recovery preserves every acknowledged test marker, restarts the full trusted stack and runner automatically, creates no duplicate evidence, and restores public readiness within 15 minutes.
 - Rollback to the previous application image is rehearsed or mechanically verified.
 - The deployment evidence log records exact versions, image digests, Git commit, test results, backup ID, and unresolved risks.
