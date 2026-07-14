@@ -13,7 +13,7 @@ export interface MigrationLockOptions {
 }
 
 export interface MigrationClient extends MigrationLockClient {
-  release(): void;
+  release(error?: Error | boolean): void;
 }
 
 export interface MigrationPool {

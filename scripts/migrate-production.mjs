@@ -1,4 +1,5 @@
 import process from "node:process";
+import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 
 import { drizzle as createDrizzle } from "drizzle-orm/node-postgres";
@@ -10,33 +11,63 @@ const TRY_LOCK_SQL = "select pg_try_advisory_lock(hashtextextended($1, 0)) acqui
 const UNLOCK_SQL = "select pg_advisory_unlock(hashtextextended($1, 0)) released";
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-const lockTimeoutError = () => {
-  const error = new Error("Timed out waiting for the production migration lock");
-  error.name = "MigrationLockTimeoutError";
-  return error;
-};
+const monotonicNow = () => performance.now();
+
+class MigrationLockTimeoutError extends Error {
+  constructor() {
+    super("Timed out waiting for the production migration lock");
+    this.name = "MigrationLockTimeoutError";
+  }
+}
+
+async function queryMigrationLock(client, remainingMs) {
+  let timeoutHandle;
+  const query = Promise.resolve().then(() =>
+    client.query(TRY_LOCK_SQL, [MIGRATION_LOCK_NAME]),
+  );
+  const timeout = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(
+      () => reject(new MigrationLockTimeoutError()),
+      remainingMs,
+    );
+  });
+
+  try {
+    return await Promise.race([query, timeout]);
+  } finally {
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
+}
 
 export async function acquireMigrationLock(
   client,
   {
     timeoutMs = 120_000,
     pollMs = 500,
-    now = Date.now,
+    now = monotonicNow,
     sleep = delay,
   } = {},
 ) {
   const deadline = now() + timeoutMs;
-  let attempted = false;
 
   while (true) {
-    if (attempted && now() >= deadline) throw lockTimeoutError();
-    attempted = true;
+    const queryTimeMs = deadline - now();
+    if (queryTimeMs <= 0) throw new MigrationLockTimeoutError();
 
-    const result = await client.query(TRY_LOCK_SQL, [MIGRATION_LOCK_NAME]);
+    let result;
+    try {
+      result = await queryMigrationLock(client, queryTimeMs);
+    } catch (error) {
+      if (!(error instanceof MigrationLockTimeoutError) && now() >= deadline) {
+        throw new MigrationLockTimeoutError();
+      }
+      throw error;
+    }
+    if (now() >= deadline) throw new MigrationLockTimeoutError();
     if (result.rows[0]?.acquired === true) return;
 
     const remainingMs = deadline - now();
-    if (remainingMs <= 0) throw lockTimeoutError();
+    if (remainingMs <= 0) throw new MigrationLockTimeoutError();
 
     await sleep(Math.min(pollMs, remainingMs));
   }
@@ -49,19 +80,33 @@ export async function runProductionMigration(options) {
   const migrate = options.migrate ?? migrateDatabase;
   const migrationsFolder = options.migrationsFolder ?? "/app/drizzle";
   let client;
+  let lockAcquired = false;
+  let destroyClient = false;
 
   try {
     client = await migrationPool.connect();
-    await acquireMigrationLock(client, options.lockOptions);
+    try {
+      await acquireMigrationLock(client, options.lockOptions);
+      lockAcquired = true;
+    } catch (error) {
+      destroyClient = true;
+      throw error;
+    }
     await migrate(drizzle(client), { migrationsFolder });
   } finally {
     try {
-      if (client) {
+      if (client && lockAcquired) {
         await client.query(UNLOCK_SQL, [MIGRATION_LOCK_NAME]);
       }
+    } catch (error) {
+      destroyClient = true;
+      throw error;
     } finally {
       try {
-        client?.release();
+        if (client) {
+          if (destroyClient) client.release(true);
+          else client.release();
+        }
       } finally {
         await migrationPool.end();
       }

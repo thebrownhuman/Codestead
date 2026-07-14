@@ -38,6 +38,59 @@ describe("production migration", () => {
     expect(query).toHaveBeenCalledOnce();
   });
 
+  it("rejects a lock acquired after the timeout expires", async () => {
+    let time = 0;
+    const query = vi.fn(async () => {
+      time = 1001;
+      return { rows: [{ acquired: true }] };
+    });
+
+    await expect(
+      acquireMigrationLock(
+        { query },
+        { timeoutMs: 1000, now: () => time },
+      ),
+    ).rejects.toMatchObject({ name: "MigrationLockTimeoutError" });
+
+    expect(query).toHaveBeenCalledOnce();
+  });
+
+  it("destroys the session when a lock query does not resolve", async () => {
+    const client = {
+      query: vi.fn(() => new Promise<never>(() => undefined)),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => undefined),
+    };
+    const migrate = vi.fn(async () => undefined);
+    const migration = runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate,
+      drizzle: vi.fn(() => ({})),
+      lockOptions: { timeoutMs: 10 },
+    });
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+      migration.then(
+        () => "resolved",
+        (error: unknown) => (error instanceof Error ? error.name : "unknown"),
+      ),
+      new Promise<string>((resolve) => {
+        watchdog = setTimeout(() => resolve("still pending"), 100);
+      }),
+    ]);
+    if (watchdog) clearTimeout(watchdog);
+
+    expect(outcome).toBe("MigrationLockTimeoutError");
+    expect(client.query).toHaveBeenCalledOnce();
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledOnce();
+    expect(migrate).not.toHaveBeenCalled();
+  });
+
   it("unlocks and closes resources after migration failure", async () => {
     const client = {
       query: vi
@@ -75,5 +128,40 @@ describe("production migration", () => {
     expect(String(client.query.mock.calls.at(-1)?.[0])).toContain("pg_advisory_unlock");
     expect(client.release).toHaveBeenCalledOnce();
     expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("ends the pool after unlock and release failures", async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [{ acquired: true }] })
+        .mockRejectedValueOnce(new Error("unlock failed")),
+      release: vi.fn(() => {
+        throw new Error("release failed");
+      }),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      runProductionMigration({
+        connectionString: "postgresql://test",
+        pool,
+        migrate: vi.fn(async () => undefined),
+        drizzle: vi.fn(() => ({})),
+      }),
+    ).rejects.toThrow("release failed");
+
+    expect(String(client.query.mock.calls.at(-1)?.[0])).toContain("pg_advisory_unlock");
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledOnce();
+    expect(client.query.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      client.release.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(client.release.mock.invocationCallOrder[0]).toBeLessThan(
+      pool.end.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 });
