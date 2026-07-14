@@ -107,7 +107,11 @@ case "${UPLOADS_ENABLED:-}" in
     ;;
 esac
 
-readonly secrets_dir="${SECRETS_DIR:-/etc/learncoding/secrets}"
+secrets_dir="${SECRETS_DIR:-/etc/learncoding/secrets}"
+while [[ "$secrets_dir" != "/" && "$secrets_dir" == */ ]]; do
+  secrets_dir="${secrets_dir%/}"
+done
+readonly secrets_dir
 [[ ! -L "$secrets_dir" ]] || fatal "secrets directory must not be a symlink: $secrets_dir"
 [[ -d "$secrets_dir" ]] || fatal "secrets directory missing: $secrets_dir"
 

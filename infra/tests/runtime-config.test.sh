@@ -257,6 +257,14 @@ expect_failure \
   'symlinked secrets directory' \
   "fatal: secrets directory must not be a symlink: $secrets"
 
+make_fixture directory-symlink-trailing-slash
+mv "$secrets" "$case_dir/secrets.real"
+ln -s "$case_dir/secrets.real" "$secrets"
+set_config SECRETS_DIR "$secrets/"
+expect_failure \
+  'symlinked secrets directory with a trailing slash' \
+  "fatal: secrets directory must not be a symlink: $secrets"
+
 make_fixture directory-mode
 chmod 0700 "$secrets"
 expect_failure \
