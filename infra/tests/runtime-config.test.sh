@@ -237,6 +237,10 @@ make_fixture exact-profile-token
 set_config COMPOSE_PROFILES operations-notuploads
 expect_success 'profile matching does not use uploads as a substring'
 
+make_fixture valid-repeated-trailing-slashes
+set_config SECRETS_DIR "$case_dir//secrets///"
+expect_success 'valid secrets directory accepts repeated and trailing slashes'
+
 make_fixture config-symlink
 mv "$config" "$case_dir/compose.env.real"
 ln -s "$case_dir/compose.env.real" "$config"
@@ -265,13 +269,23 @@ expect_failure \
   'symlinked secrets directory with a trailing slash' \
   "fatal: secrets directory must not be a symlink: $secrets"
 
+make_fixture directory-symlink-before-parent
+mkdir -p "$case_dir/a" "$case_dir/x/y"
+mv "$secrets" "$case_dir/a/secrets"
+ln -s "$case_dir/x/y" "$case_dir/a/link"
+symlink_before_parent_dir="$case_dir/a/link/../secrets"
+set_config SECRETS_DIR "$symlink_before_parent_dir"
+expect_failure \
+  'symlink before a parent path component' \
+  'fatal: secrets directory path must be canonical'
+
 make_fixture directory-symlink-dot-alias
 mv "$secrets" "$case_dir/secrets.real"
 ln -s "$case_dir/secrets.real" "$secrets"
 set_config SECRETS_DIR "$secrets/."
 expect_failure \
   'symlinked secrets directory with a dot alias' \
-  "fatal: secrets directory must not be a symlink: $secrets"
+  'fatal: secrets directory path must be canonical'
 
 make_fixture directory-nested-symlink
 ln -s "$case_dir" "$case_dir/path-alias"
@@ -285,11 +299,10 @@ make_fixture directory-parent-alias
 mkdir "$case_dir/path-segment"
 ln -s "$case_dir" "$case_dir/path-alias"
 parent_alias_secrets_dir="$case_dir/path-segment/../path-alias/secrets"
-canonical_parent_alias_secrets_dir="$case_dir/path-alias/secrets"
 set_config SECRETS_DIR "$parent_alias_secrets_dir"
 expect_failure \
   'parent alias cannot hide a symlinked path component' \
-  "fatal: secrets directory must not be a symlink: $canonical_parent_alias_secrets_dir"
+  'fatal: secrets directory path must be canonical'
 
 make_fixture directory-relative-path
 set_config SECRETS_DIR relative/secrets

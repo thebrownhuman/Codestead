@@ -111,6 +111,15 @@ esac
 
 raw_secrets_dir="${SECRETS_DIR:-/etc/learncoding/secrets}"
 [[ "$raw_secrets_dir" == /* ]] || fatal "secrets directory path must be absolute"
+
+raw_path_components=()
+IFS='/' read -r -a raw_path_components <<<"$raw_secrets_dir"
+for component in "${raw_path_components[@]}"; do
+  [[ "$component" != "." && "$component" != ".." ]] || {
+    fatal "secrets directory path must be canonical"
+  }
+done
+
 secrets_dir="$("$trusted_realpath_bin" --canonicalize-missing --no-symlinks -- "$raw_secrets_dir" 2>/dev/null)" || {
   fatal "secrets directory path is invalid"
 }
