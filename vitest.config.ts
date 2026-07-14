@@ -18,7 +18,13 @@ export default defineConfig({
     ],
     environment: "jsdom",
     globals: true,
-    reporters: ["default", "json"],
+    reporters: [
+      "default",
+      "json",
+      // Keep GitHub failures visible as check annotations. The explicit
+      // reporters above otherwise disable Vitest's automatic CI reporter.
+      ...(process.env.GITHUB_ACTIONS === "true" ? ["github-actions" as const] : []),
+    ],
     outputFile: { json: "test-results/vitest-unit-final.json" },
     // Coverage instrumentation plus the full component/content corpus can
     // exceed Vitest's 5s per-test default on the small NUC/Windows pilot host.
