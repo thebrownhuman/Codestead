@@ -340,6 +340,24 @@ export function createBrowserRecoveryBoundaryContext(input: {
   const memorySnapshot = (scope: BrowserRecoveryWriteScope) => relevantTombstoneKeys(scope)
     .map((key) => [key, memoryEpochs.get(key) ?? 0] as const);
 
+  const generationIsCurrent = (
+    durableSnapshot: BrowserRecoveryWriteFence["snapshot"],
+    observedMemory: BrowserRecoveryWriteFence["memorySnapshot"],
+  ) => {
+    try {
+      return compactionAllowsWrites(input.localStorage, input.origin)
+        && tombstoneSnapshotIsValid(durableSnapshot, input.origin)
+        && durableSnapshot.every(([key, value]) => (
+          input.localStorage.getItem(key) === value
+        ))
+        && observedMemory.every(([key, value]) => (
+          (memoryEpochs.get(key) ?? 0) === value
+        ));
+    } catch {
+      return false;
+    }
+  };
+
   const advanceMemoryBoundary = (boundary: BrowserRecoveryBoundary) => {
     memoryEpoch += 1;
     if (boundary.kind === "all") memoryEpochs.clear();
@@ -353,23 +371,47 @@ export function createBrowserRecoveryBoundaryContext(input: {
   const reconcileDraftSession = (
     namespace: string,
     observed: BrowserRecoveryWriteFence["snapshot"],
+    observedMemory: BrowserRecoveryWriteFence["memorySnapshot"],
   ) => {
     const markerKey = sessionGenerationKey(namespace);
     const next = sessionFingerprint(observed);
+    if (!generationIsCurrent(observed, observedMemory)) {
+      clearDraftCaches(input.sessionStorage, namespace);
+      input.sessionStorage.removeItem(markerKey);
+      return;
+    }
     const previous = input.sessionStorage.getItem(markerKey);
     const hasBoundary = observed.some(([, value]) => value !== null);
     if (previous === null ? hasBoundary : previous !== next) {
       clearDraftCaches(input.sessionStorage, namespace);
     }
+    if (!generationIsCurrent(observed, observedMemory)) {
+      clearDraftCaches(input.sessionStorage, namespace);
+      input.sessionStorage.removeItem(markerKey);
+      return;
+    }
     input.sessionStorage.setItem(markerKey, next);
+    if (!generationIsCurrent(observed, observedMemory)) {
+      clearDraftCaches(input.sessionStorage, namespace);
+      input.sessionStorage.removeItem(markerKey);
+    }
   };
 
   const clearUnreconciledDraftCaches = (globalRaw: string) => {
     const globalKey = tombstoneKey({ kind: "all" });
-    const protectedPrefixes: string[] = [];
+    const markerKeys: string[] = [];
     for (let index = 0; index < input.sessionStorage.length; index += 1) {
       const key = input.sessionStorage.key(index);
-      if (!key?.startsWith(SESSION_GENERATION_PREFIX)) continue;
+      if (key?.startsWith(SESSION_GENERATION_PREFIX)) markerKeys.push(key);
+    }
+    const protectedGenerations: Array<{
+      prefix: string;
+      markerKey: string;
+      fingerprint: string;
+      observed: BrowserRecoveryWriteFence["snapshot"];
+      observedMemory: BrowserRecoveryWriteFence["memorySnapshot"];
+    }> = [];
+    for (const key of markerKeys) {
       let namespace: string;
       try {
         namespace = decodeURIComponent(key.slice(SESSION_GENERATION_PREFIX.length));
@@ -377,20 +419,38 @@ export function createBrowserRecoveryBoundaryContext(input: {
         continue;
       }
       if (!isBrowserOutboxNamespace(namespace)) continue;
-      const observed = snapshot({ kind: "drafts", namespace });
-      if (observed.find(([entryKey]) => entryKey === globalKey)?.[1] !== globalRaw) {
+      const scope = { kind: "drafts", namespace } as const;
+      const observed = snapshot(scope);
+      const observedMemory = memorySnapshot(scope);
+      const fingerprint = sessionFingerprint(observed);
+      if (!generationIsCurrent(observed, observedMemory)
+        || observed.find(([entryKey]) => entryKey === globalKey)?.[1] !== globalRaw
+        || input.sessionStorage.getItem(key) !== fingerprint) {
+        input.sessionStorage.removeItem(key);
         continue;
       }
-      if (input.sessionStorage.getItem(key) !== sessionFingerprint(observed)) continue;
-      protectedPrefixes.push(`${DRAFT_CACHE_PREFIX}${encodeURIComponent(namespace)}:`);
+      protectedGenerations.push({
+        prefix: `${DRAFT_CACHE_PREFIX}${encodeURIComponent(namespace)}:`,
+        markerKey: key,
+        fingerprint,
+        observed,
+        observedMemory,
+      });
     }
     const keys: string[] = [];
     for (let index = 0; index < input.sessionStorage.length; index += 1) {
       const key = input.sessionStorage.key(index);
-      if (key?.startsWith(DRAFT_CACHE_PREFIX)
-        && !protectedPrefixes.some((prefix) => key.startsWith(prefix))) {
-        keys.push(key);
-      }
+      if (!key?.startsWith(DRAFT_CACHE_PREFIX)) continue;
+      const protectedGeneration = protectedGenerations.find(({ prefix }) => (
+        key.startsWith(prefix)
+      ));
+      if (!protectedGeneration
+        || !generationIsCurrent(
+          protectedGeneration.observed,
+          protectedGeneration.observedMemory,
+        )
+        || input.sessionStorage.getItem(protectedGeneration.markerKey)
+          !== protectedGeneration.fingerprint) keys.push(key);
     }
     keys.forEach((key) => input.sessionStorage.removeItem(key));
   };
@@ -415,11 +475,16 @@ export function createBrowserRecoveryBoundaryContext(input: {
         clearUnreconciledDraftCaches(raw);
       } else if (envelope.boundary.kind === "namespace"
         || envelope.boundary.kind === "drafts") {
-        const observed = snapshot({
+        const scope = {
           kind: "drafts",
           namespace: envelope.boundary.namespace,
-        });
-        reconcileDraftSession(envelope.boundary.namespace, observed);
+        } as const;
+        const observed = snapshot(scope);
+        reconcileDraftSession(
+          envelope.boundary.namespace,
+          observed,
+          memorySnapshot(scope),
+        );
       }
     } catch (error) {
       sessionFailure = error;
@@ -469,31 +534,21 @@ export function createBrowserRecoveryBoundaryContext(input: {
       if (closed) throw new Error("Browser recovery boundary context is closed.");
       requireWriteScope(scope);
       const durableSnapshot = snapshot(scope);
+      const observedMemory = memorySnapshot(scope);
       if (scope.kind === "drafts") {
-        reconcileDraftSession(scope.namespace, durableSnapshot);
+        reconcileDraftSession(scope.namespace, durableSnapshot, observedMemory);
       }
       const fence: BrowserRecoveryWriteFence = {
         scope,
         snapshot: durableSnapshot,
-        memorySnapshot: memorySnapshot(scope),
+        memorySnapshot: observedMemory,
       };
       fenceOwners.set(fence, context);
       return fence;
     },
     isWriteFenceCurrent(fence) {
       if (closed || fenceOwners.get(fence) !== context) return false;
-      try {
-        return compactionAllowsWrites(input.localStorage, input.origin)
-          && tombstoneSnapshotIsValid(fence.snapshot, input.origin)
-          && fence.snapshot.every(([key, value]) => (
-            input.localStorage.getItem(key) === value
-          ))
-          && fence.memorySnapshot.every(([key, value]) => (
-            (memoryEpochs.get(key) ?? 0) === value
-          ));
-      } catch {
-        return false;
-      }
+      return generationIsCurrent(fence.snapshot, fence.memorySnapshot);
     },
     async guardWrite<T>(fence: BrowserRecoveryWriteFence, operation: () => Promise<T>, rollback: () => unknown | Promise<unknown>) {
       if (!context.isWriteFenceCurrent(fence)) throw boundaryClosedError();
@@ -755,7 +810,7 @@ export async function withBrowserRecoveryRepository<T>(
   }
 }
 
-async function runCleanupLayers(
+async function settleCleanupLayers(
   layers: ReadonlyArray<readonly [CleanupLayer, () => unknown | Promise<unknown>]>,
   initialFailures: ReadonlyArray<CleanupLayer> = [],
 ) {
@@ -766,9 +821,20 @@ async function runCleanupLayers(
   settled.forEach((result, index) => {
     if (result.status === "rejected") failed.add(layers[index]![0]);
   });
+  return failed;
+}
+
+function throwCleanupFailures(failed: ReadonlySet<CleanupLayer>) {
   if (failed.size > 0) {
     throw new Error(`Browser recovery cleanup failed: ${[...failed].join(", ")}.`);
   }
+}
+
+async function runCleanupLayers(
+  layers: ReadonlyArray<readonly [CleanupLayer, () => unknown | Promise<unknown>]>,
+  initialFailures: ReadonlyArray<CleanupLayer> = [],
+) {
+  throwCleanupFailures(await settleCleanupLayers(layers, initialFailures));
 }
 
 export async function purgeBrowserRecoveryData(input: {
@@ -819,7 +885,7 @@ export async function prepareBrowserRecoveryNamespace(input: {
     } catch {
       captureFailed = true;
     }
-    await runCleanupLayers([
+    const failed = await settleCleanupLayers([
       ["session-storage", () => clearForeignDraftCaches(
         input.sessionStorage,
         input.namespace,
@@ -829,12 +895,11 @@ export async function prepareBrowserRecoveryNamespace(input: {
         kind: "foreign-namespaces",
         currentNamespace: input.namespace,
       })],
-      ["local-storage", () => {
-        if (fence === null || !resolved.context.isWriteFenceCurrent(fence)) {
-          throw new Error("Browser recovery preparation fence is not current.");
-        }
-      }],
     ], captureFailed ? ["local-storage"] : []);
+    if (fence === null || !resolved.context.isWriteFenceCurrent(fence)) {
+      failed.add("local-storage");
+    }
+    throwCleanupFailures(failed);
   } finally {
     if (resolved.owned) resolved.context.close();
   }

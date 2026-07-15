@@ -310,6 +310,55 @@ function seedWarmStorage() {
   window.sessionStorage.setItem("unrelated-session", "keep");
 }
 
+type InvalidCompactionState = "active" | "malformed" | "nonce-mismatched";
+
+function seedValidCompactionState(
+  storage: Storage,
+  origin = "https://codestead.test",
+) {
+  const nonce = "current-valid-generation-nonce-0001";
+  storage.setItem("codestead:browser-recovery-boundary:v1:all", JSON.stringify({
+    schemaVersion: 1,
+    origin,
+    generation: 1,
+    nonce,
+    sourceId: "tab-valid-generation",
+    createdAt: "2026-07-15T01:00:00.000Z",
+    boundary: { kind: "all" },
+  }));
+  storage.setItem("codestead:browser-recovery-compaction:v1", JSON.stringify({
+    schemaVersion: 1,
+    origin,
+    phase: "complete",
+    globalNonce: nonce,
+    sourceId: "tab-valid-generation",
+  }));
+}
+
+function forceInvalidCompactionState(
+  storage: Storage,
+  state: InvalidCompactionState,
+  origin = "https://codestead.test",
+) {
+  const compactionKey = "codestead:browser-recovery-compaction:v1";
+  if (state === "malformed") {
+    storage.setItem(compactionKey, "{malformed");
+    return;
+  }
+  const globalRaw = storage.getItem("codestead:browser-recovery-boundary:v1:all");
+  if (globalRaw === null) throw new Error("A global boundary is required by this fixture.");
+  const globalEnvelope = JSON.parse(globalRaw) as { nonce: string };
+  storage.setItem(compactionKey, JSON.stringify({
+    schemaVersion: 1,
+    origin,
+    phase: state === "active" ? "active" : "complete",
+    globalNonce: state === "active"
+      ? globalEnvelope.nonce
+      : "different-invalid-generation-nonce-0001",
+    sourceId: `tab-invalid-${state}`,
+  }));
+}
+
 describe("browser recovery lifecycle", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
@@ -448,6 +497,85 @@ describe("browser recovery lifecycle", () => {
       expect(clearForeignNamespaces).toHaveBeenCalledWith(NAMESPACE_A);
     },
   );
+
+  it.each(["active", "malformed", "nonce-mismatched"] as const)(
+    "rechecks %s compaction only after every namespace cleanup layer settles",
+    async (state) => {
+      const localStorage = new MemoryStorage();
+      const sessionStorage = new MemoryStorage();
+      const origin = window.location.origin;
+      seedValidCompactionState(localStorage, origin);
+      writeDraftCache(sessionStorage, NAMESPACE_B, DRAFT_KEY, {
+        schemaVersion: 1,
+        content: "foreign warm recovery",
+        language: "python",
+        baseRowVersion: 0,
+        requestId: "10000000-0000-4000-8000-000000000088",
+        locallyUpdatedAt: "2026-07-15T01:00:00.000Z",
+        dirty: true,
+      });
+      const foreignEmergency = eventRecord(
+        NAMESPACE_B,
+        SESSION_A,
+        "event-preparation-race-0001",
+      );
+      writeEmergencyExamEvent(localStorage, foreignEmergency);
+      const started = deferred<void>();
+      const release = deferred<void>();
+      const clearForeignNamespaces = vi.fn(async () => {
+        started.resolve();
+        await release.promise;
+      });
+      const preparation = prepareBrowserRecoveryNamespace({
+        namespace: NAMESPACE_A,
+        sessionStorage,
+        localStorage,
+        repository: repository({ clearForeignNamespaces }),
+      });
+
+      await started.promise;
+      await Promise.resolve();
+      forceInvalidCompactionState(localStorage, state, origin);
+      release.resolve();
+
+      await expect(preparation).rejects.toThrow(
+        "Browser recovery cleanup failed: local-storage.",
+      );
+      expect(clearForeignNamespaces).toHaveBeenCalledWith(NAMESPACE_A);
+      expect(sessionStorage.getItem(draftCacheKey(NAMESPACE_B, DRAFT_KEY))).toBeNull();
+      expect(localStorage.getItem(emergencyKey(foreignEmergency))).toBeNull();
+    },
+  );
+
+  it("aggregates a final preparation-fence failure with prior cleanup failures", async () => {
+    const localStorage = new MemoryStorage();
+    const origin = window.location.origin;
+    seedValidCompactionState(localStorage, origin);
+    const started = deferred<void>();
+    const release = deferred<void>();
+    const preparation = prepareBrowserRecoveryNamespace({
+      namespace: NAMESPACE_A,
+      sessionStorage: new MemoryStorage(),
+      localStorage,
+      repository: repository({
+        clearForeignNamespaces: vi.fn(async () => {
+          started.resolve();
+          await release.promise;
+          throw new Error("private indexed db detail");
+        }),
+      }),
+    });
+
+    await started.promise;
+    await Promise.resolve();
+    forceInvalidCompactionState(localStorage, "active", origin);
+    release.resolve();
+
+    await expect(preparation).rejects.toThrow(
+      "Browser recovery cleanup failed: indexed-db, local-storage.",
+    );
+    await expect(preparation).rejects.not.toThrow("private indexed db detail");
+  });
 
   it("keeps exam recovery during draft-only purge and other exams during exact-exam purge", async () => {
     seedWarmStorage();
@@ -907,6 +1035,134 @@ describe("browser recovery lifecycle", () => {
       writer.close();
     }
   });
+
+  it("preserves post-boundary warm recovery across a fresh context with reset memory epochs", () => {
+    const sharedLocalStorage = new MemoryStorage();
+    const sharedSessionStorage = new MemoryStorage();
+    const firstContext = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: sharedSessionStorage,
+      channel: null,
+      sourceId: "tab-reload-generation-before",
+    });
+
+    expect(firstContext.publish({
+      kind: "drafts",
+      namespace: NAMESPACE_A,
+    })).toEqual([]);
+    const firstFence = firstContext.captureWriteFence({
+      kind: "drafts",
+      namespace: NAMESPACE_A,
+    });
+    expect(firstContext.isWriteFenceCurrent(firstFence)).toBe(true);
+    writeDraftCache(sharedSessionStorage, NAMESPACE_A, DRAFT_KEY, {
+      schemaVersion: 1,
+      content: "legitimate post-boundary reload recovery",
+      language: "python",
+      baseRowVersion: 0,
+      requestId: "10000000-0000-4000-8000-000000000077",
+      locallyUpdatedAt: "2026-07-15T03:30:00.000Z",
+      dirty: true,
+    });
+    firstContext.close();
+
+    const reloadedContext = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: sharedSessionStorage,
+      channel: null,
+      sourceId: "tab-reload-generation-after",
+    });
+    try {
+      const reloadedFence = reloadedContext.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_A,
+      });
+
+      expect(reloadedContext.isWriteFenceCurrent(reloadedFence)).toBe(true);
+      expect(sharedSessionStorage.getItem(draftCacheKey(NAMESPACE_A, DRAFT_KEY)))
+        .toContain("legitimate post-boundary reload recovery");
+    } finally {
+      reloadedContext.close();
+    }
+  });
+
+  it.each([
+    ["all", "active"],
+    ["all", "malformed"],
+    ["all", "nonce-mismatched"],
+    ["namespace", "active"],
+    ["namespace", "malformed"],
+    ["namespace", "nonce-mismatched"],
+  ] as const)(
+    "clears post-marker warm recovery after a delayed %s notice under %s compaction",
+    async (boundaryKind, state) => {
+      const sharedLocalStorage = new MemoryStorage();
+      const writerSessionStorage = new MemoryStorage();
+      const hub = new BoundaryChannelHub();
+      const publisher = createBrowserRecoveryBoundaryContext({
+        origin: "https://codestead.test",
+        localStorage: sharedLocalStorage,
+        sessionStorage: new MemoryStorage(),
+        channel: hub.create(),
+        sourceId: `tab-invalid-${boundaryKind}-${state}-publisher`,
+      });
+      const writer = createBrowserRecoveryBoundaryContext({
+        origin: "https://codestead.test",
+        localStorage: sharedLocalStorage,
+        sessionStorage: writerSessionStorage,
+        channel: hub.create(),
+        sourceId: `tab-invalid-${boundaryKind}-${state}-writer`,
+      });
+      const draftKey = draftCacheKey(NAMESPACE_A, DRAFT_KEY);
+      const stdinKey = `${draftKey}:stdin`;
+      const practiceKey = `${DRAFT_CACHE_PREFIX}${encodeURIComponent(NAMESPACE_A)}:practice-run:${"b".repeat(64)}`;
+      const sessionMarkerKey = `codestead:browser-recovery-session:v1:${encodeURIComponent(NAMESPACE_A)}`;
+
+      try {
+        if (boundaryKind === "namespace") {
+          expect(publisher.publish({ kind: "all" })).toEqual([]);
+          await Promise.resolve();
+        }
+        hub.pause();
+        expect(publisher.publish(boundaryKind === "all"
+          ? { kind: "all" }
+          : { kind: "namespace", namespace: NAMESPACE_A })).toEqual([]);
+        forceInvalidCompactionState(sharedLocalStorage, state);
+
+        const invalidFence = writer.captureWriteFence({
+          kind: "drafts",
+          namespace: NAMESPACE_A,
+        });
+        expect(writer.isWriteFenceCurrent(invalidFence)).toBe(false);
+        writeDraftCache(writerSessionStorage, NAMESPACE_A, DRAFT_KEY, {
+          schemaVersion: 1,
+          content: "written after invalid generation capture",
+          language: "python",
+          baseRowVersion: 0,
+          requestId: "10000000-0000-4000-8000-000000000099",
+          locallyUpdatedAt: "2026-07-15T03:00:00.000Z",
+          dirty: true,
+        });
+        writerSessionStorage.setItem(stdinKey, "post-marker stdin");
+        writerSessionStorage.setItem(
+          practiceKey,
+          "20000000-0000-4000-8000-000000000099",
+        );
+
+        hub.flush();
+
+        expect(writerSessionStorage.getItem(draftKey)).toBeNull();
+        expect(writerSessionStorage.getItem(stdinKey)).toBeNull();
+        expect(writerSessionStorage.getItem(practiceKey)).toBeNull();
+        expect(writerSessionStorage.getItem(sessionMarkerKey)).toBeNull();
+      } finally {
+        publisher.close();
+        writer.close();
+      }
+    },
+  );
 
   it("cannot return a current fence when a boundary lands after reconciliation", () => {
     const sharedLocalStorage = new MemoryStorage();
@@ -1459,6 +1715,114 @@ describe("browser recovery lifecycle", () => {
         namespace: NAMESPACE_B,
       });
       expect(futureWriter.isWriteFenceCurrent(currentFence)).toBe(true);
+    } finally {
+      stalePublisher.close();
+      newerPublisher.close();
+      futureWriter.close();
+    }
+  });
+
+  it("fails visibly when a stale complete write lands after its ownership check and repairs on retry", () => {
+    const backingStorage = new MemoryStorage();
+    let interleaved = false;
+    let newerFailures: string[] | null = null;
+    const sharedLocalStorage = new Proxy(backingStorage, {
+      get(target, property) {
+        if (property === "setItem") {
+          return (key: string, value: string) => {
+            let isStaleCompleteWrite = false;
+            if (key === "codestead:browser-recovery-compaction:v1") {
+              try {
+                const parsed = JSON.parse(value) as {
+                  phase?: string;
+                  sourceId?: string;
+                };
+                isStaleCompleteWrite = parsed.phase === "complete"
+                  && parsed.sourceId === "tab-complete-window-stale";
+              } catch {
+                // Non-JSON writes are handled by the production parser.
+              }
+            }
+            if (!interleaved && isStaleCompleteWrite) {
+              interleaved = true;
+              newerFailures = newerPublisher.publish({ kind: "all" });
+            }
+            target.setItem(key, value);
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const stalePublisher = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-complete-window-stale",
+    });
+    const newerPublisher = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-complete-window-newer",
+    });
+    const futureWriter = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-complete-window-writer",
+    });
+
+    try {
+      const retiredFence = stalePublisher.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_A,
+      });
+      const staleFailures = stalePublisher.publish({ kind: "all" });
+
+      expect(interleaved).toBe(true);
+      expect(newerFailures).toEqual([]);
+      expect(staleFailures).toEqual(["local-storage"]);
+      const globalBeforeRetry = JSON.parse(backingStorage.getItem(
+        "codestead:browser-recovery-boundary:v1:all",
+      )!) as { nonce: string; sourceId: string };
+      const compactionBeforeRetry = JSON.parse(backingStorage.getItem(
+        "codestead:browser-recovery-compaction:v1",
+      )!) as { globalNonce: string; phase: string; sourceId: string };
+      expect(globalBeforeRetry.sourceId).toBe("tab-complete-window-newer");
+      expect(compactionBeforeRetry).toMatchObject({
+        phase: "complete",
+        sourceId: "tab-complete-window-stale",
+      });
+      expect(compactionBeforeRetry.globalNonce).not.toBe(globalBeforeRetry.nonce);
+      const blockedFence = futureWriter.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_B,
+      });
+      expect(futureWriter.isWriteFenceCurrent(blockedFence)).toBe(false);
+      expect(stalePublisher.isWriteFenceCurrent(retiredFence)).toBe(false);
+
+      expect(newerPublisher.publish({ kind: "all" })).toEqual([]);
+
+      const repairedGlobal = JSON.parse(backingStorage.getItem(
+        "codestead:browser-recovery-boundary:v1:all",
+      )!) as { nonce: string };
+      const repairedCompaction = JSON.parse(backingStorage.getItem(
+        "codestead:browser-recovery-compaction:v1",
+      )!) as { globalNonce: string; phase: string };
+      expect(repairedCompaction).toMatchObject({
+        phase: "complete",
+        globalNonce: repairedGlobal.nonce,
+      });
+      expect(futureWriter.isWriteFenceCurrent(blockedFence)).toBe(false);
+      expect(stalePublisher.isWriteFenceCurrent(retiredFence)).toBe(false);
+      expect(futureWriter.isWriteFenceCurrent(futureWriter.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_B,
+      }))).toBe(true);
     } finally {
       stalePublisher.close();
       newerPublisher.close();

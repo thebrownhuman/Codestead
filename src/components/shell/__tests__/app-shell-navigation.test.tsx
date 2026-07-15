@@ -6,6 +6,8 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { BrowserOutboxRepository } from "@/lib/browser-durability/indexed-db";
+
 const navigation = vi.hoisted(() => ({ pathname: "/learn" }));
 const durability = vi.hoisted(() => ({
   openBrowserOutbox: vi.fn(),
@@ -33,7 +35,11 @@ import { AppShell } from "../app-shell";
 
 const shellCss = readFileSync(resolve(process.cwd(), "src/components/shell/app-shell.module.css"), "utf8");
 
-async function useActualBrowserPreparation() {
+async function useActualBrowserPreparation(
+  decorateRepository: (
+    repository: BrowserOutboxRepository,
+  ) => BrowserOutboxRepository = (repository) => repository,
+) {
   const actualIndexedDb = await vi.importActual<
     typeof import("@/lib/browser-durability/indexed-db")
   >("@/lib/browser-durability/indexed-db");
@@ -41,8 +47,8 @@ async function useActualBrowserPreparation() {
     typeof import("@/lib/browser-durability/lifecycle")
   >("@/lib/browser-durability/lifecycle");
   const factory = new FakeIDBFactory();
-  durability.openBrowserOutbox.mockImplementation(() => (
-    actualIndexedDb.openBrowserOutbox(factory)
+  durability.openBrowserOutbox.mockImplementation(async () => decorateRepository(
+    await actualIndexedDb.openBrowserOutbox(factory),
   ));
   durability.prepareNamespace.mockImplementation(
     actualLifecycle.prepareBrowserRecoveryNamespace,
@@ -50,6 +56,51 @@ async function useActualBrowserPreparation() {
   durability.withRepository.mockImplementation(
     actualLifecycle.withBrowserRecoveryRepository,
   );
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((next) => { resolve = next; });
+  return { promise, resolve };
+}
+
+function seedValidGlobalCompaction(origin: string) {
+  const nonce = "current-app-shell-race-nonce-0001";
+  localStorage.setItem("codestead:browser-recovery-boundary:v1:all", JSON.stringify({
+    schemaVersion: 1,
+    origin,
+    generation: 1,
+    nonce,
+    sourceId: "tab-app-shell-race-valid",
+    createdAt: "2026-07-15T01:00:00.000Z",
+    boundary: { kind: "all" },
+  }));
+  localStorage.setItem("codestead:browser-recovery-compaction:v1", JSON.stringify({
+    schemaVersion: 1,
+    origin,
+    phase: "complete",
+    globalNonce: nonce,
+    sourceId: "tab-app-shell-race-valid",
+  }));
+}
+
+function forceInvalidGlobalCompaction(
+  state: "active" | "malformed" | "nonce-mismatched",
+  origin: string,
+) {
+  if (state === "malformed") {
+    localStorage.setItem("codestead:browser-recovery-compaction:v1", "{malformed");
+    return;
+  }
+  localStorage.setItem("codestead:browser-recovery-compaction:v1", JSON.stringify({
+    schemaVersion: 1,
+    origin,
+    phase: state === "active" ? "active" : "complete",
+    globalNonce: state === "active"
+      ? "current-app-shell-race-nonce-0001"
+      : "different-app-shell-race-nonce-0001",
+    sourceId: `tab-app-shell-race-${state}`,
+  }));
 }
 
 describe("AppShell compact navigation", () => {
@@ -221,6 +272,51 @@ describe("AppShell compact navigation", () => {
       expect(screen.queryByText("Private lesson editor")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Retry browser storage cleanup" }))
         .toBeEnabled();
+    },
+  );
+
+  it.each(["active", "malformed", "nonce-mismatched"] as const)(
+    "keeps children unmounted when compaction becomes %s during actual cleanup and exposes retry",
+    async (state) => {
+      sessionStorage.clear();
+      const started = deferred<void>();
+      const release = deferred<void>();
+      await useActualBrowserPreparation((repository) => new Proxy(repository, {
+        get(target, property) {
+          if (property === "clearForeignNamespaces") {
+            return async (namespace: string) => {
+              started.resolve();
+              await release.promise;
+              return target.clearForeignNamespaces(namespace);
+            };
+          }
+          const value = Reflect.get(target, property, target) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }));
+      const origin = window.location.origin;
+      seedValidGlobalCompaction(origin);
+
+      render(
+        <AppShell browserDurabilityNamespace="namespace-current">
+          <p>Private lesson editor</p>
+        </AppShell>,
+      );
+
+      await act(async () => {
+        await started.promise;
+        await Promise.resolve();
+        forceInvalidGlobalCompaction(state, origin);
+        release.resolve();
+        await Promise.resolve();
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        /could not prepare private browser recovery storage/i,
+      );
+      expect(screen.queryByText("Private lesson editor")).not.toBeInTheDocument();
+      const retry = screen.getByRole("button", { name: "Retry browser storage cleanup" });
+      expect(retry).toBeEnabled();
     },
   );
 
