@@ -29,3 +29,5 @@ export function createDraftCacheNamespace(
     .update(sessionId)
     .digest("base64url");
 }
+
+export const createBrowserDurabilityNamespace = createDraftCacheNamespace;

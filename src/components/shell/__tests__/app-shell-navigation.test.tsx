@@ -1,14 +1,29 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigation = vi.hoisted(() => ({ pathname: "/learn" }));
+const durability = vi.hoisted(() => ({
+  openBrowserOutbox: vi.fn(),
+  prepareNamespace: vi.fn(),
+  signOutCleanup: vi.fn(),
+  close: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { signOut: vi.fn() } }));
+vi.mock("@/lib/browser-durability/indexed-db", () => ({
+  openBrowserOutbox: durability.openBrowserOutbox,
+}));
+vi.mock("@/lib/browser-durability/lifecycle", () => ({
+  prepareBrowserRecoveryNamespace: durability.prepareNamespace,
+}));
+vi.mock("@/lib/drafts/logout", () => ({
+  signOutWithBrowserDurabilityCleanup: durability.signOutCleanup,
+}));
 vi.mock("../exam-lockdown-overlay", () => ({ ExamLockdownOverlay: () => null }));
 
 import { AppShell } from "../app-shell";
@@ -18,6 +33,13 @@ const shellCss = readFileSync(resolve(process.cwd(), "src/components/shell/app-s
 describe("AppShell compact navigation", () => {
   beforeEach(() => {
     navigation.pathname = "/learn";
+    durability.close.mockReset();
+    durability.openBrowserOutbox.mockReset();
+    durability.prepareNamespace.mockReset();
+    durability.signOutCleanup.mockReset();
+    durability.openBrowserOutbox.mockResolvedValue({ close: durability.close });
+    durability.prepareNamespace.mockResolvedValue(undefined);
+    durability.signOutCleanup.mockResolvedValue({ cleanupSucceeded: true });
     localStorage.clear();
     document.documentElement.removeAttribute("data-interface-theme");
     document.documentElement.removeAttribute("data-navigation-open");
@@ -34,6 +56,111 @@ describe("AppShell compact navigation", () => {
         dispatchEvent: vi.fn(),
       })),
     });
+  });
+
+  it("gates recovery consumers until private browser storage preparation completes", async () => {
+    let finish!: () => void;
+    durability.prepareNamespace.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finish = resolve;
+    }));
+    render(
+      <AppShell browserDurabilityNamespace="namespace-current">
+        <p>Private lesson editor</p>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(/preparing private browser recovery/i);
+    expect(screen.queryByText("Private lesson editor")).not.toBeInTheDocument();
+    await waitFor(() => expect(durability.prepareNamespace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        namespace: "namespace-current",
+        repository: expect.any(Object),
+      }),
+    ));
+
+    await act(async () => finish());
+    expect(await screen.findByText("Private lesson editor")).toBeInTheDocument();
+    expect(durability.close).toHaveBeenCalledOnce();
+  });
+
+  it("blocks consumers on preparation failure and retries with a fresh repository", async () => {
+    durability.prepareNamespace
+      .mockRejectedValueOnce(new Error("private key detail"))
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    render(
+      <AppShell browserDurabilityNamespace="namespace-current">
+        <p>Private lesson editor</p>
+      </AppShell>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /could not prepare private browser recovery storage/i,
+    );
+    expect(screen.queryByText("private key detail")).not.toBeInTheDocument();
+    expect(screen.queryByText("Private lesson editor")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry browser storage cleanup" }));
+
+    expect(await screen.findByText("Private lesson editor")).toBeInTheDocument();
+    expect(durability.openBrowserOutbox).toHaveBeenCalledTimes(2);
+    expect(durability.close).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps demo mode usable without opening authenticated browser storage", () => {
+    render(<AppShell browserDurabilityNamespace={null}><p>Demo content</p></AppShell>);
+    expect(screen.getByText("Demo content")).toBeInTheDocument();
+    expect(durability.openBrowserOutbox).not.toHaveBeenCalled();
+  });
+
+  it("disables sign-out while pending and shows a retryable authority error", async () => {
+    durability.signOutCleanup.mockRejectedValueOnce(new Error("secret network detail"));
+    const user = userEvent.setup();
+    render(
+      <AppShell browserDurabilityNamespace="namespace-current">
+        <p>Learning content</p>
+      </AppShell>,
+    );
+    expect(await screen.findByText("Learning content")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Aarav Rao/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /sign-out could not be confirmed.*saved browser work was kept/i,
+    );
+    expect(screen.queryByText("secret network detail")).not.toBeInTheDocument();
+    expect(durability.signOutCleanup).toHaveBeenCalledWith(expect.objectContaining({
+      namespace: "namespace-current",
+    }));
+  });
+
+  it("does not navigate a newly supplied namespace after an old sign-out completes", async () => {
+    let finish!: () => void;
+    durability.signOutCleanup.mockImplementationOnce((input: { navigate: (value: string) => void }) => (
+      new Promise<void>((resolve) => { finish = resolve; }).then(() => {
+        input.navigate("/login");
+        return { cleanupSucceeded: true };
+      })
+    ));
+    const navigate = vi.fn();
+    const user = userEvent.setup();
+    const view = render(
+      <AppShell browserDurabilityNamespace="namespace-old" navigate={navigate}>
+        <p>Learning content</p>
+      </AppShell>,
+    );
+    expect(await screen.findByText("Learning content")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Aarav Rao/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
+
+    view.rerender(
+      <AppShell browserDurabilityNamespace="namespace-new" navigate={navigate}>
+        <p>New session content</p>
+      </AppShell>,
+    );
+    await act(async () => finish());
+
+    expect(await screen.findByText("New session content")).toBeInTheDocument();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("keeps the closed drawer inert, focuses it when opened, and restores focus after Escape", async () => {

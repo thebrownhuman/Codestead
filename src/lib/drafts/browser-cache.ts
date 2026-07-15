@@ -151,3 +151,19 @@ export function clearDraftCaches(storage: BrowserStorage, namespace?: string) {
   keys.forEach((key) => storage.removeItem(key));
   return keys.length;
 }
+
+export function clearForeignDraftCaches(
+  storage: BrowserStorage,
+  currentNamespace: string,
+) {
+  const currentPrefix = `${DRAFT_CACHE_PREFIX}${safeSegment(currentNamespace, 100)}:`;
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key?.startsWith(DRAFT_CACHE_PREFIX) && !key.startsWith(currentPrefix)) {
+      keys.push(key);
+    }
+  }
+  keys.forEach((key) => storage.removeItem(key));
+  return keys.length;
+}

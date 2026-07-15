@@ -1189,6 +1189,98 @@ describe("timed exam client workflows", () => {
   });
 
   it.each([
+    [401, "empty", () => new Response(null, { status: 401 })],
+    [403, "non-JSON", () => new Response("<html>Forbidden</html>", {
+      status: 403,
+      headers: { "content-type": "text/html" },
+    })],
+  ] as const)(
+    "purges only the captured namespace after an initial %i authenticated exam denial with an %s body",
+    async (_status, _bodyKind, denialResponse) => {
+      const factory = new FakeIDBFactory();
+      vi.stubGlobal("indexedDB", factory);
+      const seed = await openBrowserOutbox(factory);
+      await seed.putExamAnswer(answerRecord());
+      seed.close();
+      const warmKey = `learncoding:draft-cache:v1:${namespace}:code:python:loops:language-python`;
+      window.sessionStorage.setItem(warmKey, "private lesson draft");
+      vi.stubGlobal("fetch", vi.fn(async () => denialResponse()));
+      const navigate = vi.fn();
+
+      renderWithNamespace(<TimedExamClient navigate={navigate} sessionId={sessionId} />);
+
+      expect(await screen.findByText(/Redirecting to sign in/i)).toBeInTheDocument();
+      const inspect = await openBrowserOutbox(factory);
+      expect(await inspect.listExamAnswers(namespace, sessionId)).toEqual([]);
+      inspect.close();
+      expect(window.sessionStorage.getItem(warmKey)).toBeNull();
+      expect(navigate).toHaveBeenCalledWith("/login");
+    },
+  );
+
+  it("treats a malformed final-submit 401 as the same exact auth boundary", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const navigate = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/submit")) return new Response(null, { status: 401 });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    renderWithNamespace(<TimedExamClient navigate={navigate} sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    fireEvent.click(screen.getByRole("button", { name: "Save & next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+
+    expect(await screen.findByText(/Redirecting to sign in/i)).toBeInTheDocument();
+    expect(navigate).toHaveBeenCalledWith("/login");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats a non-JSON runner 403 as the same exact auth boundary", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const navigate = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/run")) {
+        return new Response("<html>Forbidden</html>", { status: 403 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+
+    renderWithNamespace(<TimedExamClient navigate={navigate} sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await user.click(screen.getByRole("button", { name: /Code challenge/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Compile" }));
+
+    expect(await screen.findByText(/Redirecting to sign in/i)).toBeInTheDocument();
+    expect(navigate).toHaveBeenCalledWith("/login");
+  });
+
+  it("treats an empty heartbeat 401 as the same exact auth boundary", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const navigate = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/heartbeat")) return new Response(null, { status: 401 });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    renderWithNamespace(<TimedExamClient navigate={navigate} sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+
+    expect(await screen.findByText(/Redirecting to sign in/i)).toBeInTheDocument();
+    expect(navigate).toHaveBeenCalledWith("/login");
+  });
+
+  it.each([
     ["empty items", (exam: ExamSessionView) => ({
       ...exam,
       form: { ...exam.form, items: [] },
@@ -1276,6 +1368,38 @@ describe("timed exam client workflows", () => {
     expect(await screen.findByRole("heading", { name: /Exam recovery unavailable/i })).toBeInTheDocument();
     expect(screen.queryByLabelText("Your response")).not.toBeInTheDocument();
     expect(calls).toEqual([`/api/exams/${sessionId}`]);
+  });
+
+  it("keeps active controls gated and retries failed closed-book draft cleanup", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const warmKey = `learncoding:draft-cache:v1:${namespace}:code:python:loops:language-python`;
+    window.sessionStorage.setItem(warmKey, "private lesson draft");
+    const originalRemoveItem = Storage.prototype.removeItem;
+    const removeItem = vi.spyOn(Storage.prototype, "removeItem");
+    removeItem.mockImplementationOnce(function (this: Storage) {
+      throw new Error("private storage detail");
+    });
+    removeItem.mockImplementation(function (this: Storage, key: string) {
+      return originalRemoveItem.call(this, key);
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+
+    expect(await screen.findByRole("heading", { name: /Exam recovery unavailable/i }))
+      .toBeInTheDocument();
+    expect(screen.queryByLabelText("Your response")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("private storage detail");
+    await user.click(screen.getByRole("button", { name: /Retry browser storage cleanup/i }));
+
+    expect(await screen.findByLabelText("Your response")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem(warmKey)).toBeNull();
   });
 
   it("auto-finalizes at the server deadline and explains an offline failure", async () => {
@@ -1402,6 +1526,32 @@ describe("timed exam client workflows", () => {
     await user.type(screen.getByLabelText("What should the reviewer inspect?"), "Please inspect the recorded infrastructure failure.");
     await user.click(screen.getByRole("button", { name: "Submit appeal" }));
     expect(await screen.findByText("Appeal pending human review")).toBeInTheDocument();
+  });
+
+  it("treats a malformed appeal 403 as the same exact auth boundary", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const navigate = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: gradedExam() });
+      if (url.endsWith("/appeal") && init?.method === "POST") {
+        return new Response("<html>Forbidden</html>", { status: 403 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+
+    renderWithNamespace(<TimedExamClient navigate={navigate} sessionId={sessionId} />);
+    expect(await screen.findByRole("heading", { name: "mastered" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Request a review" }));
+    await user.type(
+      screen.getByLabelText("What should the reviewer inspect?"),
+      "Please inspect the authenticated session boundary.",
+    );
+    await user.click(screen.getByRole("button", { name: "Submit appeal" }));
+
+    expect(await screen.findByText(/Redirecting to sign in/i)).toBeInTheDocument();
+    expect(navigate).toHaveBeenCalledWith("/login");
   });
 
   it("refreshes a session that is still finalizing", async () => {

@@ -1,7 +1,21 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const durability = vi.hoisted(() => ({
+  openBrowserOutbox: vi.fn(),
+  purgeRecovery: vi.fn(),
+  close: vi.fn(),
+}));
+
+vi.mock("@/lib/browser-durability/indexed-db", () => ({
+  openBrowserOutbox: durability.openBrowserOutbox,
+}));
+vi.mock("@/lib/browser-durability/lifecycle", () => ({
+  purgeBrowserRecoveryData: durability.purgeRecovery,
+}));
+
+import { BrowserDurabilityNamespaceProvider } from "@/lib/browser-durability/context";
 import { DeviceSessionsPanel } from "../device-sessions-panel";
 
 function json(body: unknown, init: ResponseInit = {}) {
@@ -9,6 +23,12 @@ function json(body: unknown, init: ResponseInit = {}) {
     ...init,
     headers: { "content-type": "application/json", ...init.headers },
   });
+}
+
+function unreadableDeniedResponse(status: 401 | 403, body: BodyInit | null = null) {
+  const response = new Response(body, { status });
+  const jsonSpy = vi.spyOn(response, "json");
+  return { response, jsonSpy };
 }
 
 const activeSession = {
@@ -36,6 +56,14 @@ const endedSession = {
 };
 
 describe("device session controls", () => {
+  beforeEach(() => {
+    durability.close.mockReset();
+    durability.openBrowserOutbox.mockReset();
+    durability.purgeRecovery.mockReset();
+    durability.openBrowserOutbox.mockResolvedValue({ close: durability.close });
+    durability.purgeRecovery.mockResolvedValue(undefined);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -134,11 +162,72 @@ describe("device session controls", () => {
     [{ error: "Session access was denied." }, "Session access was denied."],
     [{}, "Sessions could not be loaded."],
   ])("surfaces an initial non-success response without exposing internals", async (body, message) => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(body, { status: 403 })));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(body, { status: 503 })));
 
     render(<DeviceSessionsPanel />);
 
     expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
+  it("fences the captured namespace on an initial 401 without consuming an empty body", async () => {
+    const { response, jsonSpy } = unreadableDeniedResponse(401);
+    durability.purgeRecovery.mockRejectedValueOnce(new Error("synthetic cleanup failure"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+    const navigate = vi.fn();
+
+    render(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-load-denied">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+
+    await waitFor(() => expect(durability.purgeRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: "namespace-load-denied" }),
+    ));
+    expect(jsonSpy).not.toHaveBeenCalled();
+    expect(durability.purgeRecovery).toHaveBeenCalledTimes(1);
+    expect(durability.close).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/login?reason=session-expired");
+  });
+
+  it("purges a late denial's old namespace without redirecting or latching the new generation", async () => {
+    let resolveOld!: (response: Response) => void;
+    const oldResponse = new Promise<Response>((resolve) => { resolveOld = resolve; });
+    const newDenied = unreadableDeniedResponse(403, "<html>new denial</html>");
+    let calls = 0;
+    const fetchMock = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) return oldResponse;
+      if (calls === 2) return json({ sessions: [activeSession], revocationRequests: [] });
+      return newDenied.response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const navigate = vi.fn();
+    const view = render(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-old-generation">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    view.rerender(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-new-generation">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+    expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
+
+    await act(async () => resolveOld(new Response(null, { status: 401 })));
+    await waitFor(() => expect(durability.purgeRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: "namespace-old-generation" }),
+    ));
+    expect(navigate).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(durability.purgeRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: "namespace-new-generation" }),
+    ));
+    expect(newDenied.jsonSpy).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith("/login?reason=session-expired");
   });
 
   it.each([
@@ -188,6 +277,124 @@ describe("device session controls", () => {
     await user.click(screen.getByRole("button", { name: "End other sessions" }));
     expect(await screen.findByText("0 other session(s) ended.")).toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
+    expect(durability.purgeRecovery).not.toHaveBeenCalled();
+  });
+
+  it("fences the captured namespace on a DELETE 403 before consuming an HTML body", async () => {
+    const denied = unreadableDeniedResponse(403, "<html>sign in</html>");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ sessions: [activeSession], revocationRequests: [] }))
+      .mockResolvedValueOnce(denied.response);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const navigate = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-delete-denied">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+    expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "End other sessions" }));
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login?reason=session-expired"));
+    expect(denied.jsonSpy).not.toHaveBeenCalled();
+    expect(durability.purgeRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: "namespace-delete-denied" }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits for confirmed revoke-all and exact-namespace cleanup before navigation", async () => {
+    let resolveDelete!: (response: Response) => void;
+    let resolveCleanup!: () => void;
+    const deleteResponse = new Promise<Response>((resolve) => { resolveDelete = resolve; });
+    durability.purgeRecovery.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveCleanup = resolve;
+    }));
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => (
+      init?.method === "DELETE"
+        ? deleteResponse
+        : Promise.resolve(json({ sessions: [activeSession], revocationRequests: [] }))
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const navigate = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-current">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+    expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+
+    expect(durability.purgeRecovery).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    await act(async () => resolveDelete(json({ revokedCount: 1 })));
+    await waitFor(() => expect(durability.purgeRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: "namespace-current" }),
+    ));
+    expect(navigate).not.toHaveBeenCalled();
+
+    await act(async () => resolveCleanup());
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login?reason=signed-out"));
+    expect(durability.close).toHaveBeenCalledOnce();
+  });
+
+  it("preserves browser recovery when revoke-all is rejected", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ sessions: [activeSession], revocationRequests: [] }))
+      .mockResolvedValueOnce(json({ error: "Could not end the current session." }, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const navigate = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-current">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+    expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not end the current session.");
+    expect(durability.purgeRecovery).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("does not let a stale revoke-all response purge a newly supplied namespace", async () => {
+    let resolveDelete!: (response: Response) => void;
+    const deleteResponse = new Promise<Response>((resolve) => { resolveDelete = resolve; });
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => (
+      init?.method === "DELETE"
+        ? deleteResponse
+        : Promise.resolve(json({ sessions: [activeSession], revocationRequests: [] }))
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const navigate = vi.fn();
+    const user = userEvent.setup();
+    const view = render(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-old">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+    expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+    await act(async () => {
+      view.rerender(
+        <BrowserDurabilityNamespaceProvider namespace="namespace-new">
+          <DeviceSessionsPanel navigate={navigate} />
+        </BrowserDurabilityNamespaceProvider>,
+      );
+      resolveDelete(json({ revokedCount: 1 }));
+    });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign out everywhere" })).toBeEnabled());
+    expect(durability.purgeRecovery).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("requires confirmation before destructive session revocation", async () => {
@@ -285,6 +492,36 @@ describe("device session controls", () => {
       method: "POST",
       body: JSON.stringify({ sessionId: activeSession.id, reason: pendingRequest.reason }),
     }));
+  });
+
+  it("fences the captured namespace on a revocation POST 401 without awaiting a stalled body", async () => {
+    const stalledJson = vi.fn(() => new Promise<never>(() => undefined));
+    const denied = { ok: false, status: 401, json: stalledJson } as unknown as Response;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ sessions: [activeSession], revocationRequests: [] }))
+      .mockResolvedValueOnce(denied);
+    vi.stubGlobal("fetch", fetchMock);
+    const navigate = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <BrowserDurabilityNamespaceProvider namespace="namespace-request-denied">
+        <DeviceSessionsPanel navigate={navigate} />
+      </BrowserDurabilityNamespaceProvider>,
+    );
+    expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText("Why should this device be revoked?"),
+      "This approved browser was lost during travel.",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Request administrator revocation" }));
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login?reason=session-expired"));
+    expect(stalledJson).not.toHaveBeenCalled();
+    expect(durability.purgeRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: "namespace-request-denied" }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it.each([

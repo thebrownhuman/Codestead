@@ -83,6 +83,14 @@ function cached(overrides: Partial<CachedLearnerDraft> = {}): CachedLearnerDraft
   };
 }
 
+function stalledDeniedResponse(status: 401 | 403) {
+  const json = vi.fn(() => new Promise<never>(() => undefined));
+  return {
+    response: { ok: false, status, json } as unknown as Response,
+    json,
+  };
+}
+
 function outboxFor(
   draftNamespace: string,
   draftKey: typeof key,
@@ -133,6 +141,7 @@ function installRepository(overrides: Partial<Pick<
     putExamEvent: vi.fn(async () => undefined),
     deleteExamEvent: vi.fn(async () => undefined),
     clearExamSession: vi.fn(async () => undefined),
+    clearDrafts: vi.fn(async () => undefined),
     clearNamespace: vi.fn(async () => undefined),
     clearForeignNamespaces: vi.fn(async () => undefined),
     clearAll: vi.fn(async () => undefined),
@@ -1690,6 +1699,7 @@ describe("CodeLab authoritative draft synchronization", () => {
   it.each([401, 403] as const)(
     "purges the current cache and blocks sync after a %i session denial",
     async (status) => {
+      const repository = installRepository();
       const otherSkill = { ...key, skillId: "python.loops" };
       writeDraftCache(window.sessionStorage, namespace, key, cached({ content: "revoked_draft = 1\n" }));
       writeDraftCache(window.sessionStorage, namespace, otherSkill, cached({ content: "also_private = 1\n" }));
@@ -1707,6 +1717,9 @@ describe("CodeLab authoritative draft synchronization", () => {
       expect(window.sessionStorage.getItem(draftCacheKey(namespace, key))).toBeNull();
       expect(window.sessionStorage.getItem(draftCacheKey(namespace, otherSkill))).toBeNull();
       expect(window.sessionStorage.getItem(draftCacheKey("another-learner-namespace", key))).not.toBeNull();
+      await waitFor(() => expect(repository.clearNamespace).toHaveBeenCalledWith(namespace));
+      expect(repository.clearAll).not.toHaveBeenCalled();
+      expect(repository.clearDrafts).not.toHaveBeenCalled();
       fireEvent.change(editor, { target: { value: "must_not_sync = 1\n" } });
       await act(async () => {
         await new Promise((resolve) => window.setTimeout(resolve, 700));
@@ -1715,7 +1728,42 @@ describe("CodeLab authoritative draft synchronization", () => {
     },
   );
 
+  it("handles a draft GET denial before consuming a stalled response body", async () => {
+    const repository = installRepository();
+    const denied = stalledDeniedResponse(401);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(denied.response);
+
+    renderLab();
+
+    await waitFor(() => expect(screen.getByText(/session expired or was revoked/i)).toBeInTheDocument());
+    expect(denied.json).not.toHaveBeenCalled();
+    expect(repository.clearNamespace).toHaveBeenCalledWith(namespace);
+  });
+
+  it("handles a draft PUT denial before consuming a rejected response body", async () => {
+    const repository = installRepository();
+    const rejectedJson = vi.fn().mockRejectedValue(new Error("body stream rejected"));
+    const denied = { ok: false, status: 403, json: rejectedJson } as unknown as Response;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => (
+      init?.method === "GET"
+        ? json({ draft: serverDraft, cacheNamespace: namespace })
+        : denied
+    ));
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "denied_put = true\n" } });
+
+    await waitFor(() => expect(screen.getByText(/session expired or was revoked/i)).toBeInTheDocument(), {
+      timeout: 2_000,
+    });
+    expect(rejectedJson).not.toHaveBeenCalled();
+    expect(repository.clearNamespace).toHaveBeenCalledWith(namespace);
+  });
+
   it("removes local code assistance when a closed-book exam gate denies draft access", async () => {
+    const repository = installRepository();
     writeDraftCache(window.sessionStorage, namespace, key, cached({ content: "exam_helper = 1\n" }));
     vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ code: "EXAM_CLOSED_BOOK" }, 423));
     renderLab();
@@ -1723,6 +1771,9 @@ describe("CodeLab authoritative draft synchronization", () => {
     await waitFor(() => expect(screen.getByText(/locked during a closed-book exam/i)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
     expect(editor).toHaveValue("# Try the idea here\n\n");
+    await waitFor(() => expect(repository.clearDrafts).toHaveBeenCalledWith(namespace));
+    expect(repository.clearNamespace).not.toHaveBeenCalled();
+    expect(repository.clearExamSession).not.toHaveBeenCalled();
     fireEvent.change(editor, { target: { value: "cannot_edit = true\n" } });
     expect(editor).toHaveValue("# Try the idea here\n\n");
   });

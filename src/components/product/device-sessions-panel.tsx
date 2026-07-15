@@ -1,8 +1,14 @@
 "use client";
 
 import { Laptop, LogOut, RefreshCcw, ShieldAlert } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { useBrowserDurabilityNamespace } from "@/lib/browser-durability/context";
+import {
+  openBrowserOutbox,
+  type BrowserOutboxRepository,
+} from "@/lib/browser-durability/indexed-db";
+import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
 import styles from "./product-pages.module.css";
 
 type SessionView = {
@@ -34,7 +40,18 @@ function time(value: string) {
   }).format(new Date(value));
 }
 
-export function DeviceSessionsPanel() {
+const defaultNavigate = (destination: string) => window.location.assign(destination);
+
+function isAuthorizationDenial(response: Response) {
+  return response.status === 401 || response.status === 403;
+}
+
+export function DeviceSessionsPanel({
+  navigate = defaultNavigate,
+}: {
+  navigate?: (destination: string) => void;
+} = {}) {
+  const browserDurabilityNamespace = useBrowserDurabilityNamespace();
   const [sessions, setSessions] = useState<SessionView[]>([]);
   const [requests, setRequests] = useState<RevocationRequestView[]>([]);
   const [reason, setReason] = useState("");
@@ -44,12 +61,66 @@ export function DeviceSessionsPanel() {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const mutationRef = useRef(false);
+  const authorizationDenialRef = useRef(new Set<number>());
+  const generationRef = useRef(0);
+  const latestNamespaceRef = useRef(browserDurabilityNamespace);
+  useLayoutEffect(() => {
+    if (latestNamespaceRef.current !== browserDurabilityNamespace) {
+      latestNamespaceRef.current = browserDurabilityNamespace;
+      generationRef.current += 1;
+    }
+  }, [browserDurabilityNamespace]);
+
+  const handleAuthorizationDenial = useCallback(async (
+    namespace: string | null,
+    generation: number,
+  ) => {
+    if (authorizationDenialRef.current.has(generation)) return;
+    authorizationDenialRef.current.add(generation);
+    let repository: BrowserOutboxRepository | null = null;
+    try {
+      try {
+        repository = await openBrowserOutbox();
+      } catch {
+        repository = {
+          clearAll: async () => {
+            throw new Error("Browser recovery storage is unavailable.");
+          },
+          clearNamespace: async () => {
+            throw new Error("Browser recovery storage is unavailable.");
+          },
+          close: () => undefined,
+        } as unknown as BrowserOutboxRepository;
+      }
+      await purgeBrowserRecoveryData({
+        ...(namespace ? { namespace } : {}),
+        sessionStorage: window.sessionStorage,
+        localStorage: window.localStorage,
+        repository,
+      });
+    } catch {
+      // The durable boundary is published before best-effort cleanup. The
+      // anonymous gate retries cleanup before accepting new credentials.
+    } finally {
+      repository?.close?.();
+      if (generationRef.current === generation
+        && latestNamespaceRef.current === namespace) {
+        navigate("/login?reason=session-expired");
+      }
+    }
+  }, [navigate]);
 
   const load = useCallback(async ({ signal, showLoading = true }: { signal?: AbortSignal; showLoading?: boolean } = {}) => {
+    const namespace = browserDurabilityNamespace;
+    const generation = generationRef.current;
     if (showLoading) setLoadState("loading");
     setLoadError(null);
     try {
       const response = await fetch("/api/sessions", { cache: "no-store", signal });
+      if (isAuthorizationDenial(response)) {
+        await handleAuthorizationDenial(namespace, generation);
+        return false;
+      }
       const body = (await response.json().catch(() => ({}))) as {
         sessions?: SessionView[];
         revocationRequests?: RevocationRequestView[];
@@ -67,7 +138,7 @@ export function DeviceSessionsPanel() {
       setLoadError(error instanceof Error ? error.message : "Sessions could not be loaded.");
       return false;
     }
-  }, []);
+  }, [browserDurabilityNamespace, handleAuthorizationDenial]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -89,16 +160,56 @@ export function DeviceSessionsPanel() {
     setBusy(true);
     setMutationError(null);
     setStatusMessage(null);
+    const generation = generationRef.current;
+    const namespace = browserDurabilityNamespace;
     try {
       const response = await fetch("/api/sessions", {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ scope }),
       });
+      if (isAuthorizationDenial(response)) {
+        await handleAuthorizationDenial(namespace, generation);
+        return;
+      }
       const body = (await response.json().catch(() => ({}))) as { error?: string; revokedCount?: number };
       if (!response.ok) throw new Error(body.error ?? "Sessions could not be ended.");
       if (scope === "all") {
-        window.location.assign("/login?reason=signed-out");
+        if (generationRef.current !== generation
+          || latestNamespaceRef.current !== namespace) return;
+        let repository: BrowserOutboxRepository | null = null;
+        try {
+          try {
+            repository = await openBrowserOutbox();
+          } catch {
+            repository = {
+              clearAll: async () => {
+                throw new Error("Browser recovery storage is unavailable.");
+              },
+              clearNamespace: async () => {
+                throw new Error("Browser recovery storage is unavailable.");
+              },
+              close: () => undefined,
+            } as unknown as BrowserOutboxRepository;
+          }
+          if (generationRef.current !== generation
+            || latestNamespaceRef.current !== namespace) return;
+          await purgeBrowserRecoveryData({
+            ...(namespace ? { namespace } : {}),
+            sessionStorage: window.sessionStorage,
+            localStorage: window.localStorage,
+            repository,
+          });
+        } catch {
+          // The server already ended this session. The anonymous login gate
+          // retries global cleanup before exposing credentials.
+        } finally {
+          repository?.close?.();
+        }
+        if (generationRef.current === generation
+          && latestNamespaceRef.current === namespace) {
+          navigate("/login?reason=signed-out");
+        }
         return;
       }
       setStatusMessage(`${body.revokedCount ?? 0} other session(s) ended.`);
@@ -123,12 +234,18 @@ export function DeviceSessionsPanel() {
     setBusy(true);
     setMutationError(null);
     setStatusMessage(null);
+    const namespace = browserDurabilityNamespace;
+    const generation = generationRef.current;
     try {
       const response = await fetch("/api/session-revocation-requests", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ sessionId: current.id, reason }),
       });
+      if (isAuthorizationDenial(response)) {
+        await handleAuthorizationDenial(namespace, generation);
+        return;
+      }
       const body = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "The revocation request could not be sent.");
       setReason("");

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ClientExamEventType } from "@/lib/exams/contracts";
 
 import {
+  clearEmergencyExamEvents,
   drainEmergencyExamEvents,
   EMERGENCY_EXAM_EVENT_PREFIX,
   writeEmergencyExamEvent,
@@ -262,5 +263,155 @@ describe("emergency exam event bridge", () => {
       JSON.stringify(foreignSession),
     );
     expect(window.localStorage.getItem("unrelated-key")).toBe("keep-me");
+  });
+
+  it("clears exact namespace and exam scopes without touching unrelated storage", () => {
+    const target = makeEventRecord();
+    const otherExam = makeEventRecord({
+      sessionId: SESSION_B,
+      clientEventId: "event-session-0001",
+    });
+    const foreign = makeEventRecord({
+      namespace: NAMESPACE_B,
+      clientEventId: "event-foreign-0001",
+    });
+    for (const record of [target, otherExam, foreign]) {
+      writeEmergencyExamEvent(window.localStorage, record);
+    }
+    window.localStorage.setItem("unrelated-key", "keep-me");
+
+    expect(clearEmergencyExamEvents(window.localStorage, {
+      kind: "exam",
+      namespace: NAMESPACE_A,
+      sessionId: SESSION_A,
+    })).toBe(1);
+    expect(window.localStorage.getItem(emergencyStorageKey(target))).toBeNull();
+    expect(window.localStorage.getItem(emergencyStorageKey(otherExam))).not.toBeNull();
+    expect(window.localStorage.getItem(emergencyStorageKey(foreign))).not.toBeNull();
+
+    expect(clearEmergencyExamEvents(window.localStorage, {
+      kind: "namespace",
+      namespace: NAMESPACE_A,
+    })).toBe(1);
+    expect(window.localStorage.getItem(emergencyStorageKey(otherExam))).toBeNull();
+    expect(window.localStorage.getItem(emergencyStorageKey(foreign))).not.toBeNull();
+    expect(window.localStorage.getItem("unrelated-key")).toBe("keep-me");
+  });
+
+  it("uses canonical key identity to clear malformed exact-scope values", () => {
+    const target = makeEventRecord();
+    const otherExam = makeEventRecord({
+      sessionId: SESSION_B,
+      clientEventId: "event-session-0001",
+    });
+    const foreign = makeEventRecord({
+      namespace: NAMESPACE_B,
+      clientEventId: "event-foreign-0001",
+    });
+    for (const record of [target, otherExam, foreign]) {
+      window.localStorage.setItem(emergencyStorageKey(record), "{corrupted-json");
+    }
+
+    expect(clearEmergencyExamEvents(window.localStorage, {
+      kind: "exam",
+      namespace: NAMESPACE_A,
+      sessionId: SESSION_A,
+    })).toBe(1);
+    expect(window.localStorage.getItem(emergencyStorageKey(target))).toBeNull();
+    expect(window.localStorage.getItem(emergencyStorageKey(otherExam))).toBe("{corrupted-json");
+    expect(window.localStorage.getItem(emergencyStorageKey(foreign))).toBe("{corrupted-json");
+
+    expect(clearEmergencyExamEvents(window.localStorage, {
+      kind: "namespace",
+      namespace: NAMESPACE_A,
+    })).toBe(1);
+    expect(window.localStorage.getItem(emergencyStorageKey(otherExam))).toBeNull();
+    expect(window.localStorage.getItem(emergencyStorageKey(foreign))).toBe("{corrupted-json");
+  });
+
+  it("foreign and global sweeps remove malformed app entries but preserve unrelated storage", () => {
+    const current = makeEventRecord();
+    const foreign = makeEventRecord({
+      namespace: NAMESPACE_B,
+      clientEventId: "event-foreign-0001",
+    });
+    writeEmergencyExamEvent(window.localStorage, current);
+    writeEmergencyExamEvent(window.localStorage, foreign);
+    window.localStorage.setItem(`${EMERGENCY_EXAM_EVENT_PREFIX}malformed`, "not-json");
+    window.localStorage.setItem("unrelated-key", "keep-me");
+
+    expect(clearEmergencyExamEvents(window.localStorage, {
+      kind: "foreign-namespaces",
+      currentNamespace: NAMESPACE_A,
+    })).toBe(2);
+    expect(window.localStorage.getItem(emergencyStorageKey(current))).not.toBeNull();
+    expect(window.localStorage.getItem(emergencyStorageKey(foreign))).toBeNull();
+    expect(window.localStorage.getItem(`${EMERGENCY_EXAM_EVENT_PREFIX}malformed`)).toBeNull();
+
+    expect(clearEmergencyExamEvents(window.localStorage, { kind: "all" })).toBe(1);
+    expect(window.localStorage.getItem(emergencyStorageKey(current))).toBeNull();
+    expect(window.localStorage.getItem("unrelated-key")).toBe("keep-me");
+  });
+
+  it("rejects invalid clear identities before scanning or deleting storage", () => {
+    const current = makeEventRecord();
+    const key = emergencyStorageKey(current);
+    const malformedKey = `${EMERGENCY_EXAM_EVENT_PREFIX}malformed`;
+    writeEmergencyExamEvent(window.localStorage, current);
+    window.localStorage.setItem(malformedKey, "not-json");
+
+    expect(() => clearEmergencyExamEvents(window.localStorage, {
+      kind: "foreign-namespaces",
+      currentNamespace: "",
+    })).toThrow("namespace is invalid");
+    expect(() => clearEmergencyExamEvents(window.localStorage, {
+      kind: "namespace",
+      namespace: "",
+    })).toThrow("namespace is invalid");
+    expect(() => clearEmergencyExamEvents(window.localStorage, {
+      kind: "exam",
+      namespace: NAMESPACE_A,
+      sessionId: "",
+    })).toThrow("session ID is invalid");
+
+    expect(window.localStorage.getItem(key)).toBe(JSON.stringify(current));
+    expect(window.localStorage.getItem(malformedKey)).toBe("not-json");
+  });
+
+  it("compare-removes only unchanged matching emergency values", () => {
+    const target = makeEventRecord();
+    const rewritten = makeEventRecord({
+      updatedAt: TIME_2,
+      occurredAt: TIME_2,
+      metadata: { sequence: 2 },
+    });
+    const key = emergencyStorageKey(target);
+    writeEmergencyExamEvent(window.localStorage, target);
+    const originalGetItem = window.localStorage.getItem.bind(window.localStorage);
+    let reads = 0;
+    const storage = new Proxy(window.localStorage, {
+      get(targetStorage, property, receiver) {
+        if (property === "getItem") {
+          return (storageKey: string) => {
+            const value = originalGetItem(storageKey);
+            reads += 1;
+            if (storageKey === key && reads === 2) {
+              targetStorage.setItem(key, JSON.stringify(rewritten));
+              return JSON.stringify(rewritten);
+            }
+            return value;
+          };
+        }
+        const value = Reflect.get(targetStorage, property, receiver) as unknown;
+        return typeof value === "function" ? value.bind(targetStorage) : value;
+      },
+    });
+
+    expect(clearEmergencyExamEvents(storage, {
+      kind: "exam",
+      namespace: NAMESPACE_A,
+      sessionId: SESSION_A,
+    })).toBe(0);
+    expect(window.localStorage.getItem(key)).toBe(JSON.stringify(rewritten));
   });
 });

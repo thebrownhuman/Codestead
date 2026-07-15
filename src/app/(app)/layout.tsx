@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/shell/app-shell";
-import { createDraftCacheNamespace } from "@/lib/drafts/cache-namespace";
+import { createBrowserDurabilityNamespace } from "@/lib/drafts/cache-namespace";
 import { requireAuth } from "@/lib/http/authz";
 import { isApplicationAuthRequired } from "@/lib/security/runtime-policy";
 
@@ -15,11 +15,11 @@ export default async function LearnerLayout({ children }: { children: React.Reac
       redirect("/login?error=account-inactive");
     }
     if (authz.account.status === "pending") redirect("/onboarding");
-    const draftCacheNamespace = createDraftCacheNamespace(
+    const browserDurabilityNamespace = createBrowserDurabilityNamespace(
       authz.session.user.id,
       authz.session.session.id,
     );
-    return <AppShell admin={authz.account.role === "admin"} draftCacheNamespace={draftCacheNamespace} viewer={{ name: authz.session.user.name, role: authz.account.role === "admin" ? "Administrator" : "Learner", image: authz.session.user.image }}>{children}</AppShell>;
+    return <AppShell admin={authz.account.role === "admin"} browserDurabilityNamespace={browserDurabilityNamespace} viewer={{ name: authz.session.user.name, role: authz.account.role === "admin" ? "Administrator" : "Learner", image: authz.session.user.image }}>{children}</AppShell>;
   }
   return <AppShell admin viewer={{ name: "Aarav Rao", role: "Demo learner" }}>{children}</AppShell>;
 }

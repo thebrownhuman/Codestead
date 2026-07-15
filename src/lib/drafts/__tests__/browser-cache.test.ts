@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   cachedDraftToOutbox,
   clearDraftCaches,
+  clearForeignDraftCaches,
+  DRAFT_CACHE_PREFIX,
   draftCacheKey,
   outboxDraftToCached,
   readDraftCache,
@@ -133,6 +135,25 @@ describe("session-scoped learner draft cache", () => {
     expect(readDraftCache(window.sessionStorage, "namespace-one", key)).toBeNull();
     expect(readDraftCache(window.sessionStorage, "namespace-two", key)).toEqual(cached);
     expect(clearDraftCaches(window.sessionStorage)).toBe(1);
+    expect(window.sessionStorage.getItem("another-app")).toBe("keep");
+  });
+
+  it("clears foreign and obsolete app recovery keys while preserving the exact namespace", () => {
+    writeDraftCache(window.sessionStorage, "namespace-one", key, cached);
+    writeDraftCache(window.sessionStorage, "namespace-two", key, cached);
+    window.sessionStorage.setItem(`${DRAFT_CACHE_PREFIX}namespace-one:code:extra:stdin`, "keep");
+    window.sessionStorage.setItem(`${DRAFT_CACHE_PREFIX}practice-run-session`, "obsolete");
+    window.sessionStorage.setItem(`${DRAFT_CACHE_PREFIX}malformed`, "remove");
+    window.sessionStorage.setItem("another-app", "keep");
+
+    expect(clearForeignDraftCaches(window.sessionStorage, "namespace-one")).toBe(3);
+    expect(readDraftCache(window.sessionStorage, "namespace-one", key)).toEqual(cached);
+    expect(readDraftCache(window.sessionStorage, "namespace-two", key)).toBeNull();
+    expect(window.sessionStorage.getItem(
+      `${DRAFT_CACHE_PREFIX}namespace-one:code:extra:stdin`,
+    )).toBe("keep");
+    expect(window.sessionStorage.getItem(`${DRAFT_CACHE_PREFIX}practice-run-session`)).toBeNull();
+    expect(window.sessionStorage.getItem(`${DRAFT_CACHE_PREFIX}malformed`)).toBeNull();
     expect(window.sessionStorage.getItem("another-app")).toBe("keep");
   });
 });

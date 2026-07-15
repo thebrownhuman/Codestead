@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   searchParamsGet: vi.fn(),
   requestPasswordReset: vi.fn(),
   resetPassword: vi.fn(),
+  openBrowserOutbox: vi.fn(),
+  purgeRecovery: vi.fn(),
+  close: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -20,6 +23,12 @@ vi.mock("@/lib/auth-client", () => ({
     requestPasswordReset: mocks.requestPasswordReset,
     resetPassword: mocks.resetPassword,
   },
+}));
+vi.mock("@/lib/browser-durability/indexed-db", () => ({
+  openBrowserOutbox: mocks.openBrowserOutbox,
+}));
+vi.mock("@/lib/browser-durability/lifecycle", () => ({
+  purgeBrowserRecoveryData: mocks.purgeRecovery,
 }));
 
 import { AccessRequestForm } from "../access-request-form";
@@ -37,6 +46,11 @@ describe("public auth form failure recovery", () => {
     mocks.searchParamsGet.mockImplementation((name: string) => name === "token" ? "activation-token" : null);
     mocks.requestPasswordReset.mockResolvedValue({ data: { ok: true }, error: null });
     mocks.resetPassword.mockResolvedValue({ data: { ok: true }, error: null });
+    mocks.close.mockReset();
+    mocks.openBrowserOutbox.mockReset();
+    mocks.purgeRecovery.mockReset();
+    mocks.openBrowserOutbox.mockResolvedValue({ close: mocks.close });
+    mocks.purgeRecovery.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -95,6 +109,52 @@ describe("public auth form failure recovery", () => {
     expect(screen.getByRole("button", { name: "Change password" })).toBeEnabled();
     expect(password).toHaveValue("a-long-new-password");
     expect(confirmation).toHaveValue("a-long-new-password");
+  });
+
+  it("withholds sign-in after password reset until global browser recovery cleanup completes", async () => {
+    let finish!: () => void;
+    mocks.purgeRecovery.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finish = resolve;
+    }));
+    const user = userEvent.setup();
+    render(<ResetPasswordForm token="reset-token" />);
+
+    await user.type(screen.getByLabelText("New password"), "a-long-new-password");
+    await user.type(screen.getByLabelText("Confirm new password"), "a-long-new-password");
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+
+    expect(await screen.findByText(/Password changed.*sessions have been revoked/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Sign in again" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/cleaning private browser recovery/i);
+    await act(async () => finish());
+
+    expect(await screen.findByRole("link", { name: "Sign in again" })).toBeInTheDocument();
+    expect(mocks.purgeRecovery).toHaveBeenCalledWith(expect.objectContaining({
+      repository: expect.any(Object),
+    }));
+    expect(mocks.close).toHaveBeenCalledOnce();
+  });
+
+  it("reports a confirmed password change separately from cleanup failure and retries", async () => {
+    mocks.purgeRecovery
+      .mockRejectedValueOnce(new Error("private recovery detail"))
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    render(<ResetPasswordForm token="reset-token" />);
+
+    await user.type(screen.getByLabelText("New password"), "a-long-new-password");
+    await user.type(screen.getByLabelText("Confirm new password"), "a-long-new-password");
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /password changed.*sessions.*revoked.*browser cleanup still needs/i,
+    );
+    expect(screen.queryByText("private recovery detail")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Sign in again" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry browser storage cleanup" }));
+
+    expect(await screen.findByRole("link", { name: "Sign in again" })).toBeInTheDocument();
+    expect(mocks.openBrowserOutbox).toHaveBeenCalledTimes(2);
   });
 
   it("recovers from malformed activation JSON and retains all activation values", async () => {

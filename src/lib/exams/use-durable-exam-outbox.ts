@@ -3,11 +3,23 @@
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 
 import {
-  EMERGENCY_EXAM_EVENT_PREFIX,
+  clearEmergencyExamEvents,
   drainEmergencyExamEvents,
   writeEmergencyExamEvent,
 } from "@/lib/browser-durability/emergency-events";
 import type { BrowserOutboxRepository } from "@/lib/browser-durability/indexed-db";
+import {
+  captureBrowserRecoveryWriteFence,
+  guardBrowserRecoveryWrite,
+  guardSynchronousBrowserRecoveryWrite,
+  isBrowserRecoveryWriteFenceCurrent,
+  purgeBrowserRecoveryData,
+  purgeDraftRecoveryData,
+  purgeExamRecoveryData,
+  subscribeBrowserRecoveryBoundary,
+  type BrowserRecoveryBoundary,
+  type BrowserRecoveryWriteFence,
+} from "@/lib/browser-durability/lifecycle";
 import {
   examAnswerOutboxStorageKey,
   examEventOutboxStorageKey,
@@ -104,6 +116,8 @@ type Controller = {
   readonly items: Map<string, PublicExamItem>;
   readonly writeBarrier: SessionWriteBarrier;
   readonly publish: () => void;
+  recoveryFence: BrowserRecoveryWriteFence | null;
+  boundaryCurrent: boolean;
   generation: number;
   retired: boolean;
   closed: boolean;
@@ -465,6 +479,8 @@ function createController(
     items: new Map(input.session.form.items.map((item) => [item.id, item])),
     writeBarrier: sessionWriteBarrier(input.namespace, input.session.sessionId),
     publish,
+    recoveryFence: null,
+    boundaryCurrent: false,
     generation: 0,
     retired: true,
     closed: false,
@@ -505,7 +521,10 @@ function createController(
 }
 
 function live(controller: Controller, generation: number) {
-  return !controller.retired && controller.generation === generation;
+  return !controller.retired
+    && controller.generation === generation
+    && controller.recoveryFence !== null
+    && isBrowserRecoveryWriteFenceCurrent(controller.recoveryFence);
 }
 
 function deadlineReached(controller: Controller) {
@@ -605,6 +624,44 @@ function trackSessionWrite<T>(controller: Controller, operation: Promise<T>): Pr
   return tracked;
 }
 
+function requireRecoveryFence(controller: Controller) {
+  if (!controller.recoveryFence) {
+    throw new ClosedOutboxError("The exam browser recovery boundary is closed.");
+  }
+  return controller.recoveryFence;
+}
+
+function putExamAnswerWithFence(
+  controller: Controller,
+  record: ExamAnswerOutboxRecord,
+) {
+  return guardBrowserRecoveryWrite(
+    requireRecoveryFence(controller),
+    () => controller.repository.putExamAnswer(record),
+    () => controller.repository.deleteExamAnswerIfMutation(
+      controller.namespace,
+      controller.session.sessionId,
+      record.payload.itemId,
+      record.clientMutationId,
+    ),
+  );
+}
+
+function putExamEventWithFence(
+  controller: Controller,
+  record: ExamEventOutboxRecord,
+) {
+  return guardBrowserRecoveryWrite(
+    requireRecoveryFence(controller),
+    () => controller.repository.putExamEvent(record),
+    () => controller.repository.deleteExamEvent(
+      controller.namespace,
+      controller.session.sessionId,
+      record.clientEventId,
+    ),
+  );
+}
+
 function clearTimer(
   controller: Controller,
   key: "answerRetryTimer" | "answerDebounceTimer" | "eventRetryTimer" | "deadlineTimer",
@@ -641,6 +698,8 @@ function assertWorkAllowed(controller: Controller) {
   }
   if (
     controller.retired
+    || controller.recoveryFence === null
+    || !isBrowserRecoveryWriteFenceCurrent(controller.recoveryFence)
     || controller.closed
     || controller.writeBarrier.terminalClosed
     || controller.session.status !== "active"
@@ -730,7 +789,17 @@ function prepareControllerUnloadEvent(
     metadata,
   });
   try {
-    if (typeof window !== "undefined") writeEmergencyExamEvent(window.localStorage, record);
+    if (typeof window !== "undefined") {
+      guardSynchronousBrowserRecoveryWrite(
+        requireRecoveryFence(controller),
+        () => writeEmergencyExamEvent(window.localStorage, record),
+        () => clearEmergencyExamEvents(window.localStorage, {
+          kind: "exam",
+          namespace: controller.namespace,
+          sessionId: controller.session.sessionId,
+        }),
+      );
+    }
   } catch {
     // The canonical record is still eligible for the independent beacon attempt.
   }
@@ -803,6 +872,15 @@ async function requestJson(
     }
     if (!live(controller, generation) || controller.closed || deadlineReached(controller)) {
       throw new ClosedOutboxError("The exam request boundary is closed.");
+    }
+    if (response.status === 401 || response.status === 403) {
+      controller.systemIssue = {
+        kind: "server-closure",
+        message: "Codestead ended this authenticated exam session. Redirecting to sign in.",
+      };
+      publish(controller);
+      await handleExamSessionDenial(controller, generation);
+      throw new ClosedOutboxError("The authenticated exam session ended.");
     }
     let body: unknown;
     try {
@@ -913,6 +991,18 @@ async function autosaveOutcome(
       body: bodyText,
     },
   );
+
+  if (response.status === 401 || response.status === 403) {
+    const issue: ExamOutboxIssue = {
+      kind: "server-rejected",
+      itemId: item.id,
+      message: "Needs attention: Codestead rejected this exam authority boundary.",
+    };
+    setAnswerIssue(controller, item.id, record.clientMutationId, issue);
+    publish(controller);
+    await handleExamSessionDenial(controller, generation);
+    return { kind: "hard", closeGeneration: true, issue };
+  }
 
   if (isExamAuthorityBoundary(response.status, body)) {
     return {
@@ -1107,7 +1197,7 @@ async function rebaseUnsentRecord(
       payload: { ...current.payload, baseRevision },
     };
     try {
-      await controller.repository.putExamAnswer(rebased);
+      await putExamAnswerWithFence(controller, rebased);
     } catch {
       if (
         !live(controller, generation)
@@ -1412,7 +1502,7 @@ async function persistAnswer(
       || controller.writeBarrier.terminalClosed
       || deadlineReached(controller)
     ) throw new ClosedOutboxError("The queued local answer write is closed.");
-    await controller.repository.putExamAnswer(persistedRecord);
+    await putExamAnswerWithFence(controller, persistedRecord);
     durability.record = persistedRecord;
     const acknowledgedRevision = controller.revisions.get(itemId) ?? 0;
     if (
@@ -1430,7 +1520,7 @@ async function persistAnswer(
         updatedAt: new Date().toISOString(),
         payload: { ...persistedRecord.payload, baseRevision: acknowledgedRevision },
       };
-      await controller.repository.putExamAnswer(rebasedRecord);
+      await putExamAnswerWithFence(controller, rebasedRecord);
       persistedRecord = rebasedRecord;
       durability.record = rebasedRecord;
     }
@@ -1514,7 +1604,7 @@ async function persistEventWriteFailure(controller: Controller, generation: numb
     if (controller.writeBarrier.terminalClosed) {
       throw new ClosedOutboxError("The queued integrity event write is closed.");
     }
-    await trackSessionWrite(controller, controller.repository.putExamEvent(record));
+    await trackSessionWrite(controller, putExamEventWithFence(controller, record));
   } catch {
     if (controller.writeBarrier.terminalClosed) {
       throw new ClosedOutboxError("The queued integrity event write is closed.");
@@ -1569,6 +1659,16 @@ async function runEventDrain(controller: Controller, generation: number) {
           keepalive: true,
         },
       );
+      if (response.status === 401 || response.status === 403) {
+        controller.hardEventIds.add(record.clientEventId);
+        controller.eventIssue = {
+          kind: "server-closure",
+          message: "Codestead ended this authenticated exam session. Redirecting to sign in.",
+        };
+        publish(controller);
+        await handleExamSessionDenial(controller, generation);
+        throw new ClosedOutboxError("The authenticated exam session ended.");
+      }
       if (isExamAuthorityBoundary(response.status, body)) {
         controller.hardEventIds.add(record.clientEventId);
         controller.eventIssue = {
@@ -1695,6 +1795,28 @@ function resetForInitialization(controller: Controller) {
 
 async function initialize(controller: Controller, generation: number) {
   resetForInitialization(controller);
+  if (controller.session.status === "active"
+    || controller.session.status === "paused_by_system") {
+    try {
+      if (typeof window === "undefined") throw new Error("Browser storage is unavailable.");
+      await purgeDraftRecoveryData({
+        namespace: controller.namespace,
+        sessionStorage: window.sessionStorage,
+        repository: controller.repository,
+      });
+    } catch {
+      if (!live(controller, generation)) return;
+      controller.hydrationFailed = true;
+      controller.hydrated = true;
+      controller.systemIssue = {
+        kind: "event-recovery",
+        message: "Could not restore browser recovery for closed-book entry. Editable controls remain disabled.",
+      };
+      publish(controller);
+      return;
+    }
+    if (!live(controller, generation)) return;
+  }
   if (controller.closed || NON_EDITABLE_EXAM_STATUSES.has(controller.session.status)) {
     controller.hydrated = true;
     publish(controller);
@@ -1723,6 +1845,7 @@ async function initialize(controller: Controller, generation: number) {
       controller.repository,
       controller.namespace,
       controller.session.sessionId,
+      (record) => putExamEventWithFence(controller, record),
     ));
     const answers = await controller.repository.listExamAnswers(
       controller.namespace,
@@ -1936,60 +2059,23 @@ async function resolveAnswerConflict(
   }
 }
 
-type EmergencySnapshot = { key: string; raw: string };
-
-function emergencyKey(record: ExamEventOutboxRecord) {
-  return `${EMERGENCY_EXAM_EVENT_PREFIX}${encodeURIComponent(record.namespace)}:${encodeURIComponent(record.scope)}:${encodeURIComponent(record.clientEventId)}`;
-}
-
-function exactEmergencySnapshots(storage: Storage, namespace: string, recordSessionId: string) {
-  const snapshots: EmergencySnapshot[] = [];
-  const keys: string[] = [];
-  for (let index = 0; index < storage.length; index += 1) {
-    const key = storage.key(index);
-    if (key !== null) keys.push(key);
-  }
-  for (const key of keys) {
-    if (!key.startsWith(EMERGENCY_EXAM_EVENT_PREFIX)) continue;
-    const raw = storage.getItem(key);
-    if (raw === null) continue;
-    try {
-      const record = JSON.parse(raw) as unknown;
-      if (
-        isExamEventOutboxRecord(record)
-        && record.namespace === namespace
-        && record.scope === recordSessionId
-        && emergencyKey(record) === key
-      ) snapshots.push({ key, raw });
-    } catch {
-      // Invalid or foreign emergency data is deliberately outside this exact-session purge.
-    }
-  }
-  return snapshots;
-}
-
 async function purgeController(controller: Controller) {
   controller.writeBarrier.terminalClosed = true;
   controller.closed = true;
   controller.deadlineFenced = true;
   stopOwnedWork(controller);
   publish(controller);
-  const storage = typeof window === "undefined" ? null : window.localStorage;
-  const snapshots = storage
-    ? exactEmergencySnapshots(storage, controller.namespace, controller.session.sessionId)
-    : [];
+  if (typeof window === "undefined") throw new Error("Browser storage is unavailable.");
   while (controller.writeBarrier.writes.size > 0) {
     await Promise.allSettled([...controller.writeBarrier.writes]);
   }
-  await controller.repository.clearExamSession(
-    controller.namespace,
-    controller.session.sessionId,
-  );
-  if (storage) {
-    for (const snapshot of snapshots) {
-      if (storage.getItem(snapshot.key) === snapshot.raw) storage.removeItem(snapshot.key);
-    }
-  }
+  await purgeExamRecoveryData({
+    namespace: controller.namespace,
+    sessionId: controller.session.sessionId,
+    sessionStorage: window.sessionStorage,
+    localStorage: window.localStorage,
+    repository: controller.repository,
+  });
   controller.records.clear();
   controller.pendingWrites.clear();
   controller.failedWrites.clear();
@@ -2013,6 +2099,12 @@ async function purgeController(controller: Controller) {
 }
 
 function activateController(controller: Controller) {
+  controller.recoveryFence = captureBrowserRecoveryWriteFence({
+    kind: "exam",
+    namespace: controller.namespace,
+    sessionId: controller.session.sessionId,
+  });
+  controller.boundaryCurrent = true;
   controller.retired = false;
   controller.writeBarrier.owners += 1;
   const generation = controller.generation + 1;
@@ -2020,11 +2112,45 @@ function activateController(controller: Controller) {
   return generation;
 }
 
+function releaseControllerBoundary(controller: Controller) {
+  controller.boundaryCurrent = false;
+  retireController(controller);
+}
+
 function retireController(controller: Controller) {
+  if (controller.retired) return;
   controller.retired = true;
   controller.writeBarrier.owners = Math.max(0, controller.writeBarrier.owners - 1);
   controller.generation += 1;
   stopOwnedWork(controller);
+}
+
+function boundaryMatchesExamController(
+  boundary: BrowserRecoveryBoundary,
+  controller: Controller,
+) {
+  if (boundary.kind === "all") return true;
+  if (boundary.kind === "drafts") return false;
+  if (boundary.namespace !== controller.namespace) return false;
+  return boundary.kind !== "exam" || boundary.sessionId === controller.session.sessionId;
+}
+
+async function handleExamSessionDenial(controller: Controller, generation: number) {
+  if (!live(controller, generation)) return;
+  closeControllerBoundary(controller);
+  retireController(controller);
+  try {
+    if (typeof window === "undefined") throw new Error("Browser storage is unavailable.");
+    await purgeBrowserRecoveryData({
+      namespace: controller.namespace,
+      sessionStorage: window.sessionStorage,
+      localStorage: window.localStorage,
+      repository: controller.repository,
+    });
+  } catch {
+    // The anonymous login gate retries cleanup before exposing credentials.
+  }
+  if (controller.boundaryCurrent) window.location.assign("/login");
 }
 
 async function updateControllerAnswer(
@@ -2075,7 +2201,7 @@ async function recordControllerEvent(
     metadata,
   });
   try {
-    await trackSessionWrite(controller, controller.repository.putExamEvent(record));
+    await trackSessionWrite(controller, putExamEventWithFence(controller, record));
   } catch (error) {
     if (controller.writeBarrier.terminalClosed || controller.closed) throw error;
     controller.failedEventWrites.set(record.clientEventId, record);
@@ -2121,10 +2247,12 @@ export function useDurableExamOutbox(input: {
     input.session.sessionId,
     input.session.status,
   ]);
-
   useEffect(() => {
     const generation = activateController(controller);
     void initialize(controller, generation);
+    const unsubscribeBoundary = subscribeBrowserRecoveryBoundary((boundary) => {
+      if (boundaryMatchesExamController(boundary, controller)) retireController(controller);
+    });
     const online = () => {
       if (!live(controller, generation) || controller.closed || deadlineReached(controller)) return;
       clearTimer(controller, "answerRetryTimer");
@@ -2135,7 +2263,8 @@ export function useDurableExamOutbox(input: {
     window.addEventListener("online", online);
     return () => {
       window.removeEventListener("online", online);
-      retireController(controller);
+      unsubscribeBoundary();
+      releaseControllerBoundary(controller);
     };
   }, [controller]);
 

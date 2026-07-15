@@ -23,11 +23,13 @@ import {
   UserRoundCheck,
   X
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { authClient } from "@/lib/auth-client";
-import { DraftCacheNamespaceProvider } from "@/lib/drafts/browser-cache-context";
-import { signOutWithDraftCleanup } from "@/lib/drafts/logout";
+import { BrowserDurabilityNamespaceProvider } from "@/lib/browser-durability/context";
+import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
+import { prepareBrowserRecoveryNamespace } from "@/lib/browser-durability/lifecycle";
+import { signOutWithBrowserDurabilityCleanup } from "@/lib/drafts/logout";
 import styles from "./app-shell.module.css";
 import { ExamLockdownOverlay } from "./exam-lockdown-overlay";
 import { InterfaceThemeMenu } from "./interface-theme-menu";
@@ -64,17 +66,39 @@ export function AppShell({
   children,
   admin = false,
   viewer = { name: "Aarav Rao", role: "Learner" },
-  draftCacheNamespace = null,
+  browserDurabilityNamespace = null,
+  navigate = (destination: string) => { window.location.href = destination; },
 }: {
   children: React.ReactNode;
   admin?: boolean;
   viewer?: { name: string; role: string; image?: string | null };
-  draftCacheNamespace?: string | null;
+  browserDurabilityNamespace?: string | null;
+  navigate?: (destination: string) => void;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [compactNavigation, setCompactNavigation] = useState(false);
+  const [preparation, setPreparation] = useState<{
+    namespace: string | null;
+    status: "preparing" | "ready" | "failed";
+  }>(() => ({
+    namespace: browserDurabilityNamespace,
+    status: browserDurabilityNamespace ? "preparing" : "ready",
+  }));
+  const [preparationRetry, setPreparationRetry] = useState(0);
+  const [signOutPending, setSignOutPending] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
+  const preparationGenerationRef = useRef(0);
+  const signOutGenerationRef = useRef(0);
+  const latestNamespaceRef = useRef(browserDurabilityNamespace);
+  useLayoutEffect(() => {
+    if (latestNamespaceRef.current !== browserDurabilityNamespace) {
+      latestNamespaceRef.current = browserDurabilityNamespace;
+      signOutGenerationRef.current += 1;
+    }
+  }, [browserDurabilityNamespace]);
+  const signOutPendingRef = useRef(false);
   const closeMenuRef = useRef<HTMLButtonElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
@@ -84,6 +108,86 @@ export function AppShell({
   const navigationWasOpen = useRef(false);
   const previousPathnameRef = useRef(pathname);
   const initials = viewer.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  const recoveryReady = browserDurabilityNamespace === null
+    || (preparation.namespace === browserDurabilityNamespace
+      && preparation.status === "ready");
+
+  useEffect(() => {
+    const generation = preparationGenerationRef.current + 1;
+    preparationGenerationRef.current = generation;
+    if (!browserDurabilityNamespace) {
+      return;
+    }
+    const namespace = browserDurabilityNamespace;
+    queueMicrotask(() => {
+      if (preparationGenerationRef.current === generation) {
+        setPreparation({ namespace, status: "preparing" });
+      }
+    });
+    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
+    void (async () => {
+      try {
+        repository = await openBrowserOutbox();
+        await prepareBrowserRecoveryNamespace({
+          namespace,
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+          repository,
+        });
+        if (preparationGenerationRef.current === generation) {
+          setPreparation({ namespace, status: "ready" });
+        }
+      } catch {
+        if (preparationGenerationRef.current === generation) {
+          setPreparation({ namespace, status: "failed" });
+        }
+      } finally {
+        repository?.close();
+      }
+    })();
+    return () => {
+      if (preparationGenerationRef.current === generation) {
+        preparationGenerationRef.current += 1;
+      }
+    };
+  }, [browserDurabilityNamespace, preparationRetry]);
+
+  const handleSignOut = useCallback(async () => {
+    if (signOutPendingRef.current) return;
+    signOutPendingRef.current = true;
+    setSignOutPending(true);
+    setSignOutError(false);
+    const generation = signOutGenerationRef.current;
+    const namespace = browserDurabilityNamespace;
+    const navigateIfCurrent = (destination: string) => {
+      if (signOutGenerationRef.current === generation
+        && latestNamespaceRef.current === namespace) navigate(destination);
+    };
+    try {
+      if (namespace) {
+        await signOutWithBrowserDurabilityCleanup({
+          namespace,
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+          signOut: () => authClient.signOut(),
+          navigate: navigateIfCurrent,
+        });
+      } else {
+        const result = await authClient.signOut();
+        if (result && typeof result === "object" && "error" in result
+          && (result as { error?: unknown }).error) {
+          throw new Error("Sign-out could not be confirmed.");
+        }
+        navigateIfCurrent("/login");
+      }
+    } catch {
+      if (signOutGenerationRef.current === generation
+        && latestNamespaceRef.current === namespace) setSignOutError(true);
+    } finally {
+      signOutPendingRef.current = false;
+      setSignOutPending(false);
+    }
+  }, [browserDurabilityNamespace, navigate]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
@@ -188,9 +292,9 @@ export function AppShell({
   }
 
   return (
-    <DraftCacheNamespaceProvider namespace={draftCacheNamespace}>
+    <BrowserDurabilityNamespaceProvider namespace={browserDurabilityNamespace}>
     <div className={styles.shell}>
-      <ExamLockdownOverlay />
+      {recoveryReady && <ExamLockdownOverlay />}
       <aside
         aria-hidden={compactNavigation && !open ? true : undefined}
         aria-label="Primary navigation"
@@ -271,11 +375,16 @@ export function AppShell({
               <span className={styles.profileCopy}><strong>{viewer.name}</strong><small>{viewer.role}</small></span>
               <ChevronDown aria-hidden="true" size={15} />
             </button>
-            {profileOpen && <div aria-label="Account menu" className={styles.profileDropdown} id="profile-menu" onKeyDown={handleProfileMenuKeyDown} role="menu"><Link href="/settings" role="menuitem" tabIndex={-1} onClick={() => setProfileOpen(false)}><Settings aria-hidden="true" size={15} /> Settings</Link>{admin && <Link href="/admin" role="menuitem" tabIndex={-1} onClick={() => setProfileOpen(false)}><Shield aria-hidden="true" size={15} /> Admin studio</Link>}<button role="menuitem" tabIndex={-1} type="button" onClick={() => void signOutWithDraftCleanup({ storage: window.sessionStorage, signOut: () => authClient.signOut(), navigate: (destination) => { window.location.href = destination; } })}><LogOut aria-hidden="true" size={15} /> Sign out</button></div>}
+            {profileOpen && <div aria-label="Account menu" className={styles.profileDropdown} id="profile-menu" onKeyDown={handleProfileMenuKeyDown} role="menu"><Link href="/settings" role="menuitem" tabIndex={-1} onClick={() => setProfileOpen(false)}><Settings aria-hidden="true" size={15} /> Settings</Link>{admin && <Link href="/admin" role="menuitem" tabIndex={-1} onClick={() => setProfileOpen(false)}><Shield aria-hidden="true" size={15} /> Admin studio</Link>}<button disabled={signOutPending} role="menuitem" tabIndex={-1} type="button" onClick={() => void handleSignOut()}><LogOut aria-hidden="true" size={15} /> {signOutPending ? "Signing out..." : "Sign out"}</button></div>}
           </div>
         </header>
+        {signOutError && <p role="alert">Sign-out could not be confirmed, so saved browser work was kept. Check your connection and retry.</p>}
         <main ref={mainRef} id="main-content" className={styles.main} tabIndex={-1}>
-          <div className={styles.routeStage} data-route-stage={pathname} key={pathname}>{children}</div>
+          <div className={styles.routeStage} data-route-stage={pathname} key={pathname}>
+            {recoveryReady ? children : preparation.status === "failed"
+              ? <section role="alert"><p>Codestead could not prepare private browser recovery storage. Retry, or clear this site&apos;s browser data before continuing.</p><button className="button button-secondary" onClick={() => setPreparationRetry((value) => value + 1)} type="button">Retry browser storage cleanup</button></section>
+              : <p role="status">Preparing private browser recovery storage...</p>}
+          </div>
         </main>
         <nav className={styles.mobileNav} aria-label="Mobile navigation">
           {navItems.filter((item) => ["/learn", "/roadmap", "/courses", "/playground", "/projects"].includes(item.href)).map(({ href, label, icon: Icon }) => {
@@ -285,6 +394,6 @@ export function AppShell({
         </nav>
       </div>
     </div>
-    </DraftCacheNamespaceProvider>
+    </BrowserDurabilityNamespaceProvider>
   );
 }

@@ -564,6 +564,59 @@ describe("browser outbox IndexedDB repository", () => {
     ]);
   });
 
+  it("clearDrafts removes only draft records in the exact namespace", async () => {
+    const records = await seedMatrix(repository!);
+
+    await repository!.clearDrafts(NAMESPACE_A);
+
+    await expect(repository!.getDraft(NAMESPACE_A, CODE_DRAFT_KEY)).resolves.toBeNull();
+    await expect(repository!.listExamAnswers(NAMESPACE_A, SESSION_A)).resolves.toEqual([
+      records.answerASessionA,
+    ]);
+    await expect(repository!.listExamAnswers(NAMESPACE_A, SESSION_B)).resolves.toEqual([
+      records.answerASessionB,
+    ]);
+    await expect(repository!.listExamEvents(NAMESPACE_A, SESSION_A)).resolves.toEqual([
+      records.eventASessionA,
+    ]);
+    await expect(repository!.listExamEvents(NAMESPACE_A, SESSION_B)).resolves.toEqual([
+      records.eventASessionB,
+    ]);
+    await expect(repository!.getDraft(NAMESPACE_B, LESSON_DRAFT_KEY)).resolves.toEqual(
+      records.draftB,
+    );
+  });
+
+  it("clearDrafts removes malformed draft-shaped private data but preserves non-drafts", async () => {
+    const malformedDraftKey = "malformed-exact-draft";
+    const malformedNonDraftKey = "malformed-exact-future-record";
+    await rawPut(factory, {
+      storageKey: malformedDraftKey,
+      namespace: NAMESPACE_A,
+      kind: "draft",
+      payload: { content: "private draft content" },
+    });
+    await rawPut(factory, {
+      storageKey: malformedNonDraftKey,
+      namespace: NAMESPACE_A,
+      kind: "future-record",
+      payload: { content: "preserved non-draft content" },
+    });
+    const exam = makeAnswerRecord();
+    await repository!.putExamAnswer(exam);
+
+    await repository!.clearDrafts(NAMESPACE_A);
+
+    await expect(rawGet(factory, malformedDraftKey)).resolves.toBeUndefined();
+    await expect(rawGet(factory, malformedNonDraftKey)).resolves.toEqual({
+      storageKey: malformedNonDraftKey,
+      namespace: NAMESPACE_A,
+      kind: "future-record",
+      payload: { content: "preserved non-draft content" },
+    });
+    await expect(repository!.listExamAnswers(NAMESPACE_A, SESSION_A)).resolves.toEqual([exam]);
+  });
+
   it("clearNamespace removes only the exact namespace", async () => {
     const records = await seedMatrix(repository!);
 

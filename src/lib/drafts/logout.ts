@@ -1,22 +1,69 @@
-import { clearDraftCaches } from "./browser-cache";
+import {
+  openBrowserOutbox,
+  type BrowserOutboxRepository,
+} from "@/lib/browser-durability/indexed-db";
+import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
+
+function signOutWasRejected(result: unknown) {
+  if (result instanceof Response) return !result.ok;
+  return Boolean(result
+    && typeof result === "object"
+    && "error" in result
+    && (result as { error?: unknown }).error);
+}
 
 /**
- * End the authoritative session first. If sign-out fails (for example while
- * offline), preserve the learner's only unsynced local copy. Once sign-out is
- * confirmed, cache removal is synchronous and completes before navigation.
+ * Ends the authoritative session before publishing a browser recovery
+ * boundary. A failed authority operation preserves the learner's only local
+ * copy. Once the server confirms sign-out, navigation cannot be rolled back
+ * merely because best-effort browser cleanup was partial.
  */
-export async function signOutWithDraftCleanup({
-  storage,
+export async function signOutWithBrowserDurabilityCleanup({
+  namespace,
+  sessionStorage,
+  localStorage,
   signOut,
   navigate,
+  openRepository = openBrowserOutbox,
 }: {
-  storage: Storage;
+  namespace: string;
+  sessionStorage: Storage;
+  localStorage: Storage;
   signOut(): Promise<unknown>;
   navigate(destination: string): void;
+  openRepository?: () => Promise<BrowserOutboxRepository>;
 }) {
-  await signOut();
-  let cleared = 0;
-  try { cleared = clearDraftCaches(storage); } catch { /* durable sign-out already succeeded */ }
+  const result = await signOut();
+  if (signOutWasRejected(result)) {
+    throw new Error("Sign-out could not be confirmed.");
+  }
+
+  let repository: BrowserOutboxRepository | null = null;
+  let cleanupSucceeded = false;
+  try {
+    try {
+      repository = await openRepository();
+    } catch {
+      repository = {
+        clearNamespace: async () => {
+          throw new Error("Browser recovery storage is unavailable.");
+        },
+      } as unknown as BrowserOutboxRepository;
+    }
+    await purgeBrowserRecoveryData({
+      namespace,
+      sessionStorage,
+      localStorage,
+      repository,
+    });
+    cleanupSucceeded = true;
+  } catch {
+    // The server session has already ended. The anonymous login gate retries
+    // global cleanup before credentials are exposed.
+  } finally {
+    repository?.close?.();
+  }
+
   navigate("/login");
-  return cleared;
+  return { cleanupSucceeded } as const;
 }

@@ -19,12 +19,13 @@ import {
   WifiOff,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   openBrowserOutbox,
   type BrowserOutboxRepository,
 } from "@/lib/browser-durability/indexed-db";
+import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
 import { useDraftCacheNamespace } from "@/lib/drafts/browser-cache-context";
 import type {
   ClientExamEventType,
@@ -66,6 +67,10 @@ const TERMINAL_RECOVERY_STATUSES = new Set<ExamSessionView["status"]>([
 
 const FINAL_SUBMIT_TIMEOUT_MS = 10_000;
 
+function navigateWindow(destination: string) {
+  window.location.assign(destination);
+}
+
 function abortableSubmitStep<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) return Promise.reject(new Error("Submission could not be confirmed."));
   return new Promise<T>((resolve, reject) => {
@@ -91,6 +96,9 @@ async function boundedFinalSubmit(sessionId: string, controller: AbortController
       method: "POST",
       signal: controller.signal,
     }), controller.signal);
+    if (response.status === 401 || response.status === 403) {
+      return { response, body: undefined };
+    }
     const body = await abortableSubmitStep(response.json() as Promise<unknown>, controller.signal);
     return { response, body };
   } finally {
@@ -123,7 +131,15 @@ function appealStatusCopy(appeal: NonNullable<ExamSessionView["appeal"]>): strin
   return "Appeal pending human review";
 }
 
-function ExamResultPanel({ exam, onRefresh }: { exam: ExamSessionView; onRefresh: () => Promise<boolean> }) {
+function ExamResultPanel({
+  exam,
+  onAuthDenial,
+  onRefresh,
+}: {
+  exam: ExamSessionView;
+  onAuthDenial: () => Promise<void>;
+  onRefresh: () => Promise<boolean>;
+}) {
   const result = exam.result;
   const [appealOpen, setAppealOpen] = useState(false);
   const [category, setCategory] = useState<"scoring" | "technical" | "integrity" | "accessibility">("scoring");
@@ -146,7 +162,11 @@ function ExamResultPanel({ exam, onRefresh }: { exam: ExamSessionView; onRefresh
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ clientRequestId: crypto.randomUUID(), category, reason }),
       });
-      const body = await response.json() as { error?: string };
+      if (response.status === 401 || response.status === 403) {
+        await onAuthDenial();
+        return;
+      }
+      const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Appeal could not be submitted.");
       setMessage("Appeal submitted. The result is now queued for review.");
       setAppealOpen(false);
@@ -178,7 +198,11 @@ function ExamResultPanel({ exam, onRefresh }: { exam: ExamSessionView; onRefresh
           message: normalized,
         }),
       });
-      const body = await response.json() as { error?: string; duplicate?: boolean };
+      if (response.status === 401 || response.status === 403) {
+        await onAuthDenial();
+        return;
+      }
+      const body = await response.json().catch(() => ({})) as { error?: string; duplicate?: boolean };
       if (!response.ok) throw new Error(body.error ?? "Your appeal reply could not be submitted.");
       setMessage(body.duplicate ? "Your reply was already recorded safely." : "Your reply was sent. Human review has resumed.");
       setReply("");
@@ -293,11 +317,13 @@ type DurableOutbox = ReturnType<typeof useDurableExamOutbox>;
 function ActiveExam({
   exam,
   outbox,
+  onAuthDenial,
   onRefresh,
   onSession,
 }: {
   exam: ExamSessionView;
   outbox: DurableOutbox;
+  onAuthDenial: () => Promise<void>;
   onRefresh: () => Promise<boolean>;
   onSession: (exam: ExamSessionView) => void;
 }) {
@@ -393,6 +419,10 @@ function ActiveExam({
     submitAbortControllerRef.current = submitController;
     try {
       const { response, body } = await boundedFinalSubmit(exam.sessionId, submitController);
+      if (response.status === 401 || response.status === 403) {
+        await onAuthDenial();
+        return;
+      }
       const submittedExam = responseField(body, "exam");
       if (
         !response.ok
@@ -418,7 +448,7 @@ function ActiveExam({
       }
       if (mountedRef.current) setSubmitting(false);
     }
-  }, [exam.sessionId, flushOutbox, onRefresh, onSession, purgeOutbox, submitRecoveryPending, submitting]);
+  }, [exam.sessionId, flushOutbox, onAuthDenial, onRefresh, onSession, purgeOutbox, submitRecoveryPending, submitting]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -445,7 +475,11 @@ function ActiveExam({
     const interval = setInterval(() => {
       void fetch(`/api/exams/${exam.sessionId}/heartbeat`, { method: "POST" })
         .then(async (response) => {
-          const body = await response.json() as {
+          if (response.status === 401 || response.status === 403) {
+            await onAuthDenial();
+            return;
+          }
+          const body = await response.json().catch(() => ({})) as {
             status?: ExamSessionView["status"];
             serverNow?: string;
           };
@@ -457,7 +491,7 @@ function ActiveExam({
         .catch(() => setOnline(false));
     }, 15_000);
     return () => clearInterval(interval);
-  }, [exam.sessionId, onRefresh]);
+  }, [exam.sessionId, onAuthDenial, onRefresh]);
 
   useEffect(() => {
     if (outbox.issue?.kind === "server-closure") void onRefresh();
@@ -567,7 +601,11 @@ function ActiveExam({
           clientRequestId: crypto.randomUUID(),
         }),
       });
-      const body = await response.json() as { result?: ExamRunnerResult; error?: string };
+      if (response.status === 401 || response.status === 403) {
+        await onAuthDenial();
+        return;
+      }
+      const body = await response.json().catch(() => ({})) as { result?: ExamRunnerResult; error?: string };
       if (!response.ok || !body.result) throw new Error(body.error ?? "Runner did not return a result.");
       if (!mountedRef.current) return;
       setRunState((current) => ({
@@ -734,13 +772,17 @@ function DurableExam({
   exam,
   namespace,
   repository,
+  onAuthDenial,
   onRefresh,
+  onRetryRecovery,
   onSession,
 }: {
   exam: ExamSessionView;
   namespace: string;
   repository: BrowserOutboxRepository;
+  onAuthDenial: () => Promise<void>;
   onRefresh: () => Promise<boolean>;
+  onRetryRecovery: () => void;
   onSession: (exam: ExamSessionView) => void;
 }) {
   const outbox = useDurableExamOutbox({ namespace, session: exam, repository });
@@ -774,14 +816,14 @@ function DurableExam({
         </div>
       );
     }
-    return <ExamResultPanel exam={exam} onRefresh={onRefresh} />;
+    return <ExamResultPanel exam={exam} onAuthDenial={onAuthDenial} onRefresh={onRefresh} />;
   }
   if (exam.status !== "active") {
     return (
       <div className={styles.resultPage}>
         <LoaderCircle className={styles.spin} />
         <h1>Exam is not active</h1>
-        <p>This exam is paused or scheduled. Browser recovery remains untouched until it is active again.</p>
+        <p>This exam is paused or scheduled. Exam recovery is preserved; a paused closed-book session also removes ordinary lesson drafts.</p>
         <button className="button button-secondary" type="button" onClick={() => void onRefresh()}>Refresh status</button>
       </div>
     );
@@ -798,12 +840,16 @@ function DurableExam({
         <AlertCircle size={24} />
         <h1>Exam recovery unavailable</h1>
         <p>{outbox.issue.message} Copy your answer from another safe source before leaving.</p>
+        <button className="button button-secondary" onClick={onRetryRecovery} type="button">
+          Retry browser storage cleanup
+        </button>
       </div>
     );
   }
   return (
     <ActiveExam
       exam={exam}
+      onAuthDenial={onAuthDenial}
       onRefresh={onRefresh}
       onSession={onSession}
       outbox={outbox}
@@ -814,16 +860,19 @@ function DurableExam({
 function ExamRepositoryBoundary({
   exam,
   namespace,
+  onAuthDenial,
   onRefresh,
   onSession,
 }: {
   exam: ExamSessionView;
   namespace: string;
+  onAuthDenial: () => Promise<void>;
   onRefresh: () => Promise<boolean>;
   onSession: (exam: ExamSessionView) => void;
 }) {
   const [repository, setRepository] = useState<BrowserOutboxRepository | null>(null);
   const [repositoryError, setRepositoryError] = useState(false);
+  const [recoveryAttempt, setRecoveryAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -865,29 +914,79 @@ function ExamRepositoryBoundary({
   return (
     <DurableExam
       exam={exam}
+      key={`${exam.sessionId}:${recoveryAttempt}`}
       namespace={namespace}
+      onAuthDenial={onAuthDenial}
       onRefresh={onRefresh}
+      onRetryRecovery={() => setRecoveryAttempt((value) => value + 1)}
       onSession={onSession}
       repository={repository}
     />
   );
 }
-export function TimedExamClient({ sessionId }: { sessionId: string }) {
+export function TimedExamClient({
+  sessionId,
+  navigate = navigateWindow,
+}: {
+  sessionId: string;
+  navigate?: (destination: string) => void;
+}) {
   const namespace = useDraftCacheNamespace();
+  const latestNamespaceRef = useRef(namespace);
+  useLayoutEffect(() => {
+    latestNamespaceRef.current = namespace;
+  }, [namespace]);
   const [exam, setExam] = useState<ExamSessionView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadedExamRef = useRef<ExamSessionView | null>(null);
+  const authBoundaryRef = useRef<{
+    namespace: string | null;
+    promise: Promise<void>;
+  } | null>(null);
 
   const acceptExam = useCallback((nextExam: ExamSessionView) => {
     loadedExamRef.current = nextExam;
     setExam(nextExam);
   }, []);
 
+  const handleAuthDenial = useCallback(() => {
+    const capturedNamespace = namespace;
+    const current = authBoundaryRef.current;
+    if (current?.namespace === capturedNamespace) return current.promise;
+    const promise = (async () => {
+      let cleanupRepository: BrowserOutboxRepository | null = null;
+      try {
+        cleanupRepository = await openBrowserOutbox();
+        await purgeBrowserRecoveryData({
+          ...(capturedNamespace ? { namespace: capturedNamespace } : {}),
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+          repository: cleanupRepository,
+        });
+      } catch {
+        // The anonymous login gate retries cleanup before exposing credentials.
+      } finally {
+        cleanupRepository?.close();
+      }
+      if (latestNamespaceRef.current === capturedNamespace) {
+        setRedirecting(true);
+        navigate("/login");
+      }
+    })();
+    authBoundaryRef.current = { namespace: capturedNamespace, promise };
+    return promise;
+  }, [namespace, navigate]);
+
   const load = useCallback(async () => {
     try {
       const response = await fetch(`/api/exams/${sessionId}`, { cache: "no-store" });
-      const body: unknown = await response.json();
+      if (response.status === 401 || response.status === 403) {
+        await handleAuthDenial();
+        return false;
+      }
+      const body: unknown = await response.json().catch(() => undefined);
       const loadedExam = responseField(body, "exam");
       if (!response.ok || !isExamSessionView(loadedExam, sessionId)) {
         throw new Error(responseError(body, "Exam session could not be loaded."));
@@ -903,7 +1002,7 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [acceptExam, sessionId]);
+  }, [acceptExam, handleAuthDenial, sessionId]);
 
   useEffect(() => {
     const timeout = setTimeout(() => void load(), 0);
@@ -912,11 +1011,12 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
   const stableKey = useMemo(() => exam
     ? `${exam.sessionId}:${exam.status}:${exam.result?.finalizedAt ?? "active"}:${exam.appeal?.status ?? "none"}:${exam.appeal?.updatedAt ?? "none"}`
     : "loading", [exam]);
-  if (loading) return <div className={styles.loading}><LoaderCircle className={styles.spin} /> Restoring immutable exam form…</div>;
+  if (redirecting) return <div className={styles.loading}><LoaderCircle className={styles.spin} /> Redirecting to sign in...</div>;
+  if (loading) return <div className={styles.loading}><LoaderCircle className={styles.spin} /> Restoring immutable exam form...</div>;
   if (error || !exam) return <div className={styles.loadError}><AlertCircle size={24} /><h1>Exam unavailable</h1><p>{error}</p><Link className="button button-secondary" href="/exams">Return to exams</Link></div>;
   if (namespace === null) {
     if (TERMINAL_RECOVERY_STATUSES.has(exam.status)) {
-      return <ExamResultPanel exam={exam} onRefresh={load} />;
+      return <ExamResultPanel exam={exam} onAuthDenial={handleAuthDenial} onRefresh={load} />;
     }
     return (
       <div className={styles.loadError}>
@@ -932,6 +1032,7 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
       exam={exam}
       key={stableKey}
       namespace={namespace}
+      onAuthDenial={handleAuthDenial}
       onRefresh={load}
       onSession={acceptExam}
     />

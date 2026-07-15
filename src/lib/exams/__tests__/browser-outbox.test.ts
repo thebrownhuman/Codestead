@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { IDBFactory as FakeIDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { EMERGENCY_EXAM_EVENT_PREFIX } from "@/lib/browser-durability/emergency-events";
 import {
   openBrowserOutbox,
   type BrowserOutboxRepository,
@@ -42,6 +43,22 @@ function json(body: unknown, init: ResponseInit = {}) {
     ...init,
     headers: { "content-type": "application/json", ...init.headers },
   });
+}
+
+function unreadableAuthorizationResponse(kind: "empty" | "non-json" | "rejected" | "stalled") {
+  if (kind === "empty" || kind === "non-json") {
+    const response = new Response(kind === "empty" ? null : "<html>Forbidden</html>", {
+      status: kind === "empty" ? 401 : 403,
+    });
+    return { response, json: vi.spyOn(response, "json") };
+  }
+  const json = kind === "rejected"
+    ? vi.fn().mockRejectedValue(new Error("body stream rejected"))
+    : vi.fn(() => new Promise<never>(() => undefined));
+  return {
+    response: { ok: false, status: kind === "rejected" ? 401 : 403, json } as unknown as Response,
+    json,
+  };
 }
 
 function activeSession(overrides: Partial<ExamSessionView> = {}): ExamSessionView {
@@ -172,6 +189,8 @@ type RepositoryHarness = {
   putEvents: ExamEventOutboxRecord[];
   deletedEvents: string[];
   cleared: Array<[string, string]>;
+  clearedDraftNamespaces: string[];
+  clearedNamespaces: string[];
 };
 
 function repositoryHarness(overrides: Partial<BrowserOutboxRepository> = {}): RepositoryHarness {
@@ -181,6 +200,8 @@ function repositoryHarness(overrides: Partial<BrowserOutboxRepository> = {}): Re
   const putEvents: ExamEventOutboxRecord[] = [];
   const deletedEvents: string[] = [];
   const cleared: Array<[string, string]> = [];
+  const clearedDraftNamespaces: string[] = [];
+  const clearedNamespaces: string[] = [];
   const repository: BrowserOutboxRepository = {
     async getDraft() { return null; },
     async putDraft() {},
@@ -223,13 +244,34 @@ function repositoryHarness(overrides: Partial<BrowserOutboxRepository> = {}): Re
         if (record.namespace === recordNamespace && record.scope === recordSessionId) events.delete(key);
       }
     },
-    async clearNamespace() {},
+    async clearDrafts(recordNamespace) {
+      clearedDraftNamespaces.push(recordNamespace);
+    },
+    async clearNamespace(recordNamespace) {
+      clearedNamespaces.push(recordNamespace);
+      for (const [key, record] of answers) {
+        if (record.namespace === recordNamespace) answers.delete(key);
+      }
+      for (const [key, record] of events) {
+        if (record.namespace === recordNamespace) events.delete(key);
+      }
+    },
     async clearForeignNamespaces() {},
     async clearAll() {},
     close() {},
     ...overrides,
   };
-  return { repository, answers, events, putAnswers, putEvents, deletedEvents, cleared };
+  return {
+    repository,
+    answers,
+    events,
+    putAnswers,
+    putEvents,
+    deletedEvents,
+    cleared,
+    clearedDraftNamespaces,
+    clearedNamespaces,
+  };
 }
 
 function autosaveAcknowledgement(body: Record<string, unknown>, replayed = false) {
@@ -254,6 +296,25 @@ describe("useDurableExamOutbox", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+  });
+
+  it("withholds active exam hydration until draft-only closed-book cleanup completes", async () => {
+    const cleanup = deferred<void>();
+    const clearDrafts = vi.fn(() => cleanup.promise);
+    const harness = repositoryHarness({ clearDrafts });
+    const view = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+
+    await waitFor(() => expect(clearDrafts).toHaveBeenCalledWith(namespace));
+    expect(view.result.current.hydrated).toBe(false);
+    expect(harness.cleared).toEqual([]);
+    expect(harness.clearedNamespaces).toEqual([]);
+
+    await act(async () => cleanup.resolve());
+    await waitForHydration(view.result);
   });
 
   it("does not start autosave until the answer transaction completes", async () => {
@@ -1631,8 +1692,16 @@ describe("useDurableExamOutbox", () => {
       });
       expect(flushError).toBeInstanceOf(Error);
       expect(result.current.conflicts).toEqual({});
-      expect(result.current.issue?.kind).toBe("server-rejected");
-      expect(harness.answers.size).toBe(1);
+      expect(result.current.issue?.kind).toBe(
+        status === 401 || status === 403 ? "server-closure" : "server-rejected",
+      );
+      if (status === 401 || status === 403) {
+        await waitFor(() => expect(harness.clearedNamespaces).toEqual([namespace]));
+        expect(harness.answers.size).toBe(0);
+      } else {
+        expect(harness.clearedNamespaces).toEqual([]);
+        expect(harness.answers.size).toBe(1);
+      }
       await expect(result.current.updateAnswer("written-1", "fenced")).rejects.toThrow();
       await expect(result.current.recordEvent("window_focus", {})).rejects.toThrow();
       await expect(result.current.flush()).rejects.toThrow();
@@ -1963,8 +2032,15 @@ describe("useDurableExamOutbox", () => {
     });
     expect(flushError).toBeInstanceOf(Error);
     expect(sent.filter((url) => url.endsWith("/autosave"))).toEqual([]);
-    expect(harness.answers.size).toBe(1);
-    expect(harness.events.size).toBe(1);
+    if (status === 401 || status === 403) {
+      await waitFor(() => expect(harness.clearedNamespaces).toEqual([namespace]));
+      expect(harness.answers.size).toBe(0);
+      expect(harness.events.size).toBe(0);
+    } else {
+      expect(harness.clearedNamespaces).toEqual([]);
+      expect(harness.answers.size).toBe(1);
+      expect(harness.events.size).toBe(1);
+    }
     expect(harness.deletedEvents).toEqual([]);
     expect(harness.cleared).toEqual([]);
     const callCount = sent.length;
@@ -1974,6 +2050,33 @@ describe("useDurableExamOutbox", () => {
     await expect(result.current.updateAnswer("written-1", "still fenced")).rejects.toThrow();
     await expect(result.current.recordEvent("window_focus", {})).rejects.toThrow();
   });
+
+  it.each(["empty", "non-json", "rejected", "stalled"] as const)(
+    "fences an authenticated exam event before consuming its %s response body",
+    async (bodyKind) => {
+      const denied = unreadableAuthorizationResponse(bodyKind);
+      const fetchMock = vi.fn(async () => denied.response);
+      vi.stubGlobal("fetch", fetchMock);
+      const harness = repositoryHarness();
+      const { result } = renderHook(() => useDurableExamOutbox({
+        namespace,
+        session: activeSession(),
+        repository: harness.repository,
+      }));
+      await waitForHydration(result);
+
+      await act(() => result.current.recordEvent("window_blur", { target: "window" }));
+
+      await waitFor(() => expect(harness.clearedNamespaces).toEqual([namespace]));
+      expect(denied.json).not.toHaveBeenCalled();
+      expect(harness.answers.size).toBe(0);
+      expect(harness.events.size).toBe(0);
+      const callCount = fetchMock.mock.calls.length;
+      fireEventOnline();
+      await act(async () => { await Promise.resolve(); });
+      expect(fetchMock).toHaveBeenCalledTimes(callCount);
+    },
+  );
 
   it("retains a malformed successful event acknowledgement without retry or deletion", async () => {
     vi.useFakeTimers();
@@ -2559,7 +2662,9 @@ describe("useDurableExamOutbox", () => {
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     expect(deadline.result.current.prepareUnloadEvent({ reason: "beforeunload" })).toBeNull();
-    expect(Object.keys(window.localStorage)).toEqual([]);
+    expect(Object.keys(window.localStorage).filter((key) => (
+      key.startsWith(EMERGENCY_EXAM_EVENT_PREFIX)
+    ))).toEqual([]);
 
     const purgeHarness = repositoryHarness();
     const purged = renderHook(() => useDurableExamOutbox({
@@ -2570,7 +2675,9 @@ describe("useDurableExamOutbox", () => {
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     await act(() => purged.result.current.purge());
     expect(purged.result.current.prepareUnloadEvent({ reason: "beforeunload" })).toBeNull();
-    expect(Object.keys(window.localStorage)).toEqual([]);
+    expect(Object.keys(window.localStorage).filter((key) => (
+      key.startsWith(EMERGENCY_EXAM_EVENT_PREFIX)
+    ))).toEqual([]);
   });
 
   it("hydrates durable recovery after the estimated deadline without replaying it", async () => {

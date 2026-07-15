@@ -6,19 +6,25 @@ import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
+import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
 import styles from "./auth.module.css";
+
+type LoginGateState = "checking" | "cleaning" | "ready" | "session-error" | "cleanup-error";
 
 export function LoginForm() {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
-  const [busy, setBusy] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [gate, setGate] = useState<LoginGateState>("checking");
   const [error, setError] = useState<string | null>(null);
   const submittingRef = useRef(false);
+  const gateGenerationRef = useRef(0);
 
   const resumeExistingSession = useCallback(async () => {
     try {
       const current = await authClient.getSession();
-      if (!current.data?.session) return false;
+      if (current.error || !current.data?.session) return false;
       // The protected layout sends pending accounts to onboarding and
       // incomplete MFA sessions to their challenge, so this is the one safe
       // resume target for every authenticated account state.
@@ -29,26 +35,70 @@ export function LoginForm() {
     }
   }, [router]);
 
+  const cleanAnonymousRecovery = useCallback(async (generation: number) => {
+    if (gateGenerationRef.current !== generation) return;
+    setGate("cleaning");
+    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
+    try {
+      repository = await openBrowserOutbox();
+      await purgeBrowserRecoveryData({
+        sessionStorage: window.sessionStorage,
+        localStorage: window.localStorage,
+        repository,
+      });
+      if (gateGenerationRef.current === generation) setGate("ready");
+    } catch {
+      if (gateGenerationRef.current === generation) setGate("cleanup-error");
+    } finally {
+      repository?.close();
+    }
+  }, []);
+
+  const decideLoginGate = useCallback(async () => {
+    const generation = gateGenerationRef.current + 1;
+    gateGenerationRef.current = generation;
+    setGate("checking");
+    try {
+      const current = await authClient.getSession();
+      if (gateGenerationRef.current !== generation) return;
+      if (current.error) {
+        setGate("session-error");
+        return;
+      }
+      if (current.data?.session) {
+        router.replace("/learn");
+        return;
+      }
+      await cleanAnonymousRecovery(generation);
+    } catch {
+      if (gateGenerationRef.current === generation) setGate("session-error");
+    }
+  }, [cleanAnonymousRecovery, router]);
+
+  const retryCleanup = useCallback(() => {
+    const generation = gateGenerationRef.current + 1;
+    gateGenerationRef.current = generation;
+    void cleanAnonymousRecovery(generation);
+  }, [cleanAnonymousRecovery]);
+
   useEffect(() => {
-    let mounted = true;
-    const resume = async () => {
-      const resumed = await resumeExistingSession();
-      if (mounted && !resumed) setBusy(false);
-    };
-    void resume();
+    let active = true;
+    queueMicrotask(() => {
+      if (active) void decideLoginGate();
+    });
 
     // Back/forward cache restores do not remount React, so check again when a
     // signed-in user returns to this page with the browser Back button.
     const handlePageShow = () => {
-      setBusy(true);
-      void resume();
+      void decideLoginGate();
     };
     window.addEventListener("pageshow", handlePageShow);
     return () => {
-      mounted = false;
+      active = false;
+      gateGenerationRef.current += 1;
       window.removeEventListener("pageshow", handlePageShow);
     };
-  }, [resumeExistingSession]);
+  }, [decideLoginGate]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -101,6 +151,32 @@ export function LoginForm() {
       submittingRef.current = false;
       setBusy(false);
     }
+  }
+
+  if (gate === "checking" || gate === "cleaning") {
+    return (
+      <div className={styles.form} role="status">
+        {gate === "checking"
+          ? "Checking this browser's session..."
+          : "Cleaning private browser recovery storage..."}
+      </div>
+    );
+  }
+  if (gate === "session-error") {
+    return (
+      <div className={styles.form} role="alert">
+        <p>Codestead could not confirm whether this browser is signed in. Saved browser work was kept.</p>
+        <button className="button button-secondary" onClick={() => void decideLoginGate()} type="button">Retry session check</button>
+      </div>
+    );
+  }
+  if (gate === "cleanup-error") {
+    return (
+      <div className={styles.form} role="alert">
+        <p>Codestead could not clean private browser recovery storage. Retry, or clear this site&apos;s browser data before signing in.</p>
+        <button className="button button-secondary" onClick={retryCleanup} type="button">Retry browser storage cleanup</button>
+      </div>
+    );
   }
 
   return (

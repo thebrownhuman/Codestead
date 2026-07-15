@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { KeyRound, Mail } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
+import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
 import styles from "./auth.module.css";
 
 export function ForgotPasswordForm() {
@@ -65,10 +67,29 @@ export function ForgotPasswordForm() {
 export function ResetPasswordForm({ token, invalid }: { token?: string; invalid?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [cleanupState, setCleanupState] = useState<"idle" | "cleaning" | "ready" | "failed">("idle");
   const [error, setError] = useState<string | null>(
     invalid || !token ? "This reset link is invalid or expired. Request a new link." : null,
   );
   const submittingRef = useRef(false);
+
+  const cleanRevokedSessionRecovery = useCallback(async () => {
+    setCleanupState("cleaning");
+    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
+    try {
+      repository = await openBrowserOutbox();
+      await purgeBrowserRecoveryData({
+        sessionStorage: window.sessionStorage,
+        localStorage: window.localStorage,
+        repository,
+      });
+      setCleanupState("ready");
+    } catch {
+      setCleanupState("failed");
+    } finally {
+      repository?.close();
+    }
+  }, []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -90,6 +111,7 @@ export function ResetPasswordForm({ token, invalid }: { token?: string; invalid?
         return;
       }
       setComplete(true);
+      void cleanRevokedSessionRecovery();
     } catch {
       setError("The reset link is invalid, expired, or already used. Request a new one.");
     } finally {
@@ -100,9 +122,16 @@ export function ResetPasswordForm({ token, invalid }: { token?: string; invalid?
 
   if (complete) {
     return (
-      <div className={styles.form} role="status">
+      <div className={styles.form} role={cleanupState === "failed" ? "alert" : "status"}>
         <p className={styles.success}>Password changed. Existing sessions have been revoked.</p>
-        <Link className="button button-primary" href="/login">Sign in again</Link>
+        {cleanupState === "cleaning" && <p>Cleaning private browser recovery storage...</p>}
+        {cleanupState === "failed" && (
+          <>
+            <p>Password changed and sessions were revoked, but browser cleanup still needs to finish before sign-in.</p>
+            <button className="button button-secondary" onClick={() => void cleanRevokedSessionRecovery()} type="button">Retry browser storage cleanup</button>
+          </>
+        )}
+        {cleanupState === "ready" && <Link className="button button-primary" href="/login">Sign in again</Link>}
       </div>
     );
   }

@@ -1,11 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   openBrowserOutbox,
   type BrowserOutboxRepository,
 } from "@/lib/browser-durability/indexed-db";
+import {
+  captureBrowserRecoveryWriteFence,
+  guardBrowserRecoveryWrite,
+  guardSynchronousBrowserRecoveryWrite,
+  isBrowserRecoveryWriteFenceCurrent,
+  purgeBrowserRecoveryData,
+  purgeDraftRecoveryData,
+  subscribeBrowserRecoveryBoundary,
+  type BrowserRecoveryBoundary,
+  type BrowserRecoveryWriteFence,
+} from "@/lib/browser-durability/lifecycle";
 import {
   draftOutboxStorageKey,
   isDraftOutboxRecord,
@@ -14,7 +25,6 @@ import {
 
 import {
   cachedDraftToOutbox,
-  clearDraftCaches,
   outboxDraftToCached,
   readDraftCache,
   removeDraftCache,
@@ -68,6 +78,7 @@ type DraftRuntime = {
   generation: number;
   namespace: string;
   key: DraftKey;
+  recoveryFence: BrowserRecoveryWriteFence;
   retired: boolean;
   authorized: boolean;
   blockedStatus: "scope-unavailable" | null;
@@ -89,6 +100,15 @@ type ContextResult =
   | { kind: "ok"; body: GetResponse }
   | { kind: "retryable" }
   | { kind: "terminal" };
+
+function boundaryMatchesDraftRuntime(
+  boundary: BrowserRecoveryBoundary,
+  runtime: DraftRuntime,
+) {
+  if (boundary.kind === "all") return true;
+  if (boundary.kind === "exam") return false;
+  return boundary.namespace === runtime.namespace;
+}
 
 const DRAFT_DEBOUNCE_MS = 650;
 const DRAFT_RETRY_DELAYS_MS = [1_000, 2_000, 5_000, 10_000, 30_000] as const;
@@ -128,7 +148,11 @@ function isServerDraft(value: unknown, key: DraftKey): value is LearnerDraftReco
 
 function cacheWarmDraft(runtime: DraftRuntime, value: CachedLearnerDraft) {
   try {
-    writeDraftCache(window.sessionStorage, runtime.namespace, runtime.key, value);
+    guardSynchronousBrowserRecoveryWrite(
+      runtime.recoveryFence,
+      () => writeDraftCache(window.sessionStorage, runtime.namespace, runtime.key, value),
+      () => removeDraftCache(window.sessionStorage, runtime.namespace, runtime.key),
+    );
   } catch {
     // sessionStorage is an optional warm mirror, never the durability boundary.
   }
@@ -179,6 +203,13 @@ export function useSyncedDraft({
   const [loadRetryTick, setLoadRetryTick] = useState(0);
   const generationRef = useRef(0);
   const runtimeRef = useRef<DraftRuntime | null>(null);
+  const latestNamespaceRef = useRef(namespace);
+  useLayoutEffect(() => {
+    if (latestNamespaceRef.current !== namespace) {
+      latestNamespaceRef.current = namespace;
+      generationRef.current += 1;
+    }
+  }, [namespace]);
   const attemptNetworkRef = useRef<(runtime: DraftRuntime) => void>(() => undefined);
   const enqueueRecordRef = useRef<(
     runtime: DraftRuntime,
@@ -191,6 +222,7 @@ export function useSyncedDraft({
     runtimeRef.current === runtime
     && generationRef.current === runtime.generation
     && !runtime.retired
+    && isBrowserRecoveryWriteFenceCurrent(runtime.recoveryFence)
   ), []);
 
   const transition = useCallback((runtime: DraftRuntime, next: DraftSyncStatus) => {
@@ -217,21 +249,15 @@ export function useSyncedDraft({
     }
   }, [isCurrent]);
 
-  const retireForDenial = useCallback((
+  const retireRuntime = useCallback((
     runtime: DraftRuntime,
     nextStatus: "reauthenticate" | "exam-locked",
   ) => {
-    if (!isCurrent(runtime)) return;
+    if (runtimeRef.current !== runtime
+      || runtime.retired
+      || generationRef.current !== runtime.generation) return false;
     clearTimer(runtime);
     abortRequest(runtime);
-    runtime.repository?.close();
-    runtime.repository = null;
-    runtime.repositoryPromise = null;
-    try {
-      clearDraftCaches(window.sessionStorage, runtime.namespace);
-    } catch {
-      // The denial still retires all callbacks when warm storage is unavailable.
-    }
     draftRef.current = null;
     setDraftState(null);
     setServerCopy(null);
@@ -239,7 +265,48 @@ export function useSyncedDraft({
     setStatusState(nextStatus);
     runtime.retired = true;
     generationRef.current += 1;
-  }, [isCurrent]);
+    return true;
+  }, []);
+
+  const handleDenial = useCallback(async (
+    runtime: DraftRuntime,
+    kind: "session" | "closed-book",
+  ) => {
+    if (!retireRuntime(
+      runtime,
+      kind === "session" ? "reauthenticate" : "exam-locked",
+    )) return;
+
+    let repository = runtime.repository;
+    try {
+      if (!repository) repository = await openBrowserOutbox();
+      if (kind === "session") {
+        await purgeBrowserRecoveryData({
+          namespace: runtime.namespace,
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+          repository,
+        });
+      } else {
+        await purgeDraftRecoveryData({
+          namespace: runtime.namespace,
+          sessionStorage: window.sessionStorage,
+          repository,
+        });
+      }
+    } catch {
+      // The writer remains fenced. The login or closed-book gate owns retry UI.
+    } finally {
+      repository?.close();
+      if (runtime.repository === repository) runtime.repository = null;
+    }
+
+    if (kind === "session"
+      && runtimeRef.current === runtime
+      && latestNamespaceRef.current === runtime.namespace) {
+      window.location.assign("/login");
+    }
+  }, [retireRuntime]);
 
   const ensureRepository = useCallback(async (runtime: DraftRuntime) => {
     if (runtime.retired) throw new DOMException("Draft generation retired.", "AbortError");
@@ -271,14 +338,15 @@ export function useSyncedDraft({
         cache: "no-store",
         signal: controller.signal,
       });
-      const body = await response.json().catch(() => ({})) as GetResponse;
       if (!isCurrent(runtime)) return { kind: "terminal" };
       if (response.status === 401 || response.status === 403) {
-        retireForDenial(runtime, "reauthenticate");
+        await handleDenial(runtime, "session");
         return { kind: "terminal" };
       }
+      const body = await response.json().catch(() => ({})) as GetResponse;
+      if (!isCurrent(runtime)) return { kind: "terminal" };
       if (response.status === 423 || body.code === "EXAM_CLOSED_BOOK") {
-        retireForDenial(runtime, "exam-locked");
+        await handleDenial(runtime, "closed-book");
         return { kind: "terminal" };
       }
       if (body.code === "DRAFT_SCOPE_UNAVAILABLE") {
@@ -308,7 +376,7 @@ export function useSyncedDraft({
     } finally {
       if (runtime.abortController === controller) runtime.abortController = null;
     }
-  }, [isCurrent, retireForDenial, transition]);
+  }, [handleDenial, isCurrent, transition]);
 
   const scheduleAttempt = useCallback((runtime: DraftRuntime, delay: number) => {
     if (!isCurrent(runtime) || runtime.blockedStatus) return;
@@ -374,7 +442,15 @@ export function useSyncedDraft({
         if (!isCurrent(runtime)) return;
         const repository = await ensureRepository(runtime);
         if (!isCurrent(runtime)) return;
-        await repository.putDraft(record);
+        await guardBrowserRecoveryWrite(
+          runtime.recoveryFence,
+          () => repository.putDraft(record),
+          () => repository.deleteDraftIfMutation(
+            runtime.namespace,
+            runtime.key,
+            record.requestId,
+          ),
+        );
       });
     runtime.localChain = write.then(() => undefined, () => undefined);
 
@@ -570,15 +646,16 @@ export function useSyncedDraft({
         }),
         signal: controller.signal,
       });
-      const body = await response.json().catch(() => ({})) as PutResponse;
       if (runtime.abortController === controller) runtime.abortController = null;
       if (!isCurrent(runtime)) return;
       if (response.status === 401 || response.status === 403) {
-        retireForDenial(runtime, "reauthenticate");
+        await handleDenial(runtime, "session");
         return;
       }
+      const body = await response.json().catch(() => ({})) as PutResponse;
+      if (!isCurrent(runtime)) return;
       if (response.status === 423 || body.code === "EXAM_CLOSED_BOOK") {
-        retireForDenial(runtime, "exam-locked");
+        await handleDenial(runtime, "closed-book");
         return;
       }
       if (body.code === "DRAFT_SCOPE_UNAVAILABLE") {
@@ -677,12 +754,21 @@ export function useSyncedDraft({
     } finally {
       runtime.networkActive = false;
     }
-  }, [fetchContext, handleAcknowledgement, isCurrent, retireForDenial, scheduleRetry, transition]);
+  }, [fetchContext, handleAcknowledgement, handleDenial, isCurrent, scheduleRetry, transition]);
 
   useEffect(() => {
     attemptNetworkRef.current = attemptNetwork;
     enqueueRecordRef.current = enqueueRecord;
   }, [attemptNetwork, enqueueRecord]);
+
+  useEffect(() => subscribeBrowserRecoveryBoundary((boundary) => {
+    const runtime = runtimeRef.current;
+    if (!runtime || !boundaryMatchesDraftRuntime(boundary, runtime)) return;
+    retireRuntime(
+      runtime,
+      boundary.kind === "drafts" ? "exam-locked" : "reauthenticate",
+    );
+  }), [retireRuntime]);
 
   const initializeRuntime = useCallback(async (runtime: DraftRuntime) => {
     runtime.networkActive = true;
@@ -745,24 +831,33 @@ export function useSyncedDraft({
     const generation = generationRef.current + 1;
     generationRef.current = generation;
 
-    let warm: CachedLearnerDraft | null = null;
+    let recoveryFence: BrowserRecoveryWriteFence | null = null;
     if (namespace) {
+      try {
+        recoveryFence = captureBrowserRecoveryWriteFence({ kind: "drafts", namespace });
+      } catch {
+        recoveryFence = null;
+      }
+    }
+    let warm: CachedLearnerDraft | null = null;
+    if (namespace && recoveryFence) {
       try {
         warm = readDraftCache(window.sessionStorage, namespace, draftKey);
       } catch {
         warm = null;
       }
     }
+    const canRecover = Boolean(namespace && recoveryFence);
     draftRef.current = warm;
-    statusRef.current = namespace ? "loading" : "unavailable";
+    statusRef.current = canRecover ? "loading" : "unavailable";
     queueMicrotask(() => {
       if (generationRef.current !== generation) return;
       setDraftState(warm);
       setServerCopy(null);
-      setStatusState(namespace ? "loading" : "unavailable");
+      setStatusState(canRecover ? "loading" : "unavailable");
     });
 
-    if (!namespace) {
+    if (!namespace || !recoveryFence) {
       runtimeRef.current = null;
       return;
     }
@@ -771,6 +866,7 @@ export function useSyncedDraft({
       generation,
       namespace,
       key: draftKey,
+      recoveryFence,
       retired: false,
       authorized: false,
       blockedStatus: null,
@@ -795,9 +891,9 @@ export function useSyncedDraft({
         runtime.retired = true;
         clearTimer(runtime);
         abortRequest(runtime);
-        runtime.repository?.close();
-        runtime.repository = null;
       }
+      runtime.repository?.close();
+      runtime.repository = null;
       if (runtimeRef.current === runtime) runtimeRef.current = null;
       if (generationRef.current === generation) generationRef.current += 1;
     };

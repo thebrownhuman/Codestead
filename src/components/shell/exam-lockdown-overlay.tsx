@@ -3,7 +3,14 @@
 import { ClipboardCheck, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import { useBrowserDurabilityNamespace } from "@/lib/browser-durability/context";
+import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
+import {
+  purgeBrowserRecoveryData,
+  purgeDraftRecoveryData,
+} from "@/lib/browser-durability/lifecycle";
 
 import styles from "./app-shell.module.css";
 
@@ -15,53 +22,166 @@ type ExamCatalogResponse = {
   }[];
 };
 
-export function ExamLockdownOverlay() {
+type ActiveExam = {
+  sessionId: string;
+  courseTitle: string;
+  moduleTitle: string;
+};
+
+type LockState = {
+  exam: ActiveExam;
+  cleanup: "pending" | "ready" | "error";
+};
+
+type CatalogRefreshResult =
+  | { kind: "available"; exam: ActiveExam | null }
+  | { kind: "auth-denied" }
+  | { kind: "unavailable" };
+
+function navigateWindow(destination: string) {
+  window.location.assign(destination);
+}
+
+function activeExamFromCatalog(body: unknown): ActiveExam | null | undefined {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return undefined;
+  const exams = (body as ExamCatalogResponse).exams;
+  if (!Array.isArray(exams)) return undefined;
+  if (!exams.every((candidate) => (
+    typeof candidate === "object"
+    && candidate !== null
+    && (candidate.activeSessionId === null || typeof candidate.activeSessionId === "string")
+    && typeof candidate.courseTitle === "string"
+    && typeof candidate.moduleTitle === "string"
+  ))) return undefined;
+  const exam = exams.find((candidate) => candidate.activeSessionId);
+  return exam?.activeSessionId
+    ? {
+        sessionId: exam.activeSessionId,
+        courseTitle: exam.courseTitle,
+        moduleTitle: exam.moduleTitle,
+      }
+    : null;
+}
+
+export function ExamLockdownOverlay({
+  navigate = navigateWindow,
+}: {
+  navigate?: (destination: string) => void;
+} = {}) {
   const pathname = usePathname();
-  const [active, setActive] = useState<{
-    sessionId: string;
-    courseTitle: string;
-    moduleTitle: string;
-  } | null>(null);
+  const namespace = useBrowserDurabilityNamespace();
+  const [lockState, setLockState] = useState<LockState | null>(null);
+  const [sessionBoundaryPending, setSessionBoundaryPending] = useState(false);
+  const generationRef = useRef(0);
+  const observedKeyRef = useRef<string | null>(null);
+  const sessionBoundaryRef = useRef(false);
   const resumeRef = useRef<HTMLAnchorElement>(null);
 
-  const refresh = useCallback(async (signal?: AbortSignal) => {
+  const refresh = useCallback(async (signal?: AbortSignal): Promise<CatalogRefreshResult> => {
     const response = await fetch("/api/exams", { cache: "no-store", signal });
-    if (!response.ok) return null;
-    const body = (await response.json()) as ExamCatalogResponse;
-    const exam = body.exams?.find((candidate) => candidate.activeSessionId);
-    return exam?.activeSessionId
-      ? {
-          sessionId: exam.activeSessionId,
-          courseTitle: exam.courseTitle,
-          moduleTitle: exam.moduleTitle,
-        }
-      : null;
+    if (response.status === 401 || response.status === 403) return { kind: "auth-denied" };
+    if (!response.ok) return { kind: "unavailable" };
+    const exam = activeExamFromCatalog(await response.json().catch(() => undefined));
+    return exam === undefined
+      ? { kind: "unavailable" }
+      : { kind: "available", exam };
   }, []);
+
+  const handleSessionDenial = useCallback(async () => {
+    if (sessionBoundaryRef.current) return;
+    sessionBoundaryRef.current = true;
+    const generation = ++generationRef.current;
+    setSessionBoundaryPending(true);
+    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
+    try {
+      repository = await openBrowserOutbox();
+      await purgeBrowserRecoveryData({
+        ...(namespace ? { namespace } : {}),
+        repository,
+        sessionStorage: window.sessionStorage,
+        localStorage: window.localStorage,
+      });
+    } catch {
+      // The anonymous login gate retries cleanup before exposing credentials.
+    } finally {
+      repository?.close();
+    }
+    if (generationRef.current === generation) navigate("/login");
+  }, [namespace, navigate]);
+
+  const prepareClosedBookEntry = useCallback(async (exam: ActiveExam) => {
+    const generation = ++generationRef.current;
+    setLockState({ exam, cleanup: "pending" });
+    if (!namespace) {
+      if (generationRef.current === generation) {
+        setLockState({ exam, cleanup: "error" });
+      }
+      return;
+    }
+
+    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
+    try {
+      repository = await openBrowserOutbox();
+      await purgeDraftRecoveryData({
+        namespace,
+        repository,
+        sessionStorage: window.sessionStorage,
+      });
+      if (generationRef.current === generation) {
+        setLockState({ exam, cleanup: "ready" });
+      }
+    } catch {
+      if (generationRef.current === generation) {
+        setLockState({ exam, cleanup: "error" });
+      }
+    } finally {
+      repository?.close();
+    }
+  }, [namespace]);
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
     const check = () => {
       void refresh(controller.signal)
-        .then((result) => { if (!cancelled) setActive(result); })
+        .then((result) => {
+          if (cancelled) return;
+          if (result.kind === "unavailable") return;
+          if (result.kind === "auth-denied") {
+            void handleSessionDenial();
+            return;
+          }
+          if (!result.exam) {
+            observedKeyRef.current = null;
+            generationRef.current += 1;
+            setLockState(null);
+            return;
+          }
+          const observedKey = `${namespace ?? "missing"}:${result.exam.sessionId}`;
+          if (observedKeyRef.current === observedKey) return;
+          observedKeyRef.current = observedKey;
+          void prepareClosedBookEntry(result.exam);
+        })
         .catch(() => undefined);
     };
     check();
     const interval = window.setInterval(check, 15_000);
     return () => {
       cancelled = true;
+      generationRef.current += 1;
       controller.abort();
       window.clearInterval(interval);
     };
-  }, [refresh]);
+  }, [handleSessionDenial, namespace, prepareClosedBookEntry, refresh]);
 
+  const active = lockState?.exam ?? null;
   const alreadyInExam = active && pathname === `/exams/${active.sessionId}`;
   useEffect(() => {
     if (active && !alreadyInExam) resumeRef.current?.focus();
   }, [active, alreadyInExam]);
 
-  useEffect(() => {
-    const locked = Boolean(active && !alreadyInExam);
+  useLayoutEffect(() => {
+    const locked = sessionBoundaryPending || Boolean(active && !alreadyInExam);
     const regions = [
       document.getElementById("app-sidebar"),
       document.getElementById("app-content-column"),
@@ -81,9 +201,65 @@ export function ExamLockdownOverlay() {
         region.removeAttribute("aria-hidden");
       }
     };
-  }, [active, alreadyInExam]);
+  }, [active, alreadyInExam, sessionBoundaryPending]);
 
-  if (!active || alreadyInExam) return null;
+  if (sessionBoundaryPending) {
+    return (
+      <div className={styles.examLockBackdrop} role="presentation">
+        <section
+          aria-describedby="session-boundary-description"
+          aria-labelledby="session-boundary-title"
+          aria-modal="true"
+          className={styles.examLockDialog}
+          role="alertdialog"
+        >
+          <span className={styles.examLockIcon}><ShieldAlert aria-hidden="true" size={28} /></span>
+          <span className={styles.navLabel}>SESSION BOUNDARY</span>
+          <h1 id="session-boundary-title">Session ended</h1>
+          <p id="session-boundary-description">
+            Codestead is clearing private browser recovery before returning to sign in.
+          </p>
+          <small>Redirecting to sign in...</small>
+        </section>
+      </div>
+    );
+  }
+
+  if (!lockState || alreadyInExam) return null;
+
+  if (lockState.cleanup !== "ready") {
+    const failed = lockState.cleanup === "error";
+    return (
+      <div className={styles.examLockBackdrop} role="presentation">
+        <section
+          aria-describedby="active-exam-cleanup-description"
+          aria-labelledby="active-exam-cleanup-title"
+          aria-modal="true"
+          className={styles.examLockDialog}
+          role="alertdialog"
+        >
+          <span className={styles.examLockIcon}><ShieldAlert aria-hidden="true" size={28} /></span>
+          <span className={styles.navLabel}>CLOSED-BOOK EXAM ACTIVE</span>
+          <h1 id="active-exam-cleanup-title">
+            {failed ? "Private browser cleanup needs retry" : "Preparing private exam recovery"}
+          </h1>
+          <p id="active-exam-cleanup-description">
+            Ordinary learning remains locked while Codestead removes lesson drafts from this browser. Exam recovery is preserved.
+          </p>
+          {failed ? (
+            <button
+              className="button button-primary"
+              onClick={() => { void prepareClosedBookEntry(lockState.exam); }}
+              type="button"
+            >
+              Retry browser storage cleanup
+            </button>
+          ) : <small>Preparing private browser storage...</small>}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.examLockBackdrop} role="presentation">
       <section
@@ -97,9 +273,9 @@ export function ExamLockdownOverlay() {
         <span className={styles.navLabel}>CLOSED-BOOK EXAM ACTIVE</span>
         <h1 id="active-exam-lock-title">Return to your exam workspace</h1>
         <p id="active-exam-lock-description">
-          {active.courseTitle} · {active.moduleTitle} is still timed. Lessons, Codestead, practice games, general code runs, files, and project work remain server-locked until it is submitted or finalized.
+          {lockState.exam.courseTitle} - {lockState.exam.moduleTitle} is still timed. Lessons, Codestead, practice games, general code runs, files, and project work remain server-locked until it is submitted or finalized.
         </p>
-        <Link className="button button-primary" href={`/exams/${active.sessionId}`} ref={resumeRef}>
+        <Link className="button button-primary" href={`/exams/${lockState.exam.sessionId}`} ref={resumeRef}>
           <ClipboardCheck size={16} /> Resume timed exam
         </Link>
         <small>The server timer continues. This screen does not decide misconduct; navigation and focus evidence remains available for human review.</small>

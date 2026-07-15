@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   signInEmail: vi.fn(),
   signInSocial: vi.fn(),
+  openBrowserOutbox: vi.fn(),
+  purgeRecovery: vi.fn(),
+  close: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -23,6 +26,12 @@ vi.mock("@/lib/auth-client", () => ({
       social: mocks.signInSocial,
     },
   },
+}));
+vi.mock("@/lib/browser-durability/indexed-db", () => ({
+  openBrowserOutbox: mocks.openBrowserOutbox,
+}));
+vi.mock("@/lib/browser-durability/lifecycle", () => ({
+  purgeBrowserRecoveryData: mocks.purgeRecovery,
 }));
 
 import { LoginForm } from "../login-form";
@@ -40,6 +49,11 @@ describe("login session resume guard", () => {
     vi.clearAllMocks();
     mocks.getSession.mockResolvedValue({ data: null, error: null });
     mocks.signInEmail.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    mocks.close.mockReset();
+    mocks.openBrowserOutbox.mockReset();
+    mocks.purgeRecovery.mockReset();
+    mocks.openBrowserOutbox.mockResolvedValue({ close: mocks.close });
+    mocks.purgeRecovery.mockResolvedValue(undefined);
   });
 
   it("replaces the login page when the browser already has a valid session", async () => {
@@ -48,6 +62,58 @@ describe("login session resume guard", () => {
 
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/learn"));
     expect(mocks.signInEmail).not.toHaveBeenCalled();
+    expect(mocks.purgeRecovery).not.toHaveBeenCalled();
+  });
+
+  it("withholds credentials until confirmed-anonymous recovery cleanup completes", async () => {
+    let finish!: () => void;
+    mocks.purgeRecovery.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finish = resolve;
+    }));
+    render(<LoginForm />);
+
+    expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+    await waitFor(() => expect(mocks.purgeRecovery).toHaveBeenCalledWith(expect.objectContaining({
+      repository: expect.any(Object),
+    })));
+    expect(screen.getByRole("status")).toHaveTextContent(/cleaning private browser recovery/i);
+
+    await act(async () => finish());
+    expect(await screen.findByLabelText("Email address")).toBeEnabled();
+    expect(mocks.close).toHaveBeenCalledOnce();
+  });
+
+  it("preserves recovery and offers only a session-check retry when session state is unknown", async () => {
+    mocks.getSession
+      .mockRejectedValueOnce(new TypeError("private network detail"))
+      .mockResolvedValueOnce({ data: null, error: null });
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not confirm whether this browser is signed in/i);
+    expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+    expect(mocks.purgeRecovery).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Retry session check" }));
+
+    expect(await screen.findByLabelText("Email address")).toBeEnabled();
+    expect(mocks.purgeRecovery).toHaveBeenCalledOnce();
+  });
+
+  it("withholds credentials and retries an anonymous cleanup failure", async () => {
+    mocks.purgeRecovery
+      .mockRejectedValueOnce(new Error("private database detail"))
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not clean private browser recovery storage/i);
+    expect(screen.queryByText("private database detail")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry browser storage cleanup" }));
+
+    expect(await screen.findByLabelText("Email address")).toBeEnabled();
+    expect(mocks.openBrowserOutbox).toHaveBeenCalledTimes(2);
+    expect(mocks.close).toHaveBeenCalledTimes(2);
   });
 
   it("checks again when browser Back restores the login page from cache", async () => {

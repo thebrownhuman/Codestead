@@ -43,6 +43,7 @@ export interface BrowserOutboxRepository {
   putExamEvent(record: ExamEventOutboxRecord): Promise<void>;
   deleteExamEvent(namespace: string, sessionId: string, clientEventId: string): Promise<void>;
   clearExamSession(namespace: string, sessionId: string): Promise<void>;
+  clearDrafts(namespace: string): Promise<void>;
   clearNamespace(namespace: string): Promise<void>;
   clearForeignNamespaces(currentNamespace: string): Promise<void>;
   clearAll(): Promise<void>;
@@ -334,6 +335,20 @@ class IndexedDbBrowserOutbox implements BrowserOutboxRepository {
       const index = store.index(NAMESPACE_KIND_SCOPE_INDEX);
       deleteCursorMatches(index.openCursor([namespace, "exam-answer", sessionId]), abort);
       deleteCursorMatches(index.openCursor([namespace, "exam-event", sessionId]), abort);
+    });
+  }
+
+  async clearDrafts(namespace: string) {
+    requireNamespace(namespace);
+    await runTransaction(this.database, "readwrite", undefined, ({ store, abort }) => {
+      const request = store.index(NAMESPACE_INDEX).openCursor(namespace);
+      handleSuccess(request, abort, (cursor) => {
+        if (!cursor) return;
+        const value: unknown = cursor.value;
+        if (typeof value === "object" && value !== null && "kind" in value
+          && value.kind === "draft") cursor.delete();
+        cursor.continue();
+      });
     });
   }
 
