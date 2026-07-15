@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
+PATH=/usr/bin:/bin
+export PATH
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-bash_bin="$(command -v bash)"
-env_bin="$(command -v env)"
+bash_bin=/usr/bin/bash
+env_bin=/usr/bin/env
+sha256_bin=/usr/bin/sha256sum
 compose="$repo_root/compose.yaml"
 compose_unit="$repo_root/infra/systemd/learncoding-compose.service"
 retention_unit="$repo_root/infra/systemd/learncoding-retention.service"
@@ -12,11 +15,18 @@ recovery_service="$repo_root/infra/systemd/learncoding-recovery-check.service"
 recovery_timer="$repo_root/infra/systemd/learncoding-recovery-check.timer"
 firewall_service="$repo_root/infra/systemd/learncoding-runner-firewall.service"
 installer="$repo_root/infra/ops/install-systemd.sh"
+installer_shebang='#!/usr/bin/env bash'
+installer_reviewed_sha256='7d5b66bdd81e339a8fe455c5d746f13369bc5c6ed0d5ceea99158f6f0ba5d01b'
 package_json="$repo_root/package.json"
 failures=()
 
 fail() {
   failures+=("$1")
+}
+
+abort_contract() {
+  echo "FAIL: $*" >&2
+  exit 1
 }
 
 source_manipulates_path() {
@@ -35,13 +45,94 @@ make_path_sealed_copy() {
   local source="$1"
   local destination="$2"
   local interpreter="$3"
+  local expected_shebang="$4"
+  local expected_sha256="$5"
+  local command_root="${6:-}"
+  local command_name
+
+  verify_exact_reviewed_shell_source "$source" "$interpreter" "$expected_shebang" "$expected_sha256" || return 1
 
   {
     printf '#!%s\n' "$interpreter"
-    printf '%s\n' 'readonly PATH'
+    if [[ -n "$command_root" ]]; then
+      shift 6
+      for command_name in "$@"; do
+        [[ "$command_name" =~ ^[a-z][a-z0-9-]*$ ]] || return 1
+        printf '%s() { %q/%s "$@"; }\n' "$command_name" "$command_root" "$command_name"
+      done
+    fi
+    printf '%s\n' 'PATH=' 'readonly PATH'
     tail -n +2 "$source"
   } >"$destination"
   chmod 0700 "$destination"
+}
+
+sha256_file() {
+  local source="$1" digest_line digest
+  digest_line="$("$sha256_bin" -- "$source")" || return 1
+  digest="${digest_line%% *}"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "$digest"
+}
+
+verify_exact_reviewed_shell_source() {
+  local source="$1" interpreter="$2" expected_shebang="$3" expected_sha256="$4"
+  local first_line line actual_sha256
+  local shebang_count=0
+  [[ -f "$source" && ! -L "$source" ]] || return 1
+  IFS= read -r first_line <"$source" || return 1
+  [[ "$first_line" == "$expected_shebang" && "$first_line" != *$'\r'* ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" != *$'\r'* ]] || return 1
+    [[ "$line" == '#!'* ]] && shebang_count=$((shebang_count + 1))
+  done <"$source"
+  (( shebang_count == 1 )) || return 1
+  [[ "$expected_sha256" =~ ^[0-9a-f]{64}$ ]] || return 1
+  actual_sha256="$(sha256_file "$source")" || return 1
+  [[ "$actual_sha256" == "$expected_sha256" ]] || return 1
+  "$interpreter" -n "$source" >/dev/null 2>&1
+}
+
+assert_source_identity_mutations() {
+  local interpreter="$1" expected_shebang="$2"
+  local safe_source="$parser_work/reviewed-source-safe.sh" mutated_source="$parser_work/reviewed-source-mutated.sh"
+  local transformed="$parser_work/reviewed-source-transformed.sh" sentinel="$parser_work/reviewed-source.sentinel"
+  local safe_sha256 label mutation
+  printf '%s\n%s\n' "$expected_shebang" 'set -e' >"$safe_source"
+  safe_sha256="$(sha256_file "$safe_source")" || abort_contract 'could not hash reviewed source mutation baseline'
+  printf '%s' unchanged >"$sentinel"
+  while IFS='|' read -r label mutation; do
+    printf '%s\n%s\n%s\n%s\n' "$expected_shebang" 'set -e' "$mutation" \
+      'printf reached >"$SOURCE_IDENTITY_SENTINEL"' >"$mutated_source"
+    rm -f -- "$transformed"
+    make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+      abort_contract "reviewed source identity accepted $label mutation"
+    [[ ! -e "$transformed" && "$(<"$sentinel")" == unchanged ]] || abort_contract "$label mutation escaped source verification"
+  done <<'EOF'
+dynamic-command-p|opt=-p; builtin command "$opt" -v cp
+dynamic-hash-p|opt=-p; d=/usr/bin; hash "$opt" "$d/cp" cp
+assembled-absolute|d=/usr/bin; target="$d/cp"; command -v "$target"
+new-shell|d=/usr/bin; shell="$d/sh"; "$shell" -c 'command -v cp'
+dynamic-source|verb=source; "$verb" "$DYNAMIC_HELPER"
+dynamic-dot-source|verb=.; "$verb" "$DYNAMIC_HELPER"
+dynamic-env|verb=env; "$verb" command -v cp
+dynamic-builtin|verb=builtin; "$verb" command -p -v cp
+dynamic-exec|verb=exec; "$verb" /usr/bin/sh -c 'command -v cp'
+EOF
+  printf '%s\n%s\n' '/usr/bin/cp -- "$SOURCE" "$DESTINATION"' 'set -e' >"$mutated_source"
+  rm -f -- "$transformed"
+  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" && abort_contract 'accepted line-1 mutation'
+  [[ ! -e "$transformed" && "$(<"$sentinel")" == unchanged ]] || abort_contract 'line-1 mutation escaped verification'
+  printf '%s\n%s\n%s\n' "$expected_shebang" "$expected_shebang" 'set -e' >"$mutated_source"
+  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" && abort_contract 'accepted duplicate shebangs'
+  printf '%s\r\n%s\r\n' "$expected_shebang" 'set -e' >"$mutated_source"
+  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" && abort_contract 'accepted CRLF source'
+  rm -f -- "$parser_work/reviewed-source-symlink.sh"
+  ln -s "$safe_source" "$parser_work/reviewed-source-symlink.sh"
+  if [[ -L "$parser_work/reviewed-source-symlink.sh" ]]; then
+    make_path_sealed_copy "$parser_work/reviewed-source-symlink.sh" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" && abort_contract 'accepted symlink source'
+  fi
+  rm -f -- "$parser_work/reviewed-source-symlink.sh"
 }
 
 assert_path_mutation_defenses() {
@@ -53,38 +144,40 @@ assert_path_mutation_defenses() {
   local sentinel="$parser_work/path-mutation-sentinel"
   local mutation
   local mutation_status
+  local mutation_sha256
 
+  mkdir -m 0700 "$mutation_bin"
   for mutation in \
     'PATH=/usr/bin:/bin' \
     'export PATH=/usr/bin:/bin' \
     'unset PATH' \
     'readonly PATH=/usr/bin:/bin'; do
-    printf '#!%s\n%s\n' "$interpreter" "$mutation" >"$mutation_source"
-    source_manipulates_path "$mutation_source" || fail "PATH static guard missed: $mutation"
+    # command -v is a shell builtin; none of these probes executes cp.
+    {
+      printf '#!%s\n' "$interpreter"
+      printf '%s\n' \
+        'set -e' \
+        "$mutation" \
+        'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
+        'printf compromised >"$PATH_MUTATION_SENTINEL"'
+    } >"$mutation_source"
+    source_manipulates_path "$mutation_source" || abort_contract "PATH static guard missed: $mutation"
+    mutation_sha256="$(sha256_file "$mutation_source")" || abort_contract 'could not hash PATH mutation source'
+    rm -f -- "$sealed_mutation" "$resolution"
+    make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter" "#!$interpreter" "$mutation_sha256" ||
+      abort_contract 'could not create reviewed PATH mutation copy'
+    printf '%s' unchanged >"$sentinel"
+    set +e
+    "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
+      PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
+      >"$parser_work/path-mutation.stdout" 2>"$parser_work/path-mutation.stderr"
+    mutation_status=$?
+    set -e
+
+    (( mutation_status != 0 )) || abort_contract "same-interpreter PATH mutation unexpectedly succeeded: $mutation"
+    [[ ! -e "$resolution" ]] || abort_contract "PATH mutation resolved a host executable before rejection: $mutation"
+    [[ "$(<"$sentinel")" == unchanged ]] || abort_contract "PATH mutation reached the outside sentinel: $mutation"
   done
-
-  # command -v is a shell builtin; this mutation probe never executes cp.
-  {
-    printf '#!%s\n' "$interpreter"
-    printf '%s\n' \
-      'set -e' \
-      'PATH=/usr/bin:/bin' \
-      'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
-      'printf compromised >"$PATH_MUTATION_SENTINEL"'
-  } >"$mutation_source"
-  make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter"
-  mkdir -m 0700 "$mutation_bin"
-  printf '%s' unchanged >"$sentinel"
-  set +e
-  "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
-    PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
-    >"$parser_work/path-mutation.stdout" 2>"$parser_work/path-mutation.stderr"
-  mutation_status=$?
-  set -e
-
-  (( mutation_status != 0 )) || fail 'same-interpreter PATH mutation unexpectedly succeeded'
-  [[ ! -e "$resolution" ]] || fail 'PATH mutation resolved a host executable before rejection'
-  [[ "$(<"$sentinel")" == unchanged ]] || fail 'PATH mutation reached the outside sentinel after changing command lookup'
 }
 
 systemd_syntax_is_canonical() {
@@ -451,7 +544,7 @@ if expect_required_file "$recovery_timer"; then
   expect_directive "$recovery_timer" Install WantedBy timers.target 'Recovery timer must be installable at boot'
 fi
 
-tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+tmp_base="$(cd /tmp && pwd -P)"
 parser_work="$(mktemp -d "$tmp_base/systemd-recovery-parser.XXXXXX")"
 parser_work="$(cd "$parser_work" && pwd -P)"
 if [[ -L "$parser_work" || "$parser_work" != "$tmp_base"/* ]]; then
@@ -475,46 +568,45 @@ cp "$compose" "$installer_root/compose.yaml"
 cp "$repo_root"/infra/systemd/* "$installer_root/infra/systemd/"
 
 installer_root_guard='[[ "${EUID:-$(id -u)}" -eq 0 ]] || { echo "run as root" >&2; exit 1; }'
+verify_exact_reviewed_shell_source "$installer" "$bash_bin" "$installer_shebang" "$installer_reviewed_sha256" ||
+  abort_contract 'Systemd installer source identity, shebang, regular-file, LF, syntax, or SHA is not reviewed'
+assert_source_identity_mutations "$bash_bin" "$installer_shebang"
 if [[ "$(grep -Fxc -- "$installer_root_guard" "$installer" || true)" != 1 ]]; then
-  fail 'Systemd installer must retain one explicit root execution guard'
+  abort_contract 'Systemd installer must retain one explicit root execution guard'
 fi
 if source_manipulates_path "$installer"; then
-  fail 'Systemd installer may not reference or mutate the harness-owned PATH'
+  abort_contract 'Systemd installer may not reference or mutate the harness-owned PATH'
 fi
 assert_path_mutation_defenses "$bash_bin"
 if tail -n +2 "$installer" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
-  fail 'Systemd installer hard-codes an executable path and can bypass the isolated fake PATH'
+  abort_contract 'Systemd installer hard-codes an executable path and can bypass the isolated fake PATH'
 fi
 if tail -n +2 "$installer" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
-  fail 'Systemd installer can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH'
+  abort_contract 'Systemd installer can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH'
 fi
 if tail -n +2 "$installer" | grep -Eq 'command[[:space:]]+-p|enable[[:space:]]+-f|hash[[:space:]]+-p|/dev/(tcp|udp)/'; then
-  fail 'Systemd installer can bypass fake command lookup'
+  abort_contract 'Systemd installer can bypass fake command lookup'
 fi
 unsafe_absolute_redirects="$(tail -n +2 "$installer" | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
 if [[ -n "$unsafe_absolute_redirects" ]]; then
-  fail 'Systemd installer redirects output to an absolute path other than /dev/null'
+  abort_contract 'Systemd installer redirects output to an absolute path other than /dev/null'
 fi
 redirect_prefix_probe="$(printf '%s\n' 'printf unsafe >/dev/null.evil' | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
-[[ -n "$redirect_prefix_probe" ]] || fail 'Systemd redirect guard accepted a /dev/null prefix sibling'
+[[ -n "$redirect_prefix_probe" ]] || abort_contract 'Systemd redirect guard accepted a /dev/null prefix sibling'
 if tail -n +2 "$installer" | grep -Eq '(^|[;&|()[:space:]])(env|sh|bash|dash|zsh)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])(eval|source)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])\.[[:space:]]+/'; then
-  fail 'Systemd installer can spawn or source an uninstrumented shell command'
+  abort_contract 'Systemd installer can spawn or source an uninstrumented shell command'
 fi
 if tail -n +2 "$installer" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
-  fail 'Systemd installer contains an uninstrumented shell file read'
+  abort_contract 'Systemd installer contains an uninstrumented shell file read'
 fi
-sealed_installer_source="$parser_work/install-systemd.path-sealed.sh"
-make_path_sealed_copy "$installer" "$sealed_installer_source" "$bash_bin"
-while IFS= read -r installer_line || [[ -n "$installer_line" ]]; do
-  if [[ "$installer_line" == "$installer_root_guard" ]]; then
-    printf '%s\n' ': # root guard verified above; behavior runs in a fake-only command root'
-  else
-    printf '%s\n' "$installer_line"
-  fi
-done <"$sealed_installer_source" >"$installer_under_test"
-chmod 0700 "$installer_under_test"
-[[ "$(sed -n '2p' "$installer_under_test")" == 'readonly PATH' ]] ||
-  fail 'Systemd installer test copy did not seal PATH before the SUT body'
+installer_fake_commands=(basename install systemctl)
+make_path_sealed_copy "$installer" "$installer_under_test" "$bash_bin" "$installer_shebang" "$installer_reviewed_sha256" \
+  "$installer_fake_bin" "${installer_fake_commands[@]}" || abort_contract 'could not create reviewed Systemd installer test copy'
+grep -Fxq 'PATH=' "$installer_under_test" && grep -Fxq 'readonly PATH' "$installer_under_test" ||
+  abort_contract 'Systemd installer test copy did not seal PATH before the SUT body'
+installer_under_test_sha256="$(sha256_file "$installer_under_test")" || abort_contract 'could not hash transformed Systemd installer'
+verify_exact_reviewed_shell_source "$installer_under_test" "$bash_bin" "#!$bash_bin" "$installer_under_test_sha256" ||
+  abort_contract 'transformed Systemd installer identity is not verified'
 
 printf '#!%s\n' "$bash_bin" >"$installer_fake_bin/fake-installer-command"
 cat >>"$installer_fake_bin/fake-installer-command" <<'FAKE'
@@ -565,6 +657,11 @@ chmod 0755 "$installer_fake_bin/fake-installer-command"
 for command_name in basename install systemctl; do
   cp "$installer_fake_bin/fake-installer-command" "$installer_fake_bin/$command_name"
 done
+fake_installer_sha256="$(sha256_file "$installer_fake_bin/fake-installer-command")" || abort_contract 'could not hash strict installer fake command'
+for command_name in "${installer_fake_commands[@]}"; do
+  verify_exact_reviewed_shell_source "$installer_fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_installer_sha256" ||
+    abort_contract "installer fake command identity is not verified: $command_name"
+done
 
 : >"$installer_events"
 installer_outside_sentinel="$parser_work/installer-outside.sentinel"
@@ -586,11 +683,114 @@ for rejected_installer_action in \
   fi
 done
 set -e
+
+verify_fixed_outer_binary() {
+  local binary="$1" regular_only="${2:-false}" metadata owner group mode mode_value
+  [[ "$binary" == /usr/bin/* && -f "$binary" && -x "$binary" ]] || return 1
+  [[ "$regular_only" != true || ! -L "$binary" ]] || return 1
+  metadata="$(/usr/bin/stat -L -c '%u:%g:%a' -- "$binary")" || return 1
+  IFS=: read -r owner group mode <<<"$metadata"
+  [[ "$owner" == 0 && "$group" == 0 && "$mode" =~ ^[0-7]{3,4}$ ]] || return 1
+  mode_value=$((8#$mode)); (( (mode_value & 8#022) == 0 ))
+}
+
+assert_containment_gate_mutations() {
+  local sentinel="$parser_work/containment-gate.sentinel" rejected="$parser_work/rejected-bwrap"
+  local candidate="$parser_work/containment-candidate" status
+  printf '%s' unchanged >"$sentinel"
+  printf '#!%s\n%s\n' "$bash_bin" 'exit 77' >"$rejected"
+  printf '#!%s\nprintf reached >%q\n' "$bash_bin" "$sentinel" >"$candidate"
+  chmod 0700 "$rejected" "$candidate"
+  verify_fixed_outer_binary "$parser_work/missing-bwrap" true && abort_contract 'missing Bubblewrap dependency was accepted'
+  set +e
+  "$env_bin" -i PATH= "$rejected" --unshare-user --unshare-pid --unshare-net -- "$candidate" >/dev/null 2>&1
+  status=$?
+  set -e
+  [[ "$status" == 77 && "$(<"$sentinel")" == unchanged ]] || abort_contract 'rejected containment reached installer sentinel'
+}
+
+prepare_linux_containment() {
+  local entry="$parser_work/namespace-entry.sh" empty="$parser_work/namespace-empty" repo_mask="$parser_work/namespace-repo-mask"
+  local outside="/tmp/learncoding-systemd-installer-outside-$$" binary probe_status
+  [[ "$(/usr/bin/uname -s 2>/dev/null || true)" == Linux && "$EUID" == 0 ]] ||
+    abort_contract 'authoritative Systemd installer contract requires Ubuntu/Linux root with Bubblewrap user/mount/PID/network containment'
+  for binary in /usr/bin/stat /usr/bin/uname /usr/bin/bash /usr/bin/env /usr/bin/sha256sum \
+    /usr/bin/timeout /usr/bin/prlimit /usr/bin/setpriv; do
+    verify_fixed_outer_binary "$binary" false || abort_contract "containment dependency is not fixed root-owned and non-writable: $binary"
+  done
+  verify_fixed_outer_binary /usr/bin/bwrap true ||
+    abort_contract '/usr/bin/bwrap must be a regular root-owned non-writable authoritative test dependency'
+  mkdir -m 0700 -p "$empty/$(basename -- "$parser_work")" "$repo_mask"
+  {
+    printf '%s\n' '#!/usr/bin/bash'
+    printf 'readonly containment_work=%q\nreadonly containment_outside=%q\nreadonly containment_repo=%q\n' \
+      "$parser_work" "$outside" "$repo_root"
+    cat <<'EOF'
+set -Eeuo pipefail
+[[ "$EUID" == 0 && "$$" == 1 ]] || exit 90
+capability_set_count=0 no_new_privs=
+while IFS=$'\t ' read -r key value _; do
+  case "$key" in CapEff:|CapPrm:|CapInh:|CapBnd:|CapAmb:) [[ "$value" =~ ^0+$ ]] || exit 91; capability_set_count=$((capability_set_count + 1)) ;; Groups:) [[ -z "${value:-}" ]] || exit 91 ;; NoNewPrivs:) no_new_privs="$value" ;; esac
+done </proc/self/status
+[[ "$capability_set_count" == 5 && "$no_new_privs" == 1 ]] || exit 91
+interface_count=0
+while IFS= read -r line; do case "$line" in *:*) interface="${line%%:*}"; interface="${interface//[[:space:]]/}"; [[ "$interface" == lo ]] || exit 92; interface_count=$((interface_count + 1)) ;; esac; done </proc/net/dev
+[[ "$interface_count" == 1 ]] || exit 92
+[[ ! -e /run/docker.sock && ! -e /run/libvirt/libvirt-sock && ! -e /dev/kvm ]] || exit 93
+[[ ! -e /etc/passwd && ! -e /etc/learncoding && ! -e /root/.ssh && ! -e /var/lib/learncoding ]] || exit 94
+[[ ! -e "$containment_repo/.env" && ! -e "$containment_repo/.git" ]] || exit 94
+if { : >"$containment_outside"; } 2>/dev/null; then exit 95; fi
+: >"$containment_work/.namespace-write-probe"
+exec "$@"
+EOF
+  } >"$entry"
+  chmod 0700 "$entry"
+  containment_entry="$entry"
+  containment_entry_sha256="$(sha256_file "$entry")" || abort_contract 'could not hash namespace entry'
+  verify_exact_reviewed_shell_source "$entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || abort_contract 'namespace entry identity is not verified'
+  containment_command=(
+    /usr/bin/timeout --signal=KILL --kill-after=5s 45s
+    /usr/bin/prlimit --nproc=64:64 --nofile=128:128 --core=0:0 --cpu=30:30 --
+    /usr/bin/setpriv --clear-groups
+    /usr/bin/bwrap --die-with-parent --new-session --unshare-user --uid 0 --gid 0
+    --unshare-pid --unshare-net --unshare-ipc --unshare-uts --disable-userns --cap-drop ALL --as-pid-1 --ro-bind / /
+    --ro-bind "$empty" /etc --ro-bind "$empty" /home --ro-bind "$empty" /root --ro-bind "$empty" /run
+    --ro-bind "$empty" /srv --ro-bind "$empty" /mnt --ro-bind "$empty" /media --ro-bind "$empty" /opt
+    --ro-bind "$empty" /var/lib --ro-bind "$empty" /var/backups --ro-bind "$empty" /var/log --ro-bind "$empty" /tmp
+    --ro-bind "$repo_mask" "$repo_root" --bind "$parser_work" "$parser_work"
+    --ro-bind "$empty" "$empty" --ro-bind "$repo_mask" "$repo_mask"
+    --ro-bind "$installer_fake_bin" "$installer_fake_bin"
+    --ro-bind "$entry" "$entry" --ro-bind "$installer_under_test" "$installer_under_test"
+    --proc /proc --dev /dev --chdir "$parser_work" --
+    /usr/bin/setpriv --no-new-privs --bounding-set=-all --inh-caps=-all --ambient-caps=-all /usr/bin/bash "$entry"
+  )
+  set +e
+  /usr/bin/env -i PATH= HOME="$parser_work" "${containment_command[@]}" /usr/bin/bash -c ':' >/dev/null 2>"$parser_work/containment-preflight.stderr"
+  probe_status=$?
+  set -e
+  (( probe_status == 0 )) || abort_contract 'Bubblewrap containment preflight or mandatory user namespace was rejected'
+  [[ -f "$parser_work/.namespace-write-probe" && ! -e "$outside" ]] || abort_contract 'containment did not prove fixture-only writes'
+}
+
+assert_installer_execution_identity() {
+  local command_name
+  verify_exact_reviewed_shell_source "$installer" "$bash_bin" "$installer_shebang" "$installer_reviewed_sha256" || abort_contract 'installer source changed after transformation'
+  verify_exact_reviewed_shell_source "$installer_under_test" "$bash_bin" "#!$bash_bin" "$installer_under_test_sha256" || abort_contract 'transformed installer changed before execution'
+  verify_exact_reviewed_shell_source "$containment_entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || abort_contract 'namespace entry changed before execution'
+  for command_name in "${installer_fake_commands[@]}"; do
+    verify_exact_reviewed_shell_source "$installer_fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_installer_sha256" || abort_contract "installer fake changed before execution: $command_name"
+  done
+  verify_fixed_outer_binary /usr/bin/bwrap true || abort_contract 'Bubblewrap changed before installer execution'
+}
+
+assert_containment_gate_mutations
+prepare_linux_containment
+assert_installer_execution_identity
 : >"$installer_events"
 set +e
-"$env_bin" -i HOME="$parser_work" PATH="$installer_fake_bin" REPO_ROOT="$installer_root" \
+/usr/bin/env -i HOME="$parser_work" PATH= REPO_ROOT="$installer_root" \
   INSTALLER_EVENTS="$installer_events" INSTALLER_ROOT="$installer_root" \
-  "$bash_bin" "$installer_under_test" --enable \
+  "${containment_command[@]}" /usr/bin/bash "$installer_under_test" --enable \
   >"$parser_work/installer.stdout" 2>"$parser_work/installer.stderr"
 installer_status=$?
 set -e

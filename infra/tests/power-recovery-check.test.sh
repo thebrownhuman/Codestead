@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
+PATH=/usr/bin:/bin
+export PATH
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
-bash_bin="$(command -v bash)"
-env_bin="$(command -v env)"
-node_bin="$(command -v node)"
+bash_bin=/usr/bin/bash
+env_bin=/usr/bin/env
+sha256_bin=/usr/bin/sha256sum
+node_bin=/usr/bin/node
 checker="$repo_root/infra/ops/check-recovery.sh"
-tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+checker_shebang='#!/usr/bin/env bash'
+checker_reviewed_sha256='PENDING_REVIEW_WHEN_LATER_TASK_ASSET_LANDS'
+tmp_base="$(cd /tmp && pwd -P)"
 work="$(mktemp -d "$tmp_base/power-recovery-check.XXXXXX")"
 work="$(cd "$work" && pwd -P)"
 [[ ! -L "$work" && "$work" == "$tmp_base"/* ]] || {
@@ -28,6 +33,11 @@ if [[ ! -f "$checker" ]]; then
   exit 1
 fi
 
+if [[ "$(/usr/bin/uname -s 2>/dev/null || true)" != Linux ]]; then
+  echo 'FAIL: authoritative recovery checker contract requires Linux Bubblewrap containment' >&2
+  exit 1
+fi
+
 if (( EUID != 0 )); then
   if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     cleanup
@@ -42,6 +52,7 @@ fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
+[[ -f "$node_bin" && -x "$node_bin" ]] || fail 'fixed /usr/bin/node is required for recovery JSON validation'
 
 source_manipulates_path() {
   local source="$1"
@@ -59,13 +70,116 @@ make_path_sealed_copy() {
   local source="$1"
   local destination="$2"
   local interpreter="$3"
+  local expected_shebang="$4"
+  local expected_sha256="$5"
+  local command_root="${6:-}"
+  local command_name
+
+  verify_exact_reviewed_shell_source "$source" "$interpreter" "$expected_shebang" "$expected_sha256" || return 1
 
   {
     printf '#!%s\n' "$interpreter"
-    printf '%s\n' 'readonly PATH'
+    if [[ -n "$command_root" ]]; then
+      shift 6
+      for command_name in "$@"; do
+        [[ "$command_name" =~ ^[a-z][a-z0-9-]*$ ]] || return 1
+        printf '%s() { %q/%s "$@"; }\n' "$command_name" "$command_root" "$command_name"
+      done
+    fi
+    printf '%s\n' 'PATH=' 'readonly PATH'
     tail -n +2 "$source"
   } >"$destination"
   chmod 0700 "$destination"
+}
+
+sha256_file() {
+  local source="$1"
+  local digest_line
+  local digest
+
+  digest_line="$("$sha256_bin" -- "$source")" || return 1
+  digest="${digest_line%% *}"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "$digest"
+}
+
+verify_exact_reviewed_shell_source() {
+  local source="$1"
+  local interpreter="$2"
+  local expected_shebang="$3"
+  local expected_sha256="$4"
+  local first_line
+  local shebang_count=0
+  local line
+  local actual_sha256
+
+  [[ -f "$source" && ! -L "$source" ]] || return 1
+  IFS= read -r first_line <"$source" || return 1
+  [[ "$first_line" == "$expected_shebang" && "$first_line" != *$'\r'* ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" != *$'\r'* ]] || return 1
+    [[ "$line" == '#!'* ]] && shebang_count=$((shebang_count + 1))
+  done <"$source"
+  (( shebang_count == 1 )) || return 1
+  [[ "$expected_sha256" =~ ^[0-9a-f]{64}$ ]] || return 1
+  actual_sha256="$(sha256_file "$source")" || return 1
+  [[ "$actual_sha256" == "$expected_sha256" ]] || return 1
+  "$interpreter" -n "$source" >/dev/null 2>&1
+}
+
+assert_source_identity_mutations() {
+  local interpreter="$1"
+  local expected_shebang="$2"
+  local safe_source="$work/reviewed-source-safe.sh"
+  local mutated_source="$work/reviewed-source-mutated.sh"
+  local transformed="$work/reviewed-source-transformed.sh"
+  local sentinel="$work/reviewed-source.sentinel"
+  local safe_sha256
+  local label
+  local mutation
+
+  printf '%s\n%s\n' "$expected_shebang" 'set -e' >"$safe_source"
+  safe_sha256="$(sha256_file "$safe_source")" || fail 'could not hash reviewed source mutation baseline'
+  printf '%s' unchanged >"$sentinel"
+  while IFS='|' read -r label mutation; do
+    printf '%s\n%s\n%s\n%s\n' "$expected_shebang" 'set -e' "$mutation" \
+      'printf reached >"$SOURCE_IDENTITY_SENTINEL"' >"$mutated_source"
+    rm -f -- "$transformed"
+    if make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256"; then
+      fail "reviewed source identity accepted $label mutation"
+    fi
+    [[ ! -e "$transformed" && "$(<"$sentinel")" == unchanged ]] ||
+      fail "reviewed source identity transformed or ran $label mutation"
+  done <<'EOF'
+dynamic-command-p|opt=-p; builtin command "$opt" -v cp
+dynamic-hash-p|opt=-p; d=/usr/bin; hash "$opt" "$d/cp" cp
+assembled-absolute|d=/usr/bin; target="$d/cp"; command -v "$target"
+new-shell|d=/usr/bin; shell="$d/sh"; "$shell" -c 'command -v cp'
+dynamic-source|verb=source; "$verb" "$DYNAMIC_HELPER"
+dynamic-dot-source|verb=.; "$verb" "$DYNAMIC_HELPER"
+dynamic-env|verb=env; "$verb" command -v cp
+dynamic-builtin|verb=builtin; "$verb" command -p -v cp
+dynamic-exec|verb=exec; "$verb" /usr/bin/sh -c 'command -v cp'
+EOF
+
+  printf '%s\n%s\n' '/usr/bin/cp -- "$SOURCE" "$DESTINATION"' 'set -e' >"$mutated_source"
+  rm -f -- "$transformed"
+  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+    fail 'reviewed source identity accepted a line-1 absolute command'
+  [[ ! -e "$transformed" && "$(<"$sentinel")" == unchanged ]] || fail 'line-1 mutation escaped verification'
+  printf '%s\n%s\n%s\n' "$expected_shebang" "$expected_shebang" 'set -e' >"$mutated_source"
+  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+    fail 'reviewed source identity accepted duplicate shebangs'
+  printf '%s\r\n%s\r\n' "$expected_shebang" 'set -e' >"$mutated_source"
+  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+    fail 'reviewed source identity accepted CRLF source'
+  rm -f -- "$work/reviewed-source-symlink.sh"
+  ln -s "$safe_source" "$work/reviewed-source-symlink.sh"
+  if [[ -L "$work/reviewed-source-symlink.sh" ]]; then
+    make_path_sealed_copy "$work/reviewed-source-symlink.sh" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+      fail 'reviewed source identity accepted a symlink'
+  fi
+  rm -f -- "$work/reviewed-source-symlink.sh"
 }
 
 assert_path_mutation_defenses() {
@@ -77,48 +191,60 @@ assert_path_mutation_defenses() {
   local sentinel="$work/path-mutation-sentinel"
   local mutation
   local mutation_status
+  local mutation_sha256
 
+  mkdir -m 0700 "$mutation_bin"
   for mutation in \
     'PATH=/usr/bin:/bin' \
     'export PATH=/usr/bin:/bin' \
     'unset PATH' \
     'readonly PATH=/usr/bin:/bin'; do
-    printf '#!%s\n%s\n' "$interpreter" "$mutation" >"$mutation_source"
+    # command -v is a shell builtin; none of these probes executes cp.
+    {
+      printf '#!%s\n' "$interpreter"
+      printf '%s\n' \
+        'set -e' \
+        "$mutation" \
+        'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
+        'printf compromised >"$PATH_MUTATION_SENTINEL"'
+    } >"$mutation_source"
     source_manipulates_path "$mutation_source" || fail "PATH static guard missed: $mutation"
+    mutation_sha256="$(sha256_file "$mutation_source")" || fail 'could not hash PATH mutation source'
+    rm -f -- "$sealed_mutation" "$resolution"
+    make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter" "#!$interpreter" "$mutation_sha256" ||
+      fail 'could not create reviewed PATH mutation copy'
+    printf '%s' unchanged >"$sentinel"
+    set +e
+    "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
+      PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
+      >"$work/path-mutation.stdout" 2>"$work/path-mutation.stderr"
+    mutation_status=$?
+    set -e
+
+    (( mutation_status != 0 )) || fail "same-interpreter PATH mutation unexpectedly succeeded: $mutation"
+    [[ ! -e "$resolution" ]] || fail "PATH mutation resolved a host executable before rejection: $mutation"
+    [[ "$(<"$sentinel")" == unchanged ]] || fail "PATH mutation reached the outside sentinel: $mutation"
   done
-
-  # command -v is a shell builtin; this mutation probe never executes cp.
-  {
-    printf '#!%s\n' "$interpreter"
-    printf '%s\n' \
-      'set -e' \
-      'PATH=/usr/bin:/bin' \
-      'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
-      'printf compromised >"$PATH_MUTATION_SENTINEL"'
-  } >"$mutation_source"
-  make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter"
-  mkdir -m 0700 "$mutation_bin"
-  printf '%s' unchanged >"$sentinel"
-  set +e
-  "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
-    PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
-    >"$work/path-mutation.stdout" 2>"$work/path-mutation.stderr"
-  mutation_status=$?
-  set -e
-
-  (( mutation_status != 0 )) || fail 'same-interpreter PATH mutation unexpectedly succeeded'
-  [[ ! -e "$resolution" ]] || fail 'PATH mutation resolved a host executable before rejection'
-  [[ "$(<"$sentinel")" == unchanged ]] || fail 'PATH mutation reached the outside sentinel after changing command lookup'
 }
 
+verify_exact_reviewed_shell_source "$checker" "$bash_bin" "$checker_shebang" "$checker_reviewed_sha256" ||
+  fail 'recovery checker source identity, shebang, regular-file, LF, syntax, or SHA is not reviewed'
+assert_source_identity_mutations "$bash_bin" "$checker_shebang"
 if source_manipulates_path "$checker"; then
   fail 'recovery checker may not reference or mutate the harness-owned PATH'
 fi
 assert_path_mutation_defenses "$bash_bin"
 checker_under_test="$work/check-recovery.sealed.sh"
-make_path_sealed_copy "$checker" "$checker_under_test" "$bash_bin"
-[[ "$(sed -n '2p' "$checker_under_test")" == 'readonly PATH' ]] ||
+fake_bin="$work/bin"
+checker_fake_commands=(id systemctl virsh docker curl date sleep stat realpath readlink cat mktemp rm \
+  journalctl findmnt smartctl mount umount nft ping nc wget dd truncate touch tee ln rsync sudo ssh scp socat)
+make_path_sealed_copy "$checker" "$checker_under_test" "$bash_bin" "$checker_shebang" "$checker_reviewed_sha256" \
+  "$fake_bin" "${checker_fake_commands[@]}" || fail 'could not create reviewed recovery checker test copy'
+grep -Fxq 'PATH=' "$checker_under_test" && grep -Fxq 'readonly PATH' "$checker_under_test" ||
   fail 'recovery checker test copy did not seal PATH before the SUT body'
+checker_under_test_sha256="$(sha256_file "$checker_under_test")" || fail 'could not hash transformed recovery checker'
+verify_exact_reviewed_shell_source "$checker_under_test" "$bash_bin" "#!$bash_bin" "$checker_under_test_sha256" ||
+  fail 'transformed recovery checker identity is not verified'
 
 if tail -n +2 "$checker" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
   fail 'recovery checker hard-codes an executable path and can bypass the isolated fake PATH'
@@ -502,6 +628,11 @@ for command_name in id systemctl virsh docker curl date sleep stat realpath read
   journalctl findmnt smartctl mount umount nft ping nc wget dd truncate touch tee ln rsync sudo ssh scp socat; do
   cp "$fake_bin/fake-recovery-command" "$fake_bin/$command_name"
 done
+fake_recovery_sha256="$(sha256_file "$fake_bin/fake-recovery-command")" || fail 'could not hash strict recovery fake command'
+for command_name in "${checker_fake_commands[@]}"; do
+  verify_exact_reviewed_shell_source "$fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_recovery_sha256" ||
+    fail "recovery fake command identity is not verified: $command_name"
+done
 
 outside_sentinel="$work/outside-fake-roots.sentinel"
 printf '%s' 'outside-fixture-sentinel-unchanged' >"$outside_sentinel"
@@ -518,6 +649,135 @@ set -e
 [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
   fail 'outside-fixture recovery sentinel was modified'
 
+verify_fixed_outer_binary() {
+  local binary="$1"
+  local regular_only="${2:-false}"
+  local metadata owner group mode mode_value
+  [[ "$binary" == /usr/bin/* && -f "$binary" && -x "$binary" ]] || return 1
+  [[ "$regular_only" != true || ! -L "$binary" ]] || return 1
+  metadata="$(/usr/bin/stat -L -c '%u:%g:%a' -- "$binary")" || return 1
+  IFS=: read -r owner group mode <<<"$metadata"
+  [[ "$owner" == 0 && "$group" == 0 && "$mode" =~ ^[0-7]{3,4}$ ]] || return 1
+  mode_value=$((8#$mode))
+  (( (mode_value & 8#022) == 0 ))
+}
+
+assert_containment_gate_mutations() {
+  local sentinel="$work/containment-gate.sentinel"
+  local rejected="$work/rejected-bwrap"
+  local candidate="$work/containment-candidate"
+  local status
+  printf '%s' unchanged >"$sentinel"
+  printf '#!%s\n%s\n' "$bash_bin" 'exit 77' >"$rejected"
+  printf '#!%s\nprintf reached >%q\n' "$bash_bin" "$sentinel" >"$candidate"
+  chmod 0700 "$rejected" "$candidate"
+  verify_fixed_outer_binary "$work/missing-bwrap" true && fail 'missing Bubblewrap dependency was accepted'
+  set +e
+  "$env_bin" -i PATH= "$rejected" --unshare-user --unshare-pid --unshare-net -- "$candidate" >/dev/null 2>&1
+  status=$?
+  set -e
+  [[ "$status" == 77 && "$(<"$sentinel")" == unchanged ]] ||
+    fail 'rejected containment reached the recovery checker sentinel'
+}
+
+prepare_linux_containment() {
+  local entry="$work/namespace-entry.sh"
+  local empty="$work/namespace-empty"
+  local repo_mask="$work/namespace-repo-mask"
+  local outside="/tmp/learncoding-recovery-check-outside-$$"
+  local binary probe_status
+
+  [[ "$(/usr/bin/uname -s 2>/dev/null || true)" == Linux && "$EUID" == 0 ]] ||
+    fail 'authoritative recovery checker contract requires Ubuntu/Linux root with Bubblewrap user/mount/PID/network containment'
+  for binary in /usr/bin/stat /usr/bin/uname /usr/bin/bash /usr/bin/env /usr/bin/sha256sum \
+    /usr/bin/timeout /usr/bin/prlimit /usr/bin/setpriv /usr/bin/node; do
+    verify_fixed_outer_binary "$binary" false || fail "containment dependency is not fixed root-owned and non-writable: $binary"
+  done
+  verify_fixed_outer_binary /usr/bin/bwrap true ||
+    fail '/usr/bin/bwrap must be a regular root-owned non-writable authoritative test dependency'
+
+  mkdir -m 0700 -p "$empty/$(basename -- "$work")" "$repo_mask"
+  : >"$repo_mask/compose.yaml"
+  {
+    printf '%s\n' '#!/usr/bin/bash'
+    printf 'readonly containment_work=%q\nreadonly containment_outside=%q\nreadonly containment_repo=%q\n' \
+      "$work" "$outside" "$repo_root"
+    cat <<'EOF'
+set -Eeuo pipefail
+[[ "$EUID" == 0 && "$$" == 1 ]] || exit 90
+capability_set_count=0 no_new_privs=
+while IFS=$'\t ' read -r key value _; do
+  case "$key" in
+    CapEff:|CapPrm:|CapInh:|CapBnd:|CapAmb:) [[ "$value" =~ ^0+$ ]] || exit 91; capability_set_count=$((capability_set_count + 1)) ;;
+    Groups:) [[ -z "${value:-}" ]] || exit 91 ;;
+    NoNewPrivs:) no_new_privs="$value" ;;
+  esac
+done </proc/self/status
+[[ "$capability_set_count" == 5 && "$no_new_privs" == 1 ]] || exit 91
+interface_count=0
+while IFS= read -r line; do
+  case "$line" in *:*) interface="${line%%:*}"; interface="${interface//[[:space:]]/}"; [[ "$interface" == lo ]] || exit 92; interface_count=$((interface_count + 1)) ;; esac
+done </proc/net/dev
+[[ "$interface_count" == 1 ]] || exit 92
+[[ ! -e /run/docker.sock && ! -e /run/libvirt/libvirt-sock && ! -e /dev/kvm ]] || exit 93
+[[ ! -e /etc/passwd && ! -e /etc/learncoding && ! -e /root/.ssh && ! -e /var/lib/learncoding ]] || exit 94
+[[ ! -e "$containment_repo/.env" && ! -e "$containment_repo/.git" ]] || exit 94
+if { : >"$containment_outside"; } 2>/dev/null; then exit 95; fi
+: >"$containment_work/.namespace-write-probe"
+exec "$@"
+EOF
+  } >"$entry"
+  chmod 0700 "$entry"
+  containment_entry="$entry"
+  containment_entry_sha256="$(sha256_file "$entry")" || fail 'could not hash namespace entry'
+  verify_exact_reviewed_shell_source "$entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" ||
+    fail 'namespace entry identity is not verified'
+
+  containment_command=(
+    /usr/bin/timeout --signal=KILL --kill-after=5s 45s
+    /usr/bin/prlimit --nproc=64:64 --nofile=128:128 --core=0:0 --cpu=30:30 --
+    /usr/bin/setpriv --clear-groups
+    /usr/bin/bwrap --die-with-parent --new-session --unshare-user --uid 0 --gid 0
+    --unshare-pid --unshare-net --unshare-ipc --unshare-uts --disable-userns
+    --cap-drop ALL --as-pid-1 --ro-bind / /
+    --ro-bind "$empty" /etc --ro-bind "$empty" /home --ro-bind "$empty" /root --ro-bind "$empty" /run
+    --ro-bind "$empty" /srv --ro-bind "$empty" /mnt --ro-bind "$empty" /media --ro-bind "$empty" /opt
+    --ro-bind "$empty" /var/lib --ro-bind "$empty" /var/backups --ro-bind "$empty" /var/log --ro-bind "$empty" /tmp
+    --ro-bind "$repo_mask" "$repo_root" --ro-bind "$repo_root/compose.yaml" "$repo_root/compose.yaml"
+    --bind "$work" "$work"
+    --ro-bind "$empty" "$empty" --ro-bind "$repo_mask" "$repo_mask"
+    --ro-bind "$fake_bin" "$fake_bin"
+    --ro-bind "$entry" "$entry" --ro-bind "$checker_under_test" "$checker_under_test"
+    --proc /proc --dev /dev --chdir "$work" --
+    /usr/bin/setpriv --no-new-privs --bounding-set=-all --inh-caps=-all --ambient-caps=-all
+    /usr/bin/bash "$entry"
+  )
+  set +e
+  /usr/bin/env -i PATH= HOME="$work" "${containment_command[@]}" /usr/bin/bash -c ':' >/dev/null 2>"$work/containment-preflight.stderr"
+  probe_status=$?
+  set -e
+  (( probe_status == 0 )) || fail 'Bubblewrap containment preflight or mandatory user namespace was rejected'
+  [[ -f "$work/.namespace-write-probe" && ! -e "$outside" ]] || fail 'containment did not prove fixture-only writes'
+}
+
+assert_recovery_execution_identity() {
+  local command_name
+  verify_exact_reviewed_shell_source "$checker" "$bash_bin" "$checker_shebang" "$checker_reviewed_sha256" ||
+    fail 'recovery checker source changed after transformation'
+  verify_exact_reviewed_shell_source "$checker_under_test" "$bash_bin" "#!$bash_bin" "$checker_under_test_sha256" ||
+    fail 'transformed recovery checker changed before execution'
+  verify_exact_reviewed_shell_source "$containment_entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" ||
+    fail 'namespace entry changed before recovery checker execution'
+  for command_name in "${checker_fake_commands[@]}"; do
+    verify_exact_reviewed_shell_source "$fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_recovery_sha256" ||
+      fail "recovery fake command changed before execution: $command_name"
+  done
+  verify_fixed_outer_binary /usr/bin/bwrap true || fail 'Bubblewrap changed before recovery checker execution'
+}
+
+assert_containment_gate_mutations
+prepare_linux_containment
+
 run_checker() {
   local scenario="$1"
   local prefix="$2"
@@ -525,9 +785,10 @@ run_checker() {
   printf '%s' 0 >"$clock_file"
   : >"$events"
   set +e
-  printf '%s' "$stdin_canary" | "$env_bin" -i \
+  assert_recovery_execution_identity
+  printf '%s' "$stdin_canary" | /usr/bin/env -i \
     HOME="$work" \
-    PATH="$fake_bin" \
+    PATH= \
     TMPDIR="$curl_root" \
     RECOVERY_CHECK_TEST_ROOT="$host_root" \
     RECOVERY_PUBLIC_URL='https://pilot.example.test/health/ready' \
@@ -555,7 +816,7 @@ run_checker() {
     FAKE_COMPOSE_ENV="$compose_env_path" \
     FAKE_COMPOSE_FILE="$repo_root/compose.yaml" \
     FAKE_POSTGRES_SQL="$postgres_sql" \
-    "$bash_bin" "$checker_under_test" >"$prefix.stdout" 2>"$prefix.stderr"
+    "${containment_command[@]}" /usr/bin/bash "$checker_under_test" >"$prefix.stdout" 2>"$prefix.stderr"
   checker_status=$?
   set -e
   [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||

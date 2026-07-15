@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { createHash } from "node:crypto";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const failures = [];
@@ -16,6 +17,12 @@ function read(relative) {
 
 function expect(condition, message) {
   if (!condition) failures.push(message);
+}
+
+function sha256File(relative) {
+  const file = path.join(root, relative);
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return "";
+  return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
 
 function sourceManipulatesHarnessPath(content) {
@@ -173,6 +180,12 @@ const recoveryService = read("infra/systemd/learncoding-recovery-check.service")
 const recoveryTimer = read("infra/systemd/learncoding-recovery-check.timer");
 const recoveryEvidence = read("infra/ops/capture-recovery-evidence.sh");
 const systemdInstaller = read("infra/ops/install-systemd.sh");
+const provisionHarness = read("infra/tests/runner-vm-provision.test.sh");
+const recoveryHarness = read("infra/tests/power-recovery-check.test.sh");
+const runnerHarness = read("infra/tests/runner-reconciliation.test.sh");
+const systemdHarness = read("infra/tests/systemd-recovery.test.sh");
+const evidenceHarness = read("infra/tests/power-evidence.test.sh");
+const runtimeHarness = read("infra/tests/runtime-config.test.sh");
 
 for (const mutation of [
   "PATH=/usr/bin:/bin",
@@ -202,6 +215,166 @@ for (const [label, source] of [
     );
   }
 }
+
+const shellHarnesses = [
+  ["runner VM provision", provisionHarness],
+  ["power recovery checker", recoveryHarness],
+  ["runner reconciliation", runnerHarness],
+  ["Systemd recovery", systemdHarness],
+  ["power evidence", evidenceHarness],
+  ["runtime config", runtimeHarness],
+];
+const requiredIdentityMutations = [
+  "dynamic-command-p",
+  "dynamic-hash-p",
+  "assembled-absolute",
+  "new-shell",
+  "dynamic-source",
+  "dynamic-dot-source",
+  "dynamic-env",
+  "dynamic-builtin",
+  "dynamic-exec",
+];
+const requiredContainmentTokens = [
+  "/usr/bin/bwrap",
+  "--die-with-parent",
+  "--new-session",
+  "--unshare-user",
+  "--unshare-pid",
+  "--unshare-net",
+  "--unshare-ipc",
+  "--unshare-uts",
+  "--disable-userns",
+  "--cap-drop ALL",
+  "--as-pid-1",
+  "--ro-bind / /",
+  "--proc /proc",
+  "--dev /dev",
+  "/usr/bin/timeout",
+  "/usr/bin/prlimit",
+  "/usr/bin/setpriv",
+  "--no-new-privs",
+  "--bounding-set=-all",
+  "CapEff:",
+  "CapBnd:",
+  "Groups:",
+  "NoNewPrivs:",
+  "/usr/bin/setpriv --clear-groups",
+  "/run/docker.sock",
+  "/run/libvirt/libvirt-sock",
+  "/dev/kvm",
+  "/etc/learncoding",
+  "/var/lib/learncoding",
+  "namespace-repo-mask",
+  '--ro-bind "$empty" "$empty"',
+  '--ro-bind "$repo_mask" "$repo_mask"',
+  '"$containment_repo/.env"',
+  '"$containment_repo/.git"',
+  "verify_fixed_outer_binary",
+  "assert_containment_gate_mutations",
+];
+for (const [label, harness] of shellHarnesses) {
+  expect(harness.includes("verify_exact_reviewed_shell_source"), `${label} harness must verify exact source identity`);
+  expect(harness.includes("sha256_file"), `${label} harness must verify reviewed SHA-256 identities`);
+  expect(harness.includes("! -L \"$source\""), `${label} harness must reject symlinked reviewed source`);
+  expect(harness.includes("shebang_count"), `${label} harness must verify exactly one reviewed shebang`);
+  expect(harness.includes("$'\\r'"), `${label} harness must reject CR/CRLF reviewed source`);
+  expect(harness.includes('"$interpreter" -n "$source"'), `${label} harness must syntax-check the exact reviewed source`);
+  expect(harness.includes("'PATH='") && harness.includes("'readonly PATH'"), `${label} harness must use an empty readonly SUT PATH`);
+  for (const mutation of requiredIdentityMutations) {
+    expect(harness.includes(mutation), `${label} harness is missing the ${mutation} source-identity mutation`);
+  }
+  for (const token of requiredContainmentTokens) {
+    expect(harness.includes(token), `${label} harness is missing mandatory containment token: ${token}`);
+  }
+  expect(!harness.includes("--unshare-all"), `${label} harness must not use best-effort --unshare-all`);
+  expect(!harness.includes("--unshare-user-try"), `${label} harness must not use best-effort user namespaces`);
+  expect(/\/usr\/bin\/env -i[\s\S]{0,1200}PATH=/u.test(harness), `${label} harness must enter containment from an empty environment and PATH`);
+}
+
+const reviewedSourceContracts = [
+  [
+    "runner launcher",
+    runnerHarness,
+    "launcher_reviewed_sha256",
+    sha256File("infra/runner/run-runner.sh"),
+  ],
+  [
+    "Systemd installer",
+    systemdHarness,
+    "installer_reviewed_sha256",
+    sha256File("infra/ops/install-systemd.sh"),
+  ],
+  [
+    "runtime validator",
+    runtimeHarness,
+    "validator_reviewed_sha256",
+    sha256File("infra/ops/validate-runtime.sh"),
+  ],
+];
+for (const [label, harness, variable, digest] of reviewedSourceContracts) {
+  expect(/^[0-9a-f]{64}$/u.test(digest), `${label} production source must exist for its reviewed hash contract`);
+  expect(harness.includes(`${variable}='${digest}'`), `${label} harness reviewed SHA must match the exact production bytes`);
+}
+for (const [label, harness, variable] of [
+  ["runner VM provision", provisionHarness, "provisioner_reviewed_sha256"],
+  ["power recovery checker", recoveryHarness, "checker_reviewed_sha256"],
+  ["power evidence", evidenceHarness, "collector_reviewed_sha256"],
+]) {
+  expect(
+    harness.includes(`${variable}='PENDING_REVIEW_WHEN_LATER_TASK_ASSET_LANDS'`),
+    `${label} harness must fail closed on its missing later-task asset until its exact bytes are reviewed`,
+  );
+}
+
+for (const mutation of [
+  "missing-flock",
+  "duplicate-flock",
+  "changed-flock",
+  "missing-node",
+  "duplicate-node",
+  "changed-node",
+  "reordered",
+]) {
+  expect(runnerHarness.includes(mutation), `runner harness is missing exact ${mutation} command-site mutation`);
+}
+expect(
+  runnerHarness.includes("if ! /usr/bin/flock --exclusive --nonblock 9; then") &&
+    runnerHarness.includes("exec /usr/bin/node /opt/learncoding/services/runner/dist/index.js"),
+  "runner transformer must name both exact canonical production command sites",
+);
+expect(
+  runnerHarness.includes('[[ "$#" == 3 && "$1" == --exclusive && "$2" == --nonblock && "$3" == 9 ]]') &&
+    runnerHarness.includes('/proc/self/fd/9 -ef "$expected_lock"') &&
+    runnerHarness.includes("exec /usr/bin/flock --exclusive --nonblock 9"),
+  "runner strict flock wrapper must preserve exact argv and lock-file descriptor semantics",
+);
+expect(
+  runnerHarness.includes('[[ "$#" == 1 && "$1" == /opt/learncoding/services/runner/dist/index.js ]]') &&
+    runnerHarness.includes("node-terminal /opt/learncoding/services/runner/dist/index.js") &&
+    runnerHarness.includes("exit 86"),
+  "runner Node site must terminate at a fixed event wrapper without launching the application",
+);
+for (const mutation of [
+  "missing-stat",
+  "duplicate-stat",
+  "changed-stat",
+  "missing-realpath",
+  "duplicate-realpath",
+  "changed-realpath",
+  "missing-docker",
+  "duplicate-docker",
+  "changed-docker",
+]) {
+  expect(runtimeHarness.includes(mutation), `runtime harness is missing exact ${mutation} transformation mutation`);
+}
+expect(
+  runtimeHarness.includes("Compose environment must contain only strict data assignments before source") &&
+    runtimeHarness.includes("RUNTIME_CONFIG_VERIFY_SHA256") &&
+    runtimeHarness.includes('source "$compose_env"') &&
+    runtimeHarness.includes('--ro-bind "$config" "$config"'),
+  "runtime harness must validate and hash the sole sourced Compose environment immediately before execution",
+);
 
 expect(/@sha256:[0-9a-f]{64}/i.test(dockerfile), "Docker base image must be digest-pinned");
 expect(
