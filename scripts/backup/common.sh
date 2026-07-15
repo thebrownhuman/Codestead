@@ -18,13 +18,215 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || die "required command is missing: $1"
 }
 
+require_secure_regular_file() {
+  local path="${1:-}" expected_mode="${2:-}" expected_owner="${3:-}"
+  local actual_mode actual_owner
+
+  [[ -n "$path" && "$expected_mode" =~ ^[0-7]{3,4}$ && "$expected_owner" =~ ^[0-9]+$ ]] || return 1
+  [[ -f "$path" && ! -L "$path" ]] || return 1
+  actual_mode="$(stat -c '%a' -- "$path" 2>/dev/null)" || return 1
+  actual_owner="$(stat -c '%u' -- "$path" 2>/dev/null)" || return 1
+  [[ "$actual_mode" == "${expected_mode#0}" && "$actual_owner" == "$expected_owner" ]]
+}
+
+path_is_within() {
+  local candidate root
+
+  [[ "${1:-}" == /* && "${2:-}" == /* ]] || return 1
+  candidate="$(realpath -m -- "$1" 2>/dev/null)" || return 1
+  root="$(realpath -m -- "$2" 2>/dev/null)" || return 1
+
+  [[ "$candidate" == "$root" ]] && return 0
+  if [[ "$root" == / ]]; then
+    [[ "$candidate" == /* ]]
+  else
+    [[ "$candidate" == "$root/"* ]]
+  fi
+}
+
+_valid_compact_utc_timestamp() {
+  local value="${1:-}" normalized
+
+  [[ "$value" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || return 1
+  normalized="$(date -u -d \
+    "${value:0:4}-${value:4:2}-${value:6:2} ${value:9:2}:${value:11:2}:${value:13:2} UTC" \
+    '+%Y%m%dT%H%M%SZ' 2>/dev/null)" || return 1
+  [[ "$normalized" == "$value" ]]
+}
+
+_valid_success_marker_values() {
+  local archive="${1:-}" completed_utc="${2:-}" sha256="${3:-}"
+
+  [[ "$archive" =~ ^learncoding-full-[0-9]{8}T[0-9]{6}Z\.tar\.gz\.age$ ]] || return 1
+  _valid_compact_utc_timestamp "$completed_utc" || return 1
+  [[ "$sha256" =~ ^[0-9a-f]{64}$ ]]
+}
+
+write_success_marker() {
+  local path="${1:-}" archive="${2:-}" completed_utc="${3:-}" sha256="${4:-}"
+  local directory base directory_mode directory_owner
+
+  [[ -n "$path" && "$path" != *$'\n'* && "$path" != *$'\r'* ]] || return 1
+  _valid_success_marker_values "$archive" "$completed_utc" "$sha256" || return 1
+
+  directory="$(dirname -- "$path" 2>/dev/null)" || return 1
+  base="$(basename -- "$path" 2>/dev/null)" || return 1
+  [[ -n "$base" && "$base" != . && "$base" != .. ]] || return 1
+  [[ -d "$directory" && ! -L "$directory" ]] || return 1
+  directory_mode="$(stat -c '%a' -- "$directory" 2>/dev/null)" || return 1
+  directory_owner="$(stat -c '%u' -- "$directory" 2>/dev/null)" || return 1
+  (( (8#$directory_mode & 0022) == 0 )) || return 1
+  [[ "$directory_owner" == "$(id -u)" ]] || return 1
+  if [[ -e "$path" || -L "$path" ]]; then
+    [[ -f "$path" && ! -L "$path" ]] || return 1
+  fi
+
+  (
+    local temporary=""
+    cleanup_success_marker_temporary() {
+      if [[ -n "$temporary" ]]; then
+        rm -f -- "$temporary"
+      fi
+    }
+    trap cleanup_success_marker_temporary EXIT
+
+    temporary="$(mktemp -- "$directory/.${base}.tmp.XXXXXX")" || exit 1
+    printf '%s\n%s\n%s\n' \
+      "SUCCESS_ARCHIVE=$archive" \
+      "SUCCESS_COMPLETED_UTC=$completed_utc" \
+      "SUCCESS_SHA256=$sha256" >"$temporary" || exit 1
+    chmod 0600 -- "$temporary" || exit 1
+    if command -v sync >/dev/null 2>&1; then
+      sync -f -- "$temporary" || exit 1
+    fi
+    mv -fT -- "$temporary" "$path" || exit 1
+    temporary=""
+    if command -v sync >/dev/null 2>&1; then
+      sync -f -- "$directory" || exit 1
+    fi
+  )
+}
+
+read_success_marker() {
+  local path="${1:-}" line_archive line_completed line_sha extra
+  local archive completed_utc sha256 marker_fd
+
+  SUCCESS_ARCHIVE=""
+  SUCCESS_COMPLETED_UTC=""
+  SUCCESS_SHA256=""
+
+  require_secure_regular_file "$path" 600 "$(id -u)" || return 1
+  exec {marker_fd}<"$path" || return 1
+  if ! IFS= read -r line_archive <&"$marker_fd" \
+    || ! IFS= read -r line_completed <&"$marker_fd" \
+    || ! IFS= read -r line_sha <&"$marker_fd"; then
+    exec {marker_fd}<&-
+    return 1
+  fi
+  if IFS= read -r extra <&"$marker_fd"; then
+    exec {marker_fd}<&-
+    return 1
+  fi
+  exec {marker_fd}<&-
+
+  [[ "$line_archive" == SUCCESS_ARCHIVE=* ]] || return 1
+  [[ "$line_completed" == SUCCESS_COMPLETED_UTC=* ]] || return 1
+  [[ "$line_sha" == SUCCESS_SHA256=* ]] || return 1
+  archive="${line_archive#SUCCESS_ARCHIVE=}"
+  completed_utc="${line_completed#SUCCESS_COMPLETED_UTC=}"
+  sha256="${line_sha#SUCCESS_SHA256=}"
+  _valid_success_marker_values "$archive" "$completed_utc" "$sha256" || return 1
+  cmp -s -- "$path" <(printf '%s\n%s\n%s\n' \
+    "SUCCESS_ARCHIVE=$archive" \
+    "SUCCESS_COMPLETED_UTC=$completed_utc" \
+    "SUCCESS_SHA256=$sha256") || return 1
+
+  SUCCESS_ARCHIVE="$archive"
+  SUCCESS_COMPLETED_UTC="$completed_utc"
+  SUCCESS_SHA256="$sha256"
+}
+
+readonly -a BACKUP_MUTATING_SERVICES=(
+  cloudflared app mail-worker reward-worker regrade-worker
+  project-review-correction-worker exam-finalization-worker
+  practice-runner-recovery-worker scan-worker
+)
+
+_require_indexed_array_name() {
+  local array_name="${1:-}" declaration
+
+  [[ "$array_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || return 1
+  declaration="$(declare -p "$array_name" 2>/dev/null)" || return 1
+  [[ "$declaration" == declare\ -a* ]]
+}
+
+_is_backup_mutating_service() {
+  local candidate="${1:-}" allowed
+
+  for allowed in "${BACKUP_MUTATING_SERVICES[@]}"; do
+    [[ "$candidate" == "$allowed" ]] && return 0
+  done
+  return 1
+}
+
+capture_running_mutators() {
+  local array_name="${1:-}" running_output allowed running_service
+
+  _require_indexed_array_name "$array_name" || return 1
+  local -n destination="$array_name"
+  destination=()
+  running_output="$(compose_cmd ps --status running --services)" || return 1
+
+  for allowed in "${BACKUP_MUTATING_SERVICES[@]}"; do
+    while IFS= read -r running_service; do
+      if [[ "$running_service" == "$allowed" ]]; then
+        destination+=("$allowed")
+        break
+      fi
+    done <<<"$running_output"
+  done
+}
+
+quiesce_mutators() {
+  local array_name="${1:-}" service
+
+  _require_indexed_array_name "$array_name" || return 1
+  local -n services="$array_name"
+  ((${#services[@]} > 0)) || return 0
+  for service in "${services[@]}"; do
+    _is_backup_mutating_service "$service" || return 1
+  done
+  compose_cmd stop --timeout 60 "${services[@]}"
+}
+
+resume_mutators() {
+  local array_name="${1:-}" service cloudflared_was_running=0
+  local -a non_tunnel_services=()
+
+  _require_indexed_array_name "$array_name" || return 1
+  local -n services="$array_name"
+  ((${#services[@]} > 0)) || return 0
+  for service in "${services[@]}"; do
+    _is_backup_mutating_service "$service" || return 1
+    if [[ "$service" == cloudflared ]]; then
+      cloudflared_was_running=1
+    else
+      non_tunnel_services+=("$service")
+    fi
+  done
+
+  if ((${#non_tunnel_services[@]} > 0)); then
+    compose_cmd up -d --no-deps --no-build --pull never "${non_tunnel_services[@]}" || return 1
+  fi
+  if ((cloudflared_was_running)); then
+    compose_cmd up -d --no-deps --no-build --pull never cloudflared
+  fi
+}
+
 load_backup_config() {
-  local config_file="${BACKUP_CONFIG_FILE:-/etc/learncoding/backup.env}" mode owner
-  [[ -f "$config_file" ]] || die "backup config is missing: $config_file"
-  mode="$(stat -c %a "$config_file")"
-  owner="$(stat -c %u "$config_file")"
-  (( (8#$mode & 0022) == 0 )) || die "backup config must not be group/world writable"
-  [[ "$owner" == "$(id -u)" ]] || die "backup config must be owned by the invoking operator"
+  local config_file="${BACKUP_CONFIG_FILE:-/etc/learncoding/backup.env}"
+  require_secure_regular_file "$config_file" 600 "$(id -u)" \
+    || die "backup config is missing or unsafe: $config_file"
   # This is a root-owned shell environment file and may contain an rclone path,
   # but must never contain the age private identity itself.
   # shellcheck disable=SC1090
@@ -154,15 +356,12 @@ require_absolute_path() {
 }
 
 validated_root() {
-  local root="$1" expected_magic="$2" marker marker_mode marker_owner real
+  local root="$1" expected_magic="$2" marker real
   require_absolute_path "$root"
   [[ -d "$root" ]] || die "backup target is not mounted: $root"
   marker="$root/.learncoding-backup-root"
-  [[ -f "$marker" && ! -L "$marker" ]] || die "backup marker is missing or unsafe: $marker"
-  marker_mode="$(stat -c %a "$marker")"
-  marker_owner="$(stat -c %u "$marker")"
-  (( (8#$marker_mode & 0022) == 0 )) || die "backup marker must not be group/world writable"
-  [[ "$marker_owner" == "$(id -u)" ]] || die "backup marker must be owned by the invoking operator"
+  require_secure_regular_file "$marker" 600 "$(id -u)" \
+    || die "backup marker is missing or unsafe: $marker"
   [[ "$(<"$marker")" == "$expected_magic" ]] || die "backup marker has the wrong value"
   real="$(realpath -e -- "$root")"
   [[ "$real" != "/" && "$real" != "/srv" && "$real" != "/var" ]] || die "unsafe backup root: $real"

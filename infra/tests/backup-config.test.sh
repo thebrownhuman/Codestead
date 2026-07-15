@@ -24,6 +24,13 @@ load_backup_config
 [[ "$FILESYSTEM_WARN_PERCENT" == "70" ]]
 [[ "$FILESYSTEM_CRITICAL_PERCENT" == "85" ]]
 
+ln -s "$work/default.env" "$work/symlink.env"
+expect_config_failure "$work/symlink.env"
+
+touch "$work/wrong-exact-mode.env"
+chmod 0400 "$work/wrong-exact-mode.env"
+expect_config_failure "$work/wrong-exact-mode.env"
+
 if grep -E 'df .*-[^ ]*P[^ ]* .*--output|df .* -P .*--output' \
   "$repo_root/scripts/backup/init-backup-target.sh" \
   "$repo_root/scripts/backup/check-backups.sh"; then
@@ -60,6 +67,21 @@ mkdir -p "$full_root"
 printf '%s\n' "$FULL_BACKUP_MAGIC" >"$full_root/.learncoding-backup-root"
 chmod 0600 "$full_root/.learncoding-backup-root"
 [[ "$(validated_root "$full_root" "$FULL_BACKUP_MAGIC")" == "$(realpath -e "$full_root")" ]]
+
+mv "$full_root/.learncoding-backup-root" "$full_root/real-backup-marker"
+ln -s "$full_root/real-backup-marker" "$full_root/.learncoding-backup-root"
+if bash -Eeuo pipefail -c 'source "$1"; validated_root "$2" "$3"' _ "$common" "$full_root" "$FULL_BACKUP_MAGIC" >/dev/null 2>&1; then
+  echo "symlinked backup marker was accepted" >&2
+  exit 1
+fi
+rm "$full_root/.learncoding-backup-root"
+mv "$full_root/real-backup-marker" "$full_root/.learncoding-backup-root"
+
+chmod 0400 "$full_root/.learncoding-backup-root"
+if bash -Eeuo pipefail -c 'source "$1"; validated_root "$2" "$3"' _ "$common" "$full_root" "$FULL_BACKUP_MAGIC" >/dev/null 2>&1; then
+  echo "backup marker with a non-0600 mode was accepted" >&2
+  exit 1
+fi
 
 chmod 0666 "$full_root/.learncoding-backup-root"
 if bash -Eeuo pipefail -c 'source "$1"; validated_root "$2" "$3"' _ "$common" "$full_root" "$FULL_BACKUP_MAGIC" >/dev/null 2>&1; then
