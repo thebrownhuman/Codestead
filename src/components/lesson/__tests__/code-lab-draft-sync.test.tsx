@@ -1,10 +1,26 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IDBFactory as FakeIDBFactory } from "fake-indexeddb";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
+import type { BrowserOutboxRepository } from "@/lib/browser-durability/indexed-db";
+import {
+  draftOutboxScope,
+  draftOutboxStorageKey,
+  type DraftOutboxRecord,
+} from "@/lib/browser-durability/types";
 import { draftCacheKey, writeDraftCache, type CachedLearnerDraft } from "@/lib/drafts/browser-cache";
 import { DraftCacheNamespaceProvider } from "@/lib/drafts/browser-cache-context";
 import { CodeLab } from "../lesson-workspace";
+
+const { openBrowserOutboxMock } = vi.hoisted(() => ({
+  openBrowserOutboxMock: vi.fn(),
+}));
+
+vi.mock("@/lib/browser-durability/indexed-db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/browser-durability/indexed-db")>();
+  return { ...actual, openBrowserOutbox: openBrowserOutboxMock };
+});
 
 vi.mock("next/dynamic", () => ({
   default: () => function DeterministicEditor({
@@ -66,9 +82,92 @@ function cached(overrides: Partial<CachedLearnerDraft> = {}): CachedLearnerDraft
   };
 }
 
+function outboxFor(
+  draftNamespace: string,
+  draftKey: typeof key,
+  value: CachedLearnerDraft,
+): DraftOutboxRecord {
+  return {
+    schemaVersion: 1,
+    storageKey: draftOutboxStorageKey(draftNamespace, draftKey),
+    namespace: draftNamespace,
+    kind: "draft",
+    scope: draftOutboxScope(draftKey),
+    requestId: value.requestId,
+    updatedAt: value.locallyUpdatedAt,
+    payload: {
+      key: draftKey,
+      content: value.content,
+      baseRevision: value.baseRowVersion,
+    },
+  };
+}
+
+function outbox(overrides: Partial<CachedLearnerDraft> = {}): DraftOutboxRecord {
+  return outboxFor(namespace, key, cached(overrides));
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
+function installRepository(overrides: Partial<Pick<
+  BrowserOutboxRepository,
+  "getDraft" | "putDraft" | "deleteDraftIfMutation" | "close"
+>> = {}) {
+  const repository = {
+    getDraft: vi.fn(overrides.getDraft ?? (async () => null)),
+    putDraft: vi.fn(overrides.putDraft ?? (async () => undefined)),
+    deleteDraftIfMutation: vi.fn(overrides.deleteDraftIfMutation ?? (async () => true)),
+    listExamAnswers: vi.fn(async () => []),
+    putExamAnswer: vi.fn(async () => undefined),
+    deleteExamAnswerIfMutation: vi.fn(async () => false),
+    listExamEvents: vi.fn(async () => []),
+    putExamEvent: vi.fn(async () => undefined),
+    deleteExamEvent: vi.fn(async () => undefined),
+    clearExamSession: vi.fn(async () => undefined),
+    clearNamespace: vi.fn(async () => undefined),
+    clearForeignNamespaces: vi.fn(async () => undefined),
+    clearAll: vi.fn(async () => undefined),
+    close: vi.fn(overrides.close ?? (() => undefined)),
+  } satisfies BrowserOutboxRepository;
+  openBrowserOutboxMock.mockResolvedValue(repository);
+  return repository;
+}
+
+function successfulPut(content: string, rowVersion: number, replayed = false) {
+  return json({
+    draft: { ...serverDraft, content, rowVersion },
+    committedRowVersion: rowVersion,
+    replayed,
+    cacheNamespace: namespace,
+  });
+}
+
+function putBodies(fetchMock: MockInstance<typeof fetch>) {
+  return fetchMock.mock.calls
+    .filter(([, init]) => init?.method === "PUT")
+    .map(([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>);
+}
+
+function draftNotice() {
+  const notice = document.querySelector<HTMLElement>("[data-draft-status]");
+  if (!notice) throw new Error("Draft status notice is missing.");
+  return notice;
+}
+
 describe("CodeLab authoritative draft synchronization", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
+    openBrowserOutboxMock.mockReset();
+    installRepository();
     window.sessionStorage.clear();
     Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
     let id = 10;
@@ -77,8 +176,374 @@ describe("CodeLab authoritative draft synchronization", () => {
     );
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("commits locally before any PUT and exposes each truthful durability state", async () => {
+    const localCommit = deferred<void>();
+    installRepository({ putDraft: () => localCommit.promise });
+    const serverAcknowledgement = deferred<Response>();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      return serverAcknowledgement.promise;
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+
+    fireEvent.change(editor, { target: { value: "durable_after_commit = true\n" } });
+    expect(screen.getByText("Saving on this browser...")).toBeInTheDocument();
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+    });
+    expect(putBodies(fetchMock)).toHaveLength(0);
+
+    await act(async () => localCommit.resolve());
+    expect(await screen.findByText("Saved locally on this browser. Syncing to Codestead..."))
+      .toBeInTheDocument();
+    expect(putBodies(fetchMock)).toHaveLength(0);
+
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+    expect(screen.getByText(/syncing this draft to Codestead/i)).toBeInTheDocument();
+    await act(async () => serverAcknowledgement.resolve(successfulPut(
+      "durable_after_commit = true\n",
+      1,
+    )));
+    expect(await screen.findByText("Saved to Codestead.")).toBeInTheDocument();
+  });
+
+  it("orders local puts so an older transaction cannot overwrite a newer edit", async () => {
+    const firstCommit = deferred<void>();
+    const secondCommit = deferred<void>();
+    const repository = installRepository({
+      putDraft: vi.fn()
+        .mockImplementationOnce(() => firstCommit.promise)
+        .mockImplementationOnce(() => secondCommit.promise),
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return successfulPut(String(body.content), 1);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "first_local_write = 1\n" } });
+    fireEvent.change(editor, { target: { value: "second_local_write = 2\n" } });
+
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("Saving on this browser...")).toBeInTheDocument();
+    expect(putBodies(fetchMock)).toHaveLength(0);
+
+    await act(async () => firstCommit.resolve());
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("Saving on this browser...")).toBeInTheDocument();
+    expect(vi.mocked(repository.putDraft).mock.calls.map(([record]) => record.payload.content))
+      .toEqual(["first_local_write = 1\n", "second_local_write = 2\n"]);
+
+    await act(async () => secondCommit.resolve());
+    await screen.findByText("Saved locally on this browser. Syncing to Codestead...");
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[0]).toMatchObject({ content: "second_local_write = 2\n" });
+  });
+
+  it("fails closed on a local put error and retries the same record before sending", async () => {
+    const retryCommit = deferred<void>();
+    let localAttempts = 0;
+    const repository = installRepository({
+      putDraft: async () => {
+        localAttempts += 1;
+        if (localAttempts === 1) throw new Error("quota unavailable");
+        return retryCommit.promise;
+      },
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      return successfulPut("keep_this_tab_open = true\n", 1);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "keep_this_tab_open = true\n" } });
+
+    expect(await screen.findByText(
+      "Could not save on this browser. Keep this tab open and copy your work before leaving.",
+    )).toBeInTheDocument();
+    expect(putBodies(fetchMock)).toHaveLength(0);
+    const firstRecord = vi.mocked(repository.putDraft).mock.calls[0]?.[0];
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
+    expect(screen.getByText("Saving on this browser...")).toBeInTheDocument();
+    const retriedRecord = vi.mocked(repository.putDraft).mock.calls[1]?.[0];
+    expect(retriedRecord).toEqual(firstRecord);
+    expect(putBodies(fetchMock)).toHaveLength(0);
+
+    await act(async () => retryCommit.resolve());
+    expect(await screen.findByText("Saved locally on this browser. Syncing to Codestead..."))
+      .toBeInTheDocument();
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[0]?.requestId).toBe(firstRecord?.requestId);
+  });
+
+  it("reopens the same database after warm-cache loss and replays the original mutation", async () => {
+    const factory = new FakeIDBFactory();
+    const actual = await vi.importActual<typeof import("@/lib/browser-durability/indexed-db")>(
+      "@/lib/browser-durability/indexed-db",
+    );
+    openBrowserOutboxMock.mockImplementation(() => actual.openBrowserOutbox(factory));
+    const secondGet = deferred<Response>();
+    const putRequests: Record<string, unknown>[] = [];
+    let gets = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") {
+        gets += 1;
+        return gets === 1
+          ? json({ draft: null, cacheNamespace: namespace })
+          : secondGet.promise;
+      }
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      putRequests.push(body);
+      return successfulPut(String(body.content), 1, true);
+    });
+
+    const firstMount = renderLab();
+    let editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "survives_browser_restart = true\n" } });
+    await screen.findByText("Saved locally on this browser. Syncing to Codestead...");
+    firstMount.unmount();
+    expect(putRequests).toHaveLength(0);
+
+    window.sessionStorage.clear();
+    const secondMount = renderLab();
+    editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue("survives_browser_restart = true\n"));
+    expect(gets).toBe(2);
+    expect(putRequests).toHaveLength(0);
+
+    await act(async () => secondGet.resolve(json({ draft: null, cacheNamespace: namespace })));
+    await waitFor(() => expect(putRequests).toHaveLength(1), { timeout: 2_000 });
+    expect(putRequests[0]).toMatchObject({
+      content: "survives_browser_restart = true\n",
+      expectedRowVersion: 0,
+      requestId: "10000000-0000-4000-8000-000000000010",
+    });
+    secondMount.unmount();
+  });
+
+  it("replays an identical body after response loss and conditionally removes it once", async () => {
+    const repository = installRepository();
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      puts += 1;
+      if (puts === 1) throw new Error("response lost");
+      return successfulPut("exact_replay = true\n", 1, true);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "exact_replay = true\n" } });
+    expect(await screen.findByText(
+      "Saved locally on this browser. Codestead will retry automatically.",
+    )).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2));
+    expect(putBodies(fetchMock)[1]).toEqual(putBodies(fetchMock)[0]);
+    await screen.findByText("Saved to Codestead.");
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(1);
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledWith(
+      namespace,
+      key,
+      putBodies(fetchMock)[0]?.requestId,
+    );
+  });
+
+  it("rebases a newer durable edit after an older acknowledgement without deleting it", async () => {
+    const firstAcknowledgement = deferred<Response>();
+    const repository = installRepository({
+      deleteDraftIfMutation: vi.fn()
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true),
+    });
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      puts += 1;
+      return puts === 1
+        ? firstAcknowledgement.promise
+        : successfulPut("newer_edit = 2\n", 2);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "older_edit = 1\n" } });
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+
+    fireEvent.change(editor, { target: { value: "newer_edit = 2\n" } });
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(2));
+    const firstRecord = vi.mocked(repository.putDraft).mock.calls[0]?.[0];
+    const newerRecord = vi.mocked(repository.putDraft).mock.calls[1]?.[0];
+    expect(newerRecord?.requestId).not.toBe(firstRecord?.requestId);
+    expect(putBodies(fetchMock)).toHaveLength(1);
+
+    await act(async () => firstAcknowledgement.resolve(successfulPut("older_edit = 1\n", 1)));
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(3));
+    const rebasedRecord = vi.mocked(repository.putDraft).mock.calls[2]?.[0];
+    expect(rebasedRecord).toMatchObject({
+      requestId: newerRecord?.requestId,
+      payload: { content: "newer_edit = 2\n", baseRevision: 1 },
+    });
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[1]).toMatchObject({
+      requestId: newerRecord?.requestId,
+      content: "newer_edit = 2\n",
+      expectedRowVersion: 1,
+    });
+    expect(editor).toHaveValue("newer_edit = 2\n");
+  });
+
+  it("rebases an edit queued while acknowledgement cleanup is settling", async () => {
+    const cleanup = deferred<boolean>();
+    const newerLocalCommit = deferred<void>();
+    const repository = installRepository({
+      putDraft: vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockImplementationOnce(() => newerLocalCommit.promise)
+        .mockResolvedValue(undefined),
+      deleteDraftIfMutation: () => cleanup.promise,
+    });
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      puts += 1;
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return successfulPut(String(body.content), puts);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "acknowledged_first = 1\n" } });
+    await waitFor(() => expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(1), {
+      timeout: 2_000,
+    });
+
+    await act(async () => {
+      cleanup.resolve(true);
+      queueMicrotask(() => {
+        fireEvent.change(editor, { target: { value: "queued_during_cleanup = 2\n" } });
+      });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(2));
+    expect(putBodies(fetchMock)).toHaveLength(1);
+    const queuedRecord = vi.mocked(repository.putDraft).mock.calls[1]?.[0];
+
+    await act(async () => newerLocalCommit.resolve());
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(3));
+    const rebasedRecord = vi.mocked(repository.putDraft).mock.calls[2]?.[0];
+    expect(rebasedRecord).toMatchObject({
+      requestId: queuedRecord?.requestId,
+      payload: { content: "queued_during_cleanup = 2\n", baseRevision: 1 },
+    });
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[1]).toMatchObject({
+      requestId: queuedRecord?.requestId,
+      content: "queued_during_cleanup = 2\n",
+      expectedRowVersion: 1,
+    });
+  });
+
+  it("retries online failures at exactly 1, 2, 5, 10, and 30 seconds without overlap", async () => {
+    let activePuts = 0;
+    let maximumActivePuts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      activePuts += 1;
+      maximumActivePuts = Math.max(maximumActivePuts, activePuts);
+      try {
+        throw new Error("temporary network failure");
+      } finally {
+        activePuts -= 1;
+      }
+    });
+
+    const view = renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    vi.useFakeTimers();
+    userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    fireEvent.change(editor, { target: { value: "scheduled_retry = true\n" } });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(putBodies(fetchMock)).toHaveLength(1);
+
+    for (const [index, delay] of [1_000, 2_000, 5_000, 10_000, 30_000].entries()) {
+      await act(async () => {
+        vi.advanceTimersByTime(delay - 1);
+        await Promise.resolve();
+      });
+      expect(putBodies(fetchMock)).toHaveLength(index + 1);
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(putBodies(fetchMock)).toHaveLength(index + 2);
+    }
+
+    const bodies = putBodies(fetchMock);
+    expect(new Set(bodies.map((body) => body.requestId)).size).toBe(1);
+    expect(maximumActivePuts).toBe(1);
+    view.unmount();
+  });
+
+  it("never uploads a dirty warm-cache value without a matching durable record", async () => {
+    writeDraftCache(window.sessionStorage, namespace, key, cached({
+      content: "warm_only_must_not_upload = true\n",
+    }));
+    const getResponse = deferred<Response>();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return getResponse.promise;
+      return successfulPut("warm_only_must_not_upload = true\n", 1);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue("warm_only_must_not_upload = true\n"));
+    expect(putBodies(fetchMock)).toHaveLength(0);
+
+    await act(async () => getResponse.resolve(json({ draft: null, cacheNamespace: namespace })));
+    await waitFor(() => expect(editor).toHaveValue("# Try the idea here\n\n"));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+    });
+    expect(putBodies(fetchMock)).toHaveLength(0);
+  });
+
   it("keeps an independent browser draft for every standalone runner language", async () => {
     Object.defineProperty(window.navigator, "onLine", { configurable: true, value: false });
+    const durableRecords = new Map<string, DraftOutboxRecord>();
+    installRepository({
+      getDraft: async (draftNamespace, draftKey) => durableRecords.get(
+        draftOutboxStorageKey(draftNamespace, draftKey),
+      ) ?? null,
+      putDraft: async (record) => {
+        durableRecords.set(record.storageKey, record);
+      },
+    });
     const requestedUrls: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
       expect(init?.method).toBe("GET");
@@ -90,9 +555,9 @@ describe("CodeLab authoritative draft synchronization", () => {
 
     const selector = screen.getByRole("combobox", { name: "Runner language" });
     let editor = await screen.findByRole("textbox", { name: "Practice source code" });
-    await waitFor(() => expect(screen.getByText(/saved on the server/i)).toBeInTheDocument());
+    await screen.findByText("Saved to Codestead.");
     fireEvent.change(editor, { target: { value: "python_only = 41\n" } });
-    expect(screen.getByText(/offline: changes exist only/i)).toBeInTheDocument();
+    await screen.findByText("Saved locally on this browser. Syncing to Codestead...");
 
     await user.selectOptions(selector, "c");
     editor = await screen.findByRole("textbox", { name: "Practice source code" });
@@ -146,44 +611,45 @@ describe("CodeLab authoritative draft synchronization", () => {
     const editor = await screen.findByRole("textbox", { name: "Practice source code" });
     await waitFor(() => expect(editor).toHaveValue("server_answer = 42\n"));
     expect(editor).not.toHaveValue("another_device_secret = true\n");
-    expect(screen.getByText(/saved on the server.*clearing this browser cache will not lose it/i)).toBeInTheDocument();
+    expect(screen.getByText("Saved to Codestead.")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/^\/api\/drafts\?/),
       expect.objectContaining({ method: "GET", cache: "no-store" }),
     );
   });
 
-  it("keeps offline edits local, labels them non-durable, then syncs the same mutation online", async () => {
+  it("recovers a durable offline edit, probes once, then accelerates the same mutation online", async () => {
     Object.defineProperty(window.navigator, "onLine", { configurable: true, value: false });
     writeDraftCache(window.sessionStorage, namespace, key, cached());
-    const putBodies: Record<string, unknown>[] = [];
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+    installRepository({ getDraft: async () => outbox() });
+    const bodies: Record<string, unknown>[] = [];
+    let attempts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
-      putBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-      return json({
-        draft: { ...serverDraft, content: "local_answer = 41\n", rowVersion: 1 },
-        committedRowVersion: 1,
-        replayed: false,
-        cacheNamespace: namespace,
-      });
+      attempts += 1;
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      if (attempts === 1) throw new Error("offline probe failed");
+      return successfulPut("local_answer = 41\n", 1);
     });
 
     renderLab();
     const editor = await screen.findByRole("textbox", { name: "Practice source code" });
     await waitFor(() => expect(editor).toHaveValue("local_answer = 41\n"));
-    expect(screen.getByText(/offline: changes exist only in this browser session/i)).toBeInTheDocument();
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+    expect(await screen.findByText(
+      "Saved locally on this browser. Codestead will retry automatically.",
+    )).toBeInTheDocument();
+    expect(bodies).toHaveLength(1);
 
     Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
     act(() => window.dispatchEvent(new Event("online")));
-    await waitFor(() => expect(putBodies).toHaveLength(1), { timeout: 2_000 });
-    expect(putBodies[0]).toMatchObject({
+    await waitFor(() => expect(bodies).toHaveLength(2), { timeout: 2_000 });
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(bodies[0]).toMatchObject({
       requestId: "10000000-0000-4000-8000-000000000001",
       expectedRowVersion: 0,
       content: "local_answer = 41\n",
     });
-    await waitFor(() => expect(screen.getByText(/saved on the server/i)).toBeInTheDocument());
+    await screen.findByText("Saved to Codestead.");
   });
 
   it("retries a transport failure with the same request id instead of duplicating a mutation", async () => {
@@ -204,13 +670,13 @@ describe("CodeLab authoritative draft synchronization", () => {
 
     renderLab();
     const editor = await screen.findByRole("textbox", { name: "Practice source code" });
-    await waitFor(() => expect(screen.getByText(/saved on the server/i)).toBeInTheDocument());
+    await screen.findByText("Saved to Codestead.");
     fireEvent.change(editor, { target: { value: "print('retry')\n" } });
-    await waitFor(() => expect(screen.getByText(/sync is unavailable/i)).toBeInTheDocument(), { timeout: 2_000 });
+    await screen.findByText("Saved locally on this browser. Codestead will retry automatically.");
     await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
     await waitFor(() => expect(putBodies).toHaveLength(2), { timeout: 2_000 });
     expect(putBodies[1]?.requestId).toBe(putBodies[0]?.requestId);
-    await waitFor(() => expect(screen.getByText(/saved on the server/i)).toBeInTheDocument());
+    await screen.findByText("Saved to Codestead.");
   });
 
   it("retries an initial transient load failure even when no local draft exists", async () => {
@@ -222,7 +688,7 @@ describe("CodeLab authoritative draft synchronization", () => {
     expect(await screen.findByText(/sync is unavailable/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
 
-    await waitFor(() => expect(screen.getByText(/saved on the server/i)).toBeInTheDocument());
+    await screen.findByText("Saved to Codestead.");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
   });
@@ -276,34 +742,110 @@ describe("CodeLab authoritative draft synchronization", () => {
     await waitFor(() => expect(putBodies).toHaveLength(2), { timeout: 2_000 });
     expect(putBodies[1]).toMatchObject({ expectedRowVersion: 2, content: "my_local_solution = 7\n" });
     expect(putBodies[1]?.requestId).not.toBe(putBodies[0]?.requestId);
-    await waitFor(() => expect(screen.getByText(/saved on the server/i)).toBeInTheDocument());
+    await screen.findByText("Saved to Codestead.");
     expect(editor).toHaveValue("my_local_solution = 7\n");
   });
 
-  it("purges the current cache and blocks sync after session revocation", async () => {
-    const otherSkill = { ...key, skillId: "python.loops" };
-    writeDraftCache(window.sessionStorage, namespace, key, cached({ content: "revoked_draft = 1\n" }));
-    writeDraftCache(window.sessionStorage, namespace, otherSkill, cached({ content: "also_private = 1\n" }));
-    writeDraftCache(window.sessionStorage, "another-learner-namespace", key, cached({
-      content: "other_learner_private = 1\n",
-    }));
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ code: "AUTH_REQUIRED" }, 401));
+  it("keeps an explicit conflict blocked when a newer local commit finishes afterward", async () => {
+    const newerLocalCommit = deferred<void>();
+    const olderResponse = deferred<Response>();
+    const repository = installRepository({
+      putDraft: vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockImplementationOnce(() => newerLocalCommit.promise)
+        .mockResolvedValue(undefined),
+    });
+    const newerServer = { ...serverDraft, content: "newer_server = 99\n", rowVersion: 2 };
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+      puts += 1;
+      return puts === 1
+        ? olderResponse.promise
+        : successfulPut("newer_local = 2\n", 3);
+    });
 
     renderLab();
     const editor = await screen.findByRole("textbox", { name: "Practice source code" });
-    await waitFor(() => expect(screen.getByText(/session expired or was revoked/i)).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
-    expect(editor).toHaveValue("# Try the idea here\n\n");
-    expect(editor).not.toHaveValue("other_learner_private = 1\n");
-    expect(window.sessionStorage.getItem(draftCacheKey(namespace, key))).toBeNull();
-    expect(window.sessionStorage.getItem(draftCacheKey(namespace, otherSkill))).toBeNull();
-    expect(window.sessionStorage.getItem(draftCacheKey("another-learner-namespace", key))).not.toBeNull();
-    fireEvent.change(editor, { target: { value: "must_not_sync = 1\n" } });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "older_local = 1\n" } });
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+
+    fireEvent.change(editor, { target: { value: "newer_local = 2\n" } });
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(2));
+    await act(async () => olderResponse.resolve(json({
+      code: "DRAFT_VERSION_CONFLICT",
+      current: newerServer,
+      cacheNamespace: namespace,
+    }, 409)));
+    await screen.findByText(/newer server draft exists/i);
+
+    await act(async () => newerLocalCommit.resolve());
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 700));
     });
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    expect(putBodies(fetchMock)).toHaveLength(1);
+    expect(editor).toHaveValue("newer_local = 2\n");
+
+    await userEvent.click(screen.getByRole("button", { name: "Keep my draft" }));
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[1]).toMatchObject({
+      content: "newer_local = 2\n",
+      expectedRowVersion: 2,
+    });
+    expect(putBodies(fetchMock)[1]?.requestId).not.toBe(putBodies(fetchMock)[0]?.requestId);
   });
+
+  it("uses the server conflict copy only after exact conditional local deletion", async () => {
+    const repository = installRepository();
+    const newer = { ...serverDraft, content: "authoritative_server = 9\n", rowVersion: 2 };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+      return json({ code: "DRAFT_VERSION_CONFLICT", current: newer }, 409);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "discard_after_choice = true\n" } });
+    await screen.findByText(/newer server draft exists/i);
+    const requestId = putBodies(fetchMock)[0]?.requestId;
+
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await waitFor(() => expect(editor).toHaveValue("authoritative_server = 9\n"));
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledWith(namespace, key, requestId);
+    expect(putBodies(fetchMock)).toHaveLength(1);
+    expect(screen.getByText("Saved to Codestead.")).toBeInTheDocument();
+  });
+
+  it.each([401, 403] as const)(
+    "purges the current cache and blocks sync after a %i session denial",
+    async (status) => {
+      const otherSkill = { ...key, skillId: "python.loops" };
+      writeDraftCache(window.sessionStorage, namespace, key, cached({ content: "revoked_draft = 1\n" }));
+      writeDraftCache(window.sessionStorage, namespace, otherSkill, cached({ content: "also_private = 1\n" }));
+      writeDraftCache(window.sessionStorage, "another-learner-namespace", key, cached({
+        content: "other_learner_private = 1\n",
+      }));
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ code: "AUTH_REQUIRED" }, status));
+
+      renderLab();
+      const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+      await waitFor(() => expect(screen.getByText(/session expired or was revoked/i)).toBeInTheDocument());
+      expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      expect(editor).toHaveValue("# Try the idea here\n\n");
+      expect(editor).not.toHaveValue("other_learner_private = 1\n");
+      expect(window.sessionStorage.getItem(draftCacheKey(namespace, key))).toBeNull();
+      expect(window.sessionStorage.getItem(draftCacheKey(namespace, otherSkill))).toBeNull();
+      expect(window.sessionStorage.getItem(draftCacheKey("another-learner-namespace", key))).not.toBeNull();
+      fireEvent.change(editor, { target: { value: "must_not_sync = 1\n" } });
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 700));
+      });
+      expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+    },
+  );
 
   it("removes local code assistance when a closed-book exam gate denies draft access", async () => {
     writeDraftCache(window.sessionStorage, namespace, key, cached({ content: "exam_helper = 1\n" }));

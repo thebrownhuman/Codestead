@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  cachedDraftToOutbox,
   clearDraftCaches,
   draftCacheKey,
+  outboxDraftToCached,
   readDraftCache,
   writeDraftCache,
   type CachedLearnerDraft,
 } from "../browser-cache";
 import { createDraftCacheNamespace } from "../cache-namespace";
+import { draftOutboxScope, draftOutboxStorageKey } from "../../browser-durability/types";
 
 const key = { kind: "code" as const, courseId: "python", skillId: "python.variables", language: "python" };
 const requestId = "10000000-0000-4000-8000-000000000001";
@@ -71,6 +74,54 @@ describe("session-scoped learner draft cache", () => {
       ...cached,
       content: "😀".repeat(40_000),
     })).toThrow(/invalid or too large/i);
+  });
+
+  it("maps a dirty warm draft to the canonical durable record and back", () => {
+    const record = cachedDraftToOutbox("namespace-one", key, cached);
+
+    expect(record).toEqual({
+      schemaVersion: 1,
+      storageKey: draftOutboxStorageKey("namespace-one", key),
+      namespace: "namespace-one",
+      kind: "draft",
+      scope: draftOutboxScope(key),
+      requestId,
+      updatedAt: cached.locallyUpdatedAt,
+      payload: {
+        key,
+        content: cached.content,
+        baseRevision: cached.baseRowVersion,
+      },
+    });
+    expect(outboxDraftToCached(record)).toEqual(cached);
+  });
+
+  it("rejects non-dirty, mismatched-language, and invalid adapter inputs", () => {
+    expect(() => cachedDraftToOutbox("namespace-one", key, {
+      ...cached,
+      dirty: false,
+    })).toThrow(/dirty/i);
+    expect(() => cachedDraftToOutbox("namespace-one", key, {
+      ...cached,
+      language: "javascript",
+    })).toThrow(/invalid/i);
+    expect(() => cachedDraftToOutbox("namespace-one", key, {
+      ...cached,
+      baseRowVersion: -1,
+    })).toThrow(/invalid/i);
+    expect(() => cachedDraftToOutbox("namespace-one", key, {
+      ...cached,
+      requestId: "not-a-uuid",
+    })).toThrow(/invalid/i);
+
+    const record = cachedDraftToOutbox("namespace-one", key, cached);
+    expect(() => outboxDraftToCached({
+      ...record,
+      payload: {
+        ...record.payload,
+        key: { ...key, language: "javascript" },
+      },
+    })).toThrow(/invalid/i);
   });
 
   it("clears one namespace or every app draft on logout without touching other storage", () => {

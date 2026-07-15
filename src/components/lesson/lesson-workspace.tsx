@@ -752,15 +752,17 @@ function CodeLabSession({
 
 const draftStatusCopy: Record<DraftSyncStatus, string> = {
   loading: "Loading the authoritative server draft…",
-  local: "Local changes are waiting to sync. This browser copy is not a backup.",
-  syncing: "Syncing this draft to the server…",
-  synced: "Saved on the server. Clearing this browser cache will not lose it.",
-  offline: "Offline: changes exist only in this browser session until sync succeeds.",
+  "saving-local": "Saving on this browser...",
+  "saved-local": "Saved locally on this browser. Syncing to Codestead...",
+  syncing: "Syncing this draft to Codestead...",
+  synced: "Saved to Codestead.",
+  "offline-saved-local": "Saved locally on this browser. Codestead will retry automatically.",
+  "local-save-error": "Could not save on this browser. Keep this tab open and copy your work before leaving.",
   conflict: "A newer server draft exists. Choose which copy to keep; neither was overwritten.",
-  reauthenticate: "Your session expired or was revoked. Local draft access was cleared; sign in before syncing.",
+  reauthenticate: "Your session expired or was revoked. Sign in before syncing.",
   "exam-locked": "Draft access is locked during a closed-book exam.",
-  "scope-unavailable": "This editor is outside an available server draft scope. Changes stay only in this browser session.",
-  unavailable: "Server draft sync is unavailable. Unsynced text is not durably backed up.",
+  "scope-unavailable": "This editor is outside an available server draft scope. Automatic sync is blocked.",
+  unavailable: "Server draft sync is unavailable. No browser-durable mutation is available.",
 };
 
 function DraftSyncNotice({
@@ -779,7 +781,7 @@ function DraftSyncNotice({
   return <div className={styles.draftSync} data-draft-status={status} role="status">
     <span><strong>Draft · {status.replaceAll("-", " ")}</strong><small>{draftStatusCopy[status]}</small></span>
     {status === "conflict" && hasServerCopy && <div><button type="button" onClick={onKeepLocal}>Keep my draft</button><button type="button" onClick={onUseServer}>Use server draft</button></div>}
-    {status === "unavailable" && <button type="button" onClick={onRetry}>Retry sync</button>}
+    {["unavailable", "offline-saved-local", "local-save-error"].includes(status) && <button type="button" onClick={onRetry}>Retry sync</button>}
     {status === "reauthenticate" && <Link href="/login">Sign in</Link>}
   </div>;
 }

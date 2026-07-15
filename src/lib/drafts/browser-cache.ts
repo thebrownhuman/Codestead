@@ -1,3 +1,10 @@
+import {
+  draftOutboxScope,
+  draftOutboxStorageKey,
+  isDraftOutboxRecord,
+  type DraftOutboxRecord,
+} from "@/lib/browser-durability/types";
+
 import type { DraftKey } from "./types";
 import { DRAFT_CONTENT_MAX_BYTES } from "./types";
 
@@ -76,6 +83,56 @@ export function writeDraftCache(
 ) {
   if (!isCachedDraft(draft)) throw new Error("Draft cache value is invalid or too large.");
   storage.setItem(draftCacheKey(namespace, key), JSON.stringify(draft));
+}
+
+export function cachedDraftToOutbox(
+  namespace: string,
+  key: DraftKey,
+  draft: CachedLearnerDraft,
+): DraftOutboxRecord {
+  if (!isCachedDraft(draft)) {
+    throw new Error("Draft cache value is invalid or too large.");
+  }
+  if (!draft.dirty) {
+    throw new Error("Only a dirty draft can become a durable outbox record.");
+  }
+  if (draft.language !== key.language) {
+    throw new Error("Draft cache language is invalid for this key.");
+  }
+
+  const record: DraftOutboxRecord = {
+    schemaVersion: 1,
+    storageKey: draftOutboxStorageKey(namespace, key),
+    namespace,
+    kind: "draft",
+    scope: draftOutboxScope(key),
+    requestId: draft.requestId,
+    updatedAt: draft.locallyUpdatedAt,
+    payload: {
+      key,
+      content: draft.content,
+      baseRevision: draft.baseRowVersion,
+    },
+  };
+  if (!isDraftOutboxRecord(record)) {
+    throw new Error("Draft cache value cannot form a valid outbox record.");
+  }
+  return record;
+}
+
+export function outboxDraftToCached(record: DraftOutboxRecord): CachedLearnerDraft {
+  if (!isDraftOutboxRecord(record)) {
+    throw new Error("Draft outbox record is invalid.");
+  }
+  return {
+    schemaVersion: 1,
+    content: record.payload.content,
+    language: record.payload.key.language,
+    baseRowVersion: record.payload.baseRevision,
+    requestId: record.requestId,
+    locallyUpdatedAt: record.updatedAt,
+    dirty: true,
+  };
 }
 
 export function removeDraftCache(storage: BrowserStorage, namespace: string, key: DraftKey) {
