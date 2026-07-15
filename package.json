@@ -12,6 +12,7 @@
     "dev": "next dev",
     "runner:local": "npm --prefix services/runner run local",
     "runner:smoke": "tsx scripts/smoke-local-runner.ts",
+    "backup:credential-probe": "tsx scripts/backup/create-credential-probe.ts",
     "prebuild": "npm run sync:monaco",
     "build": "next build",
     "start": "next start",

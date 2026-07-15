@@ -72,6 +72,7 @@ CMD ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"]
 FROM worker AS operations
 COPY --chown=node:node content ./content
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
+COPY --chown=node:node scripts/backup/create-credential-probe.ts ./scripts/backup/create-credential-probe.ts
 COPY --chown=node:node scripts/seed-platform.ts ./scripts/seed-platform.ts
 CMD ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"]
 

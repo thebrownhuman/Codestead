@@ -13,7 +13,39 @@ require_command sha256sum
 : "${BACKUP_ROOT:?BACKUP_ROOT is required}"
 backup_root="$(validated_root "$BACKUP_ROOT" "$FULL_BACKUP_MAGIC")"
 full_dir="$backup_root/full"
+state_dir="$backup_root/state"
+
+require_protected_directory() {
+  local directory="$1" resolved
+  [[ -d "$directory" && ! -L "$directory" ]] || return 1
+  resolved="$(realpath -e -- "$directory" 2>/dev/null)" || return 1
+  [[ "$resolved" == "$directory"
+    && "$(stat -c '%a' -- "$directory")" == 700
+    && "$(stat -c '%u' -- "$directory")" == "$(id -u)" ]]
+}
+
+require_protected_directory "$full_dir" || die "full backup directory is unsafe"
+require_protected_directory "$state_dir" || die "backup state directory is unsafe"
 acquire_backup_lock
+
+marker="$state_dir/local-last-success.env"
+read_success_marker "$marker" || die "local success marker is missing or invalid"
+marked_archive="$full_dir/$SUCCESS_ARCHIVE"
+marked_checksum="${marked_archive}.sha256"
+path_is_within "$marked_archive" "$full_dir" \
+  || die "local success marker points outside the full backup directory"
+[[ "$(dirname -- "$marked_archive")" == "$full_dir" \
+  && -f "$marked_archive" && ! -L "$marked_archive" && -s "$marked_archive" \
+  && -f "$marked_checksum" && ! -L "$marked_checksum" && -s "$marked_checksum" ]] \
+  || die "marked local recovery point is missing or unsafe"
+[[ "$(wc -l <"$marked_checksum")" -eq 1 \
+  && "$(<"$marked_checksum")" == "$SUCCESS_SHA256  $SUCCESS_ARCHIVE" ]] \
+  || die "marked local recovery point sidecar is invalid"
+verify_ciphertext_checksum "$marked_archive" \
+  || die "marked local recovery point checksum failed"
+marked_actual_hash="$(sha256sum "$marked_archive" | awk '{print $1}')"
+[[ "$marked_actual_hash" == "$SUCCESS_SHA256" ]] \
+  || die "marked local recovery point hash does not match the marker"
 
 # Grandfather-father-son retention: newest archive in each of the newest seven
 # UTC days, four ISO weeks, and twelve UTC months. One archive may satisfy more
@@ -22,6 +54,7 @@ readonly RETENTION_DAILY=7
 readonly RETENTION_WEEKLY=4
 readonly RETENTION_MONTHLY=12
 declare -A seen_days=() seen_weeks=() seen_months=() keep=()
+keep[$SUCCESS_ARCHIVE]=1
 daily_count=0
 weekly_count=0
 monthly_count=0
@@ -64,10 +97,10 @@ for filename in "${archives[@]}"; do
   [[ "$filename" =~ ^learncoding-full-[0-9]{8}T[0-9]{6}Z\.tar\.gz\.age$ ]] || continue
   [[ -n "${keep[$filename]+x}" ]] && continue
   if [[ "${BACKUP_PRUNE_DRY_RUN:-0}" == "1" ]]; then
-    log "would prune $filename"
+    log "retention would prune one unmarked recovery point"
   else
     rm -f -- "$full_dir/$filename" "$full_dir/${filename}.sha256"
-    log "pruned $filename"
+    log "retention pruned one unmarked recovery point"
   fi
 done
 
