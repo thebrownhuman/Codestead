@@ -65,6 +65,11 @@ const REQUEST_2 = "00000000-0000-4000-8000-000000000002";
 const MUTATION_1 = "10000000-0000-4000-8000-000000000001";
 const MUTATION_2 = "10000000-0000-4000-8000-000000000002";
 const MUTATION_3 = "10000000-0000-4000-8000-000000000003";
+const INVALID_UUID_VERSION = "00000000-0000-f000-8000-000000000000";
+const INVALID_UUID_VARIANT = "00000000-0000-4000-0000-000000000000";
+const NIL_UUID = "00000000-0000-0000-0000-000000000000";
+const MAX_UUID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+const UPPERCASE_UUID = "ABCDEF12-3456-7000-BABC-DEF012345678";
 
 const TIME_1 = "2026-07-15T01:00:00.000Z";
 const TIME_2 = "2026-07-15T02:00:00.000Z";
@@ -366,6 +371,22 @@ describe("browser outbox IndexedDB repository", () => {
         metadata: { invalid: undefined },
       },
     })).rejects.toThrow("Exam event outbox record is invalid.");
+  });
+
+  it("matches Zod UUID semantics for draft and answer mutation IDs", async () => {
+    for (const invalidId of [INVALID_UUID_VERSION, INVALID_UUID_VARIANT]) {
+      await expect(repository!.putDraft(makeDraftRecord({ requestId: invalidId })))
+        .rejects.toThrow("Draft outbox record is invalid.");
+      await expect(repository!.putExamAnswer(makeAnswerRecord({ clientMutationId: invalidId })))
+        .rejects.toThrow("Exam answer outbox record is invalid.");
+    }
+
+    for (const validId of [REQUEST_1, NIL_UUID, MAX_UUID, UPPERCASE_UUID]) {
+      await expect(repository!.putDraft(makeDraftRecord({ requestId: validId })))
+        .resolves.toBeUndefined();
+      await expect(repository!.putExamAnswer(makeAnswerRecord({ clientMutationId: validId })))
+        .resolves.toBeUndefined();
+    }
   });
 
   it("compare-and-deletes drafts only for the exact request ID", async () => {

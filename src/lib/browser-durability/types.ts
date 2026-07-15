@@ -48,7 +48,7 @@ export type BrowserOutboxRecord =
 const SAFE_NAMESPACE = /^[A-Za-z0-9._:-]+$/;
 const SAFE_IDENTITY = /^[A-Za-z0-9._:-]+$/;
 const SAFE_LANGUAGE = /^[A-Za-z0-9_+.-]+$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/i;
 const CLIENT_EXAM_EVENT_TYPE_SET = new Set<string>(CLIENT_EXAM_EVENT_TYPES);
 
 function isObject(value: unknown): value is Record<string, unknown> {
