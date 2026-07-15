@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -28,6 +28,8 @@ const SECOND_MUTATION_ID = "32000000-0000-4000-8000-000000000012";
 const THIRD_MUTATION_ID = "32000000-0000-4000-8000-000000000013";
 const FIXED_NOW = new Date("2026-07-15T10:00:00.000Z");
 const DEADLINE = new Date("2026-07-15T11:00:00.000Z");
+const RECEIPT_SCHEMA = "public";
+const RECEIPT_TABLE = "exam_autosave_mutation";
 
 function assertDisposableDatabase() {
   const connectionString = process.env.DATABASE_URL ?? "";
@@ -166,6 +168,23 @@ async function countItemAnswers(itemId = "item-1") {
   return rows;
 }
 
+async function readAutosavePersistenceState() {
+  const responses = await db
+    .select()
+    .from(response)
+    .where(and(
+      eq(response.attemptId, ATTEMPT_ID),
+      ne(response.itemKey, BLUEPRINT_RESPONSE_KEY),
+    ))
+    .orderBy(response.itemKey, response.revision, response.id);
+  const receipts = await db
+    .select()
+    .from(examAutosaveMutation)
+    .where(eq(examAutosaveMutation.examSessionId, SESSION_ID))
+    .orderBy(examAutosaveMutation.clientMutationId);
+  return { responses, receipts };
+}
+
 beforeEach(async () => {
   await truncateApplicationTables();
   await seedActiveExam();
@@ -212,14 +231,17 @@ describe("exam autosave exact-once PostgreSQL contract", () => {
     ["answer", { text: "changed value" }],
   ])("rejects same-ID reuse with a changed %s and leaves accepted state unchanged", async (_label, changed) => {
     await save();
+    const acceptedState = await readAutosavePersistenceState();
+
+    expect(acceptedState.responses).toHaveLength(1);
+    expect(acceptedState.receipts).toHaveLength(1);
 
     await expect(save(changed)).rejects.toMatchObject({
       status: 409,
       code: "AUTOSAVE_IDEMPOTENCY_MISMATCH",
       message: "This autosave mutation identifier was already used for different input.",
     });
-    expect(await countItemAnswers()).toHaveLength(1);
-    expect(await db.select().from(examAutosaveMutation)).toHaveLength(1);
+    expect(await readAutosavePersistenceState()).toEqual(acceptedState);
   });
 
   it("serializes concurrent exact delivery into one original and one replay", async () => {
@@ -311,34 +333,162 @@ describe("exam autosave exact-once PostgreSQL contract", () => {
 
   it("enforces the generated receipt shape, checks, index, and cascading session ownership", async () => {
     await save();
-    const constraints = await pool.query<{ conname: string; contype: string; confdeltype: string }>(`
-      select conname, contype, confdeltype
-      from pg_constraint
-      where conrelid = 'exam_autosave_mutation'::regclass
-    `);
-    expect(constraints.rows.map((row) => row.conname)).toEqual(expect.arrayContaining([
-      "exam_autosave_mutation_pk",
+    const constraints = await pool.query<{ constraint_name: string }>(`
+      select constraint_row.conname as constraint_name
+      from pg_constraint as constraint_row
+      join pg_class as source_table on source_table.oid = constraint_row.conrelid
+      join pg_namespace as source_namespace on source_namespace.oid = source_table.relnamespace
+      where source_namespace.nspname = $1 and source_table.relname = $2
+      order by constraint_row.conname
+    `, [RECEIPT_SCHEMA, RECEIPT_TABLE]);
+    expect(constraints.rows.map((row) => row.constraint_name)).toEqual([
       "exam_autosave_mutation_exam_session_id_exam_session_id_fk",
-      "exam_autosave_mutation_input_hash_check",
       "exam_autosave_mutation_expected_revision_nonnegative",
+      "exam_autosave_mutation_input_hash_check",
+      "exam_autosave_mutation_pk",
       "exam_autosave_mutation_resulting_revision_nonnegative",
       "exam_autosave_mutation_revision_transition",
-    ]));
-    expect(constraints.rows.find((row) => row.contype === "p")?.conname)
-      .toBe("exam_autosave_mutation_pk");
-    expect(constraints.rows.find((row) => row.contype === "f")?.confdeltype).toBe("c");
+    ]);
 
-    const indexes = await pool.query<{ indexname: string }>(`
-      select indexname from pg_indexes where tablename = 'exam_autosave_mutation'
-    `);
-    expect(indexes.rows.map((row) => row.indexname)).toContain(
+    const primaryKey = await pool.query<{
+      constraint_name: string;
+      source_schema: string;
+      source_table: string;
+      source_columns: string[];
+    }>(`
+      select
+        constraint_row.conname as constraint_name,
+        source_namespace.nspname as source_schema,
+        source_table.relname as source_table,
+        array_agg(source_column.attname::text order by source_key.ordinality) as source_columns
+      from pg_constraint as constraint_row
+      join pg_class as source_table on source_table.oid = constraint_row.conrelid
+      join pg_namespace as source_namespace on source_namespace.oid = source_table.relnamespace
+      cross join lateral unnest(constraint_row.conkey)
+        with ordinality as source_key(attnum, ordinality)
+      join pg_attribute as source_column
+        on source_column.attrelid = source_table.oid
+        and source_column.attnum = source_key.attnum
+      where source_namespace.nspname = $1
+        and source_table.relname = $2
+        and constraint_row.contype = 'p'
+      group by constraint_row.oid, constraint_row.conname,
+        source_namespace.nspname, source_table.relname
+    `, [RECEIPT_SCHEMA, RECEIPT_TABLE]);
+    expect(primaryKey.rows).toEqual([{
+      constraint_name: "exam_autosave_mutation_pk",
+      source_schema: RECEIPT_SCHEMA,
+      source_table: RECEIPT_TABLE,
+      source_columns: ["exam_session_id", "client_mutation_id"],
+    }]);
+
+    const foreignKey = await pool.query<{
+      constraint_name: string;
+      source_schema: string;
+      source_table: string;
+      source_columns: string[];
+      target_schema: string;
+      target_table: string;
+      target_columns: string[];
+      on_delete_cascade: boolean;
+    }>(`
+      select
+        constraint_row.conname as constraint_name,
+        source_namespace.nspname as source_schema,
+        source_table.relname as source_table,
+        array_agg(source_column.attname::text order by column_key.ordinality) as source_columns,
+        target_namespace.nspname as target_schema,
+        target_table.relname as target_table,
+        array_agg(target_column.attname::text order by column_key.ordinality) as target_columns,
+        constraint_row.confdeltype = 'c' as on_delete_cascade
+      from pg_constraint as constraint_row
+      join pg_class as source_table on source_table.oid = constraint_row.conrelid
+      join pg_namespace as source_namespace on source_namespace.oid = source_table.relnamespace
+      join pg_class as target_table on target_table.oid = constraint_row.confrelid
+      join pg_namespace as target_namespace on target_namespace.oid = target_table.relnamespace
+      cross join lateral unnest(constraint_row.conkey, constraint_row.confkey)
+        with ordinality as column_key(source_attnum, target_attnum, ordinality)
+      join pg_attribute as source_column
+        on source_column.attrelid = source_table.oid
+        and source_column.attnum = column_key.source_attnum
+      join pg_attribute as target_column
+        on target_column.attrelid = target_table.oid
+        and target_column.attnum = column_key.target_attnum
+      where source_namespace.nspname = $1
+        and source_table.relname = $2
+        and constraint_row.contype = 'f'
+      group by constraint_row.oid, constraint_row.conname,
+        source_namespace.nspname, source_table.relname,
+        target_namespace.nspname, target_table.relname, constraint_row.confdeltype
+    `, [RECEIPT_SCHEMA, RECEIPT_TABLE]);
+    expect(foreignKey.rows).toEqual([{
+      constraint_name: "exam_autosave_mutation_exam_session_id_exam_session_id_fk",
+      source_schema: RECEIPT_SCHEMA,
+      source_table: RECEIPT_TABLE,
+      source_columns: ["exam_session_id"],
+      target_schema: "public",
+      target_table: "exam_session",
+      target_columns: ["id"],
+      on_delete_cascade: true,
+    }]);
+
+    const indexes = await pool.query<{
+      index_name: string;
+      source_schema: string;
+      source_table: string;
+      key_columns: string[];
+      key_column_count: number;
+      total_column_count: number;
+      is_unique: boolean;
+      is_primary: boolean;
+    }>(`
+      select
+        index_table.relname as index_name,
+        source_namespace.nspname as source_schema,
+        source_table.relname as source_table,
+        array_agg(source_column.attname::text order by index_key.ordinality)
+          filter (where index_key.ordinality <= index_row.indnkeyatts) as key_columns,
+        index_row.indnkeyatts as key_column_count,
+        index_row.indnatts as total_column_count,
+        index_row.indisunique as is_unique,
+        index_row.indisprimary as is_primary
+      from pg_index as index_row
+      join pg_class as source_table on source_table.oid = index_row.indrelid
+      join pg_namespace as source_namespace on source_namespace.oid = source_table.relnamespace
+      join pg_class as index_table on index_table.oid = index_row.indexrelid
+      cross join lateral unnest(index_row.indkey)
+        with ordinality as index_key(attnum, ordinality)
+      join pg_attribute as source_column
+        on source_column.attrelid = source_table.oid
+        and source_column.attnum = index_key.attnum
+      where source_namespace.nspname = $1
+        and source_table.relname = $2
+        and index_table.relname = $3
+      group by index_row.indexrelid, index_table.relname,
+        source_namespace.nspname, source_table.relname,
+        index_row.indisunique, index_row.indisprimary,
+        index_row.indnkeyatts, index_row.indnatts
+    `, [
+      RECEIPT_SCHEMA,
+      RECEIPT_TABLE,
       "exam_autosave_mutation_session_item_created_idx",
-    );
+    ]);
+    expect(indexes.rows).toEqual([{
+      index_name: "exam_autosave_mutation_session_item_created_idx",
+      source_schema: RECEIPT_SCHEMA,
+      source_table: RECEIPT_TABLE,
+      key_columns: ["exam_session_id", "item_key", "created_at"],
+      key_column_count: 3,
+      total_column_count: 3,
+      is_unique: false,
+      is_primary: false,
+    }]);
+
     const columns = await pool.query<{ column_name: string }>(`
       select column_name from information_schema.columns
-      where table_schema = 'public' and table_name = 'exam_autosave_mutation'
+      where table_schema = $1 and table_name = $2
       order by ordinal_position
-    `);
+    `, [RECEIPT_SCHEMA, RECEIPT_TABLE]);
     expect(columns.rows.map((row) => row.column_name)).toEqual([
       "exam_session_id",
       "client_mutation_id",

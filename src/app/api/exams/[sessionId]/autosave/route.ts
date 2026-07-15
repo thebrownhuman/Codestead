@@ -23,7 +23,10 @@ export async function PUT(
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
   const authz = await requireAuth();
-  if (!authz.session) return authz.response;
+  if (!authz.session) {
+    authz.response.headers.set("Cache-Control", "no-store");
+    return authz.response;
+  }
   const body = autosaveSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return examJson({ error: "Autosave payload is invalid.", code: "INVALID_AUTOSAVE" }, { status: 400 });

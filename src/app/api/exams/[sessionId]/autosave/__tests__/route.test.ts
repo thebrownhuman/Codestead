@@ -78,6 +78,7 @@ describe("exam autosave endpoint", () => {
     const response = await PUT(malformed, { params: Promise.resolve({ sessionId: SESSION_ID }) });
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toContain("no-store");
     expect(mocks.autosaveExamAnswer).not.toHaveBeenCalled();
   });
 
