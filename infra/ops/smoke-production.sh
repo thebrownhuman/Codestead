@@ -88,10 +88,14 @@ matches_exact_lines "$configured_services" "${pilot_services[@]}" || {
 }
 
 probe_once() {
+  local all_services
   local active_services
   local migration_state
   local durability
   local tunnel_health
+
+  all_services="$(run_compose ps --all --services 2>/dev/null)" || return 1
+  matches_exact_lines "$all_services" "${pilot_services[@]}" || return 1
 
   active_services="$(run_compose ps --services --status running 2>/dev/null)" || return 1
   matches_exact_lines "$active_services" "${running_services[@]}" || return 1

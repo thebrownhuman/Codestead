@@ -57,6 +57,17 @@ if [[ "$#" == 2 && "$1" == "config" && "$2" == "--services" ]]; then
   exit 0
 fi
 
+if [[ "$#" == 3 && "$1" == "ps" && "$2" == "--all" && "$3" == "--services" ]]; then
+  printf '%s\n' reward-worker app postgres cloudflared migrate mail-worker regrade-worker \
+    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker
+  case "$scenario" in
+    stopped-clamav) printf '%s\n' clamav ;;
+    stopped-scan-worker) printf '%s\n' scan-worker ;;
+    stopped-extra) printf '%s\n' stale-worker ;;
+  esac
+  exit 0
+fi
+
 if [[ "$#" == 4 && "$1" == "ps" && "$2" == "--services" && "$3" == "--status" && "$4" == "running" ]]; then
   if [[ "$scenario" == "stopped-reward" ]]; then
     printf '%s\n' cloudflared postgres app mail-worker regrade-worker \
@@ -205,6 +216,9 @@ expect_failure missing-reward "missing reward-worker"
 expect_failure stopped-reward "stopped reward-worker"
 expect_failure forbidden-clamav "forbidden clamav service"
 expect_failure forbidden-scan-worker "forbidden scan-worker service"
+expect_failure stopped-clamav "stopped clamav container"
+expect_failure stopped-scan-worker "stopped scan-worker container"
+expect_failure stopped-extra "arbitrary stopped extra container"
 expect_failure migration-nonzero "nonzero migration"
 expect_failure migration-running "still-running migration"
 expect_failure uploads-enabled "enabled uploads in pilot"
