@@ -1,5 +1,44 @@
 import { toNextJsHandler } from "better-auth/next-js";
+import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { readInitialTotpEnrollmentAuthority } from "@/lib/security/better-auth-management-authority";
+import {
+  classifyRawBetterAuthPost,
+  mayBeginInitialTotpEnrollment,
+} from "@/lib/security/better-auth-management-policy";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const betterAuthHandlers = toNextJsHandler(auth);
+
+export const { GET } = betterAuthHandlers;
+
+function unavailableSecurityAction() {
+  return NextResponse.json(
+    { error: "This account security action is unavailable." },
+    {
+      status: 403,
+      headers: { "Cache-Control": "private, no-store" },
+    },
+  );
+}
+
+export async function POST(request: Request) {
+  const action = classifyRawBetterAuthPost(request.url);
+  if (action === "pass-through") return betterAuthHandlers.POST(request);
+  if (action === "deny") return unavailableSecurityAction();
+
+  // Initial enrollment is the only raw factor mutation allowed. Re-read the
+  // durable session/account and factor row; request bodies and cookie claims
+  // are never authorization authority for this exception.
+  let authority: Awaited<ReturnType<typeof readInitialTotpEnrollmentAuthority>>;
+  try {
+    authority = await readInitialTotpEnrollmentAuthority(request.headers);
+  } catch {
+    return unavailableSecurityAction();
+  }
+  if (!authority || !mayBeginInitialTotpEnrollment(authority)) {
+    return unavailableSecurityAction();
+  }
+
+  return betterAuthHandlers.POST(request);
+}
