@@ -102,12 +102,52 @@ record() {
 }
 record "$@"
 
+safe_under() {
+  local root="$1"
+  local candidate="$2"
+  local relative
+  local cursor
+  local component
+  local -a components=()
+  [[ "$candidate" == "$root" || "$candidate" == "$root"/* ]] || return 1
+  relative="${candidate#"$root"}"
+  relative="${relative#/}"
+  [[ "/$relative/" != *'/../'* && "/$relative/" != *'/./'* && "$relative" != *'//'* ]] || return 1
+  cursor="$root"
+  [[ ! -L "$cursor" ]] || return 1
+  IFS='/' read -r -a components <<<"$relative"
+  for component in "${components[@]}"; do
+    [[ -n "$component" && "$component" != . && "$component" != .. ]] || return 1
+    cursor="$cursor/$component"
+    [[ ! -L "$cursor" ]] || return 1
+  done
+}
+
 inside_root() {
-  [[ "$1" == "$FAKE_HOST_ROOT" || "$1" == "$FAKE_HOST_ROOT"/* || "$1" == "$FAKE_STATE_ROOT"/* ]]
+  safe_under "$FAKE_HOST_ROOT" "$1" || safe_under "$FAKE_STATE_ROOT" "$1"
 }
 
 inside_allowed_read() {
-  inside_root "$1" || [[ "$1" == "$FAKE_WORK_ROOT"/* || "$1" == "$FAKE_REPO_ROOT"/* ]]
+  inside_root "$1" || safe_under "$FAKE_WORK_ROOT" "$1" || safe_under "$FAKE_REPO_ROOT" "$1"
+}
+
+reject_final_disk() {
+  local final_disk="$FAKE_HOST_ROOT/var/lib/libvirt/images/codestead-runner.qcow2"
+  [[ "$1" != "$final_disk" && "$final_disk" != "$1"/* ]]
+}
+
+does_not_replace_existing_final_disk() {
+  local final_disk="$FAKE_HOST_ROOT/var/lib/libvirt/images/codestead-runner.qcow2"
+  [[ "$1" != "$final_disk" || ! -e "$final_disk" ]]
+}
+
+inside_cleanup_path() {
+  local candidate="$1"
+  local basename="${candidate##*/}"
+  if safe_under "$FAKE_STATE_ROOT" "$candidate"; then return 0; fi
+  safe_under "$FAKE_HOST_ROOT/var/lib/libvirt/images" "$candidate" ||
+    safe_under "$FAKE_HOST_ROOT/var/lib/libvirt/boot" "$candidate" || return 1
+  [[ "$basename" == *codestead-runner* && ( "$basename" == *tmp* || "$basename" == *staging* ) ]]
 }
 
 scenario="$(<"$FAKE_SCENARIO_FILE")"
@@ -159,13 +199,13 @@ case "$command_name" in
     case "${1:-}" in
       convert)
         destination="${!#}"
-        inside_root "$destination" || exit 97
+        inside_root "$destination" && does_not_replace_existing_final_disk "$destination" || exit 97
         printf '%s' 'fixture-qcow2' >"$destination"
         ;;
       resize)
         [[ "${!#}" == 100G ]] || exit 64
         image="${@: -2:1}"
-        inside_root "$image" || exit 97
+        inside_root "$image" && reject_final_disk "$image" || exit 97
         printf '%s' 100G >"$FAKE_STATE_ROOT/disk-size"
         ;;
       info)
@@ -176,7 +216,7 @@ case "$command_name" in
     ;;
   cloud-localds)
     [[ $# -ge 2 ]] || exit 64
-    inside_root "$1" || exit 97
+    inside_root "$1" && does_not_replace_existing_final_disk "$1" || exit 97
     printf '%s' 'fixture-seed' >"$1"
     ;;
   virt-install)
@@ -190,15 +230,32 @@ case "$command_name" in
     fi
     ;;
   install)
-    if [[ " ${*} " == *' -d '* ]]; then
-      destination="${!#}"
-      inside_root "$destination" || exit 97
-      /usr/bin/mkdir -p -- "$destination"
+    directory_mode=false
+    install_mode=
+    operands=()
+    while (( $# > 0 )); do
+      case "$1" in
+        -d) directory_mode=true; shift ;;
+        -D) shift ;;
+        -m|-o|-g) [[ $# -ge 2 ]] || exit 64; [[ "$1" != -m ]] || install_mode="$2"; shift 2 ;;
+        --) shift; while (( $# > 0 )); do operands+=("$1"); shift; done ;;
+        -*) exit 64 ;;
+        *) operands+=("$1"); shift ;;
+      esac
+    done
+    if [[ "$directory_mode" == true ]]; then
+      (( ${#operands[@]} > 0 )) || exit 64
+      for destination in "${operands[@]}"; do inside_root "$destination" || exit 97; done
+      /usr/bin/mkdir -p -- "${operands[@]}"
+      [[ -z "$install_mode" ]] || /usr/bin/chmod -- "$install_mode" "${operands[@]}"
     else
-      source_path="${@: -2:1}"
-      destination="${!#}"
-      inside_root "$destination" || exit 97
+      (( ${#operands[@]} == 2 )) || exit 64
+      source_path="${operands[0]}"
+      destination="${operands[1]}"
+      inside_allowed_read "$source_path" || exit 97
+      inside_root "$destination" && does_not_replace_existing_final_disk "$destination" || exit 97
       /usr/bin/cp -- "$source_path" "$destination"
+      [[ -z "$install_mode" ]] || /usr/bin/chmod -- "$install_mode" "$destination"
     fi
     ;;
   systemctl)
@@ -208,56 +265,145 @@ case "$command_name" in
     esac
     ;;
   rm)
-    target="${!#}"
-    inside_root "$target" || exit 97
-    /usr/bin/rm "$@"
+    rm_args=("$@")
+    rm_targets=()
+    parse_options=true
+    for argument in "${rm_args[@]}"; do
+      if [[ "$parse_options" == true ]]; then
+        case "$argument" in
+          --) parse_options=false; continue ;;
+          -f|-r|-rf|-fr) continue ;;
+          -*) exit 64 ;;
+        esac
+      fi
+      rm_targets+=("$argument")
+    done
+    (( ${#rm_targets[@]} > 0 )) || exit 64
+    for target in "${rm_targets[@]}"; do
+      inside_cleanup_path "$target" && reject_final_disk "$target" || exit 97
+    done
+    /usr/bin/rm "${rm_args[@]}"
     ;;
   cp)
-    source_path="${@: -2:1}"
-    destination="${!#}"
-    inside_allowed_read "$source_path" || exit 97
-    inside_root "$destination" || exit 97
-    /usr/bin/cp "$@"
+    cp_args=("$@")
+    cp_operands=()
+    parse_options=true
+    for argument in "${cp_args[@]}"; do
+      if [[ "$parse_options" == true ]]; then
+        case "$argument" in
+          --) parse_options=false; continue ;;
+          -a|-f|-p|-R|-r|--reflink=auto|--reflink=always|--sparse=always) continue ;;
+          -*) exit 64 ;;
+        esac
+      fi
+      cp_operands+=("$argument")
+    done
+    (( ${#cp_operands[@]} >= 2 )) || exit 64
+    destination="${cp_operands[${#cp_operands[@]} - 1]}"
+    inside_root "$destination" && does_not_replace_existing_final_disk "$destination" || exit 97
+    for (( index=0; index<${#cp_operands[@]}-1; index++ )); do
+      inside_allowed_read "${cp_operands[$index]}" || exit 97
+    done
+    /usr/bin/cp "${cp_args[@]}"
     ;;
   mv)
     args=("$@")
     [[ "${args[0]:-}" == -- ]] && args=("${args[@]:1}")
     (( ${#args[@]} == 2 )) || exit 64
-    inside_root "${args[0]}" && inside_root "${args[1]}" || exit 97
+    inside_root "${args[0]}" && inside_root "${args[1]}" &&
+      does_not_replace_existing_final_disk "${args[1]}" || exit 97
     /usr/bin/mv -- "${args[0]}" "${args[1]}"
     ;;
   mkdir)
-    for argument in "$@"; do
-      [[ "$argument" == -* ]] && continue
-      inside_root "$argument" || exit 97
+    mkdir_args=("$@")
+    mkdir_targets=()
+    expect_mode=false
+    for argument in "${mkdir_args[@]}"; do
+      if [[ "$expect_mode" == true ]]; then expect_mode=false; continue; fi
+      case "$argument" in
+        -p|--) ;;
+        -m) expect_mode=true ;;
+        -*) exit 64 ;;
+        *) mkdir_targets+=("$argument") ;;
+      esac
     done
-    /usr/bin/mkdir "$@"
+    [[ "$expect_mode" == false && ${#mkdir_targets[@]} -gt 0 ]] || exit 64
+    for target in "${mkdir_targets[@]}"; do inside_root "$target" || exit 97; done
+    /usr/bin/mkdir "${mkdir_args[@]}"
     ;;
   chmod)
-    target="${!#}"
-    inside_root "$target" || exit 97
-    /usr/bin/chmod "$@"
+    chmod_args=("$@")
+    chmod_targets=()
+    mode_seen=false
+    for argument in "${chmod_args[@]}"; do
+      [[ "$argument" == -- ]] && continue
+      if [[ "$mode_seen" == false ]]; then
+        [[ "$argument" =~ ^[0-7]{3,4}$ ]] || exit 64
+        mode_seen=true
+      else
+        chmod_targets+=("$argument")
+      fi
+    done
+    [[ "$mode_seen" == true && ${#chmod_targets[@]} -gt 0 ]] || exit 64
+    for target in "${chmod_targets[@]}"; do inside_root "$target" || exit 97; done
+    /usr/bin/chmod "${chmod_args[@]}"
     ;;
   chown)
-    target="${!#}"
-    inside_root "$target" || exit 97
+    chown_targets=()
+    owner_seen=false
+    for argument in "$@"; do
+      [[ "$argument" == -- ]] && continue
+      if [[ "$owner_seen" == false ]]; then owner_seen=true; continue; fi
+      [[ "$argument" == -* ]] && exit 64
+      chown_targets+=("$argument")
+    done
+    [[ "$owner_seen" == true && ${#chown_targets[@]} -gt 0 ]] || exit 64
+    for target in "${chown_targets[@]}"; do inside_root "$target" || exit 97; done
     ;;
   sync)
-    target="${!#}"
-    inside_root "$target" || exit 97
-    /usr/bin/sync "$@"
+    sync_targets=()
+    for argument in "$@"; do
+      case "$argument" in -f|--file-system|--) ;; -*) exit 64 ;; *) sync_targets+=("$argument") ;; esac
+    done
+    (( ${#sync_targets[@]} > 0 )) || exit 64
+    for target in "${sync_targets[@]}"; do inside_root "$target" || exit 97; done
     ;;
   mktemp)
+    mktemp_args=("$@")
     template="${!#}"
     inside_root "$template" || exit 97
-    /usr/bin/mktemp "$@"
+    expect_tmpdir=false
+    for argument in "${mktemp_args[@]:0:${#mktemp_args[@]}-1}"; do
+      if [[ "$expect_tmpdir" == true ]]; then inside_root "$argument" || exit 97; expect_tmpdir=false; continue; fi
+      case "$argument" in
+        -d) ;;
+        -p|--tmpdir) expect_tmpdir=true ;;
+        --tmpdir=*) inside_root "${argument#*=}" || exit 97 ;;
+        -*) exit 64 ;;
+        *) inside_root "$argument" || exit 97 ;;
+      esac
+    done
+    [[ "$expect_tmpdir" == false ]] || exit 64
+    /usr/bin/mktemp "${mktemp_args[@]}"
     ;;
   stat|realpath|readlink|cat)
-    target="${!#}"
-    inside_allowed_read "$target" || exit 97
-    "/usr/bin/$command_name" "$@"
+    read_args=("$@")
+    read_targets=()
+    expect_format=false
+    for argument in "${read_args[@]}"; do
+      if [[ "$expect_format" == true ]]; then expect_format=false; continue; fi
+      case "$argument" in
+        -c|--format|--printf) expect_format=true ;;
+        --|-e|-f|-m|-n|-q|-s|-v|--canonicalize-missing|--format=*|--printf=*) ;;
+        -*) exit 64 ;;
+        *) read_targets+=("$argument") ;;
+      esac
+    done
+    [[ "$expect_format" == false && ${#read_targets[@]} -gt 0 ]] || exit 64
+    for target in "${read_targets[@]}"; do inside_allowed_read "$target" || exit 97; done
+    "/usr/bin/$command_name" "${read_args[@]}"
     ;;
-  docker|curl|wget|mount|umount|nft|systemd-analyze)
+  docker|curl|wget|mount|umount|nft|systemd-analyze|dd|truncate|touch|tee|ln|rsync|sudo|ssh|scp|nc|socat)
     exit 97
     ;;
   *) exit 64 ;;
@@ -266,7 +412,7 @@ FAKE
 chmod 0755 "$fake_bin/fake-host-command"
 for command_name in virsh qemu-img cloud-localds virt-install sha256sum install systemctl rm mv cp mkdir chmod chown \
   sync mktemp stat realpath readlink cat \
-  docker curl wget mount umount nft systemd-analyze; do
+  docker curl wget mount umount nft systemd-analyze dd truncate touch tee ln rsync sudo ssh scp nc socat; do
   cp "$fake_bin/fake-host-command" "$fake_bin/$command_name"
 done
 

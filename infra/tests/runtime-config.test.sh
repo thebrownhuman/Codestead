@@ -62,6 +62,9 @@ fake_live_fsync=
 fake_live_sync_commit=
 fake_live_full_page_writes=
 fake_docker_log=
+fake_mutate_service=
+fake_mutate_field=
+fake_mutate_value=
 
 make_fixture() {
   local label="$1"
@@ -84,6 +87,9 @@ make_fixture() {
   fake_live_sync_commit='on'
   fake_live_full_page_writes='on'
   fake_docker_log="$case_dir/docker.log"
+  fake_mutate_service=
+  fake_mutate_field=
+  fake_mutate_value=
 
   mkdir -p \
     "$case_dir/bin" \
@@ -104,11 +110,11 @@ set -Eeuo pipefail
   printf '\n'
 } >>"$FAKE_DOCKER_LOG"
 
-if [[ "${1:-}" == "compose" && "${2:-}" == "version" ]]; then
+if [[ "$#" == 2 && "${1:-}" == "compose" && "${2:-}" == "version" ]]; then
   exit 0
 fi
 
-if [[ "${1:-}" == "info" ]]; then
+if [[ "$#" == 1 && "${1:-}" == "info" ]]; then
   exit 0
 fi
 
@@ -117,6 +123,24 @@ for argument in "$@"; do
   if [[ "$argument" == exec ]]; then is_exec=true; fi
 done
 if [[ "$is_exec" == true ]]; then
+  [[ "${1:-}" == compose ]] || exit 64
+  joined=" $* "
+  [[ "$joined" == *" --env-file $FAKE_EXPECTED_COMPOSE_ENV "* ]] || exit 64
+  [[ "$joined" == *" -f $FAKE_EXPECTED_COMPOSE_FILE "* ]] || exit 64
+  exec_count=0
+  exec_index=-1
+  index=0
+  for argument in "$@"; do
+    if [[ "$argument" == exec ]]; then exec_count=$((exec_count + 1)); exec_index=$index; fi
+    index=$((index + 1))
+  done
+  (( exec_count == 1 && exec_index >= 0 )) || exit 64
+  args=("$@")
+  index=$((exec_index + 1))
+  [[ "${args[$index]:-}" == -T ]] && index=$((index + 1))
+  [[ "${args[$index]:-}" == postgres ]] || exit 64
+  [[ "$joined" == *' psql '* && "$joined" == *'SELECT name, setting'* && "$joined" == *'pg_settings'* ]] || exit 64
+  for setting in fsync synchronous_commit full_page_writes; do [[ "$joined" == *"$setting"* ]] || exit 64; done
   printf '%s|%s\n' \
     fsync "$FAKE_LIVE_FSYNC" \
     synchronous_commit "$FAKE_LIVE_SYNC_COMMIT" \
@@ -124,13 +148,35 @@ if [[ "$is_exec" == true ]]; then
   exit 0
 fi
 
+value_for() {
+  local service="$1"
+  local field="$2"
+  local default="$3"
+  if [[ "$FAKE_MUTATE_SERVICE" == "$service" && "$FAKE_MUTATE_FIELD" == "$field" ]]; then
+    printf '%s' "$FAKE_MUTATE_VALUE"
+  else
+    printf '%s' "$default"
+  fi
+}
+
+emit_host_port() {
+  local service="$1"
+  if [[ "$FAKE_HOST_PORT" == true && "$service" == app ]] ||
+    [[ "$FAKE_MUTATE_SERVICE" == "$service" && "$FAKE_MUTATE_FIELD" == host-port ]]; then
+    printf '%s\n' '    ports:' '      - 127.0.0.1:3000:3000'
+  fi
+}
+
 if [[ "${1:-}" == "compose" ]]; then
-  printf '%s\n' \
-    'services:' \
-    '  postgres:' \
-    '    image: registry.example.test/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222' \
-    '    restart: unless-stopped' \
-    '    stop_grace_period: 2m' \
+  [[ "$#" == 6 && "${2:-}" == --env-file && "${3:-}" == "$FAKE_EXPECTED_COMPOSE_ENV" &&
+    "${4:-}" == -f && "${5:-}" == "$FAKE_EXPECTED_COMPOSE_FILE" && "${6:-}" == config ]] || exit 64
+  postgres_image="$(value_for postgres image 'registry.example.test/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222')"
+  postgres_restart="$(value_for postgres restart unless-stopped)"
+  postgres_stop="$(value_for postgres stop-grace 2m)"
+  printf '%s\n' 'services:' '  postgres:' \
+    "    image: $postgres_image" \
+    "    restart: $postgres_restart" \
+    "    stop_grace_period: $postgres_stop" \
     '    environment:' \
     '      POSTGRES_INITDB_ARGS: --data-checksums' \
     '    command:' \
@@ -140,40 +186,53 @@ if [[ "${1:-}" == "compose" ]]; then
     '      - -c' \
     "      - synchronous_commit=$FAKE_POSTGRES_SYNC_COMMIT" \
     '      - -c' \
-    "      - full_page_writes=$FAKE_POSTGRES_FULL_PAGE_WRITES" \
-    '  app:' \
-    "    image: $FAKE_APP_IMAGE" \
-    "    restart: $FAKE_LONG_RESTART" \
-    '    stop_grace_period: 1m' \
+    "      - full_page_writes=$FAKE_POSTGRES_FULL_PAGE_WRITES"
+  emit_host_port postgres
+  app_image="$(value_for app image "$FAKE_APP_IMAGE")"
+  app_restart="$(value_for app restart "$FAKE_LONG_RESTART")"
+  app_stop="$(value_for app stop-grace 1m)"
+  printf '%s\n' '  app:' \
+    "    image: $app_image" \
+    "    restart: $app_restart" \
+    "    stop_grace_period: $app_stop" \
     '    environment:' \
     "      RUNNER_BASE_URL: $FAKE_RUNNER_URL" \
     '    networks:' \
     '      - data' \
     '      - frontend' \
     '      - runner-egress'
-  if [[ "$FAKE_HOST_PORT" == true ]]; then
-    printf '%s\n' '    ports:' '      - 127.0.0.1:3000:3000'
-  fi
+  emit_host_port app
   for service in mail-worker reward-worker regrade-worker exam-finalization-worker \
     practice-runner-recovery-worker project-review-correction-worker scan-worker; do
+    service_image="$(value_for "$service" image 'registry.example.test/worker@sha256:3333333333333333333333333333333333333333333333333333333333333333')"
+    service_restart="$(value_for "$service" restart unless-stopped)"
+    service_stop="$(value_for "$service" stop-grace 1m)"
     printf '%s\n' \
       "  $service:" \
-      '    image: registry.example.test/worker@sha256:3333333333333333333333333333333333333333333333333333333333333333' \
-      '    restart: unless-stopped' \
-      '    stop_grace_period: 1m'
+      "    image: $service_image" \
+      "    restart: $service_restart" \
+      "    stop_grace_period: $service_stop"
+    emit_host_port "$service"
   done
+  cloudflared_image="$(value_for cloudflared image 'registry.example.test/cloudflared@sha256:3333333333333333333333333333333333333333333333333333333333333333')"
+  cloudflared_restart="$(value_for cloudflared restart unless-stopped)"
+  cloudflared_stop="$(value_for cloudflared stop-grace 30s)"
   printf '%s\n' \
     '  cloudflared:' \
-    '    image: registry.example.test/cloudflared@sha256:3333333333333333333333333333333333333333333333333333333333333333' \
-    '    restart: unless-stopped' \
-    '    stop_grace_period: 30s'
+    "    image: $cloudflared_image" \
+    "    restart: $cloudflared_restart" \
+    "    stop_grace_period: $cloudflared_stop"
+  emit_host_port cloudflared
   for service in migrate lifecycle platform-seed admin-bootstrap; do
+    service_image="$(value_for "$service" image 'registry.example.test/operations@sha256:1111111111111111111111111111111111111111111111111111111111111111')"
+    service_restart="$(value_for "$service" restart "$FAKE_ONESHOT_RESTART")"
     printf '%s\n' \
       "  $service:" \
       '    profiles:' \
       '      - operations' \
-      '    image: registry.example.test/operations@sha256:1111111111111111111111111111111111111111111111111111111111111111' \
-      "    restart: $FAKE_ONESHOT_RESTART"
+      "    image: $service_image" \
+      "    restart: $service_restart"
+    emit_host_port "$service"
   done
   printf '%s\n' \
     'networks:' \
@@ -201,7 +260,9 @@ set -Eeuo pipefail
 duration="${1:-}"
 [[ "$duration" =~ ^([1-9]|[12][0-9]|30)s$ ]] || exit 64
 shift
-exec "$@"
+[[ "${1:-}" == docker || "${1:-}" == "$FAKE_DOCKER_BINARY" ]] || exit 64
+shift
+exec "$FAKE_DOCKER_BINARY" "$@"
 EOF
   chmod 0755 "$case_dir/bin/timeout"
   : >"$fake_docker_log"
@@ -287,6 +348,9 @@ run_validator() {
     VALIDATION_MODE="$validation_mode" \
     FAKE_STAT_TARGET="$fake_stat_target" \
     FAKE_DOCKER_LOG="$fake_docker_log" \
+    FAKE_DOCKER_BINARY="$case_dir/bin/docker" \
+    FAKE_EXPECTED_COMPOSE_ENV="$config" \
+    FAKE_EXPECTED_COMPOSE_FILE="$repo_root/compose.yaml" \
     FAKE_RUNNER_URL="$fake_runner_url" \
     FAKE_RUNNER_SUBNET="$fake_runner_subnet" \
     FAKE_RUNNER_BRIDGE="$fake_runner_bridge" \
@@ -300,6 +364,9 @@ run_validator() {
     FAKE_LIVE_FSYNC="$fake_live_fsync" \
     FAKE_LIVE_SYNC_COMMIT="$fake_live_sync_commit" \
     FAKE_LIVE_FULL_PAGE_WRITES="$fake_live_full_page_writes" \
+    FAKE_MUTATE_SERVICE="$fake_mutate_service" \
+    FAKE_MUTATE_FIELD="$fake_mutate_field" \
+    FAKE_MUTATE_VALUE="$fake_mutate_value" \
     bash "$validator" "$@"
 }
 
@@ -415,29 +482,53 @@ expect_failure \
   'wrong runner-egress bridge' \
   'fatal: runner-egress bridge must be exactly cdst-run0'
 
-make_fixture rendered-host-port
-fake_host_port=true
-expect_failure \
-  'rendered Compose host port' \
-  'fatal: trusted Compose stack must not publish host ports'
+all_rendered_services=(
+  postgres app mail-worker reward-worker regrade-worker exam-finalization-worker
+  practice-runner-recovery-worker project-review-correction-worker scan-worker cloudflared
+  migrate lifecycle platform-seed admin-bootstrap
+)
+long_running_services=(
+  postgres app mail-worker reward-worker regrade-worker exam-finalization-worker
+  practice-runner-recovery-worker project-review-correction-worker scan-worker cloudflared
+)
+one_shot_services=(migrate lifecycle platform-seed admin-bootstrap)
 
-make_fixture rendered-mutable-image
-fake_app_image='registry.example.test/codestead/runtime:latest'
-expect_failure \
-  'rendered mutable application image' \
-  'fatal: rendered Compose services must use immutable sha256 image references'
+for service in "${all_rendered_services[@]}"; do
+  make_fixture "host-port-$service"
+  fake_mutate_service="$service"
+  fake_mutate_field=host-port
+  expect_failure \
+    "rendered Compose host port on $service" \
+    'fatal: trusted Compose stack must not publish host ports'
 
-make_fixture wrong-long-running-restart
-fake_long_restart='always'
-expect_failure \
-  'wrong long-running restart class' \
-  'fatal: rendered long-running services must restart unless-stopped'
+  make_fixture "mutable-image-$service"
+  fake_mutate_service="$service"
+  fake_mutate_field=image
+  fake_mutate_value='registry.example.test/codestead/mutable:latest'
+  expect_failure \
+    "rendered mutable image on $service" \
+    'fatal: rendered Compose services must use immutable sha256 image references'
+done
 
-make_fixture wrong-one-shot-restart
-fake_oneshot_restart='on-failure'
-expect_failure \
-  'wrong one-shot restart class' \
-  'fatal: rendered one-shot services must use restart no'
+for service in "${long_running_services[@]}"; do
+  make_fixture "wrong-long-restart-$service"
+  fake_mutate_service="$service"
+  fake_mutate_field=restart
+  fake_mutate_value=always
+  expect_failure \
+    "wrong long-running restart class on $service" \
+    'fatal: rendered long-running services must restart unless-stopped'
+done
+
+for service in "${one_shot_services[@]}"; do
+  make_fixture "wrong-one-shot-restart-$service"
+  fake_mutate_service="$service"
+  fake_mutate_field=restart
+  fake_mutate_value=on-failure
+  expect_failure \
+    "wrong one-shot restart class on $service" \
+    'fatal: rendered one-shot services must use restart no'
+done
 
 for setting in fsync synchronous_commit full_page_writes; do
   make_fixture "rendered-postgres-$setting-off"
@@ -486,8 +577,17 @@ if [[ "$timeout_invocations" != 1 ]]; then
   exit 1
 fi
 postgres_event="$(grep -E '^docker .* exec([[:space:]]|$)' "$fake_docker_log")"
-if [[ "$postgres_event" != *fsync* || "$postgres_event" != *synchronous_commit* || "$postgres_event" != *full_page_writes* ]]; then
+if [[ "$postgres_event" != *"compose --env-file $config -f $repo_root/compose.yaml"* ||
+  "$postgres_event" != *' exec -T postgres '* || "$postgres_event" != *' psql '* ||
+  "$postgres_event" != *'SELECT name, setting'* || "$postgres_event" != *pg_settings* ||
+  "$postgres_event" != *fsync* || "$postgres_event" != *synchronous_commit* || "$postgres_event" != *full_page_writes* ]]; then
   echo 'FAIL: post-start validation must query all three durability settings together' >&2
+  exit 1
+fi
+timeout_event="$(grep '^timeout ' "$fake_docker_log")"
+if [[ "$timeout_event" != *" $case_dir/bin/docker compose --env-file $config -f $repo_root/compose.yaml"* &&
+  "$timeout_event" != *" docker compose --env-file $config -f $repo_root/compose.yaml"* ]]; then
+  echo 'FAIL: post-start timeout must wrap only the exact fake-Docker Compose invocation' >&2
   exit 1
 fi
 
@@ -619,7 +719,7 @@ if [[ "$target" == "$FAKE_STAT_TARGET" ]]; then
   exit 0
 fi
 
-exec /usr/bin/stat "$@"
+exit 97
 EOF
 chmod 0755 "$case_dir/bin/stat"
 expect_failure \

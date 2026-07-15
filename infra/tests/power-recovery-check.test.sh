@@ -58,9 +58,10 @@ runner_concurrency_body_file="$state_root/runner-concurrency-body"
 runner_concurrency_signature_file="$state_root/runner-concurrency-signature"
 runner_expired_body_file="$state_root/runner-expired-body"
 runner_expired_signature_file="$state_root/runner-expired-signature"
+curl_root="$state_root/curl"
 baseline="$host_root/etc/learncoding/existing-containers.txt"
 runner_secret_file="$host_root/etc/learncoding/secrets/runner_shared_secret"
-mkdir -m 0700 -p "$fake_bin" "$state_root" "$host_root/etc/learncoding/secrets"
+mkdir -m 0700 -p "$fake_bin" "$state_root" "$curl_root" "$host_root/etc/learncoding/secrets"
 printf '%s\n' legacy-alpha legacy-bravo >"$baseline"
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
@@ -115,6 +116,27 @@ clock="$(<"$FAKE_CLOCK_FILE")"
 delayed=false
 if [[ "$scenario" == delayed && "$clock" -lt 30 ]]; then delayed=true; fi
 
+safe_under() {
+  local root="$1"
+  local candidate="$2"
+  local relative
+  local cursor
+  local component
+  local -a components=()
+  [[ "$candidate" == "$root" || "$candidate" == "$root"/* ]] || return 1
+  relative="${candidate#"$root"}"
+  relative="${relative#/}"
+  [[ "/$relative/" != *'/../'* && "/$relative/" != *'/./'* && "$relative" != *'//'* ]] || return 1
+  cursor="$root"
+  [[ ! -L "$cursor" ]] || return 1
+  IFS='/' read -r -a components <<<"$relative"
+  for component in "${components[@]}"; do
+    [[ -n "$component" && "$component" != . && "$component" != .. ]] || return 1
+    cursor="$cursor/$component"
+    [[ ! -L "$cursor" ]] || return 1
+  done
+}
+
 case "$command_name" in
   date)
     [[ "$#" == 1 && "$1" == +%s ]] || exit 64
@@ -155,6 +177,14 @@ case "$command_name" in
             printf '%s\n' enabled ;;
           *) exit 64 ;;
         esac
+        ;;
+      show)
+        [[ "$#" == 4 && "${3:-}" == --property=Persistent && "${4:-}" == --value && "$unit" == *.timer ]] || exit 64
+        if [[ "$scenario" == timer-not-persistent && "$unit" == learncoding-retention.timer ]]; then
+          printf '%s\n' no
+        else
+          printf '%s\n' yes
+        fi
         ;;
       *) exit 64 ;;
     esac
@@ -210,7 +240,7 @@ case "$command_name" in
         cloudflared-incomplete) printf '%s\n' '[{"Service":"app","State":"running","Health":"healthy"}]' ;;
         cloudflared-malformed) printf '%s\n' '[{"Service":"cloudflared","State":"running","Health":"unknown"}]' ;;
         *)
-          printf '%s\n' "[{\"Service\":\"app\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"mail-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"reward-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"regrade-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"exam-finalization-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"practice-runner-recovery-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"project-review-correction-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"cloudflared\",\"State\":\"running\",\"Health\":\"healthy\",\"Ignored\":\"$FAKE_RAW_COMMAND_CANARY\"}]"
+          printf '%s\n' "[{\"Service\":\"app\",\"State\":\"running\",\"Health\":\"healthy\",\"IgnoredLearner\":\"$FAKE_LEARNER_CANARY\"},{\"Service\":\"mail-worker\",\"State\":\"running\",\"Health\":\"healthy\",\"IgnoredSource\":\"$FAKE_SOURCE_CANARY\"},{\"Service\":\"reward-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"regrade-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"exam-finalization-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"practice-runner-recovery-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"project-review-correction-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"cloudflared\",\"State\":\"running\",\"Health\":\"healthy\",\"Ignored\":\"$FAKE_RAW_COMMAND_CANARY\"}]"
           ;;
       esac
       exit 0
@@ -232,10 +262,18 @@ case "$command_name" in
     url=
     while (( $# > 0 )); do
       case "$1" in
-        --output|-o) output="$2"; shift 2 ;;
-        --dump-header|-D) headers="$2"; shift 2 ;;
+        --output|-o) [[ $# -ge 2 ]] || exit 64; output="$2"; shift 2 ;;
+        --output=*) output="${1#*=}"; shift ;;
+        --dump-header|-D) [[ $# -ge 2 ]] || exit 64; headers="$2"; shift 2 ;;
+        --dump-header=*) headers="${1#*=}"; shift ;;
+        --silent|-s|--show-error|-S|--fail|--fail-with-body|--no-progress-meter) shift ;;
+        --max-time|--connect-timeout) [[ $# -ge 2 && "$2" =~ ^([1-9]|[12][0-9]|30)$ ]] || exit 64; shift 2 ;;
+        --request|-X) [[ $# -ge 2 && "$2" == GET ]] || exit 64; shift 2 ;;
+        --header|-H) [[ $# -ge 2 && "$2" != *$'\n'* && "$2" != *$'\r'* ]] || exit 64; shift 2 ;;
+        --url) [[ $# -ge 2 ]] || exit 64; url="$2"; shift 2 ;;
+        --url=*) url="${1#*=}"; shift ;;
         http://*|https://*) url="$1"; shift ;;
-        *) shift ;;
+        *) exit 64 ;;
       esac
     done
     [[ -n "$url" ]] || exit 64
@@ -252,10 +290,16 @@ case "$command_name" in
       [[ "$scenario" == runner-concurrency ]] && signature="$(<"$FAKE_RUNNER_CONCURRENCY_SIGNATURE_FILE")"
       [[ "$scenario" == runner-expired ]] && signature="$(<"$FAKE_RUNNER_EXPIRED_SIGNATURE_FILE")"
       [[ "$scenario" == runner-tampered ]] && signature="sha256=$(printf '0%.0s' {1..64})"
-      header_text="HTTP/1.1 200 OK
+      if [[ "$scenario" == runner-unsigned ]]; then
+        header_text="HTTP/1.1 200 OK
+x-request-id: recovery-health-fixture-0001
+x-runner-debug: $FAKE_RUNNER_OUTPUT_CANARY"
+      else
+        header_text="HTTP/1.1 200 OK
 x-request-id: recovery-health-fixture-0001
 x-runner-response-signature: $signature
 x-runner-debug: $FAKE_RUNNER_OUTPUT_CANARY"
+      fi
     else
       [[ "$url" == https://pilot.example.test/health/ready ]] || exit 97
       [[ "$scenario" != public-fail && "$delayed" == false ]] || exit 22
@@ -275,15 +319,49 @@ x-content-type-options: nosniff
 x-fixture-private: $FAKE_HTTP_HEADER_CANARY"
       fi
     fi
-    if [[ -n "$output" ]]; then printf '%s' "$body" >"$output"; else printf '%s' "$body"; fi
-    if [[ -n "$headers" ]]; then printf '%s\n' "$header_text" >"$headers"; fi
+    if [[ -n "$output" ]]; then safe_under "$FAKE_CURL_ROOT" "$output" || exit 97; printf '%s' "$body" >"$output"; else printf '%s' "$body"; fi
+    if [[ -n "$headers" ]]; then safe_under "$FAKE_CURL_ROOT" "$headers" || exit 97; printf '%s\n' "$header_text" >"$headers"; fi
     ;;
   stat|realpath|readlink|cat)
-    target="${!#}"
-    [[ "$target" == "$FAKE_HOST_ROOT"/* || "$target" == "$FAKE_STATE_ROOT"/* ]] || exit 97
+    targets=()
+    expect_format=false
+    for argument in "$@"; do
+      if [[ "$expect_format" == true ]]; then expect_format=false; continue; fi
+      case "$argument" in -c|--format|--printf) expect_format=true ;; --|-e|-f|-m|-n|-q|-s|-v|--format=*|--printf=*) ;; -*) exit 64 ;; *) targets+=("$argument") ;; esac
+    done
+    [[ "$expect_format" == false && ${#targets[@]} -gt 0 ]] || exit 64
+    for target in "${targets[@]}"; do
+      safe_under "$FAKE_HOST_ROOT" "$target" || safe_under "$FAKE_STATE_ROOT" "$target" || exit 97
+    done
     "/usr/bin/$command_name" "$@"
     ;;
-  journalctl|findmnt|smartctl|mount|umount|nft|ping|nc|wget)
+  mktemp)
+    mktemp_args=("$@")
+    template="${!#}"
+    safe_under "$FAKE_CURL_ROOT" "$template" || exit 97
+    expect_tmpdir=false
+    for argument in "${mktemp_args[@]:0:${#mktemp_args[@]}-1}"; do
+      if [[ "$expect_tmpdir" == true ]]; then safe_under "$FAKE_CURL_ROOT" "$argument" || exit 97; expect_tmpdir=false; continue; fi
+      case "$argument" in
+        -d) ;;
+        -p|--tmpdir) expect_tmpdir=true ;;
+        --tmpdir=*) safe_under "$FAKE_CURL_ROOT" "${argument#*=}" || exit 97 ;;
+        -*) exit 64 ;;
+        *) exit 64 ;;
+      esac
+    done
+    [[ "$expect_tmpdir" == false ]] || exit 64
+    /usr/bin/mktemp "${mktemp_args[@]}"
+    ;;
+  rm)
+    rm_args=("$@")
+    rm_targets=()
+    for argument in "${rm_args[@]}"; do case "$argument" in --|-f) ;; -*) exit 64 ;; *) rm_targets+=("$argument") ;; esac; done
+    (( ${#rm_targets[@]} > 0 )) || exit 64
+    for target in "${rm_targets[@]}"; do safe_under "$FAKE_CURL_ROOT" "$target" || exit 97; done
+    /usr/bin/rm "${rm_args[@]}"
+    ;;
+  journalctl|findmnt|smartctl|mount|umount|nft|ping|nc|wget|dd|truncate|touch|tee|ln|rsync|sudo|ssh|scp|socat)
     printf '%s\n' "$FAKE_RUNNER_JOURNAL_CANARY" >&2
     exit 97
     ;;
@@ -291,8 +369,8 @@ x-fixture-private: $FAKE_HTTP_HEADER_CANARY"
 esac
 FAKE
 chmod 0755 "$fake_bin/fake-recovery-command"
-for command_name in systemctl virsh docker curl date sleep stat realpath readlink cat \
-  journalctl findmnt smartctl mount umount nft ping nc wget; do
+for command_name in systemctl virsh docker curl date sleep stat realpath readlink cat mktemp rm \
+  journalctl findmnt smartctl mount umount nft ping nc wget dd truncate touch tee ln rsync sudo ssh scp socat; do
   cp "$fake_bin/fake-recovery-command" "$fake_bin/$command_name"
 done
 
@@ -306,6 +384,7 @@ run_checker() {
   printf '%s' "$stdin_canary" | env -i \
     HOME="$work" \
     PATH="$fake_bin:/usr/bin:/bin" \
+    TMPDIR="$curl_root" \
     RECOVERY_CHECK_TEST_ROOT="$host_root" \
     RECOVERY_PUBLIC_URL='https://pilot.example.test/health/ready' \
     RUNNER_BASE_URL='http://10.20.0.12:4100' \
@@ -314,6 +393,7 @@ run_checker() {
     FAKE_SCENARIO_FILE="$scenario_file" \
     FAKE_STATE_ROOT="$state_root" \
     FAKE_HOST_ROOT="$host_root" \
+    FAKE_CURL_ROOT="$curl_root" \
     FAKE_CLOCK_FILE="$clock_file" \
     FAKE_RUNNER_BODY_FILE="$runner_body_file" \
     FAKE_RUNNER_SIGNATURE_FILE="$runner_signature_file" \
@@ -326,6 +406,8 @@ run_checker() {
     FAKE_RUNNER_OUTPUT_CANARY="$runner_output_canary" \
     FAKE_RUNNER_JOURNAL_CANARY="$runner_journal_canary" \
     FAKE_RAW_COMMAND_CANARY="$raw_command_canary" \
+    FAKE_LEARNER_CANARY="$learner_canary" \
+    FAKE_SOURCE_CANARY="$source_canary" \
     bash "$checker" >"$prefix.stdout" 2>"$prefix.stderr"
   checker_status=$?
   set -e
@@ -335,10 +417,14 @@ validate_json_contract() {
   local output_file="$1"
   local expected_recovered="$2"
   local expected_timeout="$3"
+  local expected_elapsed="$4"
+  local expected_false_keys="$5"
   local line_count
   line_count="$(grep -cve '^[[:space:]]*$' "$output_file" || true)"
   [[ "$line_count" == 1 ]] || fail "checker must emit exactly one final JSON object: ${output_file##*/}"
-  EXPECTED_RECOVERED="$expected_recovered" EXPECTED_TIMEOUT="$expected_timeout" OUTPUT_FILE="$output_file" node <<'NODE'
+  EXPECTED_RECOVERED="$expected_recovered" EXPECTED_TIMEOUT="$expected_timeout" \
+    EXPECTED_ELAPSED="$expected_elapsed" EXPECTED_FALSE_KEYS="$expected_false_keys" \
+    OUTPUT_FILE="$output_file" node <<'NODE'
 const fs = require("node:fs");
 const allowed = [
   "appHealthy", "cloudflaredHealthy", "dockerHealthy", "elapsedSeconds",
@@ -360,6 +446,12 @@ if (value.timedOut !== (process.env.EXPECTED_TIMEOUT === "true")) process.exit(7
 if (value.elapsedSeconds > 900) process.exit(8);
 if (value.existingContainersRunning > value.existingContainersExpected) process.exit(9);
 if (value.recovered && (value.existingContainersExpected !== 2 || value.existingContainersRunning !== 2)) process.exit(10);
+if (value.elapsedSeconds !== Number(process.env.EXPECTED_ELAPSED)) process.exit(11);
+const healthKeys = allowed.filter((key) => key.endsWith("Healthy") || key === "postgresDurable");
+if (value.recovered && healthKeys.some((key) => value[key] !== true)) process.exit(12);
+for (const key of (process.env.EXPECTED_FALSE_KEYS ?? "").split(",").filter(Boolean)) {
+  if (!healthKeys.includes(key) || value[key] !== false) process.exit(13);
+}
 NODE
 }
 
@@ -386,6 +478,8 @@ expect_result() {
   local expected_status="$2"
   local expected_recovered="$3"
   local expected_timeout="$4"
+  local expected_elapsed="$5"
+  local expected_false_keys="${6:-}"
   local prefix="$work/result-$scenario"
   run_checker "$scenario" "$prefix"
   if [[ "$expected_status" == zero ]]; then
@@ -393,15 +487,15 @@ expect_result() {
   else
     (( checker_status != 0 )) || fail "$scenario returned zero, expected nonzero"
   fi
-  validate_json_contract "$prefix.stdout" "$expected_recovered" "$expected_timeout"
+  validate_json_contract "$prefix.stdout" "$expected_recovered" "$expected_timeout" "$expected_elapsed" "$expected_false_keys"
   assert_private_result "$prefix"
 }
 
-expect_result immediate zero true false
-expect_result delayed zero true false
+expect_result immediate zero true false 0
+expect_result delayed zero true false 30
 [[ "$(<"$clock_file")" == 30 ]] || fail 'delayed recovery did not use the virtual monotonic clock'
 
-expect_result permanent nonzero false true
+expect_result permanent nonzero false true 900 appHealthy
 [[ "$(<"$clock_file")" == 900 ]] || fail 'permanent failure did not stop exactly at the 900-second bound'
 last_sleep="$(grep '^sleep ' "$events" | tail -n 1)"
 [[ "$last_sleep" == 'sleep 10' ]] || fail 'permanent failure used an unexpected polling sleep'
@@ -409,10 +503,24 @@ last_sleep="$(grep '^sleep ' "$events" | tail -n 1)"
 for scenario in \
   docker-down libvirt-down firewall-down public-fail public-headers public-origin existing-stopped \
   runner-inactive runner-no-autostart runner-network-inactive runner-network-no-autostart \
-  runner-malformed runner-expired runner-tampered runner-concurrency \
+  runner-malformed runner-unsigned runner-expired runner-tampered runner-concurrency \
   postgres-unhealthy postgres-fsync-off postgres-sync-off postgres-full-page-off app-incomplete app-malformed \
-  worker-incomplete worker-malformed cloudflared-incomplete cloudflared-malformed timer-incomplete timer-malformed; do
-  expect_result "$scenario" nonzero false true
+  worker-incomplete worker-malformed cloudflared-incomplete cloudflared-malformed timer-incomplete timer-malformed timer-not-persistent; do
+  expected_false=
+  case "$scenario" in
+    docker-down) expected_false=dockerHealthy ;;
+    libvirt-down) expected_false=libvirtHealthy ;;
+    firewall-down) expected_false=firewallHealthy ;;
+    public-*) expected_false=publicHttpsHealthy ;;
+    runner-*) expected_false=runnerHealthy ;;
+    postgres-unhealthy) expected_false=postgresHealthy ;;
+    postgres-*) expected_false=postgresDurable ;;
+    app-*) expected_false=appHealthy ;;
+    worker-*) expected_false=workersHealthy ;;
+    cloudflared-*) expected_false=cloudflaredHealthy ;;
+    timer-*) expected_false=timersHealthy ;;
+  esac
+  expect_result "$scenario" nonzero false true 900 "$expected_false"
 done
 EXISTING_STOPPED_FILE="$work/result-existing-stopped.stdout" node <<'NODE'
 const fs = require("node:fs");
@@ -422,26 +530,26 @@ NODE
 
 cp "$baseline" "$work/baseline.saved"
 chmod 0644 "$baseline"
-expect_result baseline-mode nonzero false false
+expect_result baseline-mode nonzero false false 0
 cp "$work/baseline.saved" "$baseline"
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
 
 printf '%s\n' 'invalid name with spaces' >"$baseline"
 chmod 0600 "$baseline"
-expect_result baseline-malformed nonzero false false
+expect_result baseline-malformed nonzero false false 0
 cp "$work/baseline.saved" "$baseline"
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
 
 mv "$baseline" "$baseline.real"
 ln -s "$baseline.real" "$baseline"
-expect_result baseline-symlink nonzero false false
+expect_result baseline-symlink nonzero false false 0
 rm -- "$baseline"
 mv "$baseline.real" "$baseline"
 
 chown 65534:65534 "$baseline"
-expect_result baseline-owner nonzero false false
+expect_result baseline-owner nonzero false false 0
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
 

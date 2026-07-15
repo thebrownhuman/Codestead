@@ -363,6 +363,8 @@ if expect_required_file "$recovery_service"; then
     "$recovery_service" Unit OnFailure 'learncoding-alert@%n.service' \
     'Recovery checker failure must trigger the existing alert unit'
   expect_directive "$recovery_service" Service Type oneshot 'Recovery checker must be a oneshot service'
+  expect_directive "$recovery_service" Service User root 'Recovery checker must run explicitly as root'
+  expect_directive "$recovery_service" Service Group root 'Recovery checker must run with the root group'
   expect_directive \
     "$recovery_service" Service ExecStart \
     '/usr/bin/bash /opt/learncoding/infra/ops/check-recovery.sh' \
@@ -379,27 +381,55 @@ if expect_required_file "$recovery_timer"; then
   expect_directive "$recovery_timer" Install WantedBy timers.target 'Recovery timer must be installable at boot'
 fi
 
-expect_contains \
-  "$installer" 'learncoding-runner-firewall.service' \
-  'Systemd installer must enable the runner firewall service'
-expect_contains \
-  "$installer" 'learncoding-recovery-check.timer' \
-  'Systemd installer must enable the recovery timer'
-expect_contains \
-  "$installer" 'install -o root -g root -m 0644' \
-  'Systemd installer must publish every owned unit as root:root mode 0644'
-for enabled_timer in learncoding-backup.timer learncoding-backup-check.timer learncoding-retention.timer; do
-  expect_contains "$installer" "$enabled_timer" "Systemd installer must retain enablement for $enabled_timer"
-done
-if grep -Eq 'systemctl[[:space:]]+enable.*learncoding-restore-drill\.service' "$installer"; then
-  fail 'Systemd installer must never enable the manual restore-drill service'
+installer_loop_count="$(grep -Fxc 'for unit in "$repo_root"/infra/systemd/*; do' "$installer" || true)"
+installer_publish_count="$(grep -Fxc '  install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename -- "$unit")"' "$installer" || true)"
+if [[ "$installer_loop_count" != 1 || "$installer_publish_count" != 1 ]]; then
+  fail 'Systemd installer must publish every owned unit exactly once as root:root mode 0644'
 fi
+required_enable_units=(
+  learncoding-runner-firewall.service
+  learncoding-compose.service
+  learncoding-recovery-check.timer
+  learncoding-backup.timer
+  learncoding-backup-check.timer
+  learncoding-retention.timer
+)
+actual_enable_units=()
+while IFS= read -r enable_line || [[ -n "$enable_line" ]]; do
+  enable_line="${enable_line%$'\r'}"
+  trimmed_enable_line="${enable_line#"${enable_line%%[![:space:]]*}"}"
+  [[ -n "$trimmed_enable_line" && "$trimmed_enable_line" != \#* ]] || continue
+  if [[ ! "$trimmed_enable_line" =~ systemctl[[:space:]]+enable([[:space:]]|$) ]]; then continue; fi
+  [[ "$enable_line" =~ ^[[:space:]]*systemctl[[:space:]]+enable[[:space:]]+--now[[:space:]]+ ]] || {
+    fail 'Systemd installer contains a non-canonical enable command'
+    continue
+  }
+  read -r -a enable_words <<<"$enable_line"
+  [[ "${enable_words[0]:-}" == systemctl && "${enable_words[1]:-}" == enable && "${enable_words[2]:-}" == --now ]] || {
+    fail 'Systemd installer contains a non-canonical enable command'
+    continue
+  }
+  for enabled_unit in "${enable_words[@]:3}"; do actual_enable_units+=("$enabled_unit"); done
+done <"$installer"
+if (( ${#actual_enable_units[@]} != ${#required_enable_units[@]} )); then
+  fail 'Systemd installer must enable exactly the reviewed automatic units'
+else
+  for required_unit in "${required_enable_units[@]}"; do
+    count=0
+    for enabled_unit in "${actual_enable_units[@]}"; do [[ "$enabled_unit" == "$required_unit" ]] && count=$((count + 1)); done
+    (( count == 1 )) || fail "Systemd installer must enable exactly once: $required_unit"
+  done
+fi
+for enabled_unit in "${actual_enable_units[@]}"; do
+  [[ "$enabled_unit" != learncoding-restore-drill.service ]] || fail 'Systemd installer must never enable the manual restore-drill service'
+done
 
 tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
 parser_work="$(mktemp -d "$tmp_base/systemd-recovery-parser.XXXXXX")"
 parser_work="$(cd "$parser_work" && pwd -P)"
 if [[ -L "$parser_work" || "$parser_work" != "$tmp_base"/* ]]; then
-  fail 'systemd parser fixture escaped its verified temporary root'
+  echo 'FAIL: systemd parser fixture escaped its verified temporary root' >&2
+  exit 1
 fi
 chmod 0700 "$parser_work"
 cleanup_parser_work() {

@@ -82,6 +82,37 @@ function hasSystemdDirectiveTokens(content, section, key, requiredTokens) {
   return requiredTokens.every((token) => actual.has(token));
 }
 
+function shellAssignments(content) {
+  const assignments = [];
+  for (const line of content.split(/\r?\n/u)) {
+    if (!line || line.startsWith("#")) continue;
+    if (line !== line.trim() || line.includes("\\")) return null;
+    const assignment = /^([A-Z][A-Z0-9_]*)=(.*)$/u.exec(line);
+    if (!assignment) return null;
+    assignments.push({ key: assignment[1], value: assignment[2] });
+  }
+  return assignments;
+}
+
+function hasSingleShellAssignment(content, key, value) {
+  const assignments = shellAssignments(content);
+  if (!assignments) return false;
+  const matches = assignments.filter((assignment) => assignment.key === key);
+  return matches.length === 1 && matches[0].value === value;
+}
+
+function enabledSystemdUnits(content) {
+  const units = [];
+  for (const rawLine of content.split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!/\bsystemctl\s+enable\b/u.test(line)) continue;
+    const match = /^systemctl enable --now ([A-Za-z0-9@_.-]+(?: [A-Za-z0-9@_.-]+)*)$/u.exec(line);
+    if (!match) return null;
+    units.push(...match[1].split(" "));
+  }
+  return units;
+}
+
 const dockerfile = read("Dockerfile");
 const compose = read("compose.yaml");
 const composeEnv = read("infra/env/compose.env.example");
@@ -124,8 +155,8 @@ const lifecycleRunbook = read("docs/runbooks/data-lifecycle.md");
 const draftSyncGuide = read("docs/draft-sync.md");
 const projectRevisionsGuide = read("docs/project-revisions.md");
 const runnerNetworkXml = read("infra/runner-vm/codestead-runner-network.xml");
-const runnerCloudMeta = read("infra/runner-vm/cloud-init/meta-data");
-const runnerCloudUser = read("infra/runner-vm/cloud-init/user-data.template");
+read("infra/runner-vm/cloud-init/meta-data");
+read("infra/runner-vm/cloud-init/user-data.template");
 const runnerProvisioner = read("infra/runner-vm/provision-host.sh");
 const runnerGuestInstaller = read("infra/runner-vm/install-guest.sh");
 const runnerFirewall = read("infra/runner-vm/host-runner.nft");
@@ -531,13 +562,15 @@ if (recoveryService) {
       !recoveryRequires.some((directive) => directive.value.split(/\s+/u).includes("learncoding-compose.service")) &&
       hasSingleSystemdDirective(recoveryService, "Unit", "OnFailure", "learncoding-alert@%n.service") &&
       hasSingleSystemdDirective(recoveryService, "Service", "Type", "oneshot") &&
+      hasSingleSystemdDirective(recoveryService, "Service", "User", "root") &&
+      hasSingleSystemdDirective(recoveryService, "Service", "Group", "root") &&
       hasSingleSystemdDirective(
         recoveryService,
         "Service",
         "ExecStart",
         "/usr/bin/bash /opt/learncoding/infra/ops/check-recovery.sh",
       ),
-    "recovery service must want (not require) Compose and run the alerting oneshot checker",
+    "recovery service must want (not require) Compose and run the alerting root-owned oneshot checker",
   );
 }
 if (recoveryTimer) {
@@ -549,15 +582,36 @@ if (recoveryTimer) {
     "recovery timer must use the final boot, repeat, persistence, and service selectors",
   );
 }
+const expectedEnabledUnits = [
+  "learncoding-runner-firewall.service",
+  "learncoding-compose.service",
+  "learncoding-recovery-check.timer",
+  "learncoding-backup.timer",
+  "learncoding-backup-check.timer",
+  "learncoding-retention.timer",
+];
+const actualEnabledUnits = enabledSystemdUnits(systemdInstaller);
+const canonicalInstallLines = systemdInstaller
+  .split(/\r?\n/u)
+  .map((line) => line.trim())
+  .filter(
+    (line) =>
+      line ===
+      'install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename -- "$unit")"',
+  );
 expect(
-  /systemctl enable --now[^\n]*learncoding-runner-firewall\.service/.test(systemdInstaller) &&
-    /systemctl enable --now[^\n]*learncoding-compose\.service/.test(systemdInstaller) &&
-    /systemctl enable --now[^\n]*learncoding-recovery-check\.timer/.test(systemdInstaller) &&
-    /systemctl enable --now[^\n]*learncoding-backup\.timer/.test(systemdInstaller) &&
-    /learncoding-backup-check\.timer/.test(systemdInstaller) &&
-    /learncoding-retention\.timer/.test(systemdInstaller) &&
-    !/systemctl enable[^\n]*learncoding-restore-drill\.service/.test(systemdInstaller),
-  "systemd installer must enable firewall, Compose, recovery, backup/check, and retention but not restore drill",
+  systemdInstaller.split(/\r?\n/u).filter((line) => line === 'for unit in "$repo_root"/infra/systemd/*; do')
+    .length === 1 && canonicalInstallLines.length === 1,
+  "systemd installer must publish every owned unit exactly once as root:root mode 0644",
+);
+expect(
+  actualEnabledUnits !== null &&
+    actualEnabledUnits.length === expectedEnabledUnits.length &&
+    expectedEnabledUnits.every(
+      (unit) => actualEnabledUnits.filter((actualUnit) => actualUnit === unit).length === 1,
+    ) &&
+    !actualEnabledUnits.includes("learncoding-restore-drill.service"),
+  "systemd installer must canonically enable exactly firewall, Compose, recovery, backup/check, and retention, once each, but not restore drill",
 );
 
 expect(
@@ -749,23 +803,45 @@ expect(/FILESYSTEM_WARN_PERCENT:=70/.test(common), "backup capacity warning must
 expect(/FILESYSTEM_CRITICAL_PERCENT:=85/.test(common), "backup capacity alert must become critical at 85 percent");
 expect(/contains_email_exports=false/.test(backup), "backup manifest must explicitly exclude email exports");
 
-expect(/SupplementaryGroups=docker/.test(runnerUnit), "runner reference unit must explicitly contain Docker privilege inside its VM");
-expect(/ProtectSystem=strict/.test(runnerUnit), "runner service must harden its host filesystem view");
 expect(
-  /^Restart=on-failure$/m.test(runnerUnit) &&
-    /^RestartSec=5s$/m.test(runnerUnit) &&
-    /^StartLimitBurst=(?:[1-9]|10)$/m.test(runnerUnit),
+  hasSingleSystemdDirective(runnerUnit, "Service", "SupplementaryGroups", "docker"),
+  "runner reference unit must explicitly contain Docker privilege inside its VM",
+);
+expect(
+  hasSingleSystemdDirective(runnerUnit, "Service", "ProtectSystem", "strict"),
+  "runner service must harden its host filesystem view",
+);
+expect(
+  hasSingleSystemdDirective(runnerUnit, "Service", "Restart", "on-failure") &&
+    hasSingleSystemdDirective(runnerUnit, "Service", "RestartSec", "5s") &&
+    (systemdDirectives(runnerUnit) ?? []).filter(
+      (directive) =>
+        directive.key === "StartLimitBurst" &&
+        directive.section === "Unit" &&
+        /^(?:[1-9]|10)$/u.test(directive.value),
+    ).length === 1,
   "runner unit must use bounded five-second failure recovery",
 );
-expect(/StateDirectory=learncoding-runner/.test(runnerUnit) && /StateDirectoryMode=0700/.test(runnerUnit), "runner unit must provision its private durable state directory");
-expect(/^LimitCORE=0$/m.test(runnerUnit), "runner service must disable core dumps containing learner memory");
 expect(
-  /^RUNNER_HOST=10\.20\.0\.12$/m.test(runnerEnv) &&
-    /^RUNNER_MAX_CONCURRENCY=2$/m.test(runnerEnv) &&
-    !/^RUNNER_HOST=(?:0\.0\.0\.0|localhost|127\.0\.0\.1|\[?::\]?)$/m.test(runnerEnv),
+  hasSingleSystemdDirective(runnerUnit, "Service", "StateDirectory", "learncoding-runner") &&
+    hasSingleSystemdDirective(runnerUnit, "Service", "StateDirectoryMode", "0700"),
+  "runner unit must provision its private durable state directory",
+);
+expect(
+  hasSingleSystemdDirective(runnerUnit, "Service", "LimitCORE", "0"),
+  "runner service must disable core dumps containing learner memory",
+);
+expect(
+  hasSingleShellAssignment(runnerEnv, "RUNNER_HOST", "10.20.0.12") &&
+    hasSingleShellAssignment(runnerEnv, "RUNNER_PORT", "4100") &&
+    hasSingleShellAssignment(runnerEnv, "RUNNER_MAX_CONCURRENCY", "2") &&
+    hasSingleShellAssignment(runnerEnv, "RUNNER_MAX_QUEUE_DEPTH", "100"),
   "runner environment must bind the fixed private guest address with exactly two slots",
 );
-expect(/^RUNNER_STATE_ROOT=\/var\/lib\/learncoding-runner$/m.test(runnerEnv), "runner environment must use the systemd-managed state directory");
+expect(
+  hasSingleShellAssignment(runnerEnv, "RUNNER_STATE_ROOT", "/var/lib/learncoding-runner"),
+  "runner environment must use the systemd-managed state directory",
+);
 const runnerLaunch = read("infra/runner/run-runner.sh");
 expect(/RUNNER_SHARED_SECRET_FILE/.test(runnerLaunch), "runner secret must come from a file");
 expect(/RUNNER_STATE_ROOT/.test(runnerLaunch) && /mode-0700/.test(runnerLaunch), "runner startup must validate its private state root");

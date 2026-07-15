@@ -50,9 +50,10 @@ host_root="$work/host-root"
 evidence_root="$host_root/var/lib/learncoding/recovery-evidence"
 fake_bin="$work/bin"
 state_root="$work/state"
+curl_root="$state_root/curl"
 events="$work/events.log"
 scenario_file="$state_root/scenario"
-mkdir -m 0700 -p "$evidence_root" "$fake_bin" "$state_root" "$host_root/proc/sys/kernel" \
+mkdir -m 0700 -p "$evidence_root" "$fake_bin" "$state_root" "$curl_root" "$host_root/proc/sys/kernel" \
   "$host_root/proc" "$host_root/var/lib/learncoding-runner" "$host_root/etc/learncoding/secrets" \
   "$host_root/var/lib/learncoding/backups"
 chown -R 0:0 "$host_root"
@@ -89,11 +90,40 @@ command_name="${0##*/}"
 scenario="$(<"$FAKE_SCENARIO_FILE")"
 
 inside_host_root() {
-  [[ "$1" == "$FAKE_HOST_ROOT" || "$1" == "$FAKE_HOST_ROOT"/* ]]
+  safe_under "$FAKE_HOST_ROOT" "$1"
 }
 
 inside_evidence_root() {
-  [[ "$1" == "$FAKE_EVIDENCE_ROOT" || "$1" == "$FAKE_EVIDENCE_ROOT"/* ]]
+  safe_under "$FAKE_EVIDENCE_ROOT" "$1"
+}
+
+inside_curl_output_root() {
+  local candidate="$1"
+  local basename="${candidate##*/}"
+  safe_under "$FAKE_CURL_ROOT" "$candidate" || {
+    inside_evidence_root "$candidate" && [[ "$basename" == *tmp* ]]
+  }
+}
+
+safe_under() {
+  local root="$1"
+  local candidate="$2"
+  local relative
+  local cursor
+  local component
+  local -a components=()
+  [[ "$candidate" == "$root" || "$candidate" == "$root"/* ]] || return 1
+  relative="${candidate#"$root"}"
+  relative="${relative#/}"
+  [[ "/$relative/" != *'/../'* && "/$relative/" != *'/./'* && "$relative" != *'//'* ]] || return 1
+  cursor="$root"
+  [[ ! -L "$cursor" ]] || return 1
+  IFS='/' read -r -a components <<<"$relative"
+  for component in "${components[@]}"; do
+    [[ -n "$component" && "$component" != . && "$component" != .. ]] || return 1
+    cursor="$cursor/$component"
+    [[ ! -L "$cursor" ]] || return 1
+  done
 }
 
 case "$command_name" in
@@ -140,18 +170,34 @@ case "$command_name" in
     url=
     while (( $# > 0 )); do
       case "$1" in
-        --output|-o) output="$2"; shift 2 ;;
-        --dump-header|-D) headers="$2"; shift 2 ;;
+        --output|-o) [[ $# -ge 2 ]] || exit 64; output="$2"; shift 2 ;;
+        --output=*) output="${1#*=}"; shift ;;
+        --dump-header|-D) [[ $# -ge 2 ]] || exit 64; headers="$2"; shift 2 ;;
+        --dump-header=*) headers="${1#*=}"; shift ;;
+        --silent|-s|--show-error|-S|--fail|--fail-with-body|--no-progress-meter) shift ;;
+        --max-time|--connect-timeout) [[ $# -ge 2 && "$2" =~ ^([1-9]|[12][0-9]|30)$ ]] || exit 64; shift 2 ;;
+        --request|-X) [[ $# -ge 2 && "$2" == GET ]] || exit 64; shift 2 ;;
+        --header|-H) [[ $# -ge 2 && "$2" != *$'\n'* && "$2" != *$'\r'* ]] || exit 64; shift 2 ;;
+        --url) [[ $# -ge 2 ]] || exit 64; url="$2"; shift 2 ;;
+        --url=*) url="${1#*=}"; shift ;;
         http://*|https://*) url="$1"; shift ;;
-        *) shift ;;
+        *) exit 64 ;;
       esac
     done
     [[ "$url" == https://pilot.example.test/health/ready ]] || exit 97
     body="{\"status\":\"ok\",\"private\":\"$FAKE_HTTP_BODY_CANARY\"}"
     header="HTTP/2 200
 x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
-    if [[ -n "$output" ]]; then printf '%s' "$body" >"$output"; else printf '%s' "$body"; fi
-    if [[ -n "$headers" ]]; then printf '%s\n' "$header" >"$headers"; fi
+    if [[ -n "$output" ]]; then
+      inside_curl_output_root "$output" || exit 97
+      printf '%s' "$body" >"$output"
+    else
+      printf '%s' "$body"
+    fi
+    if [[ -n "$headers" ]]; then
+      inside_curl_output_root "$headers" || exit 97
+      printf '%s\n' "$header" >"$headers"
+    fi
     ;;
   journalctl)
     printf '%s\n' "$FAKE_RUNNER_JOURNAL_CANARY"
@@ -185,11 +231,22 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
   mktemp)
     destination_hint="${!#}"
     tmpdir=
+    expect_tmpdir=false
     for argument in "$@"; do
-      case "$argument" in --tmpdir=*) tmpdir="${argument#--tmpdir=}" ;; esac
+      if [[ "$expect_tmpdir" == true ]]; then tmpdir="$argument"; expect_tmpdir=false; continue; fi
+      case "$argument" in
+        -d) ;;
+        -p|--tmpdir) expect_tmpdir=true ;;
+        --tmpdir=*) tmpdir="${argument#--tmpdir=}" ;;
+        -*) exit 64 ;;
+        *) destination_hint="$argument" ;;
+      esac
     done
+    [[ "$expect_tmpdir" == false ]] || exit 64
     if [[ -n "$tmpdir" ]]; then
       inside_evidence_root "$tmpdir" || exit 97
+      [[ -n "$destination_hint" && "$destination_hint" != */* && "$destination_hint" != . && "$destination_hint" != .. ]] || exit 97
+      inside_evidence_root "$tmpdir/$destination_hint" || exit 97
     else
       inside_evidence_root "$destination_hint" || exit 97
     fi
@@ -206,30 +263,69 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
     /usr/bin/mv -- "$source_path" "$destination_path"
     ;;
   sync)
-    target="${!#}"
-    inside_evidence_root "$target" || exit 97
-    /usr/bin/sync "$@"
+    sync_targets=()
+    for argument in "$@"; do case "$argument" in -f|--file-system|--) ;; -*) exit 64 ;; *) sync_targets+=("$argument") ;; esac; done
+    (( ${#sync_targets[@]} > 0 )) || exit 64
+    for target in "${sync_targets[@]}"; do inside_evidence_root "$target" || exit 97; done
     ;;
   rm)
-    target="${!#}"
-    inside_evidence_root "$target" || exit 97
-    basename="${target##*/}"
-    [[ "$basename" == .*tmp* || "$basename" == *.tmp.* ]] || exit 96
-    /usr/bin/rm "$@"
+    rm_args=("$@")
+    rm_targets=()
+    for argument in "${rm_args[@]}"; do case "$argument" in --|-f) ;; -*) exit 64 ;; *) rm_targets+=("$argument") ;; esac; done
+    (( ${#rm_targets[@]} > 0 )) || exit 64
+    for target in "${rm_targets[@]}"; do
+      inside_evidence_root "$target" || exit 97
+      basename="${target##*/}"
+      [[ "$basename" == .*tmp* || "$basename" == *.tmp.* ]] || exit 96
+    done
+    /usr/bin/rm "${rm_args[@]}"
     ;;
   cat)
     for path in "$@"; do
+      [[ "$path" == -- ]] && continue
       [[ "$path" != *learncoding-runner* ]] || exit 97
+      [[ "$path" != */secrets/* ]] || exit 97
       inside_host_root "$path" || exit 97
     done
     /usr/bin/cat "$@"
     ;;
   stat|realpath|readlink|sha256sum)
-    target="${!#}"
-    inside_host_root "$target" || exit 97
+    read_targets=()
+    expect_format=false
+    for argument in "$@"; do
+      if [[ "$expect_format" == true ]]; then expect_format=false; continue; fi
+      case "$argument" in -c|--format|--printf) expect_format=true ;; --|-e|-f|-m|-n|-q|-s|-v|--check|--status|--strict|--format=*|--printf=*) ;; -*) exit 64 ;; *) read_targets+=("$argument") ;; esac
+    done
+    [[ "$expect_format" == false && ${#read_targets[@]} -gt 0 ]] || exit 64
+    for target in "${read_targets[@]}"; do inside_host_root "$target" || exit 97; done
     "/usr/bin/$command_name" "$@"
     ;;
-  mount|umount|wget|nc|ping)
+  chmod)
+    chmod_args=("$@")
+    [[ ${#chmod_args[@]} -ge 2 ]] || exit 64
+    mode="${chmod_args[0]}"
+    [[ "$mode" =~ ^[0-7]{3,4}$ ]] || exit 64
+    for target in "${chmod_args[@]:1}"; do [[ "$target" == -- ]] || inside_evidence_root "$target" || exit 97; done
+    /usr/bin/chmod "${chmod_args[@]}"
+    ;;
+  chown)
+    chown_args=("$@")
+    [[ ${#chown_args[@]} -ge 2 && "${chown_args[0]}" == 0:0 ]] || exit 64
+    for target in "${chown_args[@]:1}"; do [[ "$target" == -- ]] || inside_evidence_root "$target" || exit 97; done
+    ;;
+  mkdir)
+    mkdir_args=("$@")
+    mkdir_targets=()
+    expect_mode=false
+    for argument in "${mkdir_args[@]}"; do
+      if [[ "$expect_mode" == true ]]; then expect_mode=false; continue; fi
+      case "$argument" in -p|--) ;; -m) expect_mode=true ;; -*) exit 64 ;; *) mkdir_targets+=("$argument") ;; esac
+    done
+    [[ "$expect_mode" == false && ${#mkdir_targets[@]} -gt 0 ]] || exit 64
+    for target in "${mkdir_targets[@]}"; do inside_evidence_root "$target" || exit 97; done
+    /usr/bin/mkdir "${mkdir_args[@]}"
+    ;;
+  mount|umount|wget|nc|ping|dd|truncate|touch|tee|ln|rsync|sudo|ssh|scp|socat|install)
     exit 97
     ;;
   *) exit 64 ;;
@@ -237,8 +333,8 @@ esac
 FAKE
 chmod 0755 "$fake_bin/fake-evidence-command"
 for command_name in systemctl virsh docker curl journalctl findmnt smartctl date git uname mktemp mv sync rm cat \
-  stat realpath readlink sha256sum \
-  mount umount wget nc ping; do
+  stat realpath readlink sha256sum chmod chown mkdir \
+  mount umount wget nc ping dd truncate touch tee ln rsync sudo ssh scp socat install; do
   cp "$fake_bin/fake-evidence-command" "$fake_bin/$command_name"
 done
 
@@ -253,12 +349,14 @@ run_collector() {
   printf '%s' "$stdin_canary" | env -i \
     HOME="$work" \
     PATH="$fake_bin:/usr/bin:/bin" \
+    TMPDIR="$curl_root" \
     RECOVERY_EVIDENCE_TEST_ROOT="$host_root" \
     RECOVERY_PUBLIC_URL='https://pilot.example.test/health/ready' \
     FAKE_EVENTS="$events" \
     FAKE_SCENARIO_FILE="$scenario_file" \
     FAKE_HOST_ROOT="$host_root" \
     FAKE_EVIDENCE_ROOT="$evidence_root" \
+    FAKE_CURL_ROOT="$curl_root" \
     FAKE_SECRET_CANARY="$secret_canary" \
     FAKE_LEARNER_CANARY="$learner_canary" \
     FAKE_LEARNER_ID_CANARY="$learner_id_canary" \
@@ -301,28 +399,47 @@ if (!exactKeys(value, [
 ])) process.exit(2);
 if (value.schemaVersion !== 1 || value.phase !== process.env.EXPECTED_PHASE) process.exit(3);
 if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value.capturedAtUtc)) process.exit(4);
-if (!/^[0-9a-f]{40}$/.test(value.gitCommit) || typeof value.bootId !== "string") process.exit(5);
+if (!/^[0-9a-f]{40}$/.test(value.gitCommit) || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value.bootId)) process.exit(5);
 if (!Number.isSafeInteger(value.uptimeSeconds) || value.uptimeSeconds < 0) process.exit(6);
 if (!exactKeys(value.services, ["compose", "docker", "firewall", "libvirt", "recoveryTimer"])) process.exit(7);
 if (Object.values(value.services).some((entry) => typeof entry !== "boolean")) process.exit(8);
 if (!exactKeys(value.containers, ["expected", "items", "running"]) || !Array.isArray(value.containers.items)) process.exit(9);
 if (value.containers.items.length > 16) process.exit(10);
+if (!Number.isSafeInteger(value.containers.expected) || !Number.isSafeInteger(value.containers.running) ||
+    value.containers.expected < 0 || value.containers.running < 0 || value.containers.running > value.containers.expected ||
+    value.containers.items.length !== value.containers.expected) process.exit(25);
 for (const item of value.containers.items) {
   if (!exactKeys(item, ["imageId", "name", "restartCount", "status"])) process.exit(11);
   if (!/^[a-z0-9][a-z0-9_.-]{0,63}$/.test(item.name) || !/^sha256:[0-9a-f]{64}$/.test(item.imageId)) process.exit(12);
   if (!Number.isSafeInteger(item.restartCount) || item.restartCount < 0) process.exit(13);
+  if (!new Set(["running", "exited", "paused", "restarting"]).has(item.status)) process.exit(26);
 }
+if (value.containers.running !== value.containers.items.filter((item) => item.status === "running").length) process.exit(34);
 if (!exactKeys(value.runner, ["domainActive", "domainAutostart", "networkActive", "networkAutostart"])) process.exit(14);
+if (Object.values(value.runner).some((entry) => typeof entry !== "boolean")) process.exit(27);
 if (!Array.isArray(value.mounts) || value.mounts.length > 8) process.exit(15);
-for (const mount of value.mounts) if (!exactKeys(mount, ["options", "source", "target"])) process.exit(16);
+for (const mount of value.mounts) {
+  if (!exactKeys(mount, ["options", "source", "target"])) process.exit(16);
+  for (const field of ["options", "source", "target"]) {
+    if (typeof mount[field] !== "string" || mount[field].length < 1 || mount[field].length > 256 || /[\r\n\0]/u.test(mount[field])) process.exit(28);
+  }
+  if (!mount.target.startsWith("/") || !/^[A-Za-z0-9_.,=:/-]+$/u.test(mount.source) || !/^[A-Za-z0-9_.,=:/-]+$/u.test(mount.options)) process.exit(29);
+}
 if (!exactKeys(value.postgres, ["checksums", "durability", "healthy"])) process.exit(17);
 if (!exactKeys(value.postgres.durability, ["fsync", "fullPageWrites", "synchronousCommit"])) process.exit(18);
 if (Object.values(value.postgres.durability).some((entry) => entry !== "on")) process.exit(19);
+if (typeof value.postgres.checksums !== "boolean" || typeof value.postgres.healthy !== "boolean") process.exit(30);
 if (!exactKeys(value.smart, ["criticalWarnings", "healthy", "mediaErrors"])) process.exit(20);
+if (typeof value.smart.healthy !== "boolean" || !Number.isSafeInteger(value.smart.criticalWarnings) ||
+    !Number.isSafeInteger(value.smart.mediaErrors) || value.smart.criticalWarnings < 0 || value.smart.mediaErrors < 0) process.exit(31);
 if (!exactKeys(value.backup, ["lastSuccessfulId"])) process.exit(21);
+if (typeof value.backup.lastSuccessfulId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.backup.lastSuccessfulId)) process.exit(32);
 if (!exactKeys(value.recovery, ["elapsedSeconds", "recovered", "timedOut"])) process.exit(22);
+if (!Number.isSafeInteger(value.recovery.elapsedSeconds) || value.recovery.elapsedSeconds < 0 || value.recovery.elapsedSeconds > 900 ||
+    typeof value.recovery.recovered !== "boolean" || typeof value.recovery.timedOut !== "boolean") process.exit(33);
+if (value.recovery.recovered && value.recovery.timedOut) process.exit(35);
 if (!exactKeys(value.versions, ["docker", "hostKernel", "libvirt"])) process.exit(23);
-if (Object.values(value.versions).some((entry) => typeof entry !== "string" || entry.length > 64)) process.exit(24);
+if (Object.values(value.versions).some((entry) => typeof entry !== "string" || entry.length < 1 || entry.length > 64 || /[\r\n\0]/u.test(entry))) process.exit(24);
 NODE
 }
 
@@ -343,6 +460,8 @@ assert_published() {
   [[ "$sidecar_line" != *'/var/'* && "$sidecar_line" != *"$host_root"* ]] || fail 'checksum sidecar embedded an absolute path'
   (cd "$evidence_root" && sha256sum --check -- "$name.sha256" >/dev/null) || fail 'checksum does not verify the exact final JSON bytes'
   assert_canaries_absent "$prefix" "$json" "$sidecar" "$events"
+  ! grep -Eq '/etc/learncoding/secrets/|/var/lib/learncoding-runner' "$events" ||
+    fail 'evidence collector attempted to read a secret or runner-private path'
   [[ ! -s "$prefix.stderr" ]] || fail 'successful evidence collection emitted raw stderr output'
   if find "$evidence_root" -maxdepth 1 -type f \( -name '*.tmp*' -o -name '.*.tmp*' \) -print -quit | grep -q .; then
     fail 'temporary evidence file remained after successful publication'
