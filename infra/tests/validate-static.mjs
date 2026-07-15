@@ -28,6 +28,13 @@ function dockerStage(name) {
   return nextStage ? remaining.slice(0, nextStage.index) : remaining;
 }
 
+function composeService(name) {
+  return new RegExp(
+    `^  ${name}:\\s*\\r?\\n([\\s\\S]*?)(?=^  [a-z0-9-]+:\\s*\\r?$|^networks:\\s*\\r?$)`,
+    "m",
+  ).exec(compose)?.[1] ?? "";
+}
+
 const dockerfile = read("Dockerfile");
 const compose = read("compose.yaml");
 const composeEnv = read("infra/env/compose.env.example");
@@ -46,6 +53,11 @@ const runnerEnv = read("infra/env/runner.env.example");
 const runnerDockerfile = read("services/runner/Dockerfile");
 const runnerReadme = read("services/runner/README.md");
 const runtimeValidation = read("infra/ops/validate-runtime.sh");
+const liveHealthRoute = read("src/app/health/live/route.ts");
+const readyHealthRoute = read("src/app/health/ready/route.ts");
+const productionSmoke = read("infra/ops/smoke-production.sh");
+read("infra/tests/smoke-production.test.sh");
+const monitoringRunbook = read("docs/runbooks/logs-and-monitoring.md");
 
 expect(/@sha256:[0-9a-f]{64}/i.test(dockerfile), "Docker base image must be digest-pinned");
 expect(
@@ -135,6 +147,20 @@ expect(/\/var\/lib\/postgresql\/data/.test(compose), "PostgreSQL persistent stor
 expect(/internal: true/.test(compose), "database network must be internal");
 expect(/condition: service_healthy/.test(compose), "migration must wait for PostgreSQL health");
 expect(/condition: service_completed_successfully/.test(compose), "app must wait for migration success");
+const appService = composeService("app");
+expect(
+  /healthcheck:[\s\S]*?test:\s*\["CMD", "node", "-e", "[^"\r\n]*\/health\/ready[^"\r\n]*redirect:\s*'manual'[^"\r\n]*status\s*!==\s*200[^"\r\n]*"\]/.test(appService),
+  "app healthcheck must use native fetch against readiness, reject redirects, and require status 200",
+);
+const cloudflaredService = composeService("cloudflared");
+expect(
+  /command:\s+tunnel\b[^\r\n]*--metrics 0\.0\.0\.0:20241[^\r\n]*\brun\s*$/m.test(cloudflaredService),
+  "cloudflared must expose internal metrics on 0.0.0.0:20241 before tunnel run",
+);
+expect(
+  /healthcheck:[\s\S]*?test:\s*\["CMD", "cloudflared", "tunnel", "--metrics", "127\.0\.0\.1:20241", "ready"\]/.test(cloudflaredService),
+  "cloudflared healthcheck must query its internal metrics listener",
+);
 expect(/^  clamav:/m.test(compose) && /^  scan-worker:/m.test(compose), "isolated ClamAV and upload scanner services are required");
 expect(
   /image: \$\{CLAMAV_IMAGE:-clamav\/clamav:pilot-disabled\}/.test(compose),
@@ -154,6 +180,15 @@ expect(/cap_drop:\s*\n\s*- ALL/.test(compose), "hardened services must drop capa
 expect(/no-new-privileges:true/.test(compose), "hardened services need no-new-privileges");
 expect(/cloudflared:[\s\S]*http:\/\/app:3000/.test(`${compose}\n${cloudflare}`), "tunnel must route only to the app service");
 expect(/service: http_status:404\s*$/.test(cloudflare.trim()), "Cloudflare ingress must end with a 404 catch-all");
+expect(/status:\s*"ok"/.test(liveHealthRoute) && !/\b(?:pool|query)\b/.test(liveHealthRoute), "liveness must not access the database");
+expect(
+  /text:\s*"select 1"/.test(readyHealthRoute) && /query_timeout:\s*2_000/.test(readyHealthRoute),
+  "readiness must use the bounded SELECT 1 database probe",
+);
+expect(
+  /timeout_bin/.test(productionSmoke) && /--env-file/.test(productionSmoke) && /production smoke passed/.test(productionSmoke),
+  "production smoke must be bounded, use explicit Compose inputs, and emit the canonical success marker",
+);
 
 expect(/_FILE/.test(entrypoint) && /exec "\$@"/.test(entrypoint), "entrypoint must load file secrets then exec");
 expect(
@@ -213,6 +248,25 @@ for (const required of [
   "infra/systemd/learncoding-retention.timer",
   "infra/systemd/learncoding-restore-drill.service",
 ]) read(required);
+
+expect(/compose\.yaml ps --all/.test(monitoringRunbook), "monitoring must include one-shot services in Compose status checks");
+expect(
+  /exactly nine long-running services must be `running`/i.test(monitoringRunbook) &&
+    /migrate[^\n]*`Exited \(0\)`/i.test(monitoringRunbook),
+  "monitoring must describe nine running pilot services and successful migration completion",
+);
+expect(
+  /`clamav` and `scan-worker` must not appear[^\n]*pilot/i.test(monitoringRunbook),
+  "monitoring must reject upload services in pilot mode",
+);
+expect(
+  /\/health\/live/.test(monitoringRunbook) && /\/health\/ready/.test(monitoringRunbook) && /SELECT 1/i.test(monitoringRunbook),
+  "monitoring must distinguish liveness from database-backed readiness",
+);
+expect(
+  /smoke-production\.sh --startup-wait 600/.test(monitoringRunbook),
+  "monitoring must document the bounded production smoke command",
+);
 
 const scanned = [
   compose,

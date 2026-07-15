@@ -142,7 +142,7 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=128m
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(r.status>=500)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready', { redirect: 'manual' }).then((response) => { if (response.status !== 200) process.exit(1); }).catch(() => process.exit(1));"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -562,7 +562,7 @@ services:
   cloudflared:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${CLOUDFLARED_IMAGE:?Set CLOUDFLARED_IMAGE to a reviewed cloudflared tag or digest}
-    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run
+    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate --metrics 0.0.0.0:20241 run
     restart: unless-stopped
     configs:
       - source: cloudflared_config
@@ -581,6 +581,12 @@ services:
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "127.0.0.1:20241", "ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     mem_limit: 256m
     cpus: 0.5
     pids_limit: 64

@@ -8,13 +8,22 @@ For ten invited users, reliable local checks and actionable alerts are more valu
 sudo systemctl --failed
 sudo systemctl status learncoding-compose.service
 sudo systemctl list-timers 'learncoding-*'
-sudo docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml ps
+sudo docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml ps --all
+sudo /usr/bin/bash /opt/learncoding/infra/ops/smoke-production.sh --startup-wait 600
 sudo docker stats --no-stream
 sudo journalctl -u learncoding-backup.service -u learncoding-backup-check.service --since '2 days ago'
 df -h /srv/learncoding /mnt/learncoding-backups
 ```
 
-The expected migration container state is exited successfully. App, PostgreSQL, tunnel, outbox worker, clamd, and upload scanner should be running; app, PostgreSQL, and clamd should be healthy.
+The pilot inventory contains exactly ten services. Exactly nine long-running services must be `running`: `app`, `cloudflared`, `exam-finalization-worker`, `mail-worker`, `postgres`, `practice-runner-recovery-worker`, `project-review-correction-worker`, `regrade-worker`, and `reward-worker`. The one-shot `migrate` service must report `Exited (0)`. `clamav` and `scan-worker` must not appear in the pilot inventory; their presence means the uploads profile was activated unexpectedly.
+
+The bounded smoke command above checks that inventory, migration completion, app readiness, `UPLOADS_ENABLED=false`, PostgreSQL durability, and tunnel health. Success stdout is exactly `production smoke passed`; any other result is a failed startup gate. The timeout is a startup deadline, not permission to continue waiting manually after a failure.
+
+## Health endpoint semantics
+
+`GET /health/live` checks only that the application process can respond. It never queries PostgreSQL, so a successful liveness response does not mean the service is ready for traffic.
+
+`GET /health/ready` checks the application process and runs the bounded PostgreSQL `SELECT 1` probe. It returns HTTP 200 only when the database dependency is available; Compose and the production smoke gate use this endpoint. Both endpoints are unauthenticated, return only generic status JSON, and disable caching.
 
 ## Service logs
 
