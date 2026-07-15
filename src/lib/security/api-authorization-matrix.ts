@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   auditApiSurface,
   extractExportedHttpOperations,
+  normalizeSourceText,
   type ApiBoundary,
 } from "./api-surface";
 
@@ -399,7 +400,7 @@ export async function auditApiAuthorizationMatrix(root: string) {
   const rows: ApiAuthorizationMatrixRow[] = [];
 
   for (const entry of surface.entries) {
-    const source = await readFile(path.resolve(root, entry.file), "utf8");
+    const source = normalizeSourceText(await readFile(path.resolve(root, entry.file), "utf8"));
     const operations = extractExportedHttpOperations(source, entry.file);
     for (const method of entry.methods) {
       const operation = `${method} ${entry.route}`;
@@ -438,7 +439,7 @@ export async function auditApiAuthorizationMatrix(root: string) {
 
   const supportingOwnershipProofs = [];
   for (const contract of SUPPORTING_OWNER_CONTRACTS) {
-    const source = await readFile(path.resolve(root, contract.file), "utf8");
+    const source = normalizeSourceText(await readFile(path.resolve(root, contract.file), "utf8"));
     const missing = contract.anchors.filter((anchor) => !source.includes(anchor));
     if (missing.length > 0) {
       errors.push(`${contract.file}: supporting ${contract.purpose} ownership contract changed (${missing.length} anchor(s) missing).`);

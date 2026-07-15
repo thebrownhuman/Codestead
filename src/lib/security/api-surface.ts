@@ -27,6 +27,10 @@ function posixPath(value: string) {
   return value.replaceAll(path.sep, "/");
 }
 
+export function normalizeSourceText(value: string) {
+  return value.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+}
+
 async function routeFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
@@ -84,7 +88,7 @@ export async function auditApiSurface(root: string) {
 
   for (const absolute of files) {
     const file = posixPath(path.relative(root, absolute));
-    const source = await readFile(absolute, "utf8");
+    const source = normalizeSourceText(await readFile(absolute, "utf8"));
     const methods = extractExportedHttpOperations(source, file);
     const boundary = boundaryFor(file);
     const names = [...methods.keys()].sort();

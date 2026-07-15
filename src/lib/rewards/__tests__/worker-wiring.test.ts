@@ -31,7 +31,7 @@ describe("reward worker production wiring", () => {
       "REWARD_BATCH_SIZE: ${REWARD_BATCH_SIZE:-20}",
       "- database_url",
       "- data",
-      "<<: *hardened",
+      "<<: [*hardened, *codestead-managed]",
       "noexec",
       "mem_limit: 256m",
       "cpus: 0.25",
