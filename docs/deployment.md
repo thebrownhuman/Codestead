@@ -151,7 +151,7 @@ sudo systemctl enable --now learncoding-compose.service
 sudo systemctl enable --now learncoding-backup.timer learncoding-backup-check.timer learncoding-retention.timer
 ```
 
-Do not enable `learncoding-restore-drill.service`; it remains a supervised manual operation. All three timers use `Persistent=true`, so systemd catches up a missed run after downtime according to each timer's schedule.
+Do not enable `learncoding-restore-drill.service`; it remains a supervised manual operation. `learncoding-backup.timer` and `learncoding-retention.timer` use `OnCalendar=` with `Persistent=true`, so systemd catches up a missed calendar run after downtime. `learncoding-backup-check.timer` uses `OnBootSec=` and `OnUnitActiveSec=`; after a reboot it schedules a fresh post-boot check rather than replaying a missed wall-clock event.
 
 `learncoding-compose.service` requires `/opt/learncoding`, `/etc/learncoding`, and `/srv/learncoding`, then runs preflight before starting already-reviewed local images with `--no-build --pull never`. It runs the bounded internal production smoke after startup and applies a basic retry limit with the existing alert unit. Boot and reload therefore neither build nor implicitly pull an image. The stop command never uses `down -v`; persistent data is not tied to container lifecycle. The current migration dependency remains in the Compose model until the later reviewed release-transaction work separates it; this interim unit is not the final NUC recovery monitor.
 

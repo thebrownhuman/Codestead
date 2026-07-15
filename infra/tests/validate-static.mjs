@@ -35,29 +35,62 @@ function composeService(name) {
   ).exec(compose)?.[1] ?? "";
 }
 
+function systemdLogicalLines(content) {
+  const logicalLines = [];
+  let continuing = false;
+  let pending = "";
+
+  for (const physicalLine of content.split(/\r?\n/u)) {
+    const physicalTrimmed = physicalLine.trim();
+    if (physicalTrimmed.startsWith("#") || physicalTrimmed.startsWith(";")) continue;
+
+    pending += continuing ? physicalLine.trimStart() : physicalLine;
+    const rightTrimmed = pending.trimEnd();
+    if (rightTrimmed.endsWith("\\")) {
+      pending = `${rightTrimmed.slice(0, -1)} `;
+      continuing = true;
+      continue;
+    }
+
+    logicalLines.push(pending);
+    continuing = false;
+    pending = "";
+  }
+
+  if (pending) logicalLines.push(pending);
+  return logicalLines;
+}
+
 function systemdDirectives(content) {
   const directives = [];
   let section = "";
-  for (const line of content.split(/\r?\n/u)) {
+  for (const rawLine of systemdLogicalLines(content)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#") || line.startsWith(";")) continue;
+
     const sectionMatch = /^\[([^\]]+)\]$/u.exec(line);
     if (sectionMatch) {
-      section = sectionMatch[1];
+      section = sectionMatch[1].trim();
       continue;
     }
+
     const equals = line.indexOf("=");
-    if (equals <= 0 || line.startsWith("#") || line.startsWith(";")) continue;
+    if (equals <= 0) continue;
     directives.push({
-      key: line.slice(0, equals),
+      key: line.slice(0, equals).trim(),
       section,
-      value: line.slice(equals + 1),
+      value: line.slice(equals + 1).trim(),
     });
   }
   return directives;
 }
 
 function hasSingleSystemdDirective(content, section, key, value) {
-  const matches = systemdDirectives(content).filter((directive) => directive.key === key);
-  return matches.length === 1 && matches[0].section === section && matches[0].value === value;
+  const normalizedKey = key.trim();
+  const matches = systemdDirectives(content).filter((directive) => directive.key === normalizedKey);
+  return (
+    matches.length === 1 && matches[0].section === section.trim() && matches[0].value === value.trim()
+  );
 }
 
 const dockerfile = read("Dockerfile");
@@ -240,6 +273,84 @@ expect(
 
 const expectedComposeUp =
   "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans";
+const expectedComposeStop =
+  "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans";
+const whitespaceMutationUnit = [
+  composeUnit,
+  " [Service]",
+  " ExecStart = /usr/bin/docker compose \\",
+  "   --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
+  " ExecReload = /usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
+  " ExecStop = /usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --volumes",
+  " Restart = no",
+].join("\n");
+const whitespaceMutationTimer = [
+  persistentTimers[0][1],
+  " [Timer]",
+  " Persistent = false",
+].join("\n");
+const commentMutationUnit = [
+  composeUnit,
+  " [Service]",
+  "# harmless recovery comment \\",
+  " ExecReload = /usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
+  " ; harmless restart comment \\",
+  " Restart = no",
+].join("\n");
+const commentMutationTimer = [
+  persistentTimers[0][1],
+  " [Timer]",
+  "# harmless timer comment \\",
+  " Persistent = false",
+].join("\n");
+const continuedCommentUnit = [
+  " [Service]",
+  " ExecStart = /usr/bin/docker compose \\",
+  " # ignored comment while the directive is continued",
+  " ; ignored continued comment \\",
+  " --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
+].join("\n");
+expect(
+  !hasSingleSystemdDirective(whitespaceMutationUnit, "Service", "ExecStart", expectedComposeUp),
+  "systemd parser must reject a whitespace-indented continued ExecStart build override",
+);
+expect(
+  !hasSingleSystemdDirective(whitespaceMutationUnit, "Service", "ExecReload", expectedComposeUp),
+  "systemd parser must reject a whitespace-around-equals ExecReload build override",
+);
+expect(
+  !hasSingleSystemdDirective(whitespaceMutationUnit, "Service", "ExecStop", expectedComposeStop),
+  "systemd parser must reject a whitespace-around-equals volume-removing ExecStop override",
+);
+expect(
+  !hasSingleSystemdDirective(whitespaceMutationUnit, "Service", "Restart", "on-failure"),
+  "systemd parser must reject a whitespace-around-equals Restart override",
+);
+expect(
+  !hasSingleSystemdDirective(whitespaceMutationTimer, "Timer", "Persistent", "true"),
+  "systemd parser must reject a whitespace-around-equals Persistent override",
+);
+expect(
+  !hasSingleSystemdDirective(commentMutationUnit, "Service", "ExecReload", expectedComposeUp),
+  "systemd parser must reject an ExecReload build override after a backslash comment",
+);
+expect(
+  !hasSingleSystemdDirective(commentMutationUnit, "Service", "Restart", "on-failure"),
+  "systemd parser must reject a Restart override after a backslash semicolon comment",
+);
+expect(
+  !hasSingleSystemdDirective(commentMutationTimer, "Timer", "Persistent", "true"),
+  "systemd parser must reject a Persistent override after a backslash comment",
+);
+expect(
+  hasSingleSystemdDirective(
+    continuedCommentUnit,
+    "Service",
+    "ExecStart",
+    "/usr/bin/docker compose  --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
+  ),
+  "systemd parser must preserve a continued directive across a comment block",
+);
 expect(
   hasSingleSystemdDirective(
     composeUnit,
@@ -359,6 +470,12 @@ expect(
   "lifecycle runbook must make v4 authoritative while preserving v2/v3 history",
 );
 expect(
+  /docker compose --env-file \/etc\/learncoding\/compose\.env \\\r?\n\s+-f \/opt\/learncoding\/compose\.yaml --profile operations run --rm --no-deps lifecycle \\\r?\n\s+node --import tsx \/app\/scripts\/data-lifecycle\.ts retention --apply \\\r?\n\s+--confirm 2026-07-14\.v4 \\\r?\n\s+--idempotency-key retention:2026-07-14\.v4:YYYY-MM-DD:apply/.test(
+    lifecycleRunbook,
+  ) && !/npm run lifecycle -- retention --apply/.test(lifecycleRunbook),
+  "lifecycle runbook apply example must use the explicit Compose lifecycle container and v4 confirmation",
+);
+expect(
   /Retention policy `2026-07-14\.v4`/.test(draftSyncGuide) &&
     /Retention policy `2026-07-14\.v4`/.test(projectRevisionsGuide),
   "draft and project-revision product guides must name active retention v4",
@@ -390,6 +507,16 @@ expect(
       deploymentGuide,
     ),
   "deployment guide must document the interim boot seam and unfinished external power-loss evidence",
+);
+expect(
+  /`learncoding-backup\.timer` and `learncoding-retention\.timer` use `OnCalendar=` with `Persistent=true`, so systemd catches up a missed calendar run after downtime\./.test(
+    deploymentGuide,
+  ) &&
+    /`learncoding-backup-check\.timer` uses `OnBootSec=` and `OnUnitActiveSec=`; after a reboot it schedules a fresh post-boot check rather than replaying a missed wall-clock event\./.test(
+      deploymentGuide,
+    ) &&
+    !/All three timers use `Persistent=true`, so systemd catches up a missed run/.test(deploymentGuide),
+  "deployment guide must distinguish persistent calendar catch-up from the monotonic backup check",
 );
 
 expect(/_FILE/.test(entrypoint) && /exec "\$@"/.test(entrypoint), "entrypoint must load file secrets then exec");

@@ -35,7 +35,10 @@ docker compose --env-file /etc/learncoding/compose.env \
 Apply requires the exact reviewed policy version:
 
 ```bash
-npm run lifecycle -- retention --apply --confirm 2026-07-14.v4 \
+docker compose --env-file /etc/learncoding/compose.env \
+  -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
+  node --import tsx /app/scripts/data-lifecycle.ts retention --apply \
+  --confirm 2026-07-14.v4 \
   --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:apply
 ```
 

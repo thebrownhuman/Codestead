@@ -12,32 +12,108 @@ fail() {
   failures+=("$1")
 }
 
+trim_systemd_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+systemd_logical_lines() {
+  local file="$1"
+  local line
+  local pending=
+  local physical_trimmed
+  local right_trimmed
+  local continuing=0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    physical_trimmed="$(trim_systemd_whitespace "$line")"
+    if [[ "$physical_trimmed" == \#* || "$physical_trimmed" == \;* ]]; then
+      continue
+    fi
+    if (( continuing )); then
+      line="${line#"${line%%[![:space:]]*}"}"
+    fi
+    pending+="$line"
+    right_trimmed="${pending%"${pending##*[![:space:]]}"}"
+    if [[ "${right_trimmed: -1}" == '\' ]]; then
+      pending="${right_trimmed::-1} "
+      continuing=1
+      continue
+    fi
+    printf '%s\n' "$pending"
+    pending=
+    continuing=0
+  done <"$file"
+
+  if (( continuing )) || [[ -n "$pending" ]]; then
+    printf '%s\n' "$pending"
+  fi
+}
+
+directive_is_exact() {
+  local file="$1"
+  local expected_section="$2"
+  local key="$3"
+  local expected_value="$4"
+  local section=
+  local line
+  local normalized
+  local parsed_key
+  local parsed_value
+  local matches=0
+  local correct=0
+
+  expected_section="$(trim_systemd_whitespace "$expected_section")"
+  key="$(trim_systemd_whitespace "$key")"
+  expected_value="$(trim_systemd_whitespace "$expected_value")"
+  while IFS= read -r line; do
+    normalized="$(trim_systemd_whitespace "$line")"
+    if [[ -z "$normalized" || "$normalized" == \#* || "$normalized" == \;* ]]; then
+      continue
+    fi
+    if [[ "$normalized" =~ ^\[([^]]+)\]$ ]]; then
+      section="$(trim_systemd_whitespace "${BASH_REMATCH[1]}")"
+      continue
+    fi
+    if [[ "$normalized" != *"="* ]]; then
+      continue
+    fi
+    parsed_key="$(trim_systemd_whitespace "${normalized%%=*}")"
+    parsed_value="$(trim_systemd_whitespace "${normalized#*=}")"
+    if [[ "$parsed_key" == "$key" ]]; then
+      matches=$((matches + 1))
+      if [[ "$section" == "$expected_section" && "$parsed_value" == "$expected_value" ]]; then
+        correct=$((correct + 1))
+      fi
+    fi
+  done < <(systemd_logical_lines "$file")
+
+  (( matches == 1 && correct == 1 ))
+}
+
 expect_directive() {
   local file="$1"
   local expected_section="$2"
   local key="$3"
   local expected_value="$4"
   local label="$5"
-  local section=
-  local line
-  local matches=0
-  local correct=0
 
-  while IFS= read -r line; do
-    line="${line%$'\r'}"
-    if [[ "$line" =~ ^\[([^]]+)\]$ ]]; then
-      section="${BASH_REMATCH[1]}"
-      continue
-    fi
-    if [[ "$line" == "${key}="* ]]; then
-      matches=$((matches + 1))
-      if [[ "$section" == "$expected_section" && "$line" == "$key=$expected_value" ]]; then
-        correct=$((correct + 1))
-      fi
-    fi
-  done <"$file"
+  if ! directive_is_exact "$file" "$expected_section" "$key" "$expected_value"; then
+    fail "$label"
+  fi
+}
 
-  if (( matches != 1 || correct != 1 )); then
+expect_mutation_rejected() {
+  local file="$1"
+  local expected_section="$2"
+  local key="$3"
+  local expected_value="$4"
+  local label="$5"
+
+  if directive_is_exact "$file" "$expected_section" "$key" "$expected_value"; then
     fail "$label"
   fi
 }
@@ -111,13 +187,6 @@ expect_directive \
   'Compose startup retries must use the basic 15-minute limit window'
 expect_directive "$compose_unit" Unit StartLimitBurst 5 'Compose startup retries must be bounded to five attempts'
 expect_directive "$compose_unit" Install WantedBy multi-user.target 'Compose unit must remain enabled at normal boot'
-
-while IFS= read -r line; do
-  line="${line%$'\r'}"
-  if [[ "$line" =~ ^Exec(Start|Reload)= ]] && [[ "$line" =~ (^|[[:space:]])--build($|[[:space:]]) ]]; then
-    fail 'Compose ExecStart and ExecReload must never use the --build token'
-  fi
-done <"$compose_unit"
 
 expect_directive \
   "$retention_unit" \
@@ -199,6 +268,78 @@ for timer in \
     "$timer" Timer Persistent true \
     "Timer must contain exactly one effective Persistent=true in [Timer]: ${timer#"$repo_root/"}"
 done
+
+parser_work="$(mktemp -d)"
+trap 'rm -rf "$parser_work"' EXIT
+mutated_compose_unit="$parser_work/learncoding-compose.service"
+mutated_timer="$parser_work/learncoding-backup.timer"
+comment_mutated_compose_unit="$parser_work/comment-override-compose.service"
+comment_mutated_timer="$parser_work/comment-override-backup.timer"
+continued_comment_unit="$parser_work/continued-comment.service"
+cp "$compose_unit" "$mutated_compose_unit"
+cp "$repo_root/infra/systemd/learncoding-backup.timer" "$mutated_timer"
+cp "$compose_unit" "$comment_mutated_compose_unit"
+cp "$repo_root/infra/systemd/learncoding-backup.timer" "$comment_mutated_timer"
+printf '%s\n' \
+  '' \
+  ' [Service]' \
+  ' ExecStart = /usr/bin/docker compose \' \
+  '   --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' \
+  ' ExecReload = /usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' \
+  ' ExecStop = /usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --volumes' \
+  ' Restart = no' >>"$mutated_compose_unit"
+printf '%s\n' '' ' [Timer]' ' Persistent = false' >>"$mutated_timer"
+printf '%s\n' \
+  '' \
+  ' [Service]' \
+  '# harmless recovery comment \' \
+  ' ExecReload = /usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' \
+  ' ; harmless restart comment \' \
+  ' Restart = no' >>"$comment_mutated_compose_unit"
+printf '%s\n' \
+  '' \
+  ' [Timer]' \
+  '# harmless timer comment \' \
+  ' Persistent = false' >>"$comment_mutated_timer"
+printf '%s\n' \
+  ' [Service]' \
+  ' ExecStart = /usr/bin/docker compose \' \
+  ' # ignored comment while the directive is continued' \
+  ' ; ignored continued comment \' \
+  ' --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' >"$continued_comment_unit"
+
+expect_mutation_rejected \
+  "$mutated_compose_unit" Service ExecStart \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
+  'systemd parser accepted a whitespace-indented continued ExecStart build override'
+expect_mutation_rejected \
+  "$mutated_compose_unit" Service ExecReload \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
+  'systemd parser accepted a whitespace-around-equals ExecReload build override'
+expect_mutation_rejected \
+  "$mutated_compose_unit" Service ExecStop \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans' \
+  'systemd parser accepted a whitespace-around-equals volume-removing ExecStop override'
+expect_mutation_rejected \
+  "$mutated_compose_unit" Service Restart on-failure \
+  'systemd parser accepted a whitespace-around-equals Restart override'
+expect_mutation_rejected \
+  "$mutated_timer" Timer Persistent true \
+  'systemd parser accepted a whitespace-around-equals Persistent override'
+expect_mutation_rejected \
+  "$comment_mutated_compose_unit" Service ExecReload \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
+  'systemd parser accepted an ExecReload build override after a backslash comment'
+expect_mutation_rejected \
+  "$comment_mutated_compose_unit" Service Restart on-failure \
+  'systemd parser accepted a Restart override after a backslash semicolon comment'
+expect_mutation_rejected \
+  "$comment_mutated_timer" Timer Persistent true \
+  'systemd parser accepted a Persistent override after a backslash comment'
+expect_directive \
+  "$continued_comment_unit" Service ExecStart \
+  '/usr/bin/docker compose  --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' \
+  'systemd parser did not preserve a continued directive across a comment block'
 
 if (( ${#failures[@]} > 0 )); then
   echo 'systemd recovery contract failed:' >&2
