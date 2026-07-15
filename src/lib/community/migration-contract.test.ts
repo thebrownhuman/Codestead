@@ -14,7 +14,9 @@ describe("community moderation idempotency migration contract", () => {
     expect(sql).toContain('ADD CONSTRAINT "community_operation_receipt_action_check"');
     expect(sql).toContain("'create_group','add_member','create_post','reply','moderate'");
     const journal = JSON.parse(journalText) as { entries: Array<{ idx: number; tag: string }> };
-    expect(journal.entries.at(-1)).toMatchObject({
+    expect(
+      journal.entries.find(({ tag }) => tag === "0053_community_moderation_idempotency"),
+    ).toMatchObject({
       idx: 53,
       tag: "0053_community_moderation_idempotency",
     });
