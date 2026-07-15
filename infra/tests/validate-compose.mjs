@@ -20,15 +20,26 @@ const pilotServices = [
   "cloudflared",
   "exam-finalization-worker",
   "mail-worker",
-  "migrate",
   "postgres",
   "practice-runner-recovery-worker",
   "project-review-correction-worker",
   "regrade-worker",
   "reward-worker",
 ];
-const operationServices = ["admin-bootstrap", "lifecycle", "platform-seed"];
+const operationServices = ["admin-bootstrap", "lifecycle", "migrate", "platform-seed"];
 const uploadServices = ["clamav", "scan-worker"];
+const longRunningServices = [...pilotServices, ...uploadServices];
+const oneShotServices = operationServices;
+const databaseMutatingServices = [
+  "app",
+  "exam-finalization-worker",
+  "mail-worker",
+  "practice-runner-recovery-worker",
+  "project-review-correction-worker",
+  "regrade-worker",
+  "reward-worker",
+  "scan-worker",
+];
 
 const applicationImages = {
   APP_RUNTIME_IMAGE: `ghcr.io/thebrownhuman/compose-validator-runtime@sha256:${"1".repeat(64)}`,
@@ -137,6 +148,12 @@ expect(
   ]),
   "postgres command must contain only the three enabled durability settings",
 );
+expect(
+  String(config.services?.postgres?.environment?.POSTGRES_INITDB_ARGS ?? "")
+    .split(/\s+/u)
+    .includes("--data-checksums"),
+  "postgres must retain data checksums for newly initialized clusters",
+);
 const expectedProfiles = Object.fromEntries([
   ...pilotServices.map((name) => [name, []]),
   ...operationServices.map((name) => [name, ["operations"]]),
@@ -166,11 +183,22 @@ for (const [name, service] of Object.entries(config.services ?? {})) {
     expect(volume.source !== "/", `${name} must not mount the host root`);
   }
 }
+for (const name of longRunningServices) {
+  expect(config.services?.[name]?.restart === "unless-stopped", `${name} must restart unless stopped`);
+}
+for (const name of oneShotServices) {
+  expect(config.services?.[name]?.restart === "no", `${name} must remain a non-restarting one-shot`);
+}
+expect(config.services?.postgres?.stop_grace_period === "2m", "postgres must receive a two-minute stop budget");
+for (const name of databaseMutatingServices) {
+  expect(config.services?.[name]?.stop_grace_period === "1m", `${name} must receive a one-minute stop budget`);
+}
+expect(config.services?.cloudflared?.stop_grace_period === "30s", "cloudflared must receive a 30-second stop budget");
 
 const expectedNetworks = {
   postgres: ["data"],
   migrate: ["data"],
-  app: ["data", "frontend"],
+  app: ["data", "frontend", "runner-egress"],
   "mail-worker": ["data", "mail-egress"],
   "reward-worker": ["data"],
   "regrade-worker": ["data", "runner-egress"],
@@ -201,6 +229,30 @@ expect(
 );
 expect(config.networks?.data?.internal === true, "database network must be internal");
 expect(config.networks?.scanner?.internal === true, "scanner network must be internal");
+expect(config.networks?.["runner-egress"]?.driver === "bridge", "runner-egress must use the bridge driver");
+expect(
+  same(
+    (config.networks?.["runner-egress"]?.ipam?.config ?? []).map((entry) => entry.subnet),
+    ["172.29.40.0/24"],
+  ),
+  "runner-egress must have only the reviewed 172.29.40.0/24 subnet",
+);
+expect(
+  config.networks?.["runner-egress"]?.driver_opts?.["com.docker.network.bridge.name"] === "cdst-run0",
+  "runner-egress must request Linux bridge cdst-run0",
+);
+const actualRunnerConsumers = Object.entries(config.services ?? {})
+  .filter(([, service]) => Object.hasOwn(service.networks ?? {}, "runner-egress"))
+  .map(([name]) => name);
+expect(
+  same(actualRunnerConsumers, [
+    "app",
+    "exam-finalization-worker",
+    "practice-runner-recovery-worker",
+    "regrade-worker",
+  ]),
+  "runner-egress consumers must be limited to the four reviewed runner clients",
+);
 
 const expectedSecretSources = {
   postgres: ["postgres_password"],
@@ -306,15 +358,15 @@ const dependencySignature = (service) =>
 const expectedDependencies = {
   postgres: [],
   migrate: ["postgres:service_healthy"],
-  app: ["migrate:service_completed_successfully"],
-  "mail-worker": ["migrate:service_completed_successfully"],
-  "reward-worker": ["migrate:service_completed_successfully"],
-  "regrade-worker": ["migrate:service_completed_successfully"],
-  "exam-finalization-worker": ["migrate:service_completed_successfully"],
-  "practice-runner-recovery-worker": ["migrate:service_completed_successfully"],
-  "project-review-correction-worker": ["migrate:service_completed_successfully"],
+  app: ["postgres:service_healthy"],
+  "mail-worker": ["postgres:service_healthy"],
+  "reward-worker": ["postgres:service_healthy"],
+  "regrade-worker": ["postgres:service_healthy"],
+  "exam-finalization-worker": ["postgres:service_healthy"],
+  "practice-runner-recovery-worker": ["postgres:service_healthy"],
+  "project-review-correction-worker": ["postgres:service_healthy"],
   clamav: [],
-  "scan-worker": ["clamav:service_healthy", "migrate:service_completed_successfully"],
+  "scan-worker": ["clamav:service_healthy", "postgres:service_healthy"],
   lifecycle: ["migrate:service_completed_successfully"],
   "platform-seed": ["migrate:service_completed_successfully"],
   "admin-bootstrap": ["migrate:service_completed_successfully"],
@@ -378,7 +430,7 @@ const operationCommands = {
   "platform-seed": ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"],
   "admin-bootstrap": ["node", "--import", "tsx", "/app/scripts/bootstrap-admin.ts"],
 };
-for (const name of operationServices) {
+for (const name of ["lifecycle", "platform-seed", "admin-bootstrap"]) {
   expect(config.services?.[name]?.restart === "no", `${name} must remain a one-shot service`);
   expect(orderedSame(config.services?.[name]?.command ?? [], operationCommands[name]), `${name} command drifted`);
 }
@@ -427,5 +479,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "Semantic Compose validation passed (profiles, images, operations, network, capability, mount, secret, and supplemental-group allowlists).",
+  "Semantic Compose validation passed (durability, profiles, restart/stop classes, networks, dependencies, images, mounts, secrets, and hardening).",
 );

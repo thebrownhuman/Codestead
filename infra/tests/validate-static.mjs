@@ -73,6 +73,15 @@ function hasSingleSystemdDirective(content, section, key, value) {
   return matches.length === 1 && matches[0].section === section && matches[0].value === value;
 }
 
+function hasSystemdDirectiveTokens(content, section, key, requiredTokens) {
+  const directives = systemdDirectives(content);
+  if (!directives) return false;
+  const matches = directives.filter((directive) => directive.key === key);
+  if (matches.length !== 1 || matches[0].section !== section) return false;
+  const actual = new Set(matches[0].value.split(/\s+/u));
+  return requiredTokens.every((token) => actual.has(token));
+}
+
 const dockerfile = read("Dockerfile");
 const compose = read("compose.yaml");
 const composeEnv = read("infra/env/compose.env.example");
@@ -114,6 +123,18 @@ const updatesRunbook = read("docs/runbooks/updates-and-rollback.md");
 const lifecycleRunbook = read("docs/runbooks/data-lifecycle.md");
 const draftSyncGuide = read("docs/draft-sync.md");
 const projectRevisionsGuide = read("docs/project-revisions.md");
+const runnerNetworkXml = read("infra/runner-vm/codestead-runner-network.xml");
+const runnerCloudMeta = read("infra/runner-vm/cloud-init/meta-data");
+const runnerCloudUser = read("infra/runner-vm/cloud-init/user-data.template");
+const runnerProvisioner = read("infra/runner-vm/provision-host.sh");
+const runnerGuestInstaller = read("infra/runner-vm/install-guest.sh");
+const runnerFirewall = read("infra/runner-vm/host-runner.nft");
+const runnerFirewallUnit = read("infra/systemd/learncoding-runner-firewall.service");
+const recoveryChecker = read("infra/ops/check-recovery.sh");
+const recoveryService = read("infra/systemd/learncoding-recovery-check.service");
+const recoveryTimer = read("infra/systemd/learncoding-recovery-check.timer");
+const recoveryEvidence = read("infra/ops/capture-recovery-evidence.sh");
+const systemdInstaller = read("infra/ops/install-systemd.sh");
 
 expect(/@sha256:[0-9a-f]{64}/i.test(dockerfile), "Docker base image must be digest-pinned");
 expect(
@@ -207,8 +228,10 @@ expect(
 );
 expect(/internal: true/.test(compose), "database network must be internal");
 expect(/condition: service_healthy/.test(compose), "migration must wait for PostgreSQL health");
-expect(/condition: service_completed_successfully/.test(compose), "app must wait for migration success");
+const migrateService = composeService("migrate");
+expect(/profiles:\s*\["operations"\]/.test(migrateService), "migrate must be isolated behind the operations profile");
 const appService = composeService("app");
+expect(!/depends_on:[\s\S]*?\bmigrate:/.test(appService), "ordinary app boot must not invoke or wait for migration");
 expect(
   /healthcheck:[\s\S]*?test:\s*\["CMD", "node", "-e", "[^"\r\n]*\/health\/ready[^"\r\n]*redirect:\s*'manual'[^"\r\n]*status\s*!==\s*200[^"\r\n]*"\]/.test(appService),
   "app healthcheck must use native fetch against readiness, reject redirects, and require status 200",
@@ -254,6 +277,9 @@ expect(
 for (const [systemdPath, systemdContent] of [
   ["infra/systemd/learncoding-compose.service", composeUnit],
   ["infra/systemd/learncoding-retention.service", retentionUnit],
+  ["infra/systemd/learncoding-runner-firewall.service", runnerFirewallUnit],
+  ["infra/systemd/learncoding-recovery-check.service", recoveryService],
+  ["infra/systemd/learncoding-recovery-check.timer", recoveryTimer],
   ...persistentTimers,
 ]) {
   expect(
@@ -423,15 +449,25 @@ expect(
   "Compose systemd unit must require only the application, configuration, and primary data mounts",
 );
 expect(
-  hasSingleSystemdDirective(
+  hasSystemdDirectiveTokens(
     composeUnit,
     "Unit",
     "After",
-    "docker.service network-online.target local-fs.target",
+    [
+      "docker.service",
+      "network-online.target",
+      "local-fs.target",
+      "libvirtd.service",
+      "learncoding-runner-firewall.service",
+    ],
   ) &&
     hasSingleSystemdDirective(composeUnit, "Unit", "Requires", "docker.service") &&
-    hasSingleSystemdDirective(composeUnit, "Unit", "Wants", "network-online.target"),
-  "Compose systemd unit must retain Docker and network-online dependencies",
+    hasSystemdDirectiveTokens(composeUnit, "Unit", "Wants", [
+      "network-online.target",
+      "libvirtd.service",
+      "learncoding-runner-firewall.service",
+    ]),
+  "Compose systemd unit must retain Docker/local-fs and include network, libvirt, and firewall ordering",
 );
 expect(
   hasSingleSystemdDirective(
@@ -477,11 +513,51 @@ expect(
 );
 expect(
   hasSingleSystemdDirective(composeUnit, "Service", "Restart", "on-failure") &&
-    hasSingleSystemdDirective(composeUnit, "Service", "RestartSec", "30s") &&
+    hasSingleSystemdDirective(composeUnit, "Service", "RestartSec", "15s") &&
+    hasSingleSystemdDirective(composeUnit, "Service", "TimeoutStartSec", "15min") &&
+    hasSingleSystemdDirective(composeUnit, "Service", "TimeoutStopSec", "5min") &&
     hasSingleSystemdDirective(composeUnit, "Unit", "OnFailure", "learncoding-alert@%n.service") &&
     hasSingleSystemdDirective(composeUnit, "Unit", "StartLimitIntervalSec", "15min") &&
     hasSingleSystemdDirective(composeUnit, "Unit", "StartLimitBurst", "5"),
   "Compose systemd unit must bound and alert on transient startup failures",
+);
+
+if (recoveryService) {
+  const recoveryRequires = (systemdDirectives(recoveryService) ?? []).filter(
+    (directive) => directive.section === "Unit" && directive.key === "Requires",
+  );
+  expect(
+    hasSystemdDirectiveTokens(recoveryService, "Unit", "Wants", ["learncoding-compose.service"]) &&
+      !recoveryRequires.some((directive) => directive.value.split(/\s+/u).includes("learncoding-compose.service")) &&
+      hasSingleSystemdDirective(recoveryService, "Unit", "OnFailure", "learncoding-alert@%n.service") &&
+      hasSingleSystemdDirective(recoveryService, "Service", "Type", "oneshot") &&
+      hasSingleSystemdDirective(
+        recoveryService,
+        "Service",
+        "ExecStart",
+        "/usr/bin/bash /opt/learncoding/infra/ops/check-recovery.sh",
+      ),
+    "recovery service must want (not require) Compose and run the alerting oneshot checker",
+  );
+}
+if (recoveryTimer) {
+  expect(
+    hasSingleSystemdDirective(recoveryTimer, "Timer", "OnBootSec", "2m") &&
+      hasSingleSystemdDirective(recoveryTimer, "Timer", "OnUnitActiveSec", "15m") &&
+      hasSingleSystemdDirective(recoveryTimer, "Timer", "Persistent", "true") &&
+      hasSingleSystemdDirective(recoveryTimer, "Timer", "Unit", "learncoding-recovery-check.service"),
+    "recovery timer must use the final boot, repeat, persistence, and service selectors",
+  );
+}
+expect(
+  /systemctl enable --now[^\n]*learncoding-runner-firewall\.service/.test(systemdInstaller) &&
+    /systemctl enable --now[^\n]*learncoding-compose\.service/.test(systemdInstaller) &&
+    /systemctl enable --now[^\n]*learncoding-recovery-check\.timer/.test(systemdInstaller) &&
+    /systemctl enable --now[^\n]*learncoding-backup\.timer/.test(systemdInstaller) &&
+    /learncoding-backup-check\.timer/.test(systemdInstaller) &&
+    /learncoding-retention\.timer/.test(systemdInstaller) &&
+    !/systemctl enable[^\n]*learncoding-restore-drill\.service/.test(systemdInstaller),
+  "systemd installer must enable firewall, Compose, recovery, backup/check, and retention but not restore drill",
 );
 
 expect(
@@ -592,6 +668,72 @@ read("content/catalog.json");
 expect(!/RUNNER_SHARED_SECRET=[^$\n]{32,}/.test(compose), "Compose must not contain a literal runner secret");
 expect(/required_secrets=\([^)]*deletion_tombstone_key/.test(runtimeValidation), "runtime validation must require the deletion tombstone key");
 expect(/SOURCE_CODE_URL must be an HTTPS URL/.test(runtimeValidation), "runtime validation must reject a missing or non-HTTPS source-code URL");
+expect(
+  /--post-start/.test(runtimeValidation) &&
+    /\btimeout\b/.test(runtimeValidation) &&
+    /runner URL must be exactly http:\/\/10\.20\.0\.12:4100/.test(runtimeValidation) &&
+    /172\.29\.40\.0\/24/.test(runtimeValidation) &&
+    /cdst-run0/.test(runtimeValidation),
+  "runtime validation must expose only the post-start selector and require the exact runner URL/network",
+);
+
+if (runnerNetworkXml) {
+  expect(
+    /<name>codestead-runner<\/name>/.test(runnerNetworkXml) &&
+      /<forward\s+mode=["']nat["']/.test(runnerNetworkXml) &&
+      /<bridge\s+name=["']virbr-cdst["']/.test(runnerNetworkXml) &&
+      /address=["']10\.20\.0\.1["']/.test(runnerNetworkXml) &&
+      /mac=["']52:54:00:20:00:12["']/.test(runnerNetworkXml) &&
+      /ip=["']10\.20\.0\.12["']/.test(runnerNetworkXml),
+    "runner network XML must define only the reviewed dedicated NAT identity",
+  );
+}
+if (runnerProvisioner) {
+  expect(/RUNNER_PROVISION_TEST_ROOT/.test(runnerProvisioner), "provisioner must expose only the narrow test-root seam");
+  expect(
+    !/virsh\s+(?:--connect\s+\S+\s+)?(?:destroy|undefine|vol-delete)\b|--remove-all-storage|\b(?:br0|wlo1)\b|--network\s+(?:bridge|direct)=/i.test(
+      runnerProvisioner,
+    ),
+    "provisioner must not contain destructive libvirt/disk or Wi-Fi bridge operations",
+  );
+  expect(
+    /host-passthrough/.test(runnerProvisioner) && /cache=none/.test(runnerProvisioner) && /100G/.test(runnerProvisioner),
+    "provisioner must encode host-passthrough, cache=none, and the 100 GiB disk",
+  );
+}
+if (runnerGuestInstaller) {
+  expect(
+    /10\.20\.0\.12/.test(runnerGuestInstaller) && /RUNNER_MAX_CONCURRENCY=2/.test(runnerGuestInstaller),
+    "guest installer must retain the fixed private address and two-slot runner",
+  );
+}
+if (runnerFirewall) {
+  expect(
+    /cdst-run0/.test(runnerFirewall) && /172\.29\.40\.0\/24/.test(runnerFirewall) && /10\.20\.0\.12/.test(runnerFirewall) && /4100/.test(runnerFirewall),
+    "runner firewall must scope cdst-run0/172.29.40.0/24 to the private runner port",
+  );
+}
+if (runnerFirewallUnit) {
+  expect(/nft/.test(runnerFirewallUnit), "runner firewall unit must install the reviewed nftables policy");
+}
+if (recoveryChecker) {
+  expect(
+    /\/etc\/learncoding\/existing-containers\.txt/.test(recoveryChecker) &&
+      /RECOVERY_CHECK_TEST_ROOT/.test(recoveryChecker) &&
+      /900/.test(recoveryChecker) &&
+      /x-runner-response-signature/i.test(recoveryChecker) &&
+      /concurrency/.test(recoveryChecker),
+    "recovery checker must use the protected baseline, 900-second bound, and signed two-slot runner health",
+  );
+}
+if (recoveryEvidence) {
+  expect(
+    /\/var\/lib\/learncoding\/recovery-evidence/.test(recoveryEvidence) &&
+      /RECOVERY_EVIDENCE_TEST_ROOT/.test(recoveryEvidence) &&
+      !/\/var\/lib\/learncoding-runner|RUNNER_STATE_ROOT|journalctl[^\n]*learncoding-runner/i.test(recoveryEvidence),
+    "recovery evidence must stay below its fixed root and never inspect runner state or journal data",
+  );
+}
 
 expect(/age --encrypt --recipients-file/.test(backup), "full backups must use age recipient encryption");
 expect(/sha256sum/.test(backup) && /SHA256SUMS/.test(backup), "full backups need external and internal checksums");
@@ -609,8 +751,20 @@ expect(/contains_email_exports=false/.test(backup), "backup manifest must explic
 
 expect(/SupplementaryGroups=docker/.test(runnerUnit), "runner reference unit must explicitly contain Docker privilege inside its VM");
 expect(/ProtectSystem=strict/.test(runnerUnit), "runner service must harden its host filesystem view");
+expect(
+  /^Restart=on-failure$/m.test(runnerUnit) &&
+    /^RestartSec=5s$/m.test(runnerUnit) &&
+    /^StartLimitBurst=(?:[1-9]|10)$/m.test(runnerUnit),
+  "runner unit must use bounded five-second failure recovery",
+);
 expect(/StateDirectory=learncoding-runner/.test(runnerUnit) && /StateDirectoryMode=0700/.test(runnerUnit), "runner unit must provision its private durable state directory");
 expect(/^LimitCORE=0$/m.test(runnerUnit), "runner service must disable core dumps containing learner memory");
+expect(
+  /^RUNNER_HOST=10\.20\.0\.12$/m.test(runnerEnv) &&
+    /^RUNNER_MAX_CONCURRENCY=2$/m.test(runnerEnv) &&
+    !/^RUNNER_HOST=(?:0\.0\.0\.0|localhost|127\.0\.0\.1|\[?::\]?)$/m.test(runnerEnv),
+  "runner environment must bind the fixed private guest address with exactly two slots",
+);
 expect(/^RUNNER_STATE_ROOT=\/var\/lib\/learncoding-runner$/m.test(runnerEnv), "runner environment must use the systemd-managed state directory");
 const runnerLaunch = read("infra/runner/run-runner.sh");
 expect(/RUNNER_SHARED_SECRET_FILE/.test(runnerLaunch), "runner secret must come from a file");

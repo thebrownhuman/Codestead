@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 compose="$repo_root/compose.yaml"
 compose_unit="$repo_root/infra/systemd/learncoding-compose.service"
 retention_unit="$repo_root/infra/systemd/learncoding-retention.service"
+recovery_service="$repo_root/infra/systemd/learncoding-recovery-check.service"
+recovery_timer="$repo_root/infra/systemd/learncoding-recovery-check.timer"
+firewall_service="$repo_root/infra/systemd/learncoding-runner-firewall.service"
+installer="$repo_root/infra/ops/install-systemd.sh"
 package_json="$repo_root/package.json"
 failures=()
 
@@ -112,6 +117,68 @@ expect_contains() {
   fi
 }
 
+directive_contains_tokens() {
+  local file="$1"
+  local expected_section="$2"
+  local key="$3"
+  shift 3
+  local -a required_tokens=("$@")
+  local section=
+  local line
+  local parsed_key
+  local parsed_value
+  local token
+  local required
+  local matches=0
+
+  systemd_syntax_is_canonical "$file" || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -n "$line" && "$line" != \#* && "$line" != \;* ]] || continue
+    case "$line" in
+      '[Unit]') section=Unit; continue ;;
+      '[Service]') section=Service; continue ;;
+      '[Install]') section=Install; continue ;;
+      '[Timer]') section=Timer; continue ;;
+    esac
+    parsed_key="${line%%=*}"
+    parsed_value="${line#*=}"
+    if [[ "$parsed_key" == "$key" ]]; then
+      matches=$((matches + 1))
+      [[ "$section" == "$expected_section" ]] || return 1
+      for required in "${required_tokens[@]}"; do
+        local found=false
+        for token in $parsed_value; do
+          if [[ "$token" == "$required" ]]; then found=true; break; fi
+        done
+        [[ "$found" == true ]] || return 1
+      done
+    fi
+  done <"$file"
+
+  (( matches == 1 ))
+}
+
+expect_directive_tokens() {
+  local file="$1"
+  local expected_section="$2"
+  local key="$3"
+  local label="$4"
+  shift 4
+
+  if ! directive_contains_tokens "$file" "$expected_section" "$key" "$@"; then
+    fail "$label"
+  fi
+}
+
+expect_required_file() {
+  local file="$1"
+  if [[ ! -f "$file" ]]; then
+    fail "Required later-task production asset is missing: ${file#"$repo_root/"}"
+    return 1
+  fi
+}
+
 expect_canonical_systemd_file() {
   local file="$1"
 
@@ -135,11 +202,15 @@ expect_directive \
   RequiresMountsFor \
   '/opt/learncoding /etc/learncoding /srv/learncoding' \
   'Compose startup must require exactly the application, configuration, and primary data mounts'
-expect_directive \
-  "$compose_unit" Unit After 'docker.service network-online.target local-fs.target' \
-  'Compose startup ordering must retain Docker, network-online, and local filesystems'
+expect_directive_tokens \
+  "$compose_unit" Unit After \
+  'Compose startup ordering must include Docker, network-online, local filesystems, libvirt, and the runner firewall' \
+  docker.service network-online.target local-fs.target libvirtd.service learncoding-runner-firewall.service
 expect_directive "$compose_unit" Unit Requires docker.service 'Compose startup must require Docker'
-expect_directive "$compose_unit" Unit Wants network-online.target 'Compose startup must want network-online.target'
+expect_directive_tokens \
+  "$compose_unit" Unit Wants \
+  'Compose startup must want network-online, libvirt, and the runner firewall' \
+  network-online.target libvirtd.service learncoding-runner-firewall.service
 expect_directive \
   "$compose_unit" \
   Service \
@@ -173,7 +244,9 @@ expect_directive \
 expect_directive "$compose_unit" Service Type oneshot 'Compose unit must remain Type=oneshot'
 expect_directive "$compose_unit" Service RemainAfterExit yes 'Compose unit must remain active after startup'
 expect_directive "$compose_unit" Service Restart on-failure 'Compose startup must retry transient failures'
-expect_directive "$compose_unit" Service RestartSec 30s 'Compose startup must use the Task 6 retry delay'
+expect_directive "$compose_unit" Service RestartSec 15s 'Compose startup must use the final 15-second recovery retry delay'
+expect_directive "$compose_unit" Service TimeoutStartSec 15min 'Compose startup must retain its 15-minute start budget'
+expect_directive "$compose_unit" Service TimeoutStopSec 5min 'Compose shutdown must use the final five-minute stop budget'
 expect_directive \
   "$compose_unit" \
   Unit \
@@ -270,8 +343,71 @@ for timer in \
     "Timer must contain exactly one effective Persistent=true in [Timer]: ${timer#"$repo_root/"}"
 done
 
-parser_work="$(mktemp -d)"
-trap 'rm -rf "$parser_work"' EXIT
+if expect_required_file "$firewall_service"; then
+  expect_canonical_systemd_file "$firewall_service"
+fi
+if expect_required_file "$recovery_service"; then
+  expect_canonical_systemd_file "$recovery_service"
+  expect_directive_tokens \
+    "$recovery_service" Unit After \
+    'Recovery checker must run after the trusted Compose unit' \
+    learncoding-compose.service
+  expect_directive_tokens \
+    "$recovery_service" Unit Wants \
+    'Recovery checker must want Compose so it can still report Compose failure' \
+    learncoding-compose.service
+  if directive_contains_tokens "$recovery_service" Unit Requires learncoding-compose.service; then
+    fail 'Recovery checker must not require Compose'
+  fi
+  expect_directive \
+    "$recovery_service" Unit OnFailure 'learncoding-alert@%n.service' \
+    'Recovery checker failure must trigger the existing alert unit'
+  expect_directive "$recovery_service" Service Type oneshot 'Recovery checker must be a oneshot service'
+  expect_directive \
+    "$recovery_service" Service ExecStart \
+    '/usr/bin/bash /opt/learncoding/infra/ops/check-recovery.sh' \
+    'Recovery checker must invoke the reviewed root script'
+fi
+if expect_required_file "$recovery_timer"; then
+  expect_canonical_systemd_file "$recovery_timer"
+  expect_directive "$recovery_timer" Timer OnBootSec 2m 'Recovery timer must first run two minutes after boot'
+  expect_directive "$recovery_timer" Timer OnUnitActiveSec 15m 'Recovery timer must repeat every fifteen minutes'
+  expect_directive "$recovery_timer" Timer Persistent true 'Recovery timer must remain persistent'
+  expect_directive \
+    "$recovery_timer" Timer Unit learncoding-recovery-check.service \
+    'Recovery timer must explicitly activate the recovery service'
+  expect_directive "$recovery_timer" Install WantedBy timers.target 'Recovery timer must be installable at boot'
+fi
+
+expect_contains \
+  "$installer" 'learncoding-runner-firewall.service' \
+  'Systemd installer must enable the runner firewall service'
+expect_contains \
+  "$installer" 'learncoding-recovery-check.timer' \
+  'Systemd installer must enable the recovery timer'
+expect_contains \
+  "$installer" 'install -o root -g root -m 0644' \
+  'Systemd installer must publish every owned unit as root:root mode 0644'
+for enabled_timer in learncoding-backup.timer learncoding-backup-check.timer learncoding-retention.timer; do
+  expect_contains "$installer" "$enabled_timer" "Systemd installer must retain enablement for $enabled_timer"
+done
+if grep -Eq 'systemctl[[:space:]]+enable.*learncoding-restore-drill\.service' "$installer"; then
+  fail 'Systemd installer must never enable the manual restore-drill service'
+fi
+
+tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+parser_work="$(mktemp -d "$tmp_base/systemd-recovery-parser.XXXXXX")"
+parser_work="$(cd "$parser_work" && pwd -P)"
+if [[ -L "$parser_work" || "$parser_work" != "$tmp_base"/* ]]; then
+  fail 'systemd parser fixture escaped its verified temporary root'
+fi
+chmod 0700 "$parser_work"
+cleanup_parser_work() {
+  if [[ -d "$parser_work" && ! -L "$parser_work" && "$parser_work" == "$tmp_base"/* ]]; then
+    rm -rf -- "$parser_work"
+  fi
+}
+trap cleanup_parser_work EXIT
 mutated_compose_unit="$parser_work/learncoding-compose.service"
 mutated_timer="$parser_work/learncoding-backup.timer"
 comment_mutated_compose_unit="$parser_work/comment-override-compose.service"

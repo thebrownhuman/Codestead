@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 launcher="$repo_root/infra/runner/run-runner.sh"
-work="$(mktemp -d)"
+runner_unit="$repo_root/infra/runner/learncoding-runner.service.example"
+runner_env="$repo_root/infra/env/runner.env.example"
+tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+work="$(mktemp -d "$tmp_base/runner-reconciliation.XXXXXX")"
+work="$(cd "$work" && pwd -P)"
+[[ ! -L "$work" && "$work" == "$tmp_base"/* ]] || {
+  echo 'runner reconciliation fixture escaped its verified temporary root' >&2
+  exit 1
+}
+chmod 0700 "$work"
 lock_holder=""
 cleanup() {
   if [[ -n "$lock_holder" ]]; then
     kill "$lock_holder" 2>/dev/null || true
     wait "$lock_holder" 2>/dev/null || true
   fi
-  rm -rf "$work"
+  if [[ -d "$work" && ! -L "$work" && "$work" == "$tmp_base"/* ]]; then
+    rm -rf -- "$work"
+  fi
 }
 trap cleanup EXIT
 
@@ -24,7 +36,12 @@ case "${1:-}" in
     printf '%s\n' abc123 def456
     ;;
   rm)
-    printf '%s\n' "$*" >>"$TEST_DOCKER_LOG"
+    {
+      printf '%q' "$1"
+      shift
+      for argument in "$@"; do printf ' %q' "$argument"; done
+      printf '\n'
+    } >>"$TEST_DOCKER_LOG"
     ;;
   *) exit 64 ;;
 esac
@@ -109,5 +126,37 @@ if RUNNER_SHARED_SECRET_FILE="$work/secret" \
 fi
 [[ "$(wc -l <"$work/locked-docker.log" | tr -d ' ')" == "2" ]]
 [[ "$(cat "$work/locked-state/state-sentinel")" == "state-must-remain-unchanged" ]]
+
+contract_failures=()
+expect_exact_line() {
+  local file="$1"
+  local expected="$2"
+  local label="$3"
+  local count
+  count="$(grep -Fxc -- "$expected" "$file" || true)"
+  if [[ "$count" != 1 ]]; then contract_failures+=("$label"); fi
+}
+
+expect_exact_line "$runner_unit" 'Restart=on-failure' 'runner unit must restart only on failure'
+expect_exact_line "$runner_unit" 'RestartSec=5s' 'runner unit must use a five-second restart delay'
+expect_exact_line "$runner_unit" 'StateDirectoryMode=0700' 'runner unit must retain a mode-0700 state directory'
+expect_exact_line "$runner_unit" 'LimitCORE=0' 'runner unit must disable learner-memory core dumps'
+expect_exact_line "$runner_env" 'RUNNER_HOST=10.20.0.12' 'runner must bind only to the fixed private guest address'
+expect_exact_line "$runner_env" 'RUNNER_MAX_CONCURRENCY=2' 'runner must expose exactly two concurrent slots'
+
+start_limit_lines="$(grep -Ec '^StartLimitBurst=([1-9]|10)$' "$runner_unit" || true)"
+all_start_limit_lines="$(grep -Ec '^StartLimitBurst=' "$runner_unit" || true)"
+if [[ "$start_limit_lines" != 1 || "$all_start_limit_lines" != 1 ]]; then
+  contract_failures+=('runner unit must set one nonzero bounded StartLimitBurst no greater than 10')
+fi
+if grep -Eiq '(^|[=:[:space:]])(0\.0\.0\.0|\[?::\]?)(:|$)|RUNNER_HOST=(localhost|127\.0\.0\.1)' "$runner_env"; then
+  contract_failures+=('runner environment must not contain a wildcard, localhost, or public bind')
+fi
+
+if (( ${#contract_failures[@]} > 0 )); then
+  echo 'runner unit/environment contract failed:' >&2
+  for failure in "${contract_failures[@]}"; do printf -- '- %s\n' "$failure" >&2; done
+  exit 1
+fi
 
 echo "runner-reconciliation-tests-ok"
