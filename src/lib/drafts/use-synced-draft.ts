@@ -70,6 +70,8 @@ type DraftRuntime = {
   nextSequence: number;
   latestMutation: LocalMutation | null;
   networkMutation: NetworkMutation | null;
+  pendingConflict: boolean;
+  localValidationFailed: boolean;
   networkActive: boolean;
   retryIndex: number;
   timer: number | null;
@@ -303,6 +305,21 @@ export function useSyncedDraft({
 
   const scheduleRetry = useCallback((runtime: DraftRuntime) => {
     if (!isCurrent(runtime) || runtime.blockedStatus || !runtime.networkMutation) return;
+    const failedNetwork = runtime.networkMutation;
+    const latest = runtime.latestMutation;
+    if (runtime.localValidationFailed
+      || (latest
+        && latest.record.requestId !== failedNetwork.record.requestId
+        && latest.state !== "committed")) {
+      clearTimer(runtime);
+      runtime.networkMutation = null;
+      return;
+    }
+    if (latest
+      && latest.record.requestId !== failedNetwork.record.requestId
+      && latest.state === "committed") {
+      runtime.networkMutation = { record: latest.record, hasSent: false };
+    }
     const delay = DRAFT_RETRY_DELAYS_MS[Math.min(
       runtime.retryIndex,
       DRAFT_RETRY_DELAYS_MS.length - 1,
@@ -326,6 +343,7 @@ export function useSyncedDraft({
     };
     runtime.nextSequence += 1;
     runtime.latestMutation = mutation;
+    runtime.localValidationFailed = false;
 
     if (runtime.networkMutation && !runtime.networkMutation.hasSent && !runtime.networkActive) {
       clearTimer(runtime);
@@ -347,7 +365,10 @@ export function useSyncedDraft({
       mutation.state = "committed";
       if (!isCurrent(runtime) || runtime.latestMutation !== mutation) return;
       onCommitted?.();
-      if (statusRef.current === "conflict") return;
+      if (runtime.pendingConflict || statusRef.current === "conflict") {
+        transition(runtime, "conflict");
+        return;
+      }
       if (runtime.blockedStatus) {
         transition(runtime, runtime.blockedStatus);
         return;
@@ -382,13 +403,26 @@ export function useSyncedDraft({
       runtime.networkMutation = null;
       clearTimer(runtime);
       setServerCopy(body.draft);
-      transition(runtime, "conflict");
+      runtime.pendingConflict = true;
+      const latest = runtime.latestMutation;
+      if (!runtime.localValidationFailed
+        && (!latest
+          || latest.record.requestId === sent.requestId
+          || latest.state === "committed")) {
+        transition(runtime, "conflict");
+      }
       return;
     }
 
+    let deletionResult: boolean | null = null;
+    let repository: BrowserOutboxRepository | null = null;
     try {
-      const repository = await ensureRepository(runtime);
-      await repository.deleteDraftIfMutation(runtime.namespace, runtime.key, sent.requestId);
+      repository = await ensureRepository(runtime);
+      deletionResult = await repository.deleteDraftIfMutation(
+        runtime.namespace,
+        runtime.key,
+        sent.requestId,
+      );
     } catch {
       // The authoritative save remains valid. Exact replay can clean this record later.
     }
@@ -417,6 +451,42 @@ export function useSyncedDraft({
       return;
     }
 
+    if (runtime.localValidationFailed) {
+      runtime.networkMutation = null;
+      transition(runtime, "local-save-error");
+      return;
+    }
+
+    if (deletionResult === false) {
+      let durableWinner: DraftOutboxRecord | null = null;
+      try {
+        durableWinner = await (repository ?? await ensureRepository(runtime)).getDraft(
+          runtime.namespace,
+          runtime.key,
+        );
+      } catch {
+        durableWinner = null;
+      }
+      if (!isCurrent(runtime)) return;
+      runtime.networkMutation = null;
+      if (durableWinner && durableWinner.requestId !== sent.requestId) {
+        runtime.latestMutation = {
+          record: durableWinner,
+          sequence: runtime.nextSequence,
+          state: "committed",
+        };
+        runtime.nextSequence += 1;
+        applyDraft(runtime, outboxDraftToCached(durableWinner));
+        setServerCopy(body.draft);
+        runtime.pendingConflict = false;
+        transition(runtime, "conflict");
+        return;
+      }
+      runtime.latestMutation = null;
+      transition(runtime, "unavailable");
+      return;
+    }
+
     const clean: CachedLearnerDraft = {
       schemaVersion: 1,
       content: sent.payload.content,
@@ -427,6 +497,7 @@ export function useSyncedDraft({
       dirty: false,
     };
     runtime.latestMutation = null;
+    runtime.pendingConflict = false;
     applyDraft(runtime, clean);
     setServerCopy(null);
     transition(runtime, "synced");
@@ -490,7 +561,13 @@ export function useSyncedDraft({
         runtime.blockedStatus = "scope-unavailable";
         runtime.authorized = false;
         runtime.networkMutation = null;
-        transition(runtime, "scope-unavailable");
+        const latest = runtime.latestMutation;
+        if (!runtime.localValidationFailed
+          && (!latest
+            || latest.record.requestId === network.record.requestId
+            || latest.state === "committed")) {
+          transition(runtime, "scope-unavailable");
+        }
         return;
       }
       if (response.status === 409) {
@@ -498,7 +575,14 @@ export function useSyncedDraft({
         runtime.retryIndex = 0;
         clearTimer(runtime);
         setServerCopy(isServerDraft(body.current, runtime.key) ? body.current : null);
-        transition(runtime, "conflict");
+        runtime.pendingConflict = true;
+        const latest = runtime.latestMutation;
+        if (!runtime.localValidationFailed
+          && (!latest
+            || latest.record.requestId === network.record.requestId
+            || latest.state === "committed")) {
+          transition(runtime, "conflict");
+        }
         return;
       }
       if (!response.ok
@@ -622,6 +706,8 @@ export function useSyncedDraft({
       nextSequence: 1,
       latestMutation: null,
       networkMutation: null,
+      pendingConflict: false,
+      localValidationFailed: false,
       networkActive: false,
       retryIndex: 0,
       timer: null,
@@ -694,11 +780,22 @@ export function useSyncedDraft({
       locallyUpdatedAt: new Date().toISOString(),
       dirty: true,
     };
+    let record: DraftOutboxRecord;
+    try {
+      record = cachedDraftToOutbox(runtime.namespace, runtime.key, next);
+    } catch {
+      applyDraft(runtime, next);
+      setServerCopy(null);
+      runtime.localValidationFailed = true;
+      runtime.latestMutation = null;
+      clearTimer(runtime);
+      transition(runtime, "local-save-error");
+      return;
+    }
     applyDraft(runtime, next);
     setServerCopy(null);
-    const record = cachedDraftToOutbox(runtime.namespace, runtime.key, next);
     void enqueueRecord(runtime, record);
-  }, [applyDraft, enqueueRecord, isCurrent, language, namespace]);
+  }, [applyDraft, enqueueRecord, isCurrent, language, namespace, transition]);
 
   const useServerCopy = useCallback(() => {
     const runtime = runtimeRef.current;
@@ -712,6 +809,7 @@ export function useSyncedDraft({
 
     clearTimer(runtime);
     runtime.networkMutation = null;
+    runtime.pendingConflict = false;
     void ensureRepository(runtime).then(async (repository) => {
       const deleted = await repository.deleteDraftIfMutation(
         runtime.namespace,
@@ -748,6 +846,7 @@ export function useSyncedDraft({
     clearTimer(runtime);
     runtime.networkMutation = null;
     runtime.retryIndex = 0;
+    runtime.pendingConflict = false;
     const rebased: CachedLearnerDraft = {
       ...current,
       baseRowVersion: selected.rowVersion,

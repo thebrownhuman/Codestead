@@ -11,6 +11,7 @@ import {
 } from "@/lib/browser-durability/types";
 import { draftCacheKey, writeDraftCache, type CachedLearnerDraft } from "@/lib/drafts/browser-cache";
 import { DraftCacheNamespaceProvider } from "@/lib/drafts/browser-cache-context";
+import { DRAFT_CONTENT_MAX_BYTES } from "@/lib/drafts/types";
 import { CodeLab } from "../lesson-workspace";
 
 const { openBrowserOutboxMock } = vi.hoisted(() => ({
@@ -162,6 +163,48 @@ function draftNotice() {
   return notice;
 }
 
+const staleNetworkOutcomes = [
+  {
+    finalStatus: "synced",
+    label: "a retryable failure",
+    sendsNewerMutation: true,
+    settle(request: ReturnType<typeof deferred<Response>>) {
+      request.reject(new Error("older response was lost"));
+    },
+  },
+  {
+    finalStatus: "conflict",
+    label: "a version conflict",
+    sendsNewerMutation: false,
+    settle(request: ReturnType<typeof deferred<Response>>) {
+      request.resolve(json({
+        code: "DRAFT_VERSION_CONFLICT",
+        current: { ...serverDraft, content: "newer_server = 9\n", rowVersion: 1 },
+      }, 409));
+    },
+  },
+  {
+    finalStatus: "conflict",
+    label: "an inconsistent acknowledgement",
+    sendsNewerMutation: false,
+    settle(request: ReturnType<typeof deferred<Response>>) {
+      request.resolve(json({
+        draft: { ...serverDraft, content: "different_receipt_result = 9\n", rowVersion: 2 },
+        committedRowVersion: 1,
+        cacheNamespace: namespace,
+      }));
+    },
+  },
+  {
+    finalStatus: "scope-unavailable",
+    label: "a scope denial",
+    sendsNewerMutation: false,
+    settle(request: ReturnType<typeof deferred<Response>>) {
+      request.resolve(json({ code: "DRAFT_SCOPE_UNAVAILABLE" }, 404));
+    },
+  },
+] as const;
+
 describe("CodeLab authoritative draft synchronization", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -289,6 +332,59 @@ describe("CodeLab authoritative draft synchronization", () => {
     expect(putBodies(fetchMock)[0]?.requestId).toBe(firstRecord?.requestId);
   });
 
+  it("keeps an oversized paste copyable without claiming or attempting durability", async () => {
+    const repository = installRepository();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      return successfulPut("must_not_send", 1);
+    });
+    const oversized = "x".repeat(DRAFT_CONTENT_MAX_BYTES + 1);
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+
+    expect(() => {
+      fireEvent.change(editor, { target: { value: oversized } });
+    }).not.toThrow();
+
+    expect(editor).toHaveValue(oversized);
+    expect(await screen.findByText(
+      "This draft exceeds the 131,072-byte UTF-8 save limit. Shorten it before retrying.",
+    )).toBeInTheDocument();
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "local-save-error");
+    expect(repository.putDraft).not.toHaveBeenCalled();
+    expect(putBodies(fetchMock)).toHaveLength(0);
+  });
+
+  it("does not let an older local commit claim a later oversized paste is saved", async () => {
+    const olderCommit = deferred<void>();
+    const repository = installRepository({ putDraft: () => olderCommit.promise });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      return successfulPut("older_valid_edit = 1\n", 1);
+    });
+    const oversized = "x".repeat(DRAFT_CONTENT_MAX_BYTES + 1);
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "older_valid_edit = 1\n" } });
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "saving-local");
+
+    fireEvent.change(editor, { target: { value: oversized } });
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "local-save-error");
+    await act(async () => olderCommit.resolve());
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+    });
+
+    expect(editor).toHaveValue(oversized);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "local-save-error");
+    expect(repository.putDraft).toHaveBeenCalledTimes(1);
+    expect(putBodies(fetchMock)).toHaveLength(0);
+  });
+
   it("reopens the same database after warm-cache loss and replays the original mutation", async () => {
     const factory = new FakeIDBFactory();
     const actual = await vi.importActual<typeof import("@/lib/browser-durability/indexed-db")>(
@@ -365,6 +461,153 @@ describe("CodeLab authoritative draft synchronization", () => {
     );
   });
 
+  it.each(staleNetworkOutcomes)(
+    "keeps a newer pending local write truthful when an older PUT settles with $label",
+    async (outcome) => {
+      const olderResponse = deferred<Response>();
+      const newerCommit = deferred<void>();
+      const repository = installRepository({
+        putDraft: vi.fn()
+          .mockResolvedValueOnce(undefined)
+          .mockImplementationOnce(() => newerCommit.promise),
+      });
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+        if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        if (putBodies(fetchMock).length === 1) return olderResponse.promise;
+        return successfulPut(String(body.content), 1);
+      });
+
+      renderLab();
+      const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+      await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+      fireEvent.change(editor, { target: { value: "older_network_write = 1\n" } });
+      await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+
+      fireEvent.change(editor, { target: { value: "newer_pending_write = 2\n" } });
+      await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(2));
+      expect(draftNotice()).toHaveAttribute("data-draft-status", "saving-local");
+
+      await act(async () => {
+        outcome.settle(olderResponse);
+        await Promise.resolve();
+      });
+      expect(draftNotice()).toHaveAttribute("data-draft-status", "saving-local");
+      expect(putBodies(fetchMock)).toHaveLength(1);
+
+      await act(async () => newerCommit.resolve());
+      await waitFor(() => expect(draftNotice()).toHaveAttribute(
+        "data-draft-status",
+        outcome.finalStatus,
+      ), { timeout: 2_000 });
+      if (outcome.sendsNewerMutation) {
+        await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+        expect(putBodies(fetchMock)[1]).toMatchObject({ content: "newer_pending_write = 2\n" });
+      } else {
+        expect(putBodies(fetchMock)).toHaveLength(1);
+      }
+      expect(editor).toHaveValue("newer_pending_write = 2\n");
+    },
+  );
+
+  it.each(staleNetworkOutcomes)(
+    "keeps a newer failed local write retryable when an older PUT settles with $label",
+    async (outcome) => {
+      const olderResponse = deferred<Response>();
+      const repository = installRepository({
+        putDraft: vi.fn()
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(new Error("newer local write failed"))
+          .mockResolvedValue(undefined),
+      });
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+        if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        if (putBodies(fetchMock).length === 1) return olderResponse.promise;
+        return successfulPut(String(body.content), 1);
+      });
+
+      renderLab();
+      const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+      await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+      fireEvent.change(editor, { target: { value: "older_network_write = 1\n" } });
+      await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+
+      fireEvent.change(editor, { target: { value: "newer_failed_write = 2\n" } });
+      await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "local-save-error"));
+      const failedRecord = vi.mocked(repository.putDraft).mock.calls[1]?.[0];
+
+      await act(async () => {
+        outcome.settle(olderResponse);
+        await Promise.resolve();
+      });
+      expect(draftNotice()).toHaveAttribute("data-draft-status", "local-save-error");
+      expect(putBodies(fetchMock)).toHaveLength(1);
+
+      await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
+      await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(3));
+      expect(vi.mocked(repository.putDraft).mock.calls[2]?.[0]).toEqual(failedRecord);
+      await waitFor(() => expect(draftNotice()).toHaveAttribute(
+        "data-draft-status",
+        outcome.finalStatus,
+      ), { timeout: 2_000 });
+      if (outcome.sendsNewerMutation) {
+        await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+        expect(putBodies(fetchMock)[1]).toMatchObject({
+          content: "newer_failed_write = 2\n",
+          requestId: failedRecord?.requestId,
+        });
+      } else {
+        expect(putBodies(fetchMock)).toHaveLength(1);
+      }
+      expect(editor).toHaveValue("newer_failed_write = 2\n");
+    },
+  );
+
+  it("lets a newer committed edit supersede an older failed PUT", async () => {
+    const olderResponse = deferred<Response>();
+    const repository = installRepository();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      if (putBodies(fetchMock).length === 1) return olderResponse.promise;
+      return successfulPut(String(body.content), 1);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "older_network_write = 1\n" } });
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(1), { timeout: 2_000 });
+    const olderRecord = vi.mocked(repository.putDraft).mock.calls[0]?.[0];
+
+    fireEvent.change(editor, { target: { value: "newer_committed_write = 2\n" } });
+    await waitFor(() => expect(repository.putDraft).toHaveBeenCalledTimes(2));
+    const newerRecord = vi.mocked(repository.putDraft).mock.calls[1]?.[0];
+    expect(newerRecord?.requestId).not.toBe(olderRecord?.requestId);
+
+    await act(async () => olderResponse.reject(new Error("older response was lost")));
+    await screen.findByText("Saved locally on this browser. Codestead will retry automatically.");
+    await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2));
+    expect(putBodies(fetchMock)[1]).toMatchObject({
+      content: "newer_committed_write = 2\n",
+      requestId: newerRecord?.requestId,
+    });
+    await screen.findByText("Saved to Codestead.");
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledWith(
+      namespace,
+      key,
+      newerRecord?.requestId,
+    );
+    expect(repository.deleteDraftIfMutation).not.toHaveBeenCalledWith(
+      namespace,
+      key,
+      olderRecord?.requestId,
+    );
+    expect(editor).toHaveValue("newer_committed_write = 2\n");
+  });
+
   it("rebases a newer durable edit after an older acknowledgement without deleting it", async () => {
     const firstAcknowledgement = deferred<Response>();
     const repository = installRepository({
@@ -408,6 +651,44 @@ describe("CodeLab authoritative draft synchronization", () => {
       expectedRowVersion: 1,
     });
     expect(editor).toHaveValue("newer_edit = 2\n");
+  });
+
+  it("adopts an external newer outbox record when compare-delete returns false", async () => {
+    const externalRecord = outbox({
+      content: "newer_other_tab = 2\n",
+      requestId: "10000000-0000-4000-8000-000000000099",
+    });
+    const repository = installRepository({
+      getDraft: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(externalRecord),
+      deleteDraftIfMutation: async () => false,
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return successfulPut(String(body.content), 1);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "older_this_tab = 1\n" } });
+
+    await waitFor(() => expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(1), {
+      timeout: 2_000,
+    });
+    await waitFor(() => expect(repository.getDraft).toHaveBeenCalledTimes(2));
+    await screen.findByText(/newer server draft exists/i);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    expect(editor).toHaveValue("newer_other_tab = 2\n");
+    expect(repository.putDraft).toHaveBeenCalledTimes(1);
+    expect(putBodies(fetchMock)).toHaveLength(1);
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledWith(
+      namespace,
+      key,
+      putBodies(fetchMock)[0]?.requestId,
+    );
   });
 
   it("rebases an edit queued while acknowledgement cleanup is settling", async () => {
@@ -778,9 +1059,11 @@ describe("CodeLab authoritative draft synchronization", () => {
       current: newerServer,
       cacheNamespace: namespace,
     }, 409)));
-    await screen.findByText(/newer server draft exists/i);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "saving-local");
+    expect(screen.queryByText(/newer server draft exists/i)).not.toBeInTheDocument();
 
     await act(async () => newerLocalCommit.resolve());
+    await screen.findByText(/newer server draft exists/i);
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 700));
     });

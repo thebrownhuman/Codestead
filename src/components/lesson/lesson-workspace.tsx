@@ -40,6 +40,7 @@ import type {
 } from "@/lib/content";
 import { draftCacheKey } from "@/lib/drafts/browser-cache";
 import { useDraftCacheNamespace } from "@/lib/drafts/browser-cache-context";
+import { DRAFT_CONTENT_MAX_BYTES } from "@/lib/drafts/types";
 import { useSyncedDraft, type DraftSyncStatus } from "@/lib/drafts/use-synced-draft";
 import {
   acquirePracticeRunRequest,
@@ -455,6 +456,8 @@ function CodeLabSession({
   });
   const source = draft.content;
   const setSource = draft.setContent;
+  const draftExceedsSaveLimit = draft.status === "local-save-error"
+    && new TextEncoder().encode(source).byteLength > DRAFT_CONTENT_MAX_BYTES;
   const [running, setRunning] = useState(false);
   const [stdin, setStdin] = useState("");
   const [stdinRestoring, setStdinRestoring] = useState(Boolean(stdinStorageKey));
@@ -662,6 +665,7 @@ function CodeLabSession({
     </div>
     <DraftSyncNotice
       status={draft.status}
+      exceedsSaveLimit={draftExceedsSaveLimit}
       hasServerCopy={Boolean(draft.serverCopy)}
       onKeepLocal={draft.keepLocalCopy}
       onRetry={draft.retry}
@@ -767,21 +771,28 @@ const draftStatusCopy: Record<DraftSyncStatus, string> = {
 
 function DraftSyncNotice({
   status,
+  exceedsSaveLimit,
   hasServerCopy,
   onKeepLocal,
   onRetry,
   onUseServer,
 }: {
   status: DraftSyncStatus;
+  exceedsSaveLimit: boolean;
   hasServerCopy: boolean;
   onKeepLocal(): void;
   onRetry(): void;
   onUseServer(): void;
 }) {
   return <div className={styles.draftSync} data-draft-status={status} role="status">
-    <span><strong>Draft · {status.replaceAll("-", " ")}</strong><small>{draftStatusCopy[status]}</small></span>
+    <span>
+      <strong>Draft · {status.replaceAll("-", " ")}</strong>
+      <small>{draftStatusCopy[status]}</small>
+      {exceedsSaveLimit && <small>This draft exceeds the 131,072-byte UTF-8 save limit. Shorten it before retrying.</small>}
+    </span>
     {status === "conflict" && hasServerCopy && <div><button type="button" onClick={onKeepLocal}>Keep my draft</button><button type="button" onClick={onUseServer}>Use server draft</button></div>}
-    {["unavailable", "offline-saved-local", "local-save-error"].includes(status) && <button type="button" onClick={onRetry}>Retry sync</button>}
+    {(["unavailable", "offline-saved-local"].includes(status)
+      || (status === "local-save-error" && !exceedsSaveLimit)) && <button type="button" onClick={onRetry}>Retry sync</button>}
     {status === "reauthenticate" && <Link href="/login">Sign in</Link>}
   </div>;
 }
