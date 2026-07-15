@@ -25,6 +25,24 @@ describe("invitation activation context", () => {
     expect(currentActivationAuthorization()).toBeNull();
   });
 
+  it("stores only the exact activation capability fields", async () => {
+    const authorization = {
+      invitationId: "invite-2",
+      email: " Exact@Example.COM ",
+      consumedAt: new Date("2029-12-31T23:30:00.000Z"),
+      rawToken: "must-never-enter-async-context",
+    };
+
+    await runAuthorizedActivation(authorization, async () => {
+      expect(currentActivationAuthorization()).toEqual({
+        invitationId: "invite-2",
+        email: "exact@example.com",
+        consumedAt: "2029-12-31T23:30:00.000Z",
+      });
+      expect(currentActivationAuthorization()).not.toHaveProperty("rawToken");
+    });
+  });
+
   it("does not expose bootstrap authorization outside its operation", async () => {
     expect(currentBootstrapAuthorization()).toBeNull();
     await runAuthorizedBootstrap(" Admin@Example.com ", async () => {

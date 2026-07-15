@@ -19,7 +19,7 @@ export function runAuthorizedActivation<T>(
 ) {
   return activationStorage.run(
     {
-      ...authorization,
+      invitationId: authorization.invitationId,
       email: authorization.email.trim().toLowerCase(),
       consumedAt: authorization.consumedAt.toISOString(),
     },
