@@ -31,9 +31,12 @@ sudo REPO_ROOT=/opt/learncoding COMPOSE_ENV_FILE=/etc/learncoding/compose.env \
   bash /opt/learncoding/infra/ops/validate-runtime.sh
 sudo systemctl reload learncoding-compose.service
 sudo docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml ps
+sudo bash /opt/learncoding/infra/ops/smoke-production.sh --startup-wait 600
 ```
 
-The one-shot migration container must complete successfully before the app starts. Do not bypass it. Inspect `migrate`, `app`, `postgres`, and `cloudflared` logs, then run the learner smoke path described in the deployment guide.
+Before reload, explicitly pull or import every reviewed digest referenced by `/etc/learncoding/compose.env` and record its image identity. The systemd reload uses `--no-build --pull never`; a missing image must fail instead of building or implicitly acquiring an unreviewed artifact. The one-shot migration container must complete successfully before the app starts. Do not bypass it. Inspect `migrate`, `app`, `postgres`, and `cloudflared` logs, then run the learner smoke path described in the deployment guide. The later release-transaction work remains responsible for fully separating migration/seed/bootstrap from ordinary boot.
+
+Recurring retention consumes the canonical `2026-07-14.v4` command from the Compose lifecycle service. Follow [Data lifecycle, export, and account deletion](data-lifecycle.md) for the authoritative invocation and idempotency rules rather than maintaining a second procedure here.
 
 ## Container and host updates
 
@@ -41,6 +44,8 @@ The one-shot migration container must complete successfully before the app start
 - Update PostgreSQL and `cloudflared` separately so a regression has one likely cause.
 - Refresh runner runtime images in a maintenance window. Pre-pull by digest, scan, run harness tests, then update all `RUNNER_IMAGE_*` values together only if compatibility requires it.
 - Ubuntu security updates may run unattended. Review `/var/log/unattended-upgrades/` and reboot deliberately when `/var/run/reboot-required` exists. Verify Docker, Compose, the tunnel, timers, backups, and runner after reboot.
+
+A controlled reboot, runner VM autostart proof, and supervised AC-loss rehearsal remain mandatory deployment evidence. A repository or static systemd check is not evidence that those external recovery gates or the 15-minute target passed.
 
 Docker warns that convenience install scripts are for development. Keep Engine and Compose on the official apt repository and review major-version release notes before upgrading.
 

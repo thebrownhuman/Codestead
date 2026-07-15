@@ -4,6 +4,10 @@ Documentation=/opt/learncoding/docs/deployment.md
 After=docker.service network-online.target local-fs.target
 Requires=docker.service
 Wants=network-online.target
+RequiresMountsFor=/opt/learncoding /etc/learncoding /srv/learncoding
+OnFailure=learncoding-alert@%n.service
+StartLimitIntervalSec=15min
+StartLimitBurst=5
 
 [Service]
 Type=oneshot
@@ -11,9 +15,12 @@ RemainAfterExit=yes
 WorkingDirectory=/opt/learncoding
 EnvironmentFile=/etc/learncoding/compose.env
 ExecStartPre=/usr/bin/bash /opt/learncoding/infra/ops/validate-runtime.sh
-ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build --remove-orphans
-ExecReload=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build --remove-orphans
+ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans
+ExecStartPost=/usr/bin/bash /opt/learncoding/infra/ops/smoke-production.sh --startup-wait 600
+ExecReload=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans
 ExecStop=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans
+Restart=on-failure
+RestartSec=30s
 TimeoutStartSec=15min
 TimeoutStopSec=2min
 

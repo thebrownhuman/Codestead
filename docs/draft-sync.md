@@ -16,7 +16,7 @@ The API is `private, no-store`, validates exact key/body fields and UTF-8 byte b
 
 ## Lifecycle
 
-- Retention policy `2026-07-12.v3` keeps drafts and idempotency receipts until administrator account deletion.
+- Retention policy `2026-07-14.v4` keeps drafts and idempotency receipts until administrator account deletion.
 - Learner export schema 9 includes draft content and content-free receipt history.
 - Account deletion explicitly deletes receipts before drafts; the user foreign key also cascades as a second database guard.
 - Normal logout clears all Codestead draft entries from the browser session cache before durable sign-out.

@@ -35,6 +35,31 @@ function composeService(name) {
   ).exec(compose)?.[1] ?? "";
 }
 
+function systemdDirectives(content) {
+  const directives = [];
+  let section = "";
+  for (const line of content.split(/\r?\n/u)) {
+    const sectionMatch = /^\[([^\]]+)\]$/u.exec(line);
+    if (sectionMatch) {
+      section = sectionMatch[1];
+      continue;
+    }
+    const equals = line.indexOf("=");
+    if (equals <= 0 || line.startsWith("#") || line.startsWith(";")) continue;
+    directives.push({
+      key: line.slice(0, equals),
+      section,
+      value: line.slice(equals + 1),
+    });
+  }
+  return directives;
+}
+
+function hasSingleSystemdDirective(content, section, key, value) {
+  const matches = systemdDirectives(content).filter((directive) => directive.key === key);
+  return matches.length === 1 && matches[0].section === section && matches[0].value === value;
+}
+
 const dockerfile = read("Dockerfile");
 const compose = read("compose.yaml");
 const composeEnv = read("infra/env/compose.env.example");
@@ -57,7 +82,25 @@ const liveHealthRoute = read("src/app/health/live/route.ts");
 const readyHealthRoute = read("src/app/health/ready/route.ts");
 const productionSmoke = read("infra/ops/smoke-production.sh");
 read("infra/tests/smoke-production.test.sh");
+read("infra/tests/systemd-recovery.test.sh");
 const monitoringRunbook = read("docs/runbooks/logs-and-monitoring.md");
+const composeUnit = read("infra/systemd/learncoding-compose.service");
+const retentionUnit = read("infra/systemd/learncoding-retention.service");
+const persistentTimers = [
+  ["infra/systemd/learncoding-backup.timer", read("infra/systemd/learncoding-backup.timer")],
+  ["infra/systemd/learncoding-backup-check.timer", read("infra/systemd/learncoding-backup-check.timer")],
+  ["infra/systemd/learncoding-retention.timer", read("infra/systemd/learncoding-retention.timer")],
+];
+const packageJson = read("package.json");
+const composeValidator = read("infra/tests/validate-compose.mjs");
+const retentionPolicy = read("src/lib/data-lifecycle/policy.ts");
+const retentionPolicyTest = read("src/lib/data-lifecycle/__tests__/policy.test.ts");
+const retentionRuntimeTest = read("src/lib/data-lifecycle/__tests__/retention-runtime.test.ts");
+const deploymentGuide = read("docs/deployment.md");
+const updatesRunbook = read("docs/runbooks/updates-and-rollback.md");
+const lifecycleRunbook = read("docs/runbooks/data-lifecycle.md");
+const draftSyncGuide = read("docs/draft-sync.md");
+const projectRevisionsGuide = read("docs/project-revisions.md");
 
 expect(/@sha256:[0-9a-f]{64}/i.test(dockerfile), "Docker base image must be digest-pinned");
 expect(
@@ -144,6 +187,11 @@ expect(
 );
 expect(/^  postgres:/m.test(compose) && /pg_isready/.test(compose), "PostgreSQL healthcheck is required");
 expect(/\/var\/lib\/postgresql\/data/.test(compose), "PostgreSQL persistent storage is required");
+const postgresService = composeService("postgres");
+expect(
+  /command:\s*\r?\n\s*- postgres\s*\r?\n\s*- -c\s*\r?\n\s*- fsync=on\s*\r?\n\s*- -c\s*\r?\n\s*- synchronous_commit=on\s*\r?\n\s*- -c\s*\r?\n\s*- full_page_writes=on/.test(postgresService),
+  "PostgreSQL must explicitly enable fsync, synchronous_commit, and full_page_writes",
+);
 expect(/internal: true/.test(compose), "database network must be internal");
 expect(/condition: service_healthy/.test(compose), "migration must wait for PostgreSQL health");
 expect(/condition: service_completed_successfully/.test(compose), "app must wait for migration success");
@@ -188,6 +236,160 @@ expect(
 expect(
   /timeout_bin/.test(productionSmoke) && /--env-file/.test(productionSmoke) && /production smoke passed/.test(productionSmoke),
   "production smoke must be bounded, use explicit Compose inputs, and emit the canonical success marker",
+);
+
+const expectedComposeUp =
+  "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans";
+expect(
+  hasSingleSystemdDirective(
+    composeUnit,
+    "Unit",
+    "RequiresMountsFor",
+    "/opt/learncoding /etc/learncoding /srv/learncoding",
+  ),
+  "Compose systemd unit must require only the application, configuration, and primary data mounts",
+);
+expect(
+  hasSingleSystemdDirective(
+    composeUnit,
+    "Unit",
+    "After",
+    "docker.service network-online.target local-fs.target",
+  ) &&
+    hasSingleSystemdDirective(composeUnit, "Unit", "Requires", "docker.service") &&
+    hasSingleSystemdDirective(composeUnit, "Unit", "Wants", "network-online.target"),
+  "Compose systemd unit must retain Docker and network-online dependencies",
+);
+expect(
+  hasSingleSystemdDirective(
+    composeUnit,
+    "Service",
+    "ExecStartPre",
+    "/usr/bin/bash /opt/learncoding/infra/ops/validate-runtime.sh",
+  ) &&
+    hasSingleSystemdDirective(
+      composeUnit,
+      "Service",
+      "ExecStartPost",
+      "/usr/bin/bash /opt/learncoding/infra/ops/smoke-production.sh --startup-wait 600",
+    ),
+  "Compose systemd unit must run preflight and the bounded startup smoke",
+);
+expect(
+  hasSingleSystemdDirective(composeUnit, "Service", "ExecStart", expectedComposeUp) &&
+    hasSingleSystemdDirective(composeUnit, "Service", "ExecReload", expectedComposeUp),
+  "Compose systemd start and reload must use explicit inputs with no build or implicit pull",
+);
+const composeExecLines = systemdDirectives(composeUnit)
+  .filter((directive) => directive.key === "ExecStart" || directive.key === "ExecReload")
+  .map((directive) => directive.value);
+expect(
+  composeExecLines.every((line) => !/(?:^|\s)--build(?:\s|$)/u.test(line)),
+  "Compose systemd start and reload must never contain the --build token",
+);
+expect(
+  hasSingleSystemdDirective(
+    composeUnit,
+    "Service",
+    "ExecStop",
+    "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans",
+  ) && !composeUnit.includes("down -v"),
+  "Compose systemd stop must preserve durable volumes",
+);
+expect(
+  hasSingleSystemdDirective(composeUnit, "Service", "Type", "oneshot") &&
+    hasSingleSystemdDirective(composeUnit, "Service", "RemainAfterExit", "yes") &&
+    hasSingleSystemdDirective(composeUnit, "Install", "WantedBy", "multi-user.target"),
+  "Compose systemd unit must retain its oneshot boot lifecycle",
+);
+expect(
+  hasSingleSystemdDirective(composeUnit, "Service", "Restart", "on-failure") &&
+    hasSingleSystemdDirective(composeUnit, "Service", "RestartSec", "30s") &&
+    hasSingleSystemdDirective(composeUnit, "Unit", "OnFailure", "learncoding-alert@%n.service") &&
+    hasSingleSystemdDirective(composeUnit, "Unit", "StartLimitIntervalSec", "15min") &&
+    hasSingleSystemdDirective(composeUnit, "Unit", "StartLimitBurst", "5"),
+  "Compose systemd unit must bound and alert on transient startup failures",
+);
+
+expect(
+  hasSingleSystemdDirective(retentionUnit, "Unit", "After", "learncoding-compose.service") &&
+    hasSingleSystemdDirective(retentionUnit, "Unit", "Requires", "learncoding-compose.service"),
+  "retention systemd unit must require the trusted Compose stack",
+);
+expect(
+  hasSingleSystemdDirective(
+    retentionUnit,
+    "Service",
+    "ExecStart",
+    "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle",
+  ) && !retentionUnit.includes("2026-07-14.v4"),
+  "retention systemd unit must consume the versioned Compose lifecycle command through explicit inputs",
+);
+for (const [timerPath, timer] of persistentTimers) {
+  expect(
+    hasSingleSystemdDirective(timer, "Timer", "Persistent", "true"),
+    `${timerPath} must contain exactly one effective Persistent=true in [Timer]`,
+  );
+}
+
+const lifecycleService = composeService("lifecycle");
+expect(
+  /data-lifecycle\.ts[\s\S]*?- retention[\s\S]*?- --apply[\s\S]*?- --confirm[\s\S]*?- 2026-07-14\.v4/.test(
+    lifecycleService,
+  ),
+  "Compose lifecycle command must use canonical retention version 2026-07-14.v4",
+);
+expect(
+  /"worker:retention": "tsx scripts\/data-lifecycle\.ts retention --apply --confirm 2026-07-14\.v4"/.test(
+    packageJson,
+  ) &&
+    /RETENTION_POLICY_VERSION = "2026-07-14\.v4"/.test(retentionPolicy) &&
+    /2026-07-14\.v4/.test(retentionPolicyTest) &&
+    /2026-07-14\.v4/.test(retentionRuntimeTest) &&
+    /2026-07-14\.v4/.test(composeValidator),
+  "active retention runtime and validation surfaces must agree on 2026-07-14.v4",
+);
+expect(
+  /Policy version `2026-07-14\.v4` is authoritative/.test(lifecycleRunbook) &&
+    /Version v4 adds/.test(lifecycleRunbook) &&
+    /version v3 added/.test(lifecycleRunbook) &&
+    /version v2 added/.test(lifecycleRunbook) &&
+    (lifecycleRunbook.match(/retention:2026-07-14\.v4:/g) ?? []).length === 2 &&
+    !/2026-07-12\.v3/.test(lifecycleRunbook),
+  "lifecycle runbook must make v4 authoritative while preserving v2/v3 history",
+);
+expect(
+  /Retention policy `2026-07-14\.v4`/.test(draftSyncGuide) &&
+    /Retention policy `2026-07-14\.v4`/.test(projectRevisionsGuide),
+  "draft and project-revision product guides must name active retention v4",
+);
+expect(
+  /2026-07-14\.v4/.test(deploymentGuide) &&
+    /runbooks\/data-lifecycle\.md/.test(deploymentGuide) &&
+    /2026-07-14\.v4/.test(updatesRunbook) &&
+    /\(data-lifecycle\.md\)/.test(updatesRunbook),
+  "deployment and update guides must link to the canonical v4 lifecycle procedure",
+);
+expect(
+  /systemctl daemon-reload/.test(deploymentGuide) &&
+    /systemctl enable --now learncoding-compose\.service/.test(deploymentGuide) &&
+    /systemctl enable --now learncoding-backup\.timer learncoding-backup-check\.timer learncoding-retention\.timer/.test(
+      deploymentGuide,
+    ) &&
+    /firmware setting \*\*Restore on AC Power Loss: Power On\*\*, separate libvirt autostart and guest-service evidence for the runner VM, and the later supervised hard-cut rehearsal/.test(
+      deploymentGuide,
+    ) &&
+    /Those NUC and runner gates are unfinished[\s\S]*?does not claim that a reboot, AC removal, public recovery, or the 15-minute recovery target has passed\./.test(
+      deploymentGuide,
+    ) &&
+    /preserve every acknowledged server record marked `Saved to Codestead` and create no duplicate XP, mail, or evidence\./.test(
+      deploymentGuide,
+    ) &&
+    /Browser text still marked `Unsynced` is outside this Task 6 guarantee\./.test(deploymentGuide) &&
+    /Browser-local crash durability remains a separate implementation and verification plan\./.test(
+      deploymentGuide,
+    ),
+  "deployment guide must document the interim boot seam and unfinished external power-loss evidence",
 );
 
 expect(/_FILE/.test(entrypoint) && /exec "\$@"/.test(entrypoint), "entrypoint must load file secrets then exec");

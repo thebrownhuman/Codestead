@@ -1,6 +1,6 @@
 # Data lifecycle, export, and account deletion
 
-Policy version `2026-07-12.v3` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v3 adds account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
+Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v4 adds account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
 
 ## Retention categories
 
@@ -26,16 +26,17 @@ Run a dry run before enabling the timer:
 
 ```bash
 cd /opt/learncoding
-docker compose --profile operations run --rm lifecycle \
+docker compose --env-file /etc/learncoding/compose.env \
+  -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --dry-run \
-  --idempotency-key retention:2026-07-12.v3:YYYY-MM-DD:dry-run
+  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:dry-run
 ```
 
 Apply requires the exact reviewed policy version:
 
 ```bash
-npm run lifecycle -- retention --apply --confirm 2026-07-12.v3 \
-  --idempotency-key retention:2026-07-12.v3:YYYY-MM-DD:apply
+npm run lifecycle -- retention --apply --confirm 2026-07-14.v4 \
+  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:apply
 ```
 
 The default key is policy/version/date/mode. Reusing a successful key returns the recorded report without deleting again. A running key fails closed; a failed key requires a new reviewed key. Every category reports eligible, physically deleted, retained, and `hasMore`; state-only changes such as expiring a request or marking a backup tombstone eligible for operator review use `transitioned` and keep `deleted=0`. Rerun with a new key when a bounded batch reports more. Failed object-file removal leaves metadata in place for retry.

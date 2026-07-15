@@ -141,13 +141,19 @@ sudo REPO_ROOT=/opt/learncoding COMPOSE_ENV_FILE=/etc/learncoding/compose.env \
   bash /opt/learncoding/infra/ops/validate-runtime.sh
 ```
 
-Install and enable startup plus backup timers:
+Install the reviewed units, reload systemd, and enable only the trusted stack plus the three persistent timers:
 
 ```bash
-sudo REPO_ROOT=/opt/learncoding bash infra/ops/install-systemd.sh --enable
+cd /opt/learncoding
+sudo install -o root -g root -m 0644 infra/systemd/*.service infra/systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now learncoding-compose.service
+sudo systemctl enable --now learncoding-backup.timer learncoding-backup-check.timer learncoding-retention.timer
 ```
 
-`learncoding-compose.service` builds images, waits for PostgreSQL health, runs migrations once, starts the app only after migrations succeed, and then starts the tunnel. It never runs `docker compose down -v`; persistent data is not tied to container lifecycle.
+Do not enable `learncoding-restore-drill.service`; it remains a supervised manual operation. All three timers use `Persistent=true`, so systemd catches up a missed run after downtime according to each timer's schedule.
+
+`learncoding-compose.service` requires `/opt/learncoding`, `/etc/learncoding`, and `/srv/learncoding`, then runs preflight before starting already-reviewed local images with `--no-build --pull never`. It runs the bounded internal production smoke after startup and applies a basic retry limit with the existing alert unit. Boot and reload therefore neither build nor implicitly pull an image. The stop command never uses `down -v`; persistent data is not tied to container lifecycle. The current migration dependency remains in the Compose model until the later reviewed release-transaction work separates it; this interim unit is not the final NUC recovery monitor.
 
 Inspect the first boot:
 
@@ -159,6 +165,12 @@ curl --fail --silent --show-error https://learn.example.com/ >/dev/null
 ```
 
 Then verify login, onboarding, one lesson read, one quiz submission, and one code run using a non-admin learner account. Confirm PostgreSQL and runner port 4100 are unreachable from the public internet.
+
+## Power-loss evidence boundary
+
+Repository checks establish only the interim trusted-stack boot seam. Before learner invitations, deployment evidence must still record the firmware setting **Restore on AC Power Loss: Power On**, separate libvirt autostart and guest-service evidence for the runner VM, and the later supervised hard-cut rehearsal. Those NUC and runner gates are unfinished until their dedicated rollout tasks run; this document does not claim that a reboot, AC removal, public recovery, or the 15-minute recovery target has passed.
+
+The eventual rehearsal must preserve every acknowledged server record marked `Saved to Codestead` and create no duplicate XP, mail, or evidence. Browser text still marked `Unsynced` is outside this Task 6 guarantee. Browser-local crash durability remains a separate implementation and verification plan.
 
 Before accepting uploads, follow [Upload scanning](runbooks/upload-scanning.md). Upload a harmless text fixture and confirm it moves from `pending` to `safe`; use the standard EICAR test file only in a controlled maintenance check and confirm it becomes `quarantined`. Neither scanner service publishes a host port.
 
@@ -192,5 +204,6 @@ Operator references:
 - [Incident response](runbooks/incident-response.md)
 - [Upload scanning](runbooks/upload-scanning.md)
 - [API rate limiting](runbooks/rate-limiting.md)
+- [Data lifecycle, export, and account deletion](runbooks/data-lifecycle.md) — canonical retention policy `2026-07-14.v4`
 
 Monthly, review disk use, update status, image digests, pending outbox count, backup freshness, offsite presence, UPS health, and the runner VM boundary. Quarterly, perform the supervised restore drill. Before every release, take and verify an encrypted backup.

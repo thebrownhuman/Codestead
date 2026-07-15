@@ -23,6 +23,14 @@ services:
     <<: *codestead-managed
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE to a reviewed PostgreSQL 17 image tag or digest}
+    command:
+      - postgres
+      - -c
+      - fsync=on
+      - -c
+      - synchronous_commit=on
+      - -c
+      - full_page_writes=on
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-learncoding}
@@ -469,7 +477,7 @@ services:
       - retention
       - --apply
       - --confirm
-      - 2026-07-12.v3
+      - 2026-07-14.v4
     restart: "no"
     environment:
       NODE_ENV: production

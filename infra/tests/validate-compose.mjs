@@ -125,6 +125,18 @@ for (const [modelName, config] of Object.entries(models)) {
 }
 
 const config = models.combined;
+expect(
+  orderedSame(config.services?.postgres?.command ?? [], [
+    "postgres",
+    "-c",
+    "fsync=on",
+    "-c",
+    "synchronous_commit=on",
+    "-c",
+    "full_page_writes=on",
+  ]),
+  "postgres command must contain only the three enabled durability settings",
+);
 const expectedProfiles = Object.fromEntries([
   ...pilotServices.map((name) => [name, []]),
   ...operationServices.map((name) => [name, ["operations"]]),
@@ -361,7 +373,7 @@ const operationCommands = {
     "retention",
     "--apply",
     "--confirm",
-    "2026-07-12.v3",
+    "2026-07-14.v4",
   ],
   "platform-seed": ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"],
   "admin-bootstrap": ["node", "--import", "tsx", "/app/scripts/bootstrap-admin.ts"],

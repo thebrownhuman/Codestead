@@ -13,7 +13,7 @@ Project revisions are learner-authored, append-only checkpoints inside an owned 
 
 ## Lifecycle
 
-Learner export schema 9 includes project revisions and file metadata snapshots but never file bytes. Retention policy `2026-07-12.v3` retains them until administrator account deletion. Account deletion explicitly removes revision-object associations and revisions before removing stored objects and projects.
+Learner export schema 9 includes project revisions and file metadata snapshots but never file bytes. Retention policy `2026-07-14.v4` retains them until administrator account deletion. Account deletion explicitly removes revision-object associations and revisions before removing stored objects and projects.
 
 A newly committed checkpoint is authoritative meaningful learning activity. In the same PostgreSQL transaction it advances the learner's `last_meaningful_activity_at`, closes an older open inactivity episode, and, when an active learning session exists, appends one idempotent `project_milestone` event and advances that session's activity time. Exact request replay returns the existing revision without advancing activity or creating another event.
 
