@@ -20,6 +20,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run security:dependencies:known
       - run: npm run security:secrets
       - run: npm run security:encoding
       - run: npm run security:api-surface
@@ -36,7 +37,7 @@ jobs:
       - run: npm run audit:release
       - run: npm run evidence:verify
       - run: npm run build
-      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --audit-level=moderate
       - run: node infra/tests/validate-static.mjs
       - run: bash -n scripts/backup/*.sh infra/docker/entrypoint.sh infra/ops/*.sh infra/runner/*.sh infra/tests/*.sh
       - run: bash infra/tests/backup-config.test.sh

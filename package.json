@@ -52,6 +52,7 @@
     "ai:eval": "tsx scripts/run-ai-eval.ts",
     "audit:release": "tsx scripts/verify-release-audit.ts",
     "evidence:verify": "tsx scripts/verify-evidence-integrity.ts",
+    "security:dependencies:known": "tsx scripts/verify-known-dependency-advisories.ts",
     "security:secrets": "tsx scripts/scan-secrets.ts",
     "security:encoding": "tsx scripts/scan-mojibake.ts",
     "security:api-surface": "tsx scripts/verify-api-auth-surface.ts",
@@ -72,7 +73,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "check": "npm run lint && npm run typecheck && npm run security:secrets && npm run security:encoding && npm run security:api-surface && npm run architecture:check && npm run ai:eval -- --check && npm run test:auth-boundary && npm run test:coverage && npm run content:brand:check && npm run content:validate && npm run projects:catalog:validate && npm run dsa:parity:check && npm run c-cpp:executable:check && npm run java-python:executable:check && npm run ai-code:executable:check && npm run web:executable:check && npm run audit:release && npm run evidence:verify && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run security:dependencies:known && npm run security:secrets && npm run security:encoding && npm run security:api-surface && npm run architecture:check && npm run ai:eval -- --check && npm run test:auth-boundary && npm run test:coverage && npm run content:brand:check && npm run content:validate && npm run projects:catalog:validate && npm run dsa:parity:check && npm run c-cpp:executable:check && npm run java-python:executable:check && npm run ai-code:executable:check && npm run web:executable:check && npm run audit:release && npm run evidence:verify && npm run build"
   },
   "dependencies": {
     "@better-auth/utils": "0.4.2",
@@ -118,5 +119,13 @@
     "postcss": "^8.5.10",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.19"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    }
   }
 }

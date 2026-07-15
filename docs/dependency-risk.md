@@ -1,34 +1,49 @@
 # Dependency vulnerability disposition
 
-**Review date:** 2026-07-13\
-**Lockfile:** `package-lock.json` in this working tree\
-**Release rule:** zero known Critical or High advisories; Moderate findings require a documented reachable-path decision and recheck before deployment.
+**Review date:** 2026-07-15
+
+**Lockfile:** `package-lock.json` in this working tree
+
+**Release rule:** zero known Moderate-or-higher advisories in the application release lock. Low findings still require explicit review and documentation. CI runs the online audit at Moderate severity and an offline lock-specific gate for the two reviewed transitive paths.
 
 ## Current result
 
-`npm audit --audit-level=high` completed against the npm registry with **0 Critical, 0 High, and 7 Moderate** findings. The command exits successfully at the release threshold. `npm ls esbuild postcss --all` was used to verify the exact dependency paths below.
+`npm audit --package-lock-only --json` completed against the npm registry with **0 known vulnerabilities**. A clean isolated `npm ci` from the exact manifest and lock also reported zero. `npm ls next postcss @esbuild-kit/core-utils esbuild --all` and `npm run security:dependencies:known` verify the exact paths below.
 
-| Advisory path | Installed path | Reachability and decision |
-|---|---|---|
-| `GHSA-67mh-4wv8-2f99` (`esbuild <=0.24.2`) | `drizzle-kit@0.31.10` → `@esbuild-kit/esm-loader` → `@esbuild-kit/core-utils` → `esbuild@0.18.20` | The affected behavior is an esbuild development server accepting cross-origin requests. Codestead does not run or expose an esbuild server; Drizzle Kit is migration tooling and is absent from the final application runtime stage. Accepted temporarily as non-reachable, with upgrade required when Drizzle Kit removes the legacy loader. |
-| `GHSA-qx2v-qp2m-jg93` (`postcss <8.5.10`) | `next@16.2.10` → bundled `postcss@8.4.31` | The issue requires stringifying attacker-controlled CSS containing a closing style tag. Codestead neither accepts user CSS nor invokes PostCSS on learner input; CSS is built from trusted repository source. Accepted temporarily as non-reachable. Do not add user-supplied stylesheet compilation. Upgrade Next when its supported dependency is fixed rather than forcing an unsupported transitive override. |
+| Advisory | Patched installed path | Decision and proof |
+| --- | --- | --- |
+| [`GHSA-67mh-4wv8-2f99`](https://github.com/advisories/GHSA-67mh-4wv8-2f99) (`esbuild <=0.24.2`) | `drizzle-kit@0.31.10 -> @esbuild-kit/esm-loader -> @esbuild-kit/core-utils -> esbuild@0.25.12` | A narrow override deduplicates the chain to patched `0.25.12`; the vulnerable `0.18.20` copy and its platform packages are absent from the lock. An isolated install-script rebuild, esbuild TypeScript transform, and `drizzle-kit --version` smoke test passed. |
+| [`GHSA-qx2v-qp2m-jg93`](https://github.com/advisories/GHSA-qx2v-qp2m-jg93) (`postcss <8.5.10`) | `next@16.2.10 -> postcss@8.5.19` | A narrow override deduplicates Next to patched `8.5.19`; the vulnerable `8.4.31` copy is absent from the lock. A regression probe confirmed the patched stringifier escapes a closing style tag. |
 
-The direct development dependencies resolve to patched versions (`esbuild@0.25.12/0.28.1`, `postcss@8.5.10/8.5.17`). No `npm audit fix --force` was applied because npm proposed breaking, incorrect major/downgrade changes. This is not a permanent waiver.
+The remediation does not use `npm audit fix --force`. The offline verifier rejects missing or drifted overrides, malformed package versions, and any locked esbuild or PostCSS copy in either affected range. Its unit suite also proves both former vulnerable nested paths fail closed.
 
-The exact `react-router@8.0.1` runtime dependency added for the bounded curriculum SPA introduced no additional audit finding. Its declared Node requirement is `>=22.22.0`; the application manifest now enforces that floor and the production image is pinned to Node 22.23.1. The Windows authoring host used for this evidence reports Node 22.18.0, so it may bundle fixtures but is not accepted as deployment/runtime compatibility evidence for React Router.
+The exact `react-router@8.0.1` dependency requires Node `>=22.22.0`; the application manifest enforces that floor and the production image is pinned to Node 22.23.1. The Windows authoring host reports Node 22.18.0, so its checks are useful development evidence but not deployment-runtime compatibility evidence.
 
-`npm audit --omit=dev --audit-level=high` still reports these Moderate dependency-graph paths because of package metadata. Direct inspection of the built standalone runtime confirmed that `/app/node_modules/drizzle-kit`, `/app/node_modules/@esbuild-kit`, `/app/node_modules/next/node_modules/postcss`, and `/app/node_modules/postcss` are all absent. The separate runner reports `0 vulnerabilities` from its production dependency audit.
+The full clean-checkout application build, standalone runtime inspection, SBOM generation, and image scan must be rerun from this changed lock before deployment acceptance. Prior image evidence is not reused as proof for the patched source tree. The runner has its own dependency and image gates.
+
+## Verification performed for this remediation
+
+- Clean isolated `npm ci --ignore-scripts`: zero known vulnerabilities.
+- `npm audit --package-lock-only --json`: zero known vulnerabilities.
+- `npm ls next postcss @esbuild-kit/core-utils esbuild --all`: every esbuild copy is at least `0.25.12`; every PostCSS copy is at least `8.5.17`.
+- `npm rebuild esbuild` followed by a TypeScript transform: passed.
+- `drizzle-kit --version`: `0.31.10`, passed with the patched esbuild override.
+- PostCSS closing-style-tag escape regression: passed.
+- Offline advisory verifier: 13/13 unit tests passed.
+- TypeScript and targeted ESLint gates: passed.
+
+These checks do not replace the final Node 22.23.1 clean-checkout build, Linux container build, SBOM, image scan, or NUC deployment gates.
 
 ## Recheck procedure
 
-1. Run `npm ci`, `npm audit --audit-level=high`, and `npm ls esbuild postcss --all` from the release lockfile.
-2. Fail the release on any Critical/High advisory or if a Moderate path becomes reachable from production learner input.
-3. Prefer supported direct/upstream upgrades. Never use `--force` without a migration plan and the complete quality gate.
-4. Rebuild the standalone image, generate SBOMs, and scan application and runner images with a current Trivy or Grype database on the Linux release host.
+1. Run `npm ci`, `npm run security:dependencies:known`, `npm audit --audit-level=moderate`, and `npm ls next postcss @esbuild-kit/core-utils esbuild --all` from the release lockfile.
+2. Fail the release on any advisory at Moderate or higher; do not silently convert a new finding into a waiver.
+3. Prefer supported direct or upstream upgrades. Never use `--force` without a migration plan and the complete quality gate.
+4. Rebuild every standalone target, generate SBOMs, and scan application and runner images with a current Trivy or Grype database on the Linux release host.
 5. Record scanner version, database timestamp, image digest, result, exception owner, and review expiry in the release evidence bundle.
 
-The canonical [application-runtime SBOM](evidence/app-image-sbom-2026-07-12.spdx.json) now binds exact final local image `sha256:5df2dd02e1360ab91777c2a8d926ccd34406bf0c82e85fb1565233d8ab0d75df`. It is an SPDX 2.3 document generated by Trivy 0.69.2, contains 55 packages, and has file SHA-256 `ce864dd7ba270994d0c29f6a1304dd67417044913b4cde9843b54734ea7705e8`. The inventory verifies the document-name/image-ID binding and retains an identical role-specific copy.
+## Historical image evidence
 
-The [final local application-container inventory](evidence/final-container-image-inventory-2026-07-12.json) records six successful Linux/amd64, `USER node` app-family targets: application runtime, migration tooling, mail/lifecycle worker, assessment-regrade worker, project-review-correction worker and upload-scanner worker. Every target runs Node 22.23.1, retains non-empty Alpine package metadata for scanner visibility, and has `apk`, `npm`, `npx`, `corepack`, `yarn` and `yarnpkg` executables absent. The separate [runner inventory](evidence/container-security/runner/runner-inventory.json) covers the five C/C++/Java/Python/JavaScript language images; it is not mixed into the six app-family targets. All recorded IDs are exact local Docker image IDs, not registry-pushed, signed or production-deployed digests.
+The retained [application runtime SBOM](evidence/app-image-sbom-2026-07-12.spdx.json) and [application container inventory](evidence/final-container-image-inventory-2026-07-12.json) bind pre-override local images. The separate [runner inventory](evidence/container-security/runner/runner-inventory.json) is likewise historical. Their recorded scans reported zero High/Critical findings at their original database timestamp, but none of these artifacts proves the changed lock, a signed registry image, or a deployed NUC digest.
 
-Exact local container evidence is now retained. Each of the six app-family image IDs has a matching SPDX 2.3 SBOM and a Trivy 0.69.2 cached-offline report using the database updated `2026-07-13T01:03:44.512825529Z`; all six report **0 HIGH / 0 CRITICAL**, with no suppressions. The five exact runner images likewise have matching SPDX 2.3 SBOMs and retained Trivy reports with **0 HIGH / 0 CRITICAL**. This closes the prior local exact-image scan/SBOM contradiction, but not the production gate: the artifacts are unsigned point-in-time workstation evidence. Registry signing/attestation, exact deployed KVM/NUC digest binding, deployed-host rescanning, continuous/monthly review and externally observed host/network assessment remain required.
+Fresh application and runner images, SBOMs, scans, signatures or attestations, exact NUC digest binding, and deployed-host rescanning remain required release gates.
