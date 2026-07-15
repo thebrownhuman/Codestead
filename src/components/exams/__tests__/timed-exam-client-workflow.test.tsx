@@ -504,6 +504,53 @@ describe("timed exam client workflows", () => {
     expect(calls.some((url) => url.endsWith("/submit"))).toBe(false);
   });
 
+  it("disables both conflict choices while the admitted choice is pending", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const replacementGate = deferred<void>();
+    let autosaves = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      if (url.endsWith("/autosave")) {
+        autosaves += 1;
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        if (autosaves === 1) {
+          return json({
+            code: "AUTOSAVE_REVISION_CONFLICT",
+            currentRevision: 5,
+            currentAnswer: { text: "server conflict value" },
+            currentSavedAt: new Date().toISOString(),
+          }, { status: 409 });
+        }
+        await replacementGate.promise;
+        return autosaveAck(body);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    fireEvent.change(await screen.findByLabelText("Your response"), {
+      target: { value: "the admitted local choice" },
+    });
+    await user.click(screen.getByRole("button", { name: "Save & next" }));
+    await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    const keepRecovered = await screen.findByRole("button", { name: "Keep recovered answer" });
+    const useServer = screen.getByRole("button", { name: "Use server answer" });
+
+    fireEvent.click(keepRecovered);
+    const keepWasDisabled = keepRecovered.hasAttribute("disabled");
+    const serverWasDisabled = useServer.hasAttribute("disabled");
+    fireEvent.click(useServer);
+    replacementGate.resolve(undefined);
+    await waitFor(() => expect(autosaves).toBe(2));
+    expect(await screen.findByDisplayValue("the admitted local choice")).toBeInTheDocument();
+    expect(keepWasDisabled).toBe(true);
+    expect(serverWasDisabled).toBe(true);
+  });
+
   it("disables conflict choices when the estimated server deadline closes work", async () => {
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
     const now = new Date("2026-07-15T10:00:00.000Z");
@@ -545,6 +592,94 @@ describe("timed exam client workflows", () => {
     });
     expect(keepRecovered).toBeDisabled();
     expect(useServer).toBeDisabled();
+  });
+
+  it("does not write or beacon an unload event after the estimated deadline", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    const now = new Date("2026-07-15T10:00:00.000Z");
+    vi.setSystemTime(now);
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const expiring = activeExam({
+      serverNow: now.toISOString(),
+      serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+    });
+    const sendBeacon = vi.fn(() => true);
+    Object.defineProperty(window.navigator, "sendBeacon", {
+      configurable: true,
+      value: sendBeacon,
+    });
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return Promise.resolve(json({ exam: expiring }));
+      if (url.endsWith("/events")) return Promise.resolve(json({ accepted: true, duplicate: false }));
+      if (url.endsWith("/submit")) return new Promise<Response>(() => undefined);
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    window.localStorage.clear();
+    sendBeacon.mockClear();
+
+    fireEvent(window, new Event("beforeunload"));
+    expect(sendBeacon).not.toHaveBeenCalled();
+    expect(Object.keys(window.localStorage).filter((key) =>
+      key.startsWith(EMERGENCY_EXAM_EVENT_PREFIX)
+    )).toEqual([]);
+  });
+
+  it("does not recreate or beacon unload recovery while successful terminal purge is still mounted", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const sendBeacon = vi.fn(() => true);
+    Object.defineProperty(window.navigator, "sendBeacon", {
+      configurable: true,
+      value: sendBeacon,
+    });
+    let currentExam = activeExam();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: currentExam });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      if (url.endsWith("/submit")) {
+        currentExam = gradedExam();
+        return json({ exam: currentExam });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+
+    const purgeSnapshot = eventRecord({
+      clientEventId: "40000000-0000-4000-8000-000000000077",
+    });
+    writeEmergencyExamEvent(window.localStorage, purgeSnapshot);
+    const snapshotKey = Object.keys(window.localStorage)
+      .find((key) => key.includes(purgeSnapshot.clientEventId))!;
+    const removeItem = Storage.prototype.removeItem;
+    let firedDuringPurge = false;
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function removeAndUnload(
+      this: Storage,
+      key: string,
+    ) {
+      removeItem.call(this, key);
+      if (key === snapshotKey && !firedDuringPurge) {
+        firedDuringPurge = true;
+        fireEvent(window, new Event("beforeunload"));
+      }
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save & next" }));
+    await user.click(screen.getByRole("button", { name: "Submit final" }));
+    expect(await screen.findByRole("heading", { name: "mastered" })).toBeInTheDocument();
+    expect(firedDuringPurge).toBe(true);
+    expect(sendBeacon).not.toHaveBeenCalled();
+    expect(Object.keys(window.localStorage).filter((key) =>
+      key.startsWith(EMERGENCY_EXAM_EVENT_PREFIX)
+    )).toEqual([]);
   });
 
   it("does not run code when the durable answer cannot be synchronized", async () => {
@@ -629,6 +764,101 @@ describe("timed exam client workflows", () => {
     expect(emergencyValues.some((record) => record.clientEventId === thisEmergency.clientEventId)).toBe(false);
     expect(emergencyValues.some((record) => record.clientEventId === otherEmergency.clientEventId)).toBe(true);
     expect(calls.filter((url) => url.includes("/autosave") || url.includes("/events"))).toEqual([]);
+  });
+
+  it("rejects a complete foreign GET before opening recovery or using foreign endpoints", async () => {
+    const factory = new FakeIDBFactory();
+    const open = vi.spyOn(factory, "open");
+    vi.stubGlobal("indexedDB", factory);
+    const foreignSessionId = "10000000-0000-4000-8000-000000000099";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      void input;
+      return json({ exam: activeExam({ sessionId: foreignSessionId }) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    expect(await screen.findByRole("heading", { name: "Exam unavailable" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Your response")).not.toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([`/api/exams/${sessionId}`]);
+  });
+
+  it.each([
+    ["empty items", (exam: ExamSessionView) => ({
+      ...exam,
+      form: { ...exam.form, items: [] },
+    })],
+    ["duplicate item IDs", (exam: ExamSessionView) => ({
+      ...exam,
+      form: { ...exam.form, items: [exam.form.items[0], { ...exam.form.items[1], id: exam.form.items[0]!.id }] },
+    })],
+    ["empty item ID", (exam: ExamSessionView) => ({
+      ...exam,
+      form: { ...exam.form, items: [{ ...exam.form.items[0], id: "" }, exam.form.items[1]] },
+    })],
+    ["missing code language", (exam: ExamSessionView) => {
+      const codeItem: { language?: string } & Record<string, unknown> = {
+        ...exam.form.items[1]!,
+      };
+      delete codeItem.language;
+      return { ...exam, form: { ...exam.form, items: [exam.form.items[0], codeItem] } };
+    }],
+    ["unsupported code language", (exam: ExamSessionView) => ({
+      ...exam,
+      form: { ...exam.form, items: [exam.form.items[0], { ...exam.form.items[1], language: "ruby" }] },
+    })],
+  ])("rejects an active GET with %s before rendering editable controls", async (_label, mutate) => {
+    const factory = new FakeIDBFactory();
+    const open = vi.spyOn(factory, "open");
+    vi.stubGlobal("indexedDB", factory);
+    const fetchMock = vi.fn(async () => json({ exam: mutate(activeExam()) }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    expect(await screen.findByRole("heading", { name: "Exam unavailable" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Your response")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Source code")).not.toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not purge recovery for a partial terminal submit response", async () => {
+    const factory = new FakeIDBFactory();
+    vi.stubGlobal("indexedDB", factory);
+    const seed = await openBrowserOutbox(factory);
+    const retainedEvent = eventRecord();
+    await seed.putExamEvent(retainedEvent);
+    seed.close();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) {
+        return new Response("{not-json", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.endsWith("/submit")) return json({ exam: { sessionId, status: "graded" } });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    const rendered = renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await waitFor(() => expect(calls.some((url) => url.endsWith("/events"))).toBe(true));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Save & next" }));
+    await user.click(screen.getByRole("button", { name: "Submit final" }));
+    expect(await screen.findByText("Finalization is still pending.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "mastered" })).not.toBeInTheDocument();
+    rendered.unmount();
+
+    const inspect = await openBrowserOutbox(factory);
+    expect(await inspect.listExamEvents(namespace, sessionId)).toEqual([retainedEvent]);
+    inspect.close();
   });
 
   it("fails closed for an active exam without the opaque cache namespace", async () => {

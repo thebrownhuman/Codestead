@@ -21,7 +21,6 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { writeEmergencyExamEvent } from "@/lib/browser-durability/emergency-events";
 import {
   openBrowserOutbox,
   type BrowserOutboxRepository,
@@ -33,7 +32,7 @@ import type {
   ExamSessionView,
 } from "@/lib/exams/contracts";
 import {
-  createExamEventOutboxRecord,
+  isExamSessionView,
   useDurableExamOutbox,
   type ExamAnswerSaveState,
 } from "@/lib/exams/use-durable-exam-outbox";
@@ -64,6 +63,17 @@ const TERMINAL_RECOVERY_STATUSES = new Set<ExamSessionView["status"]>([
   "under_review",
   "invalidated",
 ]);
+
+function responseField(body: unknown, field: "exam" | "error"): unknown {
+  return typeof body === "object" && body !== null && !Array.isArray(body)
+    ? (body as Record<string, unknown>)[field]
+    : undefined;
+}
+
+function responseError(body: unknown, fallback: string): string {
+  const error = responseField(body, "error");
+  return typeof error === "string" && error.length > 0 ? error : fallback;
+}
 
 function sourceOutput(result: ExamRunnerResult): string {
   const stdout = result.run?.stdout ?? result.compile.stdout;
@@ -248,13 +258,11 @@ type DurableOutbox = ReturnType<typeof useDurableExamOutbox>;
 
 function ActiveExam({
   exam,
-  namespace,
   outbox,
   onRefresh,
   onSession,
 }: {
   exam: ExamSessionView;
-  namespace: string;
   outbox: DurableOutbox;
   onRefresh: () => Promise<void>;
   onSession: (exam: ExamSessionView) => void;
@@ -274,11 +282,13 @@ function ActiveExam({
   const expiryStartedRef = useRef(false);
   const activeItem = exam.form.items[activeIndex]!;
   const conflict = outbox.conflicts[activeItem.id];
+  const resolvingConflict = outbox.resolvingConflicts[activeItem.id] === true;
   const controlsClosed = submitting || remaining === 0;
   const recordOutboxEvent = outbox.recordEvent;
   const updateOutboxAnswer = outbox.updateAnswer;
   const flushOutbox = outbox.flush;
   const purgeOutbox = outbox.purge;
+  const prepareUnloadEvent = outbox.prepareUnloadEvent;
 
   const logEvent = useCallback((
     type: ClientExamEventType,
@@ -313,16 +323,16 @@ function ActiveExam({
     }
     try {
       const response = await fetch(`/api/exams/${exam.sessionId}/submit`, { method: "POST" });
-      const body = await response.json() as { exam?: ExamSessionView; error?: string };
+      const body: unknown = await response.json();
+      const submittedExam = responseField(body, "exam");
       if (
         !response.ok
-        || !body.exam
-        || body.exam.sessionId !== exam.sessionId
-        || !TERMINAL_RECOVERY_STATUSES.has(body.exam.status)
-      ) throw new Error(body.error ?? "Finalization is still pending.");
+        || !isExamSessionView(submittedExam, exam.sessionId)
+        || !TERMINAL_RECOVERY_STATUSES.has(submittedExam.status)
+      ) throw new Error(responseError(body, "Finalization is still pending."));
       await purgeOutbox();
       setNotice(null);
-      onSession(body.exam);
+      onSession(submittedExam);
       void onRefresh();
     } catch (error) {
       setNotice(deadline
@@ -392,22 +402,8 @@ function ActiveExam({
       { fullscreen: Boolean(document.fullscreenElement) },
     );
     const beforeUnload = () => {
-      let record;
-      try {
-        record = createExamEventOutboxRecord({
-          namespace,
-          sessionId: exam.sessionId,
-          eventType: "navigation_attempt",
-          metadata: { reason: "beforeunload" },
-        });
-      } catch {
-        return;
-      }
-      try {
-        writeEmergencyExamEvent(window.localStorage, record);
-      } catch {
-        // The beacon attempt remains independent from emergency storage.
-      }
+      const record = prepareUnloadEvent({ reason: "beforeunload" });
+      if (!record) return;
       try {
         navigator.sendBeacon(
           `/api/exams/${exam.sessionId}/events`,
@@ -437,7 +433,7 @@ function ActiveExam({
       document.removeEventListener("visibilitychange", visibility);
       document.removeEventListener("fullscreenchange", fullscreen);
     };
-  }, [exam.sessionId, logEvent, namespace]);
+  }, [exam.sessionId, logEvent, prepareUnloadEvent]);
 
   async function execute(mode: "COMPILE" | "RUN") {
     if (activeItem.kind !== "code" || controlsClosed) return;
@@ -551,8 +547,8 @@ function ActiveExam({
               <label><span>Recovered answer</span><textarea readOnly value={conflict.localAnswer} /></label>
               <label><span>Codestead answer</span><textarea readOnly value={conflict.serverAnswer} /></label>
               <div>
-                <button className="button button-primary" disabled={controlsClosed} type="button" onClick={() => void chooseConflict("keep-local")}>Keep recovered answer</button>
-                <button className="button button-secondary" disabled={controlsClosed} type="button" onClick={() => void chooseConflict("use-server")}>Use server answer</button>
+                <button className="button button-primary" disabled={controlsClosed || resolvingConflict} type="button" onClick={() => void chooseConflict("keep-local")}>Keep recovered answer</button>
+                <button className="button button-secondary" disabled={controlsClosed || resolvingConflict} type="button" onClick={() => void chooseConflict("use-server")}>Use server answer</button>
               </div>
             </div>
           ) : activeItem.kind === "short-answer" ? (
@@ -684,7 +680,6 @@ function DurableExam({
   return (
     <ActiveExam
       exam={exam}
-      namespace={namespace}
       onRefresh={onRefresh}
       onSession={onSession}
       outbox={outbox}
@@ -762,9 +757,12 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
   const load = useCallback(async () => {
     try {
       const response = await fetch(`/api/exams/${sessionId}`, { cache: "no-store" });
-      const body = await response.json() as { exam?: ExamSessionView; error?: string };
-      if (!response.ok || !body.exam) throw new Error(body.error ?? "Exam session could not be loaded.");
-      setExam(body.exam);
+      const body: unknown = await response.json();
+      const loadedExam = responseField(body, "exam");
+      if (!response.ok || !isExamSessionView(loadedExam, sessionId)) {
+        throw new Error(responseError(body, "Exam session could not be loaded."));
+      }
+      setExam(loadedExam);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Exam session could not be loaded.");

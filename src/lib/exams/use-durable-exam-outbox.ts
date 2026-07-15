@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useReducer } from "react";
 import {
   EMERGENCY_EXAM_EVENT_PREFIX,
   drainEmergencyExamEvents,
+  writeEmergencyExamEvent,
 } from "@/lib/browser-durability/emergency-events";
 import type { BrowserOutboxRepository } from "@/lib/browser-durability/indexed-db";
 import {
@@ -67,11 +68,41 @@ export type ExamOutboxIssue = Readonly<{
   itemId?: string;
 }>;
 
+type SessionWriteBarrier = {
+  terminalClosed: boolean;
+  owners: number;
+  writes: Set<Promise<unknown>>;
+};
+
+type ConflictAction = {
+  readonly clientMutationId: string;
+  readonly token: object;
+};
+
+const SESSION_WRITE_BARRIERS = new Map<string, SessionWriteBarrier>();
+
+function sessionWriteBarrier(namespace: string, sessionId: string) {
+  const key = `${namespace}\0${sessionId}`;
+  const current = SESSION_WRITE_BARRIERS.get(key);
+  if (
+    current
+    && !(current.terminalClosed && current.owners === 0 && current.writes.size === 0)
+  ) return current;
+  const barrier: SessionWriteBarrier = {
+    terminalClosed: false,
+    owners: 0,
+    writes: new Set(),
+  };
+  SESSION_WRITE_BARRIERS.set(key, barrier);
+  return barrier;
+}
+
 type Controller = {
   readonly namespace: string;
   readonly session: ExamSessionView;
   readonly repository: BrowserOutboxRepository;
   readonly items: Map<string, PublicExamItem>;
+  readonly writeBarrier: SessionWriteBarrier;
   readonly publish: () => void;
   generation: number;
   retired: boolean;
@@ -87,7 +118,13 @@ type Controller = {
   failedWrites: Map<string, ExamAnswerOutboxRecord>;
   writeChains: Map<string, Promise<unknown>>;
   conflicts: Map<string, ExamAnswerConflict>;
-  issue: ExamOutboxIssue | null;
+  conflictActions: Map<string, ConflictAction>;
+  answerIssues: Map<string, {
+    clientMutationId: string | null;
+    issue: ExamOutboxIssue;
+  }>;
+  eventIssue: ExamOutboxIssue | null;
+  systemIssue: ExamOutboxIssue | null;
   hardAnswerMutations: Set<string>;
   sentAnswerBodies: Map<string, string>;
   inFlightAnswer: ExamAnswerOutboxRecord | null;
@@ -136,6 +173,7 @@ type AnswerOutcome =
 
 class RetryableOutboxError extends Error {}
 class ClosedOutboxError extends Error {}
+class HardOutboxError extends Error {}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -149,6 +187,184 @@ function isSafeRevision(value: unknown, positive = false): value is number {
 
 function isTimestamp(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && Number.isFinite(Date.parse(value));
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value === null || (typeof value === "number" && Number.isFinite(value));
+}
+
+const EXAM_SESSION_STATUSES = new Set<ExamSessionStatus>([
+  "scheduled",
+  "active",
+  "paused_by_system",
+  "submitted",
+  "expired",
+  "graded",
+  "under_review",
+  "invalidated",
+]);
+
+function isPublicExamItem(value: unknown): value is PublicExamItem {
+  if (!isPlainObject(value)) return false;
+  if (
+    !isNonEmptyString(value.id)
+    || !isNonEmptyString(value.skillId)
+    || !isNonEmptyString(value.clusterId)
+    || !isNonEmptyString(value.title)
+    || !isNonEmptyString(value.prompt)
+    || (value.kind !== "short-answer" && value.kind !== "code")
+    || typeof value.points !== "number"
+    || !Number.isFinite(value.points)
+    || value.points < 0
+    || typeof value.critical !== "boolean"
+    || typeof value.verificationAvailable !== "boolean"
+    || (value.starterCode !== undefined && typeof value.starterCode !== "string")
+  ) return false;
+  if (
+    value.runtime !== undefined
+    && (!isPlainObject(value.runtime)
+      || !isNonEmptyString(value.runtime.version)
+      || !isNonEmptyString(value.runtime.imageDigest))
+  ) return false;
+  if (value.kind === "code") {
+    return typeof value.language === "string" && SUPPORTED_LANGUAGE_SET.has(value.language);
+  }
+  return value.language === undefined;
+}
+
+function isExamResult(value: unknown): boolean {
+  if (!isPlainObject(value) || !isPlainObject(value.remediation)) return false;
+  if (
+    value.schemaVersion !== 1
+    || (value.gradingStatus !== "graded" && value.gradingStatus !== "pending-review")
+    || !["NOT_PASSED", "PASSED", "MASTERED", "PENDING_REVIEW"].includes(String(value.outcome))
+    || !isNullableFiniteNumber(value.officialScorePercent)
+    || !isNullableFiniteNumber(value.earnedPoints)
+    || typeof value.possiblePoints !== "number"
+    || !Number.isFinite(value.possiblePoints)
+    || value.possiblePoints < 0
+    || !isStringArray(value.pendingReviewItemIds)
+    || !isStringArray(value.failedCriticalClusters)
+    || !isStringArray(value.masteryBlockingCodingItems)
+    || (value.compilationGatePassed !== null && typeof value.compilationGatePassed !== "boolean")
+    || typeof value.infrastructureFailure !== "boolean"
+    || !isTimestamp(value.finalizedAt)
+    || (value.finalizedBy !== "learner-submit" && value.finalizedBy !== "deadline")
+    || !isNonEmptyString(value.policyVersion)
+    || typeof value.remediation.required !== "boolean"
+    || !isStringArray(value.remediation.targets)
+  ) return false;
+  if (value.masteryRecheck === undefined) return true;
+  return isPlainObject(value.masteryRecheck)
+    && typeof value.masteryRecheck.required === "boolean"
+    && isStringArray(value.masteryRecheck.clusterIds)
+    && isStringArray(value.masteryRecheck.codingItemIds);
+}
+
+function isRetakeEligibility(value: unknown): boolean {
+  if (!isPlainObject(value)) return false;
+  return typeof value.eligible === "boolean"
+    && [
+      "first-attempt",
+      "technical-incident",
+      "admin-reexam-grant",
+      "cooldown",
+      "remediation-required",
+      "pending-review",
+      "already-mastered",
+      "eligible",
+    ].includes(String(value.reason))
+    && (value.nextEligibleAt === null || isTimestamp(value.nextEligibleAt))
+    && typeof value.requiresRemediation === "boolean";
+}
+
+export function isExamSessionView(
+  value: unknown,
+  expectedSessionId: string,
+): value is ExamSessionView {
+  if (!isPlainObject(value) || !isPlainObject(value.form) || !isPlainObject(value.answers)) {
+    return false;
+  }
+  if (
+    value.sessionId !== expectedSessionId
+    || !isNonEmptyString(value.sessionId)
+    || !isNonEmptyString(value.attemptId)
+    || !isSafeRevision(value.attemptNumber, true)
+    || typeof value.status !== "string"
+    || !EXAM_SESSION_STATUSES.has(value.status as ExamSessionStatus)
+    || !isTimestamp(value.serverNow)
+    || !isTimestamp(value.serverStartedAt)
+    || !isTimestamp(value.serverDeadlineAt)
+    || !isSafeRevision(value.disconnectedSeconds)
+    || !isNonEmptyString(value.integrityReviewState)
+    || value.form.schemaVersion !== 1
+    || (value.form.purpose !== undefined
+      && value.form.purpose !== "formal-exam"
+      && value.form.purpose !== "mastery-recheck")
+    || !isNonEmptyString(value.form.formId)
+    || !isNonEmptyString(value.form.courseId)
+    || !isNonEmptyString(value.form.courseTitle)
+    || !isNonEmptyString(value.form.moduleId)
+    || !isNonEmptyString(value.form.moduleTitle)
+    || !isNonEmptyString(value.form.contentVersion)
+    || !isNonEmptyString(value.form.policyVersion)
+    || !isSafeRevision(value.form.durationMinutes, true)
+    || !isTimestamp(value.form.generatedAt)
+    || !isStringArray(value.form.instructions)
+    || !isPlainObject(value.form.integrityDisclosure)
+    || !isNonEmptyString(value.form.integrityDisclosure.version)
+    || !isNonEmptyString(value.form.integrityDisclosure.summary)
+    || !isStringArray(value.form.integrityDisclosure.capturedEvents)
+    || !isStringArray(value.form.integrityDisclosure.notCaptured)
+    || !Array.isArray(value.form.items)
+    || value.form.items.length === 0
+    || !value.form.items.every(isPublicExamItem)
+  ) return false;
+
+  const items = new Map<string, PublicExamItem>();
+  for (const item of value.form.items) {
+    if (items.has(item.id)) return false;
+    items.set(item.id, item);
+  }
+  for (const [itemId, savedValue] of Object.entries(value.answers)) {
+    const item = items.get(itemId);
+    if (!item || !isPlainObject(savedValue) || !isPlainObject(savedValue.answer)) return false;
+    if (!isSafeRevision(savedValue.revision) || !isTimestamp(savedValue.savedAt)) return false;
+    if (item.kind === "code") {
+      if (
+        typeof savedValue.answer.sourceCode !== "string"
+        || savedValue.answer.language !== item.language
+        || savedValue.answer.text !== undefined
+      ) return false;
+    } else if (
+      typeof savedValue.answer.text !== "string"
+      || savedValue.answer.sourceCode !== undefined
+      || savedValue.answer.language !== undefined
+    ) return false;
+  }
+
+  if (value.result !== null && !isExamResult(value.result)) return false;
+  if (value.retake !== null && !isRetakeEligibility(value.retake)) return false;
+  if (typeof value.appealSubmitted !== "boolean") return false;
+  if (value.appeal !== null) {
+    if (
+      !isPlainObject(value.appeal)
+      || !isNonEmptyString(value.appeal.id)
+      || !isNonEmptyString(value.appeal.status)
+      || (value.appeal.decision !== null && typeof value.appeal.decision !== "string")
+      || (value.appeal.decisionReason !== null && typeof value.appeal.decisionReason !== "string")
+      || !isTimestamp(value.appeal.updatedAt)
+    ) return false;
+  }
+  return true;
 }
 
 function isRetryableHttpStatus(status: number) {
@@ -234,10 +450,14 @@ function createController(
   },
   publish: () => void,
 ): Controller {
+  if (!isExamSessionView(input.session, input.session.sessionId)) {
+    throw new Error("The exam session view is not safe for browser recovery.");
+  }
   const baseline = initialEditorValues(input.session);
   return {
     ...input,
     items: new Map(input.session.form.items.map((item) => [item.id, item])),
+    writeBarrier: sessionWriteBarrier(input.namespace, input.session.sessionId),
     publish,
     generation: 0,
     retired: true,
@@ -253,7 +473,10 @@ function createController(
     failedWrites: new Map(),
     writeChains: new Map(),
     conflicts: new Map(),
-    issue: null,
+    conflictActions: new Map(),
+    answerIssues: new Map(),
+    eventIssue: null,
+    systemIssue: null,
     hardAnswerMutations: new Set(),
     sentAnswerBodies: new Map(),
     inFlightAnswer: null,
@@ -284,6 +507,54 @@ function deadlineReached(controller: Controller) {
 
 function publish(controller: Controller) {
   if (!controller.retired) controller.publish();
+}
+
+const ISSUE_PRIORITY: Readonly<Record<ExamOutboxIssue["kind"], number>> = {
+  "server-closure": 0,
+  protocol: 1,
+  "server-rejected": 2,
+  "event-recovery": 3,
+};
+
+function visibleIssue(controller: Controller): ExamOutboxIssue | null {
+  const candidates = [
+    ...[...controller.answerIssues.values()]
+      .sort((left, right) => (left.issue.itemId ?? "").localeCompare(right.issue.itemId ?? ""))
+      .map(({ issue }) => ({ issue, lane: 0 })),
+    ...(controller.eventIssue ? [{ issue: controller.eventIssue, lane: 1 }] : []),
+    ...(controller.systemIssue ? [{ issue: controller.systemIssue, lane: 2 }] : []),
+  ];
+  candidates.sort((left, right) =>
+    ISSUE_PRIORITY[left.issue.kind] - ISSUE_PRIORITY[right.issue.kind]
+    || left.lane - right.lane
+  );
+  return candidates[0]?.issue ?? null;
+}
+
+function setAnswerIssue(
+  controller: Controller,
+  itemId: string,
+  clientMutationId: string | null,
+  issue: ExamOutboxIssue,
+) {
+  controller.answerIssues.set(itemId, { clientMutationId, issue });
+}
+
+function clearOwnedAnswerIssue(
+  controller: Controller,
+  itemId: string,
+  clientMutationId: string,
+) {
+  const current = controller.answerIssues.get(itemId);
+  if (current?.clientMutationId === clientMutationId) controller.answerIssues.delete(itemId);
+}
+
+function trackSessionWrite<T>(controller: Controller, operation: Promise<T>): Promise<T> {
+  const tracked = operation.finally(() => {
+    controller.writeBarrier.writes.delete(tracked);
+  });
+  controller.writeBarrier.writes.add(tracked);
+  return tracked;
 }
 
 function clearTimer(
@@ -320,7 +591,13 @@ function assertWorkAllowed(controller: Controller) {
   if (!controller.hydrated || controller.hydrationFailed) {
     throw new ClosedOutboxError("Exam recovery is not available.");
   }
-  if (controller.closed || controller.session.status !== "active" || deadlineReached(controller)) {
+  if (
+    controller.retired
+    || controller.closed
+    || controller.writeBarrier.terminalClosed
+    || controller.session.status !== "active"
+    || deadlineReached(controller)
+  ) {
     if (deadlineReached(controller)) fenceDeadline(controller, controller.generation);
     throw new ClosedOutboxError("This exam no longer accepts local work.");
   }
@@ -376,6 +653,39 @@ export function createExamEventOutboxRecord(input: {
     },
   };
   if (!isExamEventOutboxRecord(record)) throw new Error("Exam event recovery record is invalid.");
+  return record;
+}
+
+function prepareControllerUnloadEvent(
+  controller: Controller,
+  metadata: Readonly<Record<string, unknown>>,
+) {
+  const generation = controller.generation;
+  if (
+    !live(controller, generation)
+    || !controller.hydrated
+    || controller.hydrationFailed
+    || controller.closed
+    || controller.writeBarrier.terminalClosed
+    || controller.session.status !== "active"
+    || deadlineReached(controller)
+  ) {
+    if (live(controller, generation) && deadlineReached(controller)) {
+      fenceDeadline(controller, generation);
+    }
+    return null;
+  }
+  const record = createExamEventOutboxRecord({
+    namespace: controller.namespace,
+    sessionId: controller.session.sessionId,
+    eventType: "navigation_attempt",
+    metadata,
+  });
+  try {
+    if (typeof window !== "undefined") writeEmergencyExamEvent(window.localStorage, record);
+  } catch {
+    // The canonical record is still eligible for the independent beacon attempt.
+  }
   return record;
 }
 
@@ -448,11 +758,20 @@ async function requestJson(
     let body: unknown;
     try {
       body = await response.json();
-    } catch {
-      if (isRetryableHttpStatus(response.status)) {
+    } catch (error) {
+      if (
+        isRetryableHttpStatus(response.status)
+        || timedOut
+        || abortController.signal.aborted
+        || !(error instanceof SyntaxError)
+      ) {
         throw new RetryableOutboxError("The exam response was incomplete.");
       }
       body = undefined;
+    }
+    if (!live(controller, generation) || controller.closed || deadlineReached(controller)) {
+      if (deadlineReached(controller)) fenceDeadline(controller, generation);
+      throw new ClosedOutboxError("The exam request boundary is closed.");
     }
     return { response, body };
   } finally {
@@ -542,6 +861,18 @@ async function autosaveOutcome(
     },
   );
 
+  if (isExamAuthorityBoundary(response.status, body)) {
+    return {
+      kind: "hard",
+      closeGeneration: true,
+      issue: {
+        kind: "server-rejected",
+        itemId: item.id,
+        message: "Needs attention: Codestead rejected this exam authority boundary.",
+      },
+    };
+  }
+
   if (response.ok) {
     if (!isPlainObject(body) || !isPlainObject(body.saved)) {
       return {
@@ -622,8 +953,7 @@ async function autosaveOutcome(
 
   return {
     kind: "hard",
-    closeGeneration: isExamAuthorityBoundary(response.status, body)
-      || responseCode(body) === "INVALID_AUTOSAVE"
+    closeGeneration: responseCode(body) === "INVALID_AUTOSAVE"
       || responseCode(body) === "UNKNOWN_EXAM_ITEM",
     issue: {
       kind: isPlainObject(body) && body.code === "AUTOSAVE_IDEMPOTENCY_MISMATCH"
@@ -643,6 +973,28 @@ async function currentPersistedAnswer(controller: Controller, itemId: string) {
   return listed.find((candidate) => candidate.payload.itemId === itemId) ?? null;
 }
 
+function markAnswerDurabilityLost(
+  controller: Controller,
+  record: ExamAnswerOutboxRecord,
+) {
+  const itemId = record.payload.itemId;
+  if (controller.records.get(itemId)?.clientMutationId === record.clientMutationId) {
+    controller.records.delete(itemId);
+  }
+  controller.pendingWrites.delete(itemId);
+  controller.failedWrites.set(itemId, record);
+  controller.conflicts.delete(itemId);
+  controller.hardAnswerMutations.add(record.clientMutationId);
+  controller.answerRetryable = false;
+  clearTimer(controller, "answerRetryTimer");
+  setAnswerIssue(controller, itemId, record.clientMutationId, {
+    kind: "protocol",
+    itemId,
+    message: "Needs attention: this answer is no longer confirmed as saved on this browser.",
+  });
+  publish(controller);
+}
+
 async function rebaseUnsentRecord(
   controller: Controller,
   generation: number,
@@ -652,11 +1004,11 @@ async function rebaseUnsentRecord(
   if (record.payload.baseRevision === baseRevision) return record;
   if (controller.sentAnswerBodies.has(record.clientMutationId)) {
     controller.hardAnswerMutations.add(record.clientMutationId);
-    controller.issue = {
+    setAnswerIssue(controller, record.payload.itemId, record.clientMutationId, {
       kind: "protocol",
       itemId: record.payload.itemId,
       message: "Needs attention: a synchronized answer cannot be safely rebased.",
-    };
+    });
     publish(controller);
     throw new ClosedOutboxError("The answer cannot be safely rebased.");
   }
@@ -666,8 +1018,14 @@ async function rebaseUnsentRecord(
     payload: { ...record.payload, baseRevision },
   };
   try {
-    await controller.repository.putExamAnswer(rebased);
+    if (controller.writeBarrier.terminalClosed) {
+      throw new ClosedOutboxError("The queued local answer rebase is closed.");
+    }
+    await trackSessionWrite(controller, controller.repository.putExamAnswer(rebased));
   } catch {
+    if (controller.writeBarrier.terminalClosed) {
+      throw new ClosedOutboxError("The queued local answer rebase is closed.");
+    }
     throw new RetryableOutboxError("The acknowledged answer could not be rebased locally.");
   }
   if (!live(controller, generation) || controller.closed || deadlineReached(controller)) {
@@ -704,9 +1062,15 @@ async function acknowledgeAnswer(
     if (controller.records.get(record.payload.itemId)?.clientMutationId === record.clientMutationId) {
       controller.records.delete(record.payload.itemId);
     }
+    clearOwnedAnswerIssue(controller, record.payload.itemId, record.clientMutationId);
     return;
   }
-  const current = await currentPersistedAnswer(controller, record.payload.itemId);
+  let current: ExamAnswerOutboxRecord | null;
+  try {
+    current = await currentPersistedAnswer(controller, record.payload.itemId);
+  } catch {
+    throw new RetryableOutboxError("The autosave acknowledgement could not be reread locally.");
+  }
   if (!live(controller, generation) || controller.closed || deadlineReached(controller)) {
     throw new ClosedOutboxError("The exam request boundary is closed.");
   }
@@ -714,6 +1078,10 @@ async function acknowledgeAnswer(
     const rebased = await rebaseUnsentRecord(controller, generation, current, revision);
     controller.records.set(record.payload.itemId, rebased);
     return;
+  }
+  if (current === null) {
+    markAnswerDurabilityLost(controller, record);
+    throw new HardOutboxError("The acknowledged answer is no longer durable locally.");
   }
   throw new RetryableOutboxError("The autosave acknowledgement remains locally recoverable.");
 }
@@ -731,11 +1099,11 @@ async function runAnswerDrain(controller: Controller, generation: number) {
     const item = controller.items.get(record.payload.itemId);
     if (!validItem(item) || !answerWithinLimit(item, record.payload.answer)) {
       controller.hardAnswerMutations.add(record.clientMutationId);
-      controller.issue = {
+      setAnswerIssue(controller, record.payload.itemId, record.clientMutationId, {
         kind: "protocol",
         itemId: record.payload.itemId,
         message: "Needs attention: a recovered answer does not match this immutable exam form.",
-      };
+      });
       publish(controller);
       continue;
     }
@@ -755,14 +1123,24 @@ async function runAnswerDrain(controller: Controller, generation: number) {
       } else if (outcome.kind === "conflict") {
         controller.conflicts.set(record.payload.itemId, outcome.conflict);
       } else if (outcome.kind === "closure") {
-        controller.issue = outcome.issue;
+        setAnswerIssue(
+          controller,
+          record.payload.itemId,
+          record.clientMutationId,
+          outcome.issue,
+        );
         controller.hardAnswerMutations.add(record.clientMutationId);
         closeControllerBoundary(controller);
         controller.inFlightAnswer = null;
         publish(controller);
         throw new ClosedOutboxError("The server closed this exam.");
       } else {
-        controller.issue = outcome.issue;
+        setAnswerIssue(
+          controller,
+          record.payload.itemId,
+          record.clientMutationId,
+          outcome.issue,
+        );
         controller.hardAnswerMutations.add(record.clientMutationId);
         if (outcome.closeGeneration) {
           closeControllerBoundary(controller);
@@ -816,12 +1194,24 @@ async function persistAnswer(
   const prior = controller.writeChains.get(itemId) ?? Promise.resolve();
   let persistedRecord = record;
   const operation = prior.catch(() => undefined).then(async () => {
+    if (
+      !live(controller, generation)
+      || controller.closed
+      || controller.writeBarrier.terminalClosed
+      || deadlineReached(controller)
+    ) throw new ClosedOutboxError("The queued local answer write is closed.");
     await controller.repository.putExamAnswer(persistedRecord);
     const acknowledgedRevision = controller.revisions.get(itemId) ?? 0;
     if (
       persistedRecord.payload.baseRevision < acknowledgedRevision
       && !controller.sentAnswerBodies.has(persistedRecord.clientMutationId)
     ) {
+      if (
+        !live(controller, generation)
+        || controller.closed
+        || controller.writeBarrier.terminalClosed
+        || deadlineReached(controller)
+      ) throw new ClosedOutboxError("The queued local answer rebase is closed.");
       persistedRecord = {
         ...persistedRecord,
         updatedAt: new Date().toISOString(),
@@ -830,9 +1220,10 @@ async function persistAnswer(
       await controller.repository.putExamAnswer(persistedRecord);
     }
   });
-  controller.writeChains.set(itemId, operation);
+  const trackedOperation = trackSessionWrite(controller, operation);
+  controller.writeChains.set(itemId, trackedOperation);
   try {
-    await operation;
+    await trackedOperation;
     if (!live(controller, generation) || controller.closed || deadlineReached(controller)) {
       throw new ClosedOutboxError("The local answer committed after the exam boundary closed.");
     }
@@ -860,7 +1251,7 @@ async function persistAnswer(
     }
     throw error;
   } finally {
-    if (controller.writeChains.get(itemId) === operation) controller.writeChains.delete(itemId);
+    if (controller.writeChains.get(itemId) === trackedOperation) controller.writeChains.delete(itemId);
   }
 }
 
@@ -868,9 +1259,15 @@ async function persistEventWriteFailure(controller: Controller, generation: numb
   const record = sortedEvents(controller.failedEventWrites.values())[0];
   if (!record) return;
   try {
-    await controller.repository.putExamEvent(record);
+    if (controller.writeBarrier.terminalClosed) {
+      throw new ClosedOutboxError("The queued integrity event write is closed.");
+    }
+    await trackSessionWrite(controller, controller.repository.putExamEvent(record));
   } catch {
-    controller.issue = {
+    if (controller.writeBarrier.terminalClosed) {
+      throw new ClosedOutboxError("The queued integrity event write is closed.");
+    }
+    controller.eventIssue = {
       kind: "event-recovery",
       message: "An integrity event remains queued for browser recovery.",
     };
@@ -899,7 +1296,7 @@ async function runEventDrain(controller: Controller, generation: number) {
     const priorBody = controller.sentEventBodies.get(record.clientEventId);
     if (priorBody !== undefined && priorBody !== freshBody) {
       controller.hardEventIds.add(record.clientEventId);
-      controller.issue = {
+      controller.eventIssue = {
         kind: "event-recovery",
         message: "An integrity event could not be safely replayed.",
       };
@@ -922,7 +1319,7 @@ async function runEventDrain(controller: Controller, generation: number) {
       );
       if (isExamAuthorityBoundary(response.status, body)) {
         controller.hardEventIds.add(record.clientEventId);
-        controller.issue = {
+        controller.eventIssue = {
           kind: "server-closure",
           message: "Codestead reports that this exam boundary changed. Refreshing authoritative status.",
         };
@@ -940,7 +1337,7 @@ async function runEventDrain(controller: Controller, generation: number) {
           throw new RetryableOutboxError("The integrity event was not confirmed.");
         }
         controller.hardEventIds.add(record.clientEventId);
-        controller.issue = {
+        controller.eventIssue = {
           kind: "event-recovery",
           message: "An integrity event remains queued for browser recovery.",
         };
@@ -963,15 +1360,14 @@ async function runEventDrain(controller: Controller, generation: number) {
       controller.eventRetryIndex = 0;
       clearTimer(controller, "eventRetryTimer");
       if (
-        controller.issue?.kind === "event-recovery"
-        && controller.events.size === 0
+        controller.events.size === 0
         && controller.failedEventWrites.size === 0
         && controller.hardEventIds.size === 0
-      ) controller.issue = null;
+      ) controller.eventIssue = null;
       publish(controller);
     } catch (error) {
       if (error instanceof RetryableOutboxError && live(controller, generation)) {
-        controller.issue = {
+        controller.eventIssue = {
           kind: "event-recovery",
           message: "An integrity event remains queued for browser recovery.",
         };
@@ -1003,11 +1399,11 @@ function validateRecoveredAnswer(controller: Controller, record: ExamAnswerOutbo
   const item = controller.items.get(record.payload.itemId);
   if (!validItem(item) || !answerWithinLimit(item, record.payload.answer)) {
     controller.hardAnswerMutations.add(record.clientMutationId);
-    controller.issue = {
+    setAnswerIssue(controller, record.payload.itemId, record.clientMutationId, {
       kind: "protocol",
       itemId: record.payload.itemId,
       message: "Needs attention: a recovered answer does not match this immutable exam form.",
-    };
+    });
     return false;
   }
   return true;
@@ -1028,7 +1424,10 @@ function resetForInitialization(controller: Controller) {
   controller.failedWrites.clear();
   controller.writeChains.clear();
   controller.conflicts.clear();
-  controller.issue = null;
+  controller.conflictActions.clear();
+  controller.answerIssues.clear();
+  controller.eventIssue = null;
+  controller.systemIssue = null;
   controller.hardAnswerMutations.clear();
   controller.inFlightAnswer = null;
   controller.answerDrain = null;
@@ -1051,7 +1450,7 @@ async function initialize(controller: Controller, generation: number) {
   if (controller.session.status !== "active") {
     controller.hydrationFailed = true;
     controller.hydrated = true;
-    controller.issue = {
+    controller.systemIssue = {
       kind: "event-recovery",
       message: "Browser recovery could not safely open this exam.",
     };
@@ -1059,22 +1458,19 @@ async function initialize(controller: Controller, generation: number) {
     return;
   }
   if (deadlineReached(controller)) {
-    controller.hydrated = true;
-    publish(controller);
     fenceDeadline(controller, generation);
-    return;
+  } else {
+    const delay = Math.max(0, controller.estimatedDeadlineAt - Date.now());
+    controller.deadlineTimer = setTimeout(() => fenceDeadline(controller, generation), delay);
   }
-
-  const delay = Math.max(0, controller.estimatedDeadlineAt - Date.now());
-  controller.deadlineTimer = setTimeout(() => fenceDeadline(controller, generation), delay);
   try {
     if (typeof window === "undefined") throw new Error("Browser storage is unavailable.");
-    await drainEmergencyExamEvents(
+    await trackSessionWrite(controller, drainEmergencyExamEvents(
       window.localStorage,
       controller.repository,
       controller.namespace,
       controller.session.sessionId,
-    );
+    ));
     const answers = await controller.repository.listExamAnswers(
       controller.namespace,
       controller.session.sessionId,
@@ -1093,13 +1489,17 @@ async function initialize(controller: Controller, generation: number) {
     for (const record of events) controller.events.set(record.clientEventId, record);
     controller.hydrated = true;
     publish(controller);
+    if (deadlineReached(controller)) {
+      fenceDeadline(controller, generation);
+      return;
+    }
     void startAnswerDrain(controller).catch(() => undefined);
     void startEventDrain(controller).catch(() => undefined);
   } catch {
     if (!live(controller, generation)) return;
     controller.hydrationFailed = true;
     controller.hydrated = true;
-    controller.issue = {
+    controller.systemIssue = {
       kind: "event-recovery",
       message: "Could not restore browser recovery. Copy-safe editing is unavailable.",
     };
@@ -1133,98 +1533,124 @@ async function flushAnswers(controller: Controller) {
   }
 }
 
+function assertConflictAction(
+  controller: Controller,
+  itemId: string,
+  conflict: ExamAnswerConflict,
+  action: ConflictAction,
+) {
+  assertWorkAllowed(controller);
+  const currentAction = controller.conflictActions.get(itemId);
+  if (
+    currentAction?.token !== action.token
+    || currentAction.clientMutationId !== conflict.clientMutationId
+    || controller.conflicts.get(itemId)?.clientMutationId !== conflict.clientMutationId
+  ) throw new ClosedOutboxError("The answer conflict changed while it was being resolved.");
+}
+
 async function resolveAnswerConflict(
   controller: Controller,
   itemId: string,
   choice: "keep-local" | "use-server",
 ) {
   assertWorkAllowed(controller);
+  if (controller.conflictActions.has(itemId)) {
+    throw new Error("An answer conflict choice is already being applied.");
+  }
   const conflict = controller.conflicts.get(itemId);
   const item = controller.items.get(itemId);
   if (!conflict || !validItem(item)) throw new Error("The answer conflict is no longer available.");
-  if (choice === "keep-local") {
-    const current = await currentPersistedAnswer(controller, itemId);
-    assertWorkAllowed(controller);
-    if (current && current.clientMutationId !== conflict.clientMutationId) {
-      if (validateRecoveredAnswer(controller, current)) {
-        controller.records.set(itemId, current);
-        controller.answers = { ...controller.answers, [itemId]: current.payload.answer };
-        controller.conflicts.set(itemId, {
-          ...conflict,
-          clientMutationId: current.clientMutationId,
-          localAnswer: current.payload.answer,
-        });
+  const action: ConflictAction = {
+    clientMutationId: conflict.clientMutationId,
+    token: {},
+  };
+  controller.conflictActions.set(itemId, action);
+  publish(controller);
+  try {
+    if (choice === "keep-local") {
+      const current = await currentPersistedAnswer(controller, itemId);
+      assertConflictAction(controller, itemId, conflict, action);
+      if (current && current.clientMutationId !== conflict.clientMutationId) {
+        if (validateRecoveredAnswer(controller, current)) {
+          controller.records.set(itemId, current);
+          controller.answers = { ...controller.answers, [itemId]: current.payload.answer };
+          controller.conflicts.set(itemId, {
+            ...conflict,
+            clientMutationId: current.clientMutationId,
+            localAnswer: current.payload.answer,
+          });
+        }
+        publish(controller);
+        throw new Error("A newer recovered answer was preserved.");
       }
+      const replacement = buildAnswerRecord(
+        controller,
+        item,
+        conflict.localAnswer,
+        crypto.randomUUID(),
+        conflict.serverRevision,
+      );
+      await persistAnswer(controller, replacement, false);
+      assertConflictAction(controller, itemId, conflict, action);
+      controller.revisions.set(itemId, conflict.serverRevision);
+      controller.conflicts.delete(itemId);
+      controller.hardAnswerMutations.delete(conflict.clientMutationId);
+      clearOwnedAnswerIssue(controller, itemId, conflict.clientMutationId);
+      clearTimer(controller, "answerDebounceTimer");
       publish(controller);
-      throw new Error("A newer recovered answer was preserved.");
+      await startAnswerDrain(controller);
+      return;
     }
-    const replacement = buildAnswerRecord(
-      controller,
-      item,
-      conflict.localAnswer,
-      crypto.randomUUID(),
-      conflict.serverRevision,
-    );
-    controller.pendingWrites.set(itemId, replacement);
-    publish(controller);
+
+    const conflictedRecord = controller.records.get(itemId);
+    let removed: boolean;
     try {
-      await controller.repository.putExamAnswer(replacement);
+      removed = await controller.repository.deleteExamAnswerIfMutation(
+        controller.namespace,
+        controller.session.sessionId,
+        itemId,
+        conflict.clientMutationId,
+      );
     } catch (error) {
-      controller.pendingWrites.delete(itemId);
-      controller.failedWrites.set(itemId, replacement);
       publish(controller);
       throw error;
     }
-    assertWorkAllowed(controller);
-    controller.pendingWrites.delete(itemId);
-    controller.failedWrites.delete(itemId);
-    controller.records.set(itemId, replacement);
-    controller.revisions.set(itemId, conflict.serverRevision);
-    controller.conflicts.delete(itemId);
-    controller.hardAnswerMutations.delete(conflict.clientMutationId);
-    publish(controller);
-    await startAnswerDrain(controller);
-    return;
-  }
-
-  let removed: boolean;
-  try {
-    removed = await controller.repository.deleteExamAnswerIfMutation(
-      controller.namespace,
-      controller.session.sessionId,
-      itemId,
-      conflict.clientMutationId,
-    );
-  } catch (error) {
-    publish(controller);
-    throw error;
-  }
-  assertWorkAllowed(controller);
-  if (removed) {
-    if (controller.records.get(itemId)?.clientMutationId === conflict.clientMutationId) {
-      controller.records.delete(itemId);
+    assertConflictAction(controller, itemId, conflict, action);
+    if (removed) {
+      if (controller.records.get(itemId)?.clientMutationId === conflict.clientMutationId) {
+        controller.records.delete(itemId);
+      }
+      controller.answers = { ...controller.answers, [itemId]: conflict.serverAnswer };
+      controller.revisions.set(itemId, conflict.serverRevision);
+      controller.conflicts.delete(itemId);
+      controller.hardAnswerMutations.delete(conflict.clientMutationId);
+      clearOwnedAnswerIssue(controller, itemId, conflict.clientMutationId);
+      publish(controller);
+      return;
     }
-    controller.answers = { ...controller.answers, [itemId]: conflict.serverAnswer };
-    controller.revisions.set(itemId, conflict.serverRevision);
-    controller.conflicts.delete(itemId);
-    controller.hardAnswerMutations.delete(conflict.clientMutationId);
-    publish(controller);
-    return;
-  }
 
-  const newer = await currentPersistedAnswer(controller, itemId);
-  assertWorkAllowed(controller);
-  if (newer && validateRecoveredAnswer(controller, newer)) {
-    controller.records.set(itemId, newer);
-    controller.answers = { ...controller.answers, [itemId]: newer.payload.answer };
-    controller.conflicts.set(itemId, {
-      ...conflict,
-      clientMutationId: newer.clientMutationId,
-      localAnswer: newer.payload.answer,
-    });
+    const newer = await currentPersistedAnswer(controller, itemId);
+    assertConflictAction(controller, itemId, conflict, action);
+    if (newer && validateRecoveredAnswer(controller, newer)) {
+      controller.records.set(itemId, newer);
+      controller.answers = { ...controller.answers, [itemId]: newer.payload.answer };
+      controller.conflicts.set(itemId, {
+        ...conflict,
+        clientMutationId: newer.clientMutationId,
+        localAnswer: newer.payload.answer,
+      });
+    } else if (newer === null && conflictedRecord) {
+      markAnswerDurabilityLost(controller, conflictedRecord);
+      throw new HardOutboxError("The conflicted answer is no longer durable locally.");
+    }
+    publish(controller);
+    throw new Error("A newer recovered answer was preserved.");
+  } finally {
+    if (controller.conflictActions.get(itemId)?.token === action.token) {
+      controller.conflictActions.delete(itemId);
+      publish(controller);
+    }
   }
-  publish(controller);
-  throw new Error("A newer recovered answer was preserved.");
 }
 
 type EmergencySnapshot = { key: string; raw: string };
@@ -1260,6 +1686,7 @@ function exactEmergencySnapshots(storage: Storage, namespace: string, recordSess
 }
 
 async function purgeController(controller: Controller) {
+  controller.writeBarrier.terminalClosed = true;
   controller.closed = true;
   controller.deadlineFenced = true;
   stopOwnedWork(controller);
@@ -1268,6 +1695,9 @@ async function purgeController(controller: Controller) {
   const snapshots = storage
     ? exactEmergencySnapshots(storage, controller.namespace, controller.session.sessionId)
     : [];
+  while (controller.writeBarrier.writes.size > 0) {
+    await Promise.allSettled([...controller.writeBarrier.writes]);
+  }
   await controller.repository.clearExamSession(
     controller.namespace,
     controller.session.sessionId,
@@ -1281,12 +1711,15 @@ async function purgeController(controller: Controller) {
   controller.pendingWrites.clear();
   controller.failedWrites.clear();
   controller.conflicts.clear();
+  controller.conflictActions.clear();
   controller.events.clear();
   controller.failedEventWrites.clear();
   controller.hardAnswerMutations.clear();
   controller.hardEventIds.clear();
   controller.answers = {};
-  controller.issue = null;
+  controller.answerIssues.clear();
+  controller.eventIssue = null;
+  controller.systemIssue = null;
   controller.inFlightAnswer = null;
   controller.answerRetryable = false;
   controller.hydrated = true;
@@ -1295,6 +1728,7 @@ async function purgeController(controller: Controller) {
 
 function activateController(controller: Controller) {
   controller.retired = false;
+  controller.writeBarrier.owners += 1;
   const generation = controller.generation + 1;
   controller.generation = generation;
   return generation;
@@ -1302,6 +1736,7 @@ function activateController(controller: Controller) {
 
 function retireController(controller: Controller) {
   controller.retired = true;
+  controller.writeBarrier.owners = Math.max(0, controller.writeBarrier.owners - 1);
   controller.generation += 1;
   stopOwnedWork(controller);
 }
@@ -1314,29 +1749,29 @@ async function updateControllerAnswer(
   assertWorkAllowed(controller);
   const item = controller.items.get(itemId);
   if (!validItem(item)) {
-    controller.issue = {
+    setAnswerIssue(controller, itemId, null, {
       kind: "protocol",
       itemId,
       message: "Needs attention: this question is not part of the immutable exam form.",
-    };
+    });
     publish(controller);
     throw new Error("The exam item is invalid.");
   }
   if (typeof answer !== "string" || !answerWithinLimit(item, answer)) {
-    controller.issue = {
+    setAnswerIssue(controller, itemId, null, {
       kind: "server-rejected",
       itemId,
       message: "Needs attention: this answer is larger than Codestead can accept.",
-    };
+    });
     publish(controller);
     throw new Error("The answer exceeds the supported character limit.");
   }
+  const supersededMutationId = controller.records.get(itemId)?.clientMutationId;
   controller.answers = { ...controller.answers, [itemId]: answer };
   const record = buildAnswerRecord(controller, item, answer);
   controller.conflicts.delete(itemId);
-  controller.hardAnswerMutations.delete(
-    controller.records.get(itemId)?.clientMutationId ?? "",
-  );
+  if (supersededMutationId) controller.hardAnswerMutations.delete(supersededMutationId);
+  controller.answerIssues.delete(itemId);
   publish(controller);
   await persistAnswer(controller, record, false);
 }
@@ -1354,10 +1789,11 @@ async function recordControllerEvent(
     metadata,
   });
   try {
-    await controller.repository.putExamEvent(record);
+    await trackSessionWrite(controller, controller.repository.putExamEvent(record));
   } catch (error) {
+    if (controller.writeBarrier.terminalClosed || controller.closed) throw error;
     controller.failedEventWrites.set(record.clientEventId, record);
-    controller.issue = {
+    controller.eventIssue = {
       kind: "event-recovery",
       message: "An integrity event remains queued for browser recovery.",
     };
@@ -1379,9 +1815,11 @@ export function useDurableExamOutbox(input: {
   answers: Readonly<Record<string, string>>;
   saveState: ExamAnswerSaveState;
   conflicts: Readonly<Record<string, ExamAnswerConflict>>;
+  resolvingConflicts: Readonly<Record<string, boolean>>;
   issue: ExamOutboxIssue | null;
   updateAnswer(itemId: string, answer: string): Promise<void>;
   recordEvent(eventType: ClientExamEventType, metadata?: Record<string, unknown>): Promise<void>;
+  prepareUnloadEvent(metadata?: Readonly<Record<string, unknown>>): ExamEventOutboxRecord | null;
   flush(): Promise<void>;
   resolveConflict(itemId: string, choice: "keep-local" | "use-server"): Promise<void>;
   purge(): Promise<void>;
@@ -1426,6 +1864,12 @@ export function useDurableExamOutbox(input: {
     [controller],
   );
 
+  const prepareUnloadEvent = useCallback(
+    (metadata: Readonly<Record<string, unknown>> = {}) =>
+      prepareControllerUnloadEvent(controller, metadata),
+    [controller],
+  );
+
   const flush = useCallback(() => flushAnswers(controller), [controller]);
   const resolveConflict = useCallback(
     (itemId: string, choice: "keep-local" | "use-server") =>
@@ -1439,9 +1883,13 @@ export function useDurableExamOutbox(input: {
     answers: controller.answers,
     saveState: answerSaveState(controller),
     conflicts: Object.fromEntries(controller.conflicts),
-    issue: controller.issue,
+    resolvingConflicts: Object.fromEntries(
+      [...controller.conflictActions.keys()].map((itemId) => [itemId, true]),
+    ),
+    issue: visibleIssue(controller),
     updateAnswer,
     recordEvent,
+    prepareUnloadEvent,
     flush,
     resolveConflict,
     purge,
