@@ -6,6 +6,7 @@ const durability = vi.hoisted(() => ({
   openBrowserOutbox: vi.fn(),
   purgeRecovery: vi.fn(),
   close: vi.fn(),
+  withRepository: vi.fn(),
 }));
 
 vi.mock("@/lib/browser-durability/indexed-db", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/browser-durability/indexed-db", () => ({
 }));
 vi.mock("@/lib/browser-durability/lifecycle", () => ({
   purgeBrowserRecoveryData: durability.purgeRecovery,
+  withBrowserRecoveryRepository: durability.withRepository,
 }));
 
 import { BrowserDurabilityNamespaceProvider } from "@/lib/browser-durability/context";
@@ -62,6 +64,26 @@ describe("device session controls", () => {
     durability.purgeRecovery.mockReset();
     durability.openBrowserOutbox.mockResolvedValue({ close: durability.close });
     durability.purgeRecovery.mockResolvedValue(undefined);
+    durability.withRepository.mockImplementation(async (
+      openRepository: () => Promise<{ close(): void }>,
+      operation: (repository: { close(): void }) => Promise<unknown>,
+    ) => {
+      let unavailable = false;
+      let repository: { close(): void };
+      try {
+        repository = await openRepository();
+      } catch {
+        unavailable = true;
+        repository = { close: vi.fn() };
+      }
+      try {
+        const result = await operation(repository);
+        if (unavailable) throw new Error("Browser recovery IndexedDB is unavailable.");
+        return result;
+      } finally {
+        if (!unavailable) repository.close();
+      }
+    });
   });
 
   afterEach(() => {

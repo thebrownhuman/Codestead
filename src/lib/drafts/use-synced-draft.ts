@@ -13,7 +13,8 @@ import {
   isBrowserRecoveryWriteFenceCurrent,
   purgeBrowserRecoveryData,
   purgeDraftRecoveryData,
-  subscribeBrowserRecoveryBoundary,
+  subscribeBrowserRecoveryBoundaryAfterFence,
+  withBrowserRecoveryRepository,
   type BrowserRecoveryBoundary,
   type BrowserRecoveryWriteFence,
 } from "@/lib/browser-durability/lifecycle";
@@ -277,28 +278,29 @@ export function useSyncedDraft({
       kind === "session" ? "reauthenticate" : "exam-locked",
     )) return;
 
-    let repository = runtime.repository;
+    const runtimeRepository = runtime.repository;
     try {
-      if (!repository) repository = await openBrowserOutbox();
-      if (kind === "session") {
-        await purgeBrowserRecoveryData({
-          namespace: runtime.namespace,
-          sessionStorage: window.sessionStorage,
-          localStorage: window.localStorage,
-          repository,
-        });
-      } else {
-        await purgeDraftRecoveryData({
-          namespace: runtime.namespace,
-          sessionStorage: window.sessionStorage,
-          repository,
-        });
-      }
+      await withBrowserRecoveryRepository(
+        runtimeRepository
+          ? async () => runtimeRepository
+          : openBrowserOutbox,
+        (repository) => kind === "session"
+          ? purgeBrowserRecoveryData({
+              namespace: runtime.namespace,
+              sessionStorage: window.sessionStorage,
+              localStorage: window.localStorage,
+              repository,
+            })
+          : purgeDraftRecoveryData({
+              namespace: runtime.namespace,
+              sessionStorage: window.sessionStorage,
+              repository,
+            }),
+      );
     } catch {
       // The writer remains fenced. The login or closed-book gate owns retry UI.
     } finally {
-      repository?.close();
-      if (runtime.repository === repository) runtime.repository = null;
+      if (runtime.repository === runtimeRepository) runtime.repository = null;
     }
 
     if (kind === "session"
@@ -343,9 +345,13 @@ export function useSyncedDraft({
         await handleDenial(runtime, "session");
         return { kind: "terminal" };
       }
+      if (response.status === 423) {
+        await handleDenial(runtime, "closed-book");
+        return { kind: "terminal" };
+      }
       const body = await response.json().catch(() => ({})) as GetResponse;
       if (!isCurrent(runtime)) return { kind: "terminal" };
-      if (response.status === 423 || body.code === "EXAM_CLOSED_BOOK") {
+      if (body.code === "EXAM_CLOSED_BOOK") {
         await handleDenial(runtime, "closed-book");
         return { kind: "terminal" };
       }
@@ -652,9 +658,13 @@ export function useSyncedDraft({
         await handleDenial(runtime, "session");
         return;
       }
+      if (response.status === 423) {
+        await handleDenial(runtime, "closed-book");
+        return;
+      }
       const body = await response.json().catch(() => ({})) as PutResponse;
       if (!isCurrent(runtime)) return;
-      if (response.status === 423 || body.code === "EXAM_CLOSED_BOOK") {
+      if (body.code === "EXAM_CLOSED_BOOK") {
         await handleDenial(runtime, "closed-book");
         return;
       }
@@ -760,15 +770,6 @@ export function useSyncedDraft({
     attemptNetworkRef.current = attemptNetwork;
     enqueueRecordRef.current = enqueueRecord;
   }, [attemptNetwork, enqueueRecord]);
-
-  useEffect(() => subscribeBrowserRecoveryBoundary((boundary) => {
-    const runtime = runtimeRef.current;
-    if (!runtime || !boundaryMatchesDraftRuntime(boundary, runtime)) return;
-    retireRuntime(
-      runtime,
-      boundary.kind === "drafts" ? "exam-locked" : "reauthenticate",
-    );
-  }), [retireRuntime]);
 
   const initializeRuntime = useCallback(async (runtime: DraftRuntime) => {
     runtime.networkActive = true;
@@ -884,9 +885,20 @@ export function useSyncedDraft({
       abortController: null,
     };
     runtimeRef.current = runtime;
+    const unsubscribeBoundary = subscribeBrowserRecoveryBoundaryAfterFence(
+      recoveryFence,
+      (boundary) => {
+        if (!boundaryMatchesDraftRuntime(boundary, runtime)) return;
+        retireRuntime(
+          runtime,
+          boundary.kind === "drafts" ? "exam-locked" : "reauthenticate",
+        );
+      },
+    );
     void initializeRuntime(runtime);
 
     return () => {
+      unsubscribeBoundary();
       if (!runtime.retired) {
         runtime.retired = true;
         clearTimer(runtime);

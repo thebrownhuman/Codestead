@@ -241,6 +241,7 @@ describe("timed exam client workflows", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it("autosaves conflict-safely, runs code, records integrity events, and submits", async () => {
@@ -1218,6 +1219,30 @@ describe("timed exam client workflows", () => {
     },
   );
 
+  it("publishes and attempts browser cleanup when initial denial cannot open IndexedDB", async () => {
+    vi.stubGlobal("indexedDB", {
+      open: vi.fn(() => { throw new Error("IndexedDB open failed"); }),
+    } as unknown as IDBFactory);
+    const warmKey = `learncoding:draft-cache:v1:${namespace}:code:python:loops:language-python`;
+    window.sessionStorage.setItem(warmKey, "private lesson draft");
+    const emergency = eventRecord();
+    writeEmergencyExamEvent(window.localStorage, emergency);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 401 })));
+    const navigate = vi.fn();
+
+    renderWithNamespace(<TimedExamClient navigate={navigate} sessionId={sessionId} />);
+
+    expect(await screen.findByText(/Redirecting to sign in/i)).toBeInTheDocument();
+    expect(navigate).toHaveBeenCalledWith("/login");
+    expect(window.sessionStorage.getItem(warmKey)).toBeNull();
+    expect(window.localStorage.getItem(
+      `${EMERGENCY_EXAM_EVENT_PREFIX}${encodeURIComponent(namespace)}:${encodeURIComponent(sessionId)}:${encodeURIComponent(emergency.clientEventId)}`,
+    )).toBeNull();
+    expect(Object.keys(window.localStorage).some((key) => (
+      key.startsWith("codestead:browser-recovery-boundary:v1:")
+    ))).toBe(true);
+  });
+
   it("treats a malformed final-submit 401 as the same exact auth boundary", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -1400,6 +1425,47 @@ describe("timed exam client workflows", () => {
 
     expect(await screen.findByLabelText("Your response")).toBeInTheDocument();
     expect(window.sessionStorage.getItem(warmKey)).toBeNull();
+  });
+
+  it("retries repository acquisition before exposing an active exam", async () => {
+    vi.stubGlobal("indexedDB", {
+      open: vi.fn(() => { throw new Error("IndexedDB open failed"); }),
+    } as unknown as IDBFactory);
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+
+    expect(await screen.findByRole("heading", { name: /Exam recovery unavailable/i }))
+      .toBeInTheDocument();
+    expect(screen.queryByLabelText("Your response")).not.toBeInTheDocument();
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    await user.click(screen.getByRole("button", { name: /Retry browser storage cleanup/i }));
+
+    expect(await screen.findByLabelText("Your response")).toBeInTheDocument();
+  });
+
+  it("retries repository acquisition before exposing a terminal exam result", async () => {
+    vi.stubGlobal("indexedDB", {
+      open: vi.fn(() => { throw new Error("IndexedDB open failed"); }),
+    } as unknown as IDBFactory);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ exam: gradedExam() })));
+    const user = userEvent.setup();
+
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+
+    expect(await screen.findByRole("heading", { name: /Exam recovery unavailable/i }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "mastered" })).not.toBeInTheDocument();
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    await user.click(screen.getByRole("button", { name: /Retry browser storage cleanup/i }));
+
+    expect(await screen.findByRole("heading", { name: "mastered" })).toBeInTheDocument();
   });
 
   it("auto-finalizes at the server deadline and explains an offline failure", async () => {

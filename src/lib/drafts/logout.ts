@@ -2,7 +2,10 @@ import {
   openBrowserOutbox,
   type BrowserOutboxRepository,
 } from "@/lib/browser-durability/indexed-db";
-import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
+import {
+  purgeBrowserRecoveryData,
+  withBrowserRecoveryRepository,
+} from "@/lib/browser-durability/lifecycle";
 
 function signOutWasRejected(result: unknown) {
   if (result instanceof Response) return !result.ok;
@@ -38,30 +41,20 @@ export async function signOutWithBrowserDurabilityCleanup({
     throw new Error("Sign-out could not be confirmed.");
   }
 
-  let repository: BrowserOutboxRepository | null = null;
   let cleanupSucceeded = false;
   try {
-    try {
-      repository = await openRepository();
-    } catch {
-      repository = {
-        clearNamespace: async () => {
-          throw new Error("Browser recovery storage is unavailable.");
-        },
-      } as unknown as BrowserOutboxRepository;
-    }
-    await purgeBrowserRecoveryData({
-      namespace,
-      sessionStorage,
-      localStorage,
-      repository,
-    });
+    await withBrowserRecoveryRepository(openRepository, (repository) => (
+      purgeBrowserRecoveryData({
+        namespace,
+        sessionStorage,
+        localStorage,
+        repository,
+      })
+    ));
     cleanupSucceeded = true;
   } catch {
     // The server session has already ended. The anonymous login gate retries
     // global cleanup before credentials are exposed.
-  } finally {
-    repository?.close?.();
   }
 
   navigate("/login");

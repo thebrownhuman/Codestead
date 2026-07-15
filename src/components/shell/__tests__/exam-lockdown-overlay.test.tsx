@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   purgeBrowserRecoveryData: vi.fn(),
   purgeDraftRecoveryData: vi.fn(),
   repository: { close: vi.fn() },
+  withRepository: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname }));
 vi.mock("@/lib/browser-durability/context", () => ({
@@ -22,6 +23,7 @@ vi.mock("@/lib/browser-durability/indexed-db", () => ({
 vi.mock("@/lib/browser-durability/lifecycle", () => ({
   purgeBrowserRecoveryData: mocks.purgeBrowserRecoveryData,
   purgeDraftRecoveryData: mocks.purgeDraftRecoveryData,
+  withBrowserRecoveryRepository: mocks.withRepository,
 }));
 
 function deferred<T>() {
@@ -47,6 +49,7 @@ function response(activeSessionId: string | null) {
 describe("active exam lockdown overlay", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mocks.namespace = "n".repeat(43);
     mocks.openBrowserOutbox.mockReset();
     mocks.openBrowserOutbox.mockResolvedValue(mocks.repository);
     mocks.pathname = "/roadmap";
@@ -55,6 +58,26 @@ describe("active exam lockdown overlay", () => {
     mocks.purgeDraftRecoveryData.mockReset();
     mocks.purgeDraftRecoveryData.mockResolvedValue(undefined);
     mocks.repository.close.mockReset();
+    mocks.withRepository.mockImplementation(async (
+      openRepository: () => Promise<{ close(): void }>,
+      operation: (repository: { close(): void }) => Promise<unknown>,
+    ) => {
+      let unavailable = false;
+      let repository: { close(): void };
+      try {
+        repository = await openRepository();
+      } catch {
+        unavailable = true;
+        repository = { close: vi.fn() };
+      }
+      try {
+        const result = await operation(repository);
+        if (unavailable) throw new Error("Browser recovery IndexedDB is unavailable.");
+        return result;
+      } finally {
+        if (!unavailable) repository.close();
+      }
+    });
   });
 
   it("blocks non-exam app UI and focuses the only resume action", async () => {
@@ -118,6 +141,30 @@ describe("active exam lockdown overlay", () => {
     expect(await screen.findByRole("link", { name: /Resume timed exam/i })).toBeInTheDocument();
     expect(mocks.purgeDraftRecoveryData).toHaveBeenCalledTimes(2);
     expect(mocks.openBrowserOutbox).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishes draft-only entry when repository open fails and retries acquisition", async () => {
+    mocks.openBrowserOutbox
+      .mockRejectedValueOnce(new Error("IndexedDB open failed"))
+      .mockResolvedValueOnce(mocks.repository);
+    vi.stubGlobal("fetch", vi.fn(async () => response("exam-1")));
+
+    render(<><div id="app-content-column">Lesson content</div><ExamLockdownOverlay /></>);
+
+    const retry = await screen.findByRole("button", { name: /Retry browser storage cleanup/i });
+    expect(mocks.purgeDraftRecoveryData).toHaveBeenCalledOnce();
+    expect(mocks.purgeDraftRecoveryData).toHaveBeenCalledWith(expect.objectContaining({
+      namespace: mocks.namespace,
+      repository: expect.any(Object),
+      sessionStorage: window.sessionStorage,
+    }));
+    expect(screen.queryByRole("link", { name: /Resume timed exam/i })).not.toBeInTheDocument();
+
+    fireEvent.click(retry);
+    expect(await screen.findByRole("link", { name: /Resume timed exam/i }))
+      .toHaveAttribute("href", "/exams/exam-1");
+    expect(mocks.openBrowserOutbox).toHaveBeenCalledTimes(2);
+    expect(mocks.purgeDraftRecoveryData).toHaveBeenCalledTimes(2);
   });
 
   it("stays out of the way inside the active exam and when no exam is active", async () => {
@@ -199,5 +246,72 @@ describe("active exam lockdown overlay", () => {
     cleanup.resolve();
     await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login"));
     expect(mocks.repository.close).toHaveBeenCalledOnce();
+  });
+
+  it("publishes an auth boundary when repository open fails before redirecting", async () => {
+    mocks.openBrowserOutbox.mockRejectedValueOnce(new Error("IndexedDB open failed"));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 401 })));
+    const navigate = vi.fn();
+
+    render(<><div id="app-content-column">Lesson content</div><ExamLockdownOverlay navigate={navigate} /></>);
+
+    expect(await screen.findByRole("alertdialog", { name: /Session ended/i }))
+      .toBeInTheDocument();
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login"));
+    expect(mocks.purgeBrowserRecoveryData).toHaveBeenCalledOnce();
+    expect(mocks.purgeBrowserRecoveryData).toHaveBeenCalledWith(expect.objectContaining({
+      namespace: mocks.namespace,
+      repository: expect.any(Object),
+      sessionStorage: window.sessionStorage,
+      localStorage: window.localStorage,
+    }));
+  });
+
+  it("releases an old denial lock when the namespace changes without letting old cleanup redirect", async () => {
+    const oldNamespace = "a".repeat(43);
+    const newNamespace = "b".repeat(43);
+    const oldCleanup = deferred<void>();
+    let poll: (() => void) | undefined;
+    vi.spyOn(window, "setInterval").mockImplementation((handler, timeout) => {
+      if (timeout === 15_000) poll = handler as () => void;
+      return {} as ReturnType<typeof window.setInterval>;
+    });
+    mocks.namespace = oldNamespace;
+    mocks.purgeBrowserRecoveryData
+      .mockReturnValueOnce(oldCleanup.promise)
+      .mockResolvedValueOnce(undefined);
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(response(null))
+      .mockResolvedValueOnce(new Response(null, { status: 403 })));
+    const navigate = vi.fn();
+    const view = render(<><div id="app-content-column">Lesson content</div><ExamLockdownOverlay navigate={navigate} /></>);
+
+    expect(await screen.findByRole("alertdialog", { name: /Session ended/i }))
+      .toBeInTheDocument();
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
+
+    mocks.namespace = newNamespace;
+    view.rerender(<><div id="app-content-column">New session lesson</div><ExamLockdownOverlay navigate={navigate} /></>);
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog", { name: /Session ended/i }))
+      .not.toBeInTheDocument());
+    expect(document.getElementById("app-content-column")).not.toHaveAttribute("inert");
+    await act(async () => {
+      oldCleanup.resolve();
+      await oldCleanup.promise;
+    });
+    expect(navigate).not.toHaveBeenCalled();
+
+    poll?.();
+    expect(await screen.findByRole("alertdialog", { name: /Session ended/i }))
+      .toBeInTheDocument();
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login"));
+    expect(mocks.purgeBrowserRecoveryData).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      namespace: oldNamespace,
+    }));
+    expect(mocks.purgeBrowserRecoveryData).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      namespace: newNamespace,
+    }));
   });
 });

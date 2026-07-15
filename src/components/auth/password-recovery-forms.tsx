@@ -6,7 +6,10 @@ import { useCallback, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
-import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
+import {
+  purgeBrowserRecoveryData,
+  withBrowserRecoveryRepository,
+} from "@/lib/browser-durability/lifecycle";
 import styles from "./auth.module.css";
 
 export function ForgotPasswordForm() {
@@ -75,19 +78,17 @@ export function ResetPasswordForm({ token, invalid }: { token?: string; invalid?
 
   const cleanRevokedSessionRecovery = useCallback(async () => {
     setCleanupState("cleaning");
-    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
     try {
-      repository = await openBrowserOutbox();
-      await purgeBrowserRecoveryData({
-        sessionStorage: window.sessionStorage,
-        localStorage: window.localStorage,
-        repository,
-      });
+      await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+        purgeBrowserRecoveryData({
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+          repository,
+        })
+      ));
       setCleanupState("ready");
     } catch {
       setCleanupState("failed");
-    } finally {
-      repository?.close();
     }
   }, []);
 

@@ -23,7 +23,9 @@ import {
   purgeDraftRecoveryData,
   purgeExamRecoveryData,
   subscribeBrowserRecoveryBoundary,
+  type BrowserRecoveryBoundary,
   type BrowserRecoveryBoundaryChannel,
+  type BrowserRecoveryWriteFence,
 } from "../lifecycle";
 import {
   draftOutboxScope,
@@ -93,6 +95,8 @@ class BoundaryChannelHub {
     listeners: Set<(event: MessageEvent<unknown>) => void>;
     closed: boolean;
   }>();
+  readonly #pending: Array<() => void> = [];
+  #paused = false;
 
   create(): BrowserRecoveryBoundaryChannel {
     const state = {
@@ -104,11 +108,13 @@ class BoundaryChannelHub {
       postMessage: (message) => {
         for (const peer of this.#channels) {
           if (peer === state || peer.closed) continue;
-          queueMicrotask(() => {
+          const deliver = () => {
             if (peer.closed) return;
             const event = { data: message } as MessageEvent<unknown>;
             for (const listener of peer.listeners) listener(event);
-          });
+          };
+          if (this.#paused) this.#pending.push(deliver);
+          else queueMicrotask(deliver);
         }
       },
       addEventListener: (_type, listener) => {
@@ -131,6 +137,15 @@ class BoundaryChannelHub {
       const event = { data: message } as MessageEvent<unknown>;
       for (const listener of peer.listeners) listener(event);
     }
+  }
+
+  pause() {
+    this.#paused = true;
+  }
+
+  flush() {
+    this.#paused = false;
+    for (const deliver of this.#pending.splice(0)) deliver();
   }
 }
 
@@ -667,7 +682,7 @@ describe("browser recovery lifecycle", () => {
     const removeItem = window.sessionStorage.removeItem.bind(window.sessionStorage);
     let sessionFailure = true;
     const flakySessionStorage = new Proxy(window.sessionStorage, {
-      get(target, property, receiver) {
+      get(target, property) {
         if (property === "removeItem") {
           return (key: string) => {
             if (sessionFailure) {
@@ -677,7 +692,7 @@ describe("browser recovery lifecycle", () => {
             return removeItem(key);
           };
         }
-        const value = Reflect.get(target, property, receiver) as unknown;
+        const value = Reflect.get(target, property, target) as unknown;
         return typeof value === "function" ? value.bind(target) : value;
       },
     });
@@ -761,6 +776,96 @@ describe("browser recovery lifecycle", () => {
       unsubscribe();
       firstTab.close();
       secondTab.close();
+    }
+  });
+
+  it("does not deliver a delayed durable notice to a writer captured after that boundary", async () => {
+    const sharedLocalStorage = new MemoryStorage();
+    const hub = new BoundaryChannelHub();
+    hub.pause();
+    const publisher = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-delayed-publisher",
+    });
+    const writer = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-delayed-writer",
+    });
+
+    try {
+      await purgeBrowserRecoveryData({
+        namespace: NAMESPACE_A,
+        sessionStorage: new MemoryStorage(),
+        localStorage: sharedLocalStorage,
+        repository: repository(),
+        boundaryContext: publisher,
+      });
+      const fence = writer.captureWriteFence({ kind: "drafts", namespace: NAMESPACE_A });
+      let retired = false;
+      const subscribeAfterFence = (writer as unknown as {
+        subscribeAfterFence?: (
+          capturedFence: BrowserRecoveryWriteFence,
+          listener: (boundary: BrowserRecoveryBoundary) => void,
+        ) => () => void;
+      }).subscribeAfterFence;
+      expect(subscribeAfterFence).toBeTypeOf("function");
+      const unsubscribe = subscribeAfterFence!.call(writer, fence, () => { retired = true; });
+
+      hub.flush();
+
+      expect(retired).toBe(false);
+      expect(writer.isWriteFenceCurrent(fence)).toBe(true);
+      unsubscribe();
+    } finally {
+      publisher.close();
+      writer.close();
+    }
+  });
+
+  it("retires a matching captured writer when local boundary publication fails", () => {
+    const backingStorage = new MemoryStorage();
+    const unavailableLocalStorage = new Proxy(backingStorage, {
+      get(target, property) {
+        if (property === "setItem") {
+          return () => { throw new DOMException("quota", "QuotaExceededError"); };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const context = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: unavailableLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-local-publication-failure",
+    });
+
+    try {
+      const fence = context.captureWriteFence({ kind: "drafts", namespace: NAMESPACE_A });
+      let retired = false;
+      const subscribeAfterFence = (context as unknown as {
+        subscribeAfterFence?: (
+          capturedFence: BrowserRecoveryWriteFence,
+          listener: (boundary: BrowserRecoveryBoundary) => void,
+        ) => () => void;
+      }).subscribeAfterFence;
+      expect(subscribeAfterFence).toBeTypeOf("function");
+      const unsubscribe = subscribeAfterFence!.call(context, fence, () => { retired = true; });
+
+      expect(context.publish({ kind: "drafts", namespace: NAMESPACE_A }))
+        .toEqual(["local-storage"]);
+      expect(retired).toBe(true);
+      expect(context.isWriteFenceCurrent(fence)).toBe(false);
+      unsubscribe();
+    } finally {
+      context.close();
     }
   });
 
@@ -916,14 +1021,252 @@ describe("browser recovery lifecycle", () => {
     }
   });
 
+  it("preserves a scoped boundary published after the global compaction snapshot", async () => {
+    const backingStorage = new MemoryStorage();
+    const hub = new BoundaryChannelHub();
+    hub.pause();
+    let capturedBeforeScopedPublish: BrowserRecoveryWriteFence | null = null;
+    let interleaved = false;
+    const sharedLocalStorage = new Proxy(backingStorage, {
+      get(target, property) {
+        if (property === "setItem") {
+          return (key: string, value: string) => {
+            target.setItem(key, value);
+            if (!interleaved
+              && key === "codestead:browser-recovery-boundary:v1:all") {
+              interleaved = true;
+              capturedBeforeScopedPublish = writerTab.captureWriteFence({
+                kind: "drafts",
+                namespace: NAMESPACE_B,
+              });
+              scopedTab.publish({ kind: "namespace", namespace: NAMESPACE_B });
+            }
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const globalTab = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-global-compactor",
+    });
+    const scopedTab = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-new-scoped-boundary",
+    });
+    const writerTab = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-captured-writer",
+    });
+
+    try {
+      scopedTab.publish({ kind: "drafts", namespace: NAMESPACE_A });
+      await purgeBrowserRecoveryData({
+        sessionStorage: new MemoryStorage(),
+        localStorage: sharedLocalStorage,
+        repository: repository(),
+        boundaryContext: globalTab,
+      });
+
+      const durableScopedBoundary = backingStorage.entries().find(([, raw]) => {
+        try {
+          const parsed = JSON.parse(raw) as { boundary?: BrowserRecoveryBoundary };
+          return parsed.boundary?.kind === "namespace"
+            && parsed.boundary.namespace === NAMESPACE_B;
+        } catch {
+          return false;
+        }
+      });
+      expect(interleaved).toBe(true);
+      expect(durableScopedBoundary).toBeDefined();
+      expect(capturedBeforeScopedPublish).not.toBeNull();
+      expect(writerTab.isWriteFenceCurrent(capturedBeforeScopedPublish!)).toBe(false);
+
+      hub.flush();
+      expect(writerTab.isWriteFenceCurrent(capturedBeforeScopedPublish!)).toBe(false);
+    } finally {
+      globalTab.close();
+      scopedTab.close();
+      writerTab.close();
+    }
+  });
+
+  it("stays fail-closed when a scoped overwrite lands between compaction compare and remove", async () => {
+    const backingStorage = new MemoryStorage();
+    const hub = new BoundaryChannelHub();
+    hub.pause();
+    let scopedKey = "";
+    let interleaved = false;
+    let operationRan = false;
+    let capturedDuringCompaction: BrowserRecoveryWriteFence | null = null;
+    const sharedLocalStorage = new Proxy(backingStorage, {
+      get(target, property) {
+        if (property === "removeItem") {
+          return (key: string) => {
+            if (!interleaved && key === scopedKey) {
+              interleaved = true;
+              capturedDuringCompaction = writerTab.captureWriteFence({
+                kind: "drafts",
+                namespace: NAMESPACE_B,
+              });
+              try {
+                writerTab.guardSynchronousWrite(
+                  capturedDuringCompaction,
+                  () => { operationRan = true; },
+                  () => undefined,
+                );
+              } catch {
+                // A visible compaction phase must reject this write.
+              }
+              scopedTab.publish({ kind: "namespace", namespace: NAMESPACE_B });
+            }
+            target.removeItem(key);
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const globalTab = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-overwrite-compactor",
+    });
+    const scopedTab = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-overwrite-publisher",
+    });
+    const writerTab = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: hub.create(),
+      sourceId: "tab-overwrite-writer",
+    });
+
+    try {
+      scopedTab.publish({ kind: "namespace", namespace: NAMESPACE_B });
+      scopedKey = backingStorage.entries()
+        .map(([key]) => key)
+        .find((key) => key.includes(encodeURIComponent(NAMESPACE_B)))!;
+
+      await purgeBrowserRecoveryData({
+        sessionStorage: new MemoryStorage(),
+        localStorage: sharedLocalStorage,
+        repository: repository(),
+        boundaryContext: globalTab,
+      });
+
+      expect(interleaved).toBe(true);
+      expect(operationRan).toBe(false);
+      expect(capturedDuringCompaction).not.toBeNull();
+      expect(writerTab.isWriteFenceCurrent(capturedDuringCompaction!)).toBe(false);
+      hub.flush();
+      expect(writerTab.isWriteFenceCurrent(capturedDuringCompaction!)).toBe(false);
+      expect(writerTab.isWriteFenceCurrent(writerTab.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_B,
+      }))).toBe(true);
+    } finally {
+      globalTab.close();
+      scopedTab.close();
+      writerTab.close();
+    }
+  });
+
+  it("leaves compaction fail-closed after removal failure and bounds metadata after retry", async () => {
+    const backingStorage = new MemoryStorage();
+    let failRemoval = true;
+    const sharedLocalStorage = new Proxy(backingStorage, {
+      get(target, property) {
+        if (property === "removeItem") {
+          return (key: string) => {
+            if (failRemoval && key.startsWith("codestead:browser-recovery-boundary:v1:")
+              && !key.endsWith(":all")) {
+              throw new DOMException("blocked", "InvalidStateError");
+            }
+            target.removeItem(key);
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const context = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-crashed-compactor",
+    });
+
+    try {
+      context.publish({ kind: "drafts", namespace: NAMESPACE_A });
+      await expect(purgeBrowserRecoveryData({
+        sessionStorage: new MemoryStorage(),
+        localStorage: sharedLocalStorage,
+        repository: repository(),
+        boundaryContext: context,
+      })).rejects.toThrow("local-storage");
+      expect(backingStorage.entries()).toContainEqual([
+        "codestead:browser-recovery-compaction:v1",
+        expect.stringContaining('"phase":"active"'),
+      ]);
+
+      const blockedFence = context.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_B,
+      });
+      expect(context.isWriteFenceCurrent(blockedFence)).toBe(false);
+      expect(() => context.guardSynchronousWrite(
+        blockedFence,
+        () => undefined,
+        () => undefined,
+      )).toThrow(expect.objectContaining({ name: "AbortError" }));
+
+      failRemoval = false;
+      await purgeBrowserRecoveryData({
+        sessionStorage: new MemoryStorage(),
+        localStorage: sharedLocalStorage,
+        repository: repository(),
+        boundaryContext: context,
+      });
+      const boundaryKeys = backingStorage.entries()
+        .map(([key]) => key)
+        .filter((key) => key.startsWith("codestead:browser-recovery-boundary:v1:"));
+      expect(boundaryKeys).toEqual(["codestead:browser-recovery-boundary:v1:all"]);
+      expect(context.isWriteFenceCurrent(context.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_B,
+      }))).toBe(true);
+    } finally {
+      context.close();
+    }
+  });
+
   it("reports a durable-boundary quota failure while still attempting every cleanup layer", async () => {
     const sharedLocalStorage = new MemoryStorage();
     const flakyLocalStorage = new Proxy(sharedLocalStorage, {
-      get(target, property, receiver) {
+      get(target, property) {
         if (property === "setItem") {
           return () => { throw new DOMException("quota", "QuotaExceededError"); };
         }
-        const value = Reflect.get(target, property, receiver) as unknown;
+        const value = Reflect.get(target, property, target) as unknown;
         return typeof value === "function" ? value.bind(target) : value;
       },
     });

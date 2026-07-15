@@ -16,7 +16,7 @@ import {
   purgeBrowserRecoveryData,
   purgeDraftRecoveryData,
   purgeExamRecoveryData,
-  subscribeBrowserRecoveryBoundary,
+  subscribeBrowserRecoveryBoundaryAfterFence,
   type BrowserRecoveryBoundary,
   type BrowserRecoveryWriteFence,
 } from "@/lib/browser-durability/lifecycle";
@@ -2250,9 +2250,12 @@ export function useDurableExamOutbox(input: {
   useEffect(() => {
     const generation = activateController(controller);
     void initialize(controller, generation);
-    const unsubscribeBoundary = subscribeBrowserRecoveryBoundary((boundary) => {
-      if (boundaryMatchesExamController(boundary, controller)) retireController(controller);
-    });
+    const unsubscribeBoundary = subscribeBrowserRecoveryBoundaryAfterFence(
+      controller.recoveryFence!,
+      (boundary) => {
+        if (boundaryMatchesExamController(boundary, controller)) retireController(controller);
+      },
+    );
     const online = () => {
       if (!live(controller, generation) || controller.closed || deadlineReached(controller)) return;
       clearTimer(controller, "answerRetryTimer");

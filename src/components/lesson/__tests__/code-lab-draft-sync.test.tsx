@@ -83,7 +83,7 @@ function cached(overrides: Partial<CachedLearnerDraft> = {}): CachedLearnerDraft
   };
 }
 
-function stalledDeniedResponse(status: 401 | 403) {
+function stalledDeniedResponse(status: 401 | 403 | 423) {
   const json = vi.fn(() => new Promise<never>(() => undefined));
   return {
     response: { ok: false, status, json } as unknown as Response,
@@ -1760,6 +1760,43 @@ describe("CodeLab authoritative draft synchronization", () => {
     });
     expect(rejectedJson).not.toHaveBeenCalled();
     expect(repository.clearNamespace).toHaveBeenCalledWith(namespace);
+  });
+
+  it("handles a closed-book draft GET before consuming a stalled response body", async () => {
+    const repository = installRepository();
+    const denied = stalledDeniedResponse(423);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(denied.response);
+
+    renderLab();
+
+    await waitFor(() => expect(screen.getByText(/locked during a closed-book exam/i))
+      .toBeInTheDocument());
+    expect(denied.json).not.toHaveBeenCalled();
+    expect(repository.clearDrafts).toHaveBeenCalledWith(namespace);
+    expect(repository.clearNamespace).not.toHaveBeenCalled();
+    expect(repository.clearExamSession).not.toHaveBeenCalled();
+  });
+
+  it("handles a closed-book draft PUT before consuming a stalled response body", async () => {
+    const repository = installRepository();
+    const denied = stalledDeniedResponse(423);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => (
+      init?.method === "GET"
+        ? json({ draft: serverDraft, cacheNamespace: namespace })
+        : denied.response
+    ));
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "must_lock_before_body = true\n" } });
+
+    await waitFor(() => expect(screen.getByText(/locked during a closed-book exam/i))
+      .toBeInTheDocument(), { timeout: 2_000 });
+    expect(denied.json).not.toHaveBeenCalled();
+    expect(repository.clearDrafts).toHaveBeenCalledWith(namespace);
+    expect(repository.clearNamespace).not.toHaveBeenCalled();
+    expect(repository.clearExamSession).not.toHaveBeenCalled();
   });
 
   it("removes local code assistance when a closed-book exam gate denies draft access", async () => {

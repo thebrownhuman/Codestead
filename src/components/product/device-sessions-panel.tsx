@@ -4,11 +4,11 @@ import { Laptop, LogOut, RefreshCcw, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useBrowserDurabilityNamespace } from "@/lib/browser-durability/context";
+import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
 import {
-  openBrowserOutbox,
-  type BrowserOutboxRepository,
-} from "@/lib/browser-durability/indexed-db";
-import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
+  purgeBrowserRecoveryData,
+  withBrowserRecoveryRepository,
+} from "@/lib/browser-durability/lifecycle";
 import styles from "./product-pages.module.css";
 
 type SessionView = {
@@ -77,32 +77,19 @@ export function DeviceSessionsPanel({
   ) => {
     if (authorizationDenialRef.current.has(generation)) return;
     authorizationDenialRef.current.add(generation);
-    let repository: BrowserOutboxRepository | null = null;
     try {
-      try {
-        repository = await openBrowserOutbox();
-      } catch {
-        repository = {
-          clearAll: async () => {
-            throw new Error("Browser recovery storage is unavailable.");
-          },
-          clearNamespace: async () => {
-            throw new Error("Browser recovery storage is unavailable.");
-          },
-          close: () => undefined,
-        } as unknown as BrowserOutboxRepository;
-      }
-      await purgeBrowserRecoveryData({
-        ...(namespace ? { namespace } : {}),
-        sessionStorage: window.sessionStorage,
-        localStorage: window.localStorage,
-        repository,
-      });
+      await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+        purgeBrowserRecoveryData({
+          ...(namespace ? { namespace } : {}),
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+          repository,
+        })
+      ));
     } catch {
       // The durable boundary is published before best-effort cleanup. The
       // anonymous gate retries cleanup before accepting new credentials.
     } finally {
-      repository?.close?.();
       if (generationRef.current === generation
         && latestNamespaceRef.current === namespace) {
         navigate("/login?reason=session-expired");
@@ -177,34 +164,20 @@ export function DeviceSessionsPanel({
       if (scope === "all") {
         if (generationRef.current !== generation
           || latestNamespaceRef.current !== namespace) return;
-        let repository: BrowserOutboxRepository | null = null;
         try {
-          try {
-            repository = await openBrowserOutbox();
-          } catch {
-            repository = {
-              clearAll: async () => {
-                throw new Error("Browser recovery storage is unavailable.");
-              },
-              clearNamespace: async () => {
-                throw new Error("Browser recovery storage is unavailable.");
-              },
-              close: () => undefined,
-            } as unknown as BrowserOutboxRepository;
-          }
           if (generationRef.current !== generation
             || latestNamespaceRef.current !== namespace) return;
-          await purgeBrowserRecoveryData({
-            ...(namespace ? { namespace } : {}),
-            sessionStorage: window.sessionStorage,
-            localStorage: window.localStorage,
-            repository,
-          });
+          await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+            purgeBrowserRecoveryData({
+              ...(namespace ? { namespace } : {}),
+              sessionStorage: window.sessionStorage,
+              localStorage: window.localStorage,
+              repository,
+            })
+          ));
         } catch {
           // The server already ended this session. The anonymous login gate
           // retries global cleanup before exposing credentials.
-        } finally {
-          repository?.close?.();
         }
         if (generationRef.current === generation
           && latestNamespaceRef.current === namespace) {

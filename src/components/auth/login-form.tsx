@@ -7,7 +7,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
-import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
+import {
+  purgeBrowserRecoveryData,
+  withBrowserRecoveryRepository,
+} from "@/lib/browser-durability/lifecycle";
 import styles from "./auth.module.css";
 
 type LoginGateState = "checking" | "cleaning" | "ready" | "session-error" | "cleanup-error";
@@ -38,19 +41,17 @@ export function LoginForm() {
   const cleanAnonymousRecovery = useCallback(async (generation: number) => {
     if (gateGenerationRef.current !== generation) return;
     setGate("cleaning");
-    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
     try {
-      repository = await openBrowserOutbox();
-      await purgeBrowserRecoveryData({
-        sessionStorage: window.sessionStorage,
-        localStorage: window.localStorage,
-        repository,
-      });
+      await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+        purgeBrowserRecoveryData({
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+          repository,
+        })
+      ));
       if (gateGenerationRef.current === generation) setGate("ready");
     } catch {
       if (gateGenerationRef.current === generation) setGate("cleanup-error");
-    } finally {
-      repository?.close();
     }
   }, []);
 

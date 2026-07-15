@@ -28,7 +28,10 @@ import { BrandMark } from "@/components/brand-mark";
 import { authClient } from "@/lib/auth-client";
 import { BrowserDurabilityNamespaceProvider } from "@/lib/browser-durability/context";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
-import { prepareBrowserRecoveryNamespace } from "@/lib/browser-durability/lifecycle";
+import {
+  prepareBrowserRecoveryNamespace,
+  withBrowserRecoveryRepository,
+} from "@/lib/browser-durability/lifecycle";
 import { signOutWithBrowserDurabilityCleanup } from "@/lib/drafts/logout";
 import styles from "./app-shell.module.css";
 import { ExamLockdownOverlay } from "./exam-lockdown-overlay";
@@ -124,16 +127,16 @@ export function AppShell({
         setPreparation({ namespace, status: "preparing" });
       }
     });
-    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
     void (async () => {
       try {
-        repository = await openBrowserOutbox();
-        await prepareBrowserRecoveryNamespace({
-          namespace,
-          sessionStorage: window.sessionStorage,
-          localStorage: window.localStorage,
-          repository,
-        });
+        await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+          prepareBrowserRecoveryNamespace({
+            namespace,
+            sessionStorage: window.sessionStorage,
+            localStorage: window.localStorage,
+            repository,
+          })
+        ));
         if (preparationGenerationRef.current === generation) {
           setPreparation({ namespace, status: "ready" });
         }
@@ -141,8 +144,6 @@ export function AppShell({
         if (preparationGenerationRef.current === generation) {
           setPreparation({ namespace, status: "failed" });
         }
-      } finally {
-        repository?.close();
       }
     })();
     return () => {

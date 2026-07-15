@@ -10,6 +10,7 @@ import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
 import {
   purgeBrowserRecoveryData,
   purgeDraftRecoveryData,
+  withBrowserRecoveryRepository,
 } from "@/lib/browser-durability/lifecycle";
 
 import styles from "./app-shell.module.css";
@@ -73,9 +74,20 @@ export function ExamLockdownOverlay({
   const [lockState, setLockState] = useState<LockState | null>(null);
   const [sessionBoundaryPending, setSessionBoundaryPending] = useState(false);
   const generationRef = useRef(0);
+  const latestNamespaceRef = useRef(namespace);
   const observedKeyRef = useRef<string | null>(null);
   const sessionBoundaryRef = useRef(false);
   const resumeRef = useRef<HTMLAnchorElement>(null);
+
+  useLayoutEffect(() => {
+    if (latestNamespaceRef.current === namespace) return;
+    latestNamespaceRef.current = namespace;
+    generationRef.current += 1;
+    observedKeyRef.current = null;
+    sessionBoundaryRef.current = false;
+    setSessionBoundaryPending(false);
+    setLockState(null);
+  }, [namespace]);
 
   const refresh = useCallback(async (signal?: AbortSignal): Promise<CatalogRefreshResult> => {
     const response = await fetch("/api/exams", { cache: "no-store", signal });
@@ -92,19 +104,17 @@ export function ExamLockdownOverlay({
     sessionBoundaryRef.current = true;
     const generation = ++generationRef.current;
     setSessionBoundaryPending(true);
-    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
     try {
-      repository = await openBrowserOutbox();
-      await purgeBrowserRecoveryData({
-        ...(namespace ? { namespace } : {}),
-        repository,
-        sessionStorage: window.sessionStorage,
-        localStorage: window.localStorage,
-      });
+      await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+        purgeBrowserRecoveryData({
+          ...(namespace ? { namespace } : {}),
+          repository,
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+        })
+      ));
     } catch {
       // The anonymous login gate retries cleanup before exposing credentials.
-    } finally {
-      repository?.close();
     }
     if (generationRef.current === generation) navigate("/login");
   }, [namespace, navigate]);
@@ -119,14 +129,14 @@ export function ExamLockdownOverlay({
       return;
     }
 
-    let repository: Awaited<ReturnType<typeof openBrowserOutbox>> | null = null;
     try {
-      repository = await openBrowserOutbox();
-      await purgeDraftRecoveryData({
-        namespace,
-        repository,
-        sessionStorage: window.sessionStorage,
-      });
+      await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+        purgeDraftRecoveryData({
+          namespace,
+          repository,
+          sessionStorage: window.sessionStorage,
+        })
+      ));
       if (generationRef.current === generation) {
         setLockState({ exam, cleanup: "ready" });
       }
@@ -134,8 +144,6 @@ export function ExamLockdownOverlay({
       if (generationRef.current === generation) {
         setLockState({ exam, cleanup: "error" });
       }
-    } finally {
-      repository?.close();
     }
   }, [namespace]);
 

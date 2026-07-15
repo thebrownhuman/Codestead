@@ -11,6 +11,7 @@ const durability = vi.hoisted(() => ({
   prepareNamespace: vi.fn(),
   signOutCleanup: vi.fn(),
   close: vi.fn(),
+  withRepository: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
@@ -20,6 +21,7 @@ vi.mock("@/lib/browser-durability/indexed-db", () => ({
 }));
 vi.mock("@/lib/browser-durability/lifecycle", () => ({
   prepareBrowserRecoveryNamespace: durability.prepareNamespace,
+  withBrowserRecoveryRepository: durability.withRepository,
 }));
 vi.mock("@/lib/drafts/logout", () => ({
   signOutWithBrowserDurabilityCleanup: durability.signOutCleanup,
@@ -40,6 +42,26 @@ describe("AppShell compact navigation", () => {
     durability.openBrowserOutbox.mockResolvedValue({ close: durability.close });
     durability.prepareNamespace.mockResolvedValue(undefined);
     durability.signOutCleanup.mockResolvedValue({ cleanupSucceeded: true });
+    durability.withRepository.mockImplementation(async (
+      openRepository: () => Promise<{ close(): void }>,
+      operation: (repository: { close(): void }) => Promise<unknown>,
+    ) => {
+      let unavailable = false;
+      let repository: { close(): void };
+      try {
+        repository = await openRepository();
+      } catch {
+        unavailable = true;
+        repository = { close: vi.fn() };
+      }
+      try {
+        const result = await operation(repository);
+        if (unavailable) throw new Error("Browser recovery IndexedDB is unavailable.");
+        return result;
+      } finally {
+        if (!unavailable) repository.close();
+      }
+    });
     localStorage.clear();
     document.documentElement.removeAttribute("data-interface-theme");
     document.documentElement.removeAttribute("data-navigation-open");
@@ -104,6 +126,35 @@ describe("AppShell compact navigation", () => {
     expect(await screen.findByText("Private lesson editor")).toBeInTheDocument();
     expect(durability.openBrowserOutbox).toHaveBeenCalledTimes(2);
     expect(durability.close).toHaveBeenCalledTimes(2);
+  });
+
+  it("attempts every preparation layer when repository open fails and retries acquisition", async () => {
+    durability.openBrowserOutbox
+      .mockRejectedValueOnce(new Error("IndexedDB open failed"))
+      .mockResolvedValueOnce({ close: durability.close });
+    const user = userEvent.setup();
+    render(
+      <AppShell browserDurabilityNamespace="namespace-current">
+        <p>Private lesson editor</p>
+      </AppShell>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /could not prepare private browser recovery storage/i,
+    );
+    expect(durability.prepareNamespace).toHaveBeenCalledOnce();
+    expect(durability.prepareNamespace).toHaveBeenCalledWith(expect.objectContaining({
+      namespace: "namespace-current",
+      repository: expect.any(Object),
+      sessionStorage: window.sessionStorage,
+      localStorage: window.localStorage,
+    }));
+    expect(screen.queryByText("Private lesson editor")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry browser storage cleanup" }));
+    expect(await screen.findByText("Private lesson editor")).toBeInTheDocument();
+    expect(durability.openBrowserOutbox).toHaveBeenCalledTimes(2);
+    expect(durability.prepareNamespace).toHaveBeenCalledTimes(2);
   });
 
   it("keeps demo mode usable without opening authenticated browser storage", () => {

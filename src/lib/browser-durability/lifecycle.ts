@@ -49,10 +49,15 @@ type BoundaryEnvelope = Readonly<{
 export type BrowserRecoveryWriteFence = Readonly<{
   scope: BrowserRecoveryWriteScope;
   snapshot: ReadonlyArray<readonly [string, string | null]>;
+  memorySnapshot: ReadonlyArray<readonly [string, number]>;
 }>;
 
 export type BrowserRecoveryBoundaryContext = Readonly<{
   subscribe(listener: (boundary: BrowserRecoveryBoundary) => void): () => void;
+  subscribeAfterFence(
+    fence: BrowserRecoveryWriteFence,
+    listener: (boundary: BrowserRecoveryBoundary) => void,
+  ): () => void;
   captureWriteFence(scope: BrowserRecoveryWriteScope): BrowserRecoveryWriteFence;
   isWriteFenceCurrent(fence: BrowserRecoveryWriteFence): boolean;
   guardWrite<T>(
@@ -70,6 +75,7 @@ export type BrowserRecoveryBoundaryContext = Readonly<{
 
 const CHANNEL_NAME = "codestead-browser-recovery-boundary-v1";
 const TOMBSTONE_PREFIX = "codestead:browser-recovery-boundary:v1:";
+const GLOBAL_COMPACTION_KEY = "codestead:browser-recovery-compaction:v1";
 const SESSION_GENERATION_PREFIX = "codestead:browser-recovery-session:v1:";
 const ENVELOPE_KEYS = [
   "boundary",
@@ -82,6 +88,21 @@ const ENVELOPE_KEYS = [
 ] as const;
 const SOURCE_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const NONCE_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
+const COMPACTION_KEYS = [
+  "globalNonce",
+  "origin",
+  "phase",
+  "schemaVersion",
+  "sourceId",
+] as const;
+
+type GlobalCompactionState = Readonly<{
+  schemaVersion: 1;
+  origin: string;
+  phase: "active" | "complete";
+  globalNonce: string;
+  sourceId: string;
+}>;
 
 const fenceOwners = new WeakMap<object, BrowserRecoveryBoundaryContext>();
 
@@ -129,6 +150,7 @@ function tombstoneKey(boundary: BrowserRecoveryBoundary) {
 
 function relevantTombstoneKeys(scope: BrowserRecoveryWriteScope) {
   const keys = [
+    GLOBAL_COMPACTION_KEY,
     tombstoneKey({ kind: "all" }),
     tombstoneKey({ kind: "namespace", namespace: scope.namespace }),
   ];
@@ -148,22 +170,70 @@ function sessionGenerationKey(namespace: string) {
   return `${SESSION_GENERATION_PREFIX}${encodeURIComponent(namespace)}`;
 }
 
-function pruneScopedTombstones(storage: Storage) {
+function snapshotScopedTombstones(storage: Storage) {
   const globalKey = tombstoneKey({ kind: "all" });
-  const keys: string[] = [];
+  const snapshot = new Map<string, string>();
   for (let index = 0; index < storage.length; index += 1) {
     const key = storage.key(index);
-    if (key?.startsWith(TOMBSTONE_PREFIX) && key !== globalKey) keys.push(key);
+    if (!key?.startsWith(TOMBSTONE_PREFIX) || key === globalKey) continue;
+    const raw = storage.getItem(key);
+    if (raw !== null) snapshot.set(key, raw);
   }
+  return [...snapshot.entries()] as Array<readonly [string, string]>;
+}
+
+function pruneScopedTombstones(
+  storage: Storage,
+  snapshot: ReadonlyArray<readonly [string, string]>,
+) {
   let failed = false;
-  for (const key of keys) {
+  for (const [key, raw] of snapshot) {
     try {
-      storage.removeItem(key);
+      if (storage.getItem(key) === raw) storage.removeItem(key);
     } catch {
       failed = true;
     }
   }
   if (failed) throw new Error("Browser recovery tombstone compaction failed.");
+}
+
+function parseGlobalCompactionState(
+  raw: string | null,
+  expectedOrigin: string,
+): GlobalCompactionState | null {
+  if (typeof raw !== "string" || raw.length < 2 || raw.length > 2_048) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const state = parsed as Record<string, unknown>;
+  const keys = Object.keys(state).sort();
+  if (keys.length !== COMPACTION_KEYS.length
+    || !COMPACTION_KEYS.every((key, index) => keys[index] === key)) return null;
+  if (state.schemaVersion !== 1
+    || state.origin !== expectedOrigin
+    || (state.phase !== "active" && state.phase !== "complete")
+    || typeof state.globalNonce !== "string"
+    || !NONCE_PATTERN.test(state.globalNonce)
+    || typeof state.sourceId !== "string"
+    || !SOURCE_ID_PATTERN.test(state.sourceId)) return null;
+  return state as GlobalCompactionState;
+}
+
+function compactionAllowsWrites(storage: Storage, origin: string) {
+  const raw = storage.getItem(GLOBAL_COMPACTION_KEY);
+  if (raw === null) return true;
+  const state = parseGlobalCompactionState(raw, origin);
+  if (!state || state.phase !== "complete") return false;
+  const globalEnvelope = parseEnvelope(
+    storage.getItem(tombstoneKey({ kind: "all" })),
+    origin,
+  );
+  return globalEnvelope?.boundary.kind === "all"
+    && globalEnvelope.nonce === state.globalNonce;
 }
 
 function parseEnvelope(raw: unknown, expectedOrigin: string): BoundaryEnvelope | null {
@@ -248,10 +318,21 @@ export function createBrowserRecoveryBoundaryContext(input: {
   const channel = input.channel === undefined ? createNativeChannel() : input.channel;
   const subscribers = new Set<(boundary: BrowserRecoveryBoundary) => void>();
   const seenNonces = new Set<string>();
+  const memoryEpochs = new Map<string, number>();
+  let memoryEpoch = 0;
   let closed = false;
 
   const snapshot = (scope: BrowserRecoveryWriteScope) => relevantTombstoneKeys(scope)
     .map((key) => [key, input.localStorage.getItem(key)] as const);
+
+  const memorySnapshot = (scope: BrowserRecoveryWriteScope) => relevantTombstoneKeys(scope)
+    .map((key) => [key, memoryEpochs.get(key) ?? 0] as const);
+
+  const advanceMemoryBoundary = (boundary: BrowserRecoveryBoundary) => {
+    memoryEpoch += 1;
+    if (boundary.kind === "all") memoryEpochs.clear();
+    memoryEpochs.set(tombstoneKey(boundary), memoryEpoch);
+  };
 
   const sessionFingerprint = (namespace: string) => JSON.stringify(snapshot({
     kind: "drafts",
@@ -327,17 +408,34 @@ export function createBrowserRecoveryBoundaryContext(input: {
       subscribers.add(listener);
       return () => subscribers.delete(listener);
     },
+    subscribeAfterFence(fence, listener) {
+      if (closed) throw new Error("Browser recovery boundary context is closed.");
+      if (fenceOwners.get(fence) !== context) {
+        throw new Error("Browser recovery write fence belongs to another context.");
+      }
+      return context.subscribe((boundary) => {
+        if (!context.isWriteFenceCurrent(fence)) listener(boundary);
+      });
+    },
     captureWriteFence(scope) {
       if (closed) throw new Error("Browser recovery boundary context is closed.");
       requireWriteScope(scope);
       if (scope.kind === "drafts") reconcileDraftSession(scope.namespace);
-      const fence: BrowserRecoveryWriteFence = { scope, snapshot: snapshot(scope) };
+      const fence: BrowserRecoveryWriteFence = {
+        scope,
+        snapshot: snapshot(scope),
+        memorySnapshot: memorySnapshot(scope),
+      };
       fenceOwners.set(fence, context);
       return fence;
     },
     isWriteFenceCurrent(fence) {
       if (closed || fenceOwners.get(fence) !== context) return false;
-      return fence.snapshot.every(([key, value]) => input.localStorage.getItem(key) === value);
+      return compactionAllowsWrites(input.localStorage, input.origin)
+        && fence.snapshot.every(([key, value]) => input.localStorage.getItem(key) === value)
+        && fence.memorySnapshot.every(([key, value]) => (
+          (memoryEpochs.get(key) ?? 0) === value
+        ));
     },
     async guardWrite<T>(fence: BrowserRecoveryWriteFence, operation: () => Promise<T>, rollback: () => unknown | Promise<unknown>) {
       if (!context.isWriteFenceCurrent(fence)) throw boundaryClosedError();
@@ -374,10 +472,13 @@ export function createBrowserRecoveryBoundaryContext(input: {
     },
     publish(boundary) {
       requireBoundary(boundary);
+      advanceMemoryBoundary(boundary);
       const failed = new Set<CleanupLayer>();
       const key = tombstoneKey(boundary);
       let raw = "";
       let envelope: BoundaryEnvelope;
+      let scopedSnapshot: ReadonlyArray<readonly [string, string]> = [];
+      let activeCompactionRaw: string | null = null;
       try {
         const previousRaw = input.localStorage.getItem(key);
         const previous = parseEnvelope(previousRaw, input.origin);
@@ -394,6 +495,20 @@ export function createBrowserRecoveryBoundaryContext(input: {
           boundary,
         };
         raw = JSON.stringify(envelope);
+        if (boundary.kind === "all") {
+          scopedSnapshot = snapshotScopedTombstones(input.localStorage);
+          activeCompactionRaw = JSON.stringify({
+            schemaVersion: 1,
+            origin: input.origin,
+            phase: "active",
+            globalNonce: envelope.nonce,
+            sourceId,
+          } satisfies GlobalCompactionState);
+          input.localStorage.setItem(GLOBAL_COMPACTION_KEY, activeCompactionRaw);
+          if (input.localStorage.getItem(GLOBAL_COMPACTION_KEY) !== activeCompactionRaw) {
+            throw new Error("Browser recovery compaction did not start durably.");
+          }
+        }
         input.localStorage.setItem(key, raw);
         if (input.localStorage.getItem(key) !== raw) {
           throw new Error("Browser recovery boundary was not durably stored.");
@@ -415,7 +530,18 @@ export function createBrowserRecoveryBoundaryContext(input: {
       }
       if (boundary.kind === "all") {
         try {
-          pruneScopedTombstones(input.localStorage);
+          pruneScopedTombstones(input.localStorage, scopedSnapshot);
+          const completeCompactionRaw = JSON.stringify({
+            schemaVersion: 1,
+            origin: input.origin,
+            phase: "complete",
+            globalNonce: envelope!.nonce,
+            sourceId,
+          } satisfies GlobalCompactionState);
+          input.localStorage.setItem(GLOBAL_COMPACTION_KEY, completeCompactionRaw);
+          if (input.localStorage.getItem(GLOBAL_COMPACTION_KEY) !== completeCompactionRaw) {
+            throw new Error("Browser recovery compaction did not finish durably.");
+          }
         } catch {
           failed.add("local-storage");
         }
@@ -478,6 +604,15 @@ export function subscribeBrowserRecoveryBoundary(
   return defaultContext().subscribe(listener);
 }
 
+export function subscribeBrowserRecoveryBoundaryAfterFence(
+  fence: BrowserRecoveryWriteFence,
+  listener: (boundary: BrowserRecoveryBoundary) => void,
+): () => void {
+  const owner = fenceOwners.get(fence);
+  if (!owner) throw boundaryClosedError();
+  return owner.subscribeAfterFence(fence, listener);
+}
+
 export function captureBrowserRecoveryWriteFence(
   scope: BrowserRecoveryWriteScope,
 ): BrowserRecoveryWriteFence {
@@ -508,6 +643,48 @@ export function guardSynchronousBrowserRecoveryWrite<T>(
   const owner = fenceOwners.get(fence);
   if (!owner) throw boundaryClosedError();
   return owner.guardSynchronousWrite(fence, operation, rollback);
+}
+
+function unavailableBrowserOutboxRepository(): BrowserOutboxRepository {
+  const unavailable = async (): Promise<never> => {
+    throw new Error("Browser recovery IndexedDB is unavailable.");
+  };
+  return {
+    getDraft: unavailable,
+    putDraft: unavailable,
+    deleteDraftIfMutation: unavailable,
+    listExamAnswers: unavailable,
+    putExamAnswer: unavailable,
+    deleteExamAnswerIfMutation: unavailable,
+    listExamEvents: unavailable,
+    putExamEvent: unavailable,
+    deleteExamEvent: unavailable,
+    clearExamSession: unavailable,
+    clearDrafts: unavailable,
+    clearNamespace: unavailable,
+    clearForeignNamespaces: unavailable,
+    clearAll: unavailable,
+    close: () => undefined,
+  } satisfies BrowserOutboxRepository;
+}
+
+export async function withBrowserRecoveryRepository<T>(
+  openRepository: () => Promise<BrowserOutboxRepository>,
+  operation: (repository: BrowserOutboxRepository) => Promise<T>,
+): Promise<T> {
+  let openedRepository: BrowserOutboxRepository | null = null;
+  let repository: BrowserOutboxRepository;
+  try {
+    openedRepository = await openRepository();
+    repository = openedRepository;
+  } catch {
+    repository = unavailableBrowserOutboxRepository();
+  }
+  try {
+    return await operation(repository);
+  } finally {
+    openedRepository?.close();
+  }
 }
 
 async function runCleanupLayers(

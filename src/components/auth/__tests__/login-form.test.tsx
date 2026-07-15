@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   openBrowserOutbox: vi.fn(),
   purgeRecovery: vi.fn(),
   close: vi.fn(),
+  withRepository: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -32,6 +33,7 @@ vi.mock("@/lib/browser-durability/indexed-db", () => ({
 }));
 vi.mock("@/lib/browser-durability/lifecycle", () => ({
   purgeBrowserRecoveryData: mocks.purgeRecovery,
+  withBrowserRecoveryRepository: mocks.withRepository,
 }));
 
 import { LoginForm } from "../login-form";
@@ -54,6 +56,26 @@ describe("login session resume guard", () => {
     mocks.purgeRecovery.mockReset();
     mocks.openBrowserOutbox.mockResolvedValue({ close: mocks.close });
     mocks.purgeRecovery.mockResolvedValue(undefined);
+    mocks.withRepository.mockImplementation(async (
+      openRepository: () => Promise<{ close(): void }>,
+      operation: (repository: { close(): void }) => Promise<unknown>,
+    ) => {
+      let unavailable = false;
+      let repository: { close(): void };
+      try {
+        repository = await openRepository();
+      } catch {
+        unavailable = true;
+        repository = { close: vi.fn() };
+      }
+      try {
+        const result = await operation(repository);
+        if (unavailable) throw new Error("Browser recovery IndexedDB is unavailable.");
+        return result;
+      } finally {
+        if (!unavailable) repository.close();
+      }
+    });
   });
 
   it("replaces the login page when the browser already has a valid session", async () => {
@@ -114,6 +136,30 @@ describe("login session resume guard", () => {
     expect(await screen.findByLabelText("Email address")).toBeEnabled();
     expect(mocks.openBrowserOutbox).toHaveBeenCalledTimes(2);
     expect(mocks.close).toHaveBeenCalledTimes(2);
+  });
+
+  it("still publishes anonymous cleanup when repository open fails and retries acquisition", async () => {
+    mocks.openBrowserOutbox
+      .mockRejectedValueOnce(new Error("IndexedDB open failed"))
+      .mockResolvedValueOnce({ close: mocks.close });
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /could not clean private browser recovery storage/i,
+    );
+    expect(mocks.purgeRecovery).toHaveBeenCalledOnce();
+    expect(mocks.purgeRecovery).toHaveBeenCalledWith(expect.objectContaining({
+      repository: expect.any(Object),
+      sessionStorage: window.sessionStorage,
+      localStorage: window.localStorage,
+    }));
+    expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry browser storage cleanup" }));
+    expect(await screen.findByLabelText("Email address")).toBeEnabled();
+    expect(mocks.openBrowserOutbox).toHaveBeenCalledTimes(2);
+    expect(mocks.purgeRecovery).toHaveBeenCalledTimes(2);
   });
 
   it("checks again when browser Back restores the login page from cache", async () => {

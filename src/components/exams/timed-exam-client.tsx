@@ -25,7 +25,10 @@ import {
   openBrowserOutbox,
   type BrowserOutboxRepository,
 } from "@/lib/browser-durability/indexed-db";
-import { purgeBrowserRecoveryData } from "@/lib/browser-durability/lifecycle";
+import {
+  purgeBrowserRecoveryData,
+  withBrowserRecoveryRepository,
+} from "@/lib/browser-durability/lifecycle";
 import { useDraftCacheNamespace } from "@/lib/drafts/browser-cache-context";
 import type {
   ClientExamEventType,
@@ -872,6 +875,7 @@ function ExamRepositoryBoundary({
 }) {
   const [repository, setRepository] = useState<BrowserOutboxRepository | null>(null);
   const [repositoryError, setRepositoryError] = useState(false);
+  const [repositoryAttempt, setRepositoryAttempt] = useState(0);
   const [recoveryAttempt, setRecoveryAttempt] = useState(0);
 
   useEffect(() => {
@@ -891,7 +895,7 @@ function ExamRepositoryBoundary({
       cancelled = true;
       opened?.close();
     };
-  }, [exam.sessionId, namespace]);
+  }, [exam.sessionId, namespace, repositoryAttempt]);
 
   if (repositoryError) {
     return (
@@ -899,6 +903,17 @@ function ExamRepositoryBoundary({
         <AlertCircle size={24} />
         <h1>Exam recovery unavailable</h1>
         <p>Codestead could not open private browser recovery for this exam. Editable controls remain disabled.</p>
+        <button
+          className="button button-secondary"
+          onClick={() => {
+            setRepositoryError(false);
+            setRepository(null);
+            setRepositoryAttempt((value) => value + 1);
+          }}
+          type="button"
+        >
+          Retry browser storage cleanup
+        </button>
       </div>
     );
   }
@@ -956,19 +971,17 @@ export function TimedExamClient({
     const current = authBoundaryRef.current;
     if (current?.namespace === capturedNamespace) return current.promise;
     const promise = (async () => {
-      let cleanupRepository: BrowserOutboxRepository | null = null;
       try {
-        cleanupRepository = await openBrowserOutbox();
-        await purgeBrowserRecoveryData({
-          ...(capturedNamespace ? { namespace: capturedNamespace } : {}),
-          sessionStorage: window.sessionStorage,
-          localStorage: window.localStorage,
-          repository: cleanupRepository,
-        });
+        await withBrowserRecoveryRepository(openBrowserOutbox, (repository) => (
+          purgeBrowserRecoveryData({
+            ...(capturedNamespace ? { namespace: capturedNamespace } : {}),
+            sessionStorage: window.sessionStorage,
+            localStorage: window.localStorage,
+            repository,
+          })
+        ));
       } catch {
         // The anonymous login gate retries cleanup before exposing credentials.
-      } finally {
-        cleanupRepository?.close();
       }
       if (latestNamespaceRef.current === capturedNamespace) {
         setRedirecting(true);
