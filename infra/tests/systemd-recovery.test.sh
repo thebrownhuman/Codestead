@@ -54,7 +54,7 @@ directive_is_exact() {
   if ! systemd_syntax_is_canonical "$file"; then
     return 1
   fi
-  while IFS= read -r line; do
+  while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%$'\r'}"
     if [[ -z "$line" || "$line" == \#* || "$line" == \;* ]]; then
       continue
@@ -285,6 +285,8 @@ standalone_comment_backslash_unit="$parser_work/standalone-comment-backslash.ser
 hidden_exec_unit="$parser_work/hidden-exec.service"
 hidden_restart_unit="$parser_work/hidden-restart.service"
 hidden_persistent_timer="$parser_work/hidden-persistent.timer"
+unterminated_restart_unit="$parser_work/unterminated-restart.service"
+unterminated_persistent_timer="$parser_work/unterminated-persistent.timer"
 cp "$compose_unit" "$mutated_compose_unit"
 cp "$repo_root/infra/systemd/learncoding-backup.timer" "$mutated_timer"
 cp "$compose_unit" "$comment_mutated_compose_unit"
@@ -350,6 +352,10 @@ printf '%s\n' \
   'Description=noncanonical continuation \' \
   '# ignored comment block' \
   'Persistent=false' >>"$hidden_persistent_timer"
+cp "$compose_unit" "$unterminated_restart_unit"
+printf '%s' $'\n[Service]\nRestart=no' >>"$unterminated_restart_unit"
+cp "$repo_root/infra/systemd/learncoding-backup.timer" "$unterminated_persistent_timer"
+printf '%s' $'\n[Timer]\nPersistent=false' >>"$unterminated_persistent_timer"
 
 expect_mutation_rejected \
   "$spaced_section_unit" Service ExecStart \
@@ -382,6 +388,12 @@ expect_mutation_rejected \
 expect_mutation_rejected \
   "$hidden_persistent_timer" Timer Persistent true \
   'systemd parser hid an unsafe Persistent value after a continuation/comment block'
+expect_mutation_rejected \
+  "$unterminated_restart_unit" Service Restart on-failure \
+  'systemd parser skipped an unsafe unterminated final Restart directive'
+expect_mutation_rejected \
+  "$unterminated_persistent_timer" Timer Persistent true \
+  'systemd parser skipped an unsafe unterminated final Persistent directive'
 
 expect_mutation_rejected \
   "$mutated_compose_unit" Service ExecStart \
