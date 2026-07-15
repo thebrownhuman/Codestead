@@ -475,18 +475,24 @@ export function useSyncedDraft({
     }
 
     if (deletionResult === false) {
-      let durableWinner: DraftOutboxRecord | null = null;
+      let durableWinner: DraftOutboxRecord | null;
       try {
         durableWinner = await (repository ?? await ensureRepository(runtime)).getDraft(
           runtime.namespace,
           runtime.key,
         );
       } catch {
-        durableWinner = null;
+        if (isCurrent(runtime)) {
+          runtime.pendingConflict = true;
+          setServerCopy(body.draft);
+          transition(runtime, "conflict-recovery");
+        }
+        return;
       }
       if (!isCurrent(runtime)) return;
       runtime.networkMutation = null;
-      if (durableWinner && durableWinner.requestId !== sent.requestId) {
+      if (isRuntimeDraftRecord(runtime, durableWinner)
+        && durableWinner.requestId !== sent.requestId) {
         runtime.latestMutation = {
           record: durableWinner,
           sequence: runtime.nextSequence,
@@ -499,8 +505,9 @@ export function useSyncedDraft({
         transition(runtime, "conflict");
         return;
       }
-      runtime.latestMutation = null;
-      transition(runtime, "unavailable");
+      runtime.pendingConflict = true;
+      setServerCopy(body.draft);
+      transition(runtime, "conflict-recovery");
       return;
     }
 
@@ -587,11 +594,14 @@ export function useSyncedDraft({
         }
         return;
       }
-      const validatedConflictCopy = body.code === "DRAFT_VERSION_CONFLICT"
+      const namespaceMatches = body.cacheNamespace === runtime.namespace;
+      const validatedConflictCopy = namespaceMatches
+        && body.code === "DRAFT_VERSION_CONFLICT"
         && isServerDraft(body.current, runtime.key)
         ? body.current
         : null;
       if (response.status === 409 && validatedConflictCopy) {
+        runtime.authorized = true;
         runtime.networkMutation = null;
         runtime.retryIndex = 0;
         clearTimer(runtime);
@@ -607,6 +617,7 @@ export function useSyncedDraft({
         return;
       }
       if (response.status === 409 && body.code === "DRAFT_IDEMPOTENCY_MISMATCH") {
+        runtime.authorized = false;
         runtime.networkMutation = null;
         runtime.retryIndex = 0;
         runtime.pendingConflict = false;
@@ -622,6 +633,7 @@ export function useSyncedDraft({
         return;
       }
       if (response.status === 409 && body.code === "DRAFT_QUOTA_EXCEEDED") {
+        runtime.authorized = false;
         runtime.retryIndex = 0;
         runtime.pendingConflict = false;
         clearTimer(runtime);
@@ -641,6 +653,7 @@ export function useSyncedDraft({
         return;
       }
       if (response.status === 409) {
+        runtime.authorized = false;
         runtime.pendingConflict = false;
         setServerCopy(null);
         scheduleRetry(runtime);
@@ -919,7 +932,10 @@ export function useSyncedDraft({
       setServerCopy(null);
       transition(runtime, "synced");
     }).catch(() => {
-      if (isCurrent(runtime)) transition(runtime, "conflict");
+      if (isCurrent(runtime) && runtime.latestMutation === currentMutation) {
+        runtime.pendingConflict = true;
+        transition(runtime, "conflict-recovery");
+      }
     });
   }, [applyDraft, ensureRepository, isCurrent, serverCopy, transition]);
 
@@ -953,24 +969,52 @@ export function useSyncedDraft({
     }
     if (statusRef.current === "idempotency-mismatch"
       && runtime
-      && isCurrent(runtime)) {
+      && isCurrent(runtime)
+      && !runtime.networkActive) {
       const current = draftRef.current;
-      if (!current) return;
-      const renewed: CachedLearnerDraft = {
-        ...current,
-        requestId: newRequestId(),
-        locallyUpdatedAt: new Date().toISOString(),
-        dirty: true,
-      };
-      let record: DraftOutboxRecord;
-      try {
-        record = cachedDraftToOutbox(runtime.namespace, runtime.key, renewed);
-      } catch {
-        transition(runtime, "local-save-error");
-        return;
-      }
-      applyDraft(runtime, renewed);
-      void enqueueRecord(runtime, record);
+      const currentMutation = runtime.latestMutation;
+      if (!current || !currentMutation) return;
+      clearTimer(runtime);
+      runtime.networkActive = true;
+      void (async () => {
+        let resumeNewerMutation = false;
+        try {
+          const context = await fetchContext(runtime);
+          if (!isCurrent(runtime) || context.kind === "terminal") return;
+          if (context.kind === "retryable") {
+            if (runtime.latestMutation === currentMutation) {
+              transition(runtime, "idempotency-mismatch");
+            }
+            return;
+          }
+          if (runtime.latestMutation !== currentMutation) {
+            resumeNewerMutation = true;
+            return;
+          }
+          const renewed: CachedLearnerDraft = {
+            ...current,
+            requestId: newRequestId(),
+            locallyUpdatedAt: new Date().toISOString(),
+            dirty: true,
+          };
+          let record: DraftOutboxRecord;
+          try {
+            record = cachedDraftToOutbox(runtime.namespace, runtime.key, renewed);
+          } catch {
+            transition(runtime, "local-save-error");
+            return;
+          }
+          applyDraft(runtime, renewed);
+          void enqueueRecord(runtime, record);
+        } finally {
+          if (isCurrent(runtime)) {
+            runtime.networkActive = false;
+            if (resumeNewerMutation && runtime.networkMutation) {
+              scheduleAttempt(runtime, 0);
+            }
+          }
+        }
+      })();
       return;
     }
     if (statusRef.current === "quota-exceeded"
@@ -1002,7 +1046,15 @@ export function useSyncedDraft({
     if (statusRef.current === "unavailable") {
       setLoadRetryTick((value) => value + 1);
     }
-  }, [applyDraft, chooseServerCopy, enqueueRecord, isCurrent, transition]);
+  }, [
+    applyDraft,
+    chooseServerCopy,
+    enqueueRecord,
+    fetchContext,
+    isCurrent,
+    scheduleAttempt,
+    transition,
+  ]);
 
   return {
     content: draft?.content ?? initialContent,

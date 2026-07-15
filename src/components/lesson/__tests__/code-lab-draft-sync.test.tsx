@@ -180,6 +180,7 @@ const staleNetworkOutcomes = [
       request.resolve(json({
         code: "DRAFT_VERSION_CONFLICT",
         current: { ...serverDraft, content: "newer_server = 9\n", rowVersion: 1 },
+        cacheNamespace: namespace,
       }, 409));
     },
   },
@@ -748,6 +749,52 @@ describe("CodeLab authoritative draft synchronization", () => {
     expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
   });
 
+  it("blocks after acknowledgement cleanup loses and reread fails, then adopts the durable winner", async () => {
+    const externalWinner = outbox({
+      content: "ack_external_winner = 3\n",
+      requestId: "10000000-0000-4000-8000-000000000096",
+    });
+    const repository = installRepository({
+      getDraft: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockRejectedValueOnce(new Error("winner reread failed"))
+        .mockResolvedValueOnce(externalWinner),
+      deleteDraftIfMutation: vi.fn()
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false),
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return successfulPut(String(body.content), 1);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "acknowledged_stale_a = 1\n" } });
+    await screen.findByText(/another browser changed this draft/i);
+
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict-recovery");
+    expect(editor).toHaveValue("acknowledged_stale_a = 1\n");
+    expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Keep my draft" })).not.toBeInTheDocument();
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledWith(
+      namespace,
+      key,
+      putBodies(fetchMock)[0]?.requestId,
+    );
+
+    fireEvent.change(editor, { target: { value: "must_not_replace_external_c = 2\n" } });
+    expect(editor).toHaveValue("acknowledged_stale_a = 1\n");
+    await userEvent.click(screen.getByRole("button", { name: "Reload browser draft" }));
+    await waitFor(() => expect(editor).toHaveValue("ack_external_winner = 3\n"));
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    expect(screen.getByRole("button", { name: "Keep my draft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(2);
+  });
+
   it("rebases an edit queued while acknowledgement cleanup is settling", async () => {
     const cleanup = deferred<boolean>();
     const newerLocalCommit = deferred<void>();
@@ -1126,6 +1173,12 @@ describe("CodeLab authoritative draft synchronization", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Retry with fresh request" }));
     await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(fetchMock.mock.calls.map(([, init]) => init?.method)).toEqual([
+      "GET",
+      "PUT",
+      "GET",
+      "PUT",
+    ]);
     expect(putBodies(fetchMock)[1]).toMatchObject({ content: "fresh_identity_needed = true\n" });
     expect(putBodies(fetchMock)[1]?.requestId).not.toBe(putBodies(fetchMock)[0]?.requestId);
     expect(maximumActivePuts).toBe(1);
@@ -1177,6 +1230,12 @@ describe("CodeLab authoritative draft synchronization", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
     await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(fetchMock.mock.calls.map(([, init]) => init?.method)).toEqual([
+      "GET",
+      "PUT",
+      "GET",
+      "PUT",
+    ]);
     expect(putBodies(fetchMock)[1]).toEqual(putBodies(fetchMock)[0]);
     expect(maximumActivePuts).toBe(1);
     expect(repository.deleteDraftIfMutation).not.toHaveBeenCalled();
@@ -1184,6 +1243,60 @@ describe("CodeLab authoritative draft synchronization", () => {
     await act(async () => acknowledgement.resolve(successfulPut("quota_safe_browser_copy = true\n", 1)));
     await screen.findByText("Saved to Codestead.");
   });
+
+  it.each([
+    {
+      action: "Retry with fresh request",
+      code: "DRAFT_IDEMPOTENCY_MISMATCH",
+      status: "idempotency-mismatch",
+    },
+    {
+      action: "Retry sync",
+      code: "DRAFT_QUOTA_EXCEEDED",
+      status: "quota-exceeded",
+    },
+    {
+      action: "Retry sync",
+      code: "UNRECOGNIZED_DRAFT_CONFLICT",
+      status: "offline-saved-local",
+    },
+  ])(
+    "does not resend a durable $code mutation after recovery GET returns another namespace",
+    async ({ action, code, status }) => {
+      const repository = installRepository();
+      let gets = 0;
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+        if (init?.method === "GET") {
+          gets += 1;
+          return json({
+            draft: null,
+            cacheNamespace: gets === 1 ? namespace : "rotated-session-namespace",
+          });
+        }
+        return json({ code, error: "The request cannot be reconciled yet." }, 409);
+      });
+
+      const view = renderLab();
+      const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+      await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+      fireEvent.change(editor, { target: { value: "must_stay_in_original_namespace = true\n" } });
+      await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", status));
+      expect(repository.putDraft).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(screen.getByRole("button", { name: action }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+      expect(fetchMock.mock.calls.map(([, init]) => init?.method)).toEqual([
+        "GET",
+        "PUT",
+        "GET",
+      ]);
+      expect(putBodies(fetchMock)).toHaveLength(1);
+      expect(repository.putDraft).toHaveBeenCalledTimes(1);
+      expect(repository.deleteDraftIfMutation).not.toHaveBeenCalled();
+      expect(editor).toHaveValue("must_stay_in_original_namespace = true\n");
+      view.unmount();
+    },
+  );
 
   it("retries an initial transient load failure even when no local draft exists", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
@@ -1219,6 +1332,43 @@ describe("CodeLab authoritative draft synchronization", () => {
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("GET");
   });
 
+  it.each([
+    { label: "missing", responseNamespace: undefined },
+    { label: "different", responseNamespace: "rotated-session-namespace" },
+  ])(
+    "does not expose a valid server conflict copy with a $label response namespace",
+    async ({ responseNamespace }) => {
+      const repository = installRepository();
+      const newer = { ...serverDraft, content: "must_not_cross_sessions = 99\n", rowVersion: 2 };
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+        if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+        return json({
+          code: "DRAFT_VERSION_CONFLICT",
+          current: newer,
+          ...(responseNamespace ? { cacheNamespace: responseNamespace } : {}),
+        }, 409);
+      });
+
+      const view = renderLab();
+      const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+      await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+      fireEvent.change(editor, { target: { value: "original_session_local = 1\n" } });
+      await waitFor(() => expect(draftNotice()).toHaveAttribute(
+        "data-draft-status",
+        "offline-saved-local",
+      ));
+
+      expect(editor).toHaveValue("original_session_local = 1\n");
+      expect(screen.queryByText(/newer server draft exists/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Keep my draft" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Use server draft" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+      expect(repository.deleteDraftIfMutation).not.toHaveBeenCalled();
+      expect(putBodies(fetchMock)).toHaveLength(1);
+      view.unmount();
+    },
+  );
+
   it("does not overwrite newer server work and lets the learner explicitly rebase local text", async () => {
     const putBodies: Record<string, unknown>[] = [];
     let puts = 0;
@@ -1228,7 +1378,11 @@ describe("CodeLab authoritative draft synchronization", () => {
       puts += 1;
       const input = JSON.parse(String(init?.body)) as Record<string, unknown>;
       putBodies.push(input);
-      if (puts === 1) return json({ code: "DRAFT_VERSION_CONFLICT", current: newer }, 409);
+      if (puts === 1) return json({
+        code: "DRAFT_VERSION_CONFLICT",
+        current: newer,
+        cacheNamespace: namespace,
+      }, 409);
       return json({
         draft: { ...newer, content: input.content as string, rowVersion: 3 },
         committedRowVersion: 3,
@@ -1256,7 +1410,7 @@ describe("CodeLab authoritative draft synchronization", () => {
     const newer = { ...serverDraft, content: "newer_server = 99\n", rowVersion: 2 };
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
-      return json({ code: "DRAFT_VERSION_CONFLICT", current: newer }, 409);
+      return json({ code: "DRAFT_VERSION_CONFLICT", current: newer, cacheNamespace: namespace }, 409);
     });
 
     renderLab();
@@ -1288,7 +1442,11 @@ describe("CodeLab authoritative draft synchronization", () => {
     const newerServer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
-      return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+      return json({
+        code: "DRAFT_VERSION_CONFLICT",
+        current: newerServer,
+        cacheNamespace: namespace,
+      }, 409);
     });
 
     renderLab();
@@ -1337,7 +1495,11 @@ describe("CodeLab authoritative draft synchronization", () => {
       if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
       puts += 1;
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      if (puts === 1) return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+      if (puts === 1) return json({
+        code: "DRAFT_VERSION_CONFLICT",
+        current: newerServer,
+        cacheNamespace: namespace,
+      }, 409);
       return successfulPut(String(body.content), 3);
     });
 
@@ -1379,7 +1541,11 @@ describe("CodeLab authoritative draft synchronization", () => {
     const newerServer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
-      return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+      return json({
+        code: "DRAFT_VERSION_CONFLICT",
+        current: newerServer,
+        cacheNamespace: namespace,
+      }, 409);
     });
 
     renderLab();
@@ -1402,16 +1568,27 @@ describe("CodeLab authoritative draft synchronization", () => {
     expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(3);
   });
 
-  it("keeps the conflict retryable when conditional deletion rejects", async () => {
+  it("hides stale Keep after conditional deletion rejects, then adopts the external winner", async () => {
+    const externalWinner = outbox({
+      content: "winner_after_delete_rejection = 6\n",
+      requestId: "10000000-0000-4000-8000-000000000095",
+    });
     const repository = installRepository({
+      getDraft: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(externalWinner),
       deleteDraftIfMutation: vi.fn()
         .mockRejectedValueOnce(new Error("conditional deletion unavailable"))
-        .mockResolvedValueOnce(true),
+        .mockResolvedValueOnce(false),
     });
     const newerServer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
-      return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+      return json({
+        code: "DRAFT_VERSION_CONFLICT",
+        current: newerServer,
+        cacheNamespace: namespace,
+      }, 409);
     });
 
     renderLab();
@@ -1422,11 +1599,17 @@ describe("CodeLab authoritative draft synchronization", () => {
     await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
     await waitFor(() => expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(1));
     expect(editor).toHaveValue("local_choice = 1\n");
-    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict-recovery");
+    expect(screen.queryByRole("button", { name: "Keep my draft" })).not.toBeInTheDocument();
+    fireEvent.change(editor, { target: { value: "must_not_overwrite_unseen_winner = 2\n" } });
+    expect(editor).toHaveValue("local_choice = 1\n");
 
-    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
-    await waitFor(() => expect(editor).toHaveValue("server_choice = 9\n"));
+    await userEvent.click(screen.getByRole("button", { name: "Reload browser draft" }));
+    await waitFor(() => expect(editor).toHaveValue("winner_after_delete_rejection = 6\n"));
     expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(2);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    expect(screen.getByRole("button", { name: "Keep my draft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
   });
 
   it("keeps an explicit conflict blocked when a newer local commit finishes afterward", async () => {
@@ -1487,7 +1670,7 @@ describe("CodeLab authoritative draft synchronization", () => {
     const newer = { ...serverDraft, content: "authoritative_server = 9\n", rowVersion: 2 };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
-      return json({ code: "DRAFT_VERSION_CONFLICT", current: newer }, 409);
+      return json({ code: "DRAFT_VERSION_CONFLICT", current: newer, cacheNamespace: namespace }, 409);
     });
 
     renderLab();
