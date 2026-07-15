@@ -176,4 +176,59 @@ done
 [[ ! -e "$full/learncoding-full-20260701T120000Z.tar.gz.age" ]]
 [[ ! -e "$full/learncoding-full-20260701T120000Z.tar.gz.age.sha256" ]]
 
+# A separate long-horizon fixture proves all twelve monthly selections and
+# their interaction with a valid marked recovery point outside every tier.
+monthly_root="$work/monthly-backups"
+monthly_full="$monthly_root/full"
+monthly_state="$monthly_root/state"
+mkdir -p "$monthly_full" "$monthly_state"
+chmod 0700 "$monthly_full" "$monthly_state"
+printf '%s\n' LEARNCODING_BACKUP_V1 >"$monthly_root/.learncoding-backup-root"
+chmod 0600 "$monthly_root/.learncoding-backup-root"
+monthly_config="$work/monthly-backup.env"
+cat >"$monthly_config" <<EOF
+BACKUP_ROOT=$monthly_root
+BACKUP_LOCK_FILE=$work/monthly-backup.lock
+FILESYSTEM_WARN_PERCENT=70
+FILESYSTEM_CRITICAL_PERCENT=85
+EOF
+chmod 0600 "$monthly_config"
+
+for ((offset = 0; offset < 15; offset++)); do
+  stamp="$(date -u -d "2026-07-01 -$offset months" +%Y%m%dT120000Z)"
+  name="learncoding-full-$stamp.tar.gz.age"
+  printf 'monthly-%s' "$stamp" >"$monthly_full/$name"
+  archive_hash="$(sha256sum "$monthly_full/$name" | awk '{print $1}')"
+  printf '%s  %s\n' "$archive_hash" "$name" >"$monthly_full/$name.sha256"
+done
+
+monthly_marked=learncoding-full-20240115T120000Z.tar.gz.age
+printf protected-monthly-marker >"$monthly_full/$monthly_marked"
+monthly_marked_hash="$(sha256sum "$monthly_full/$monthly_marked" | awk '{print $1}')"
+printf '%s  %s\n' "$monthly_marked_hash" "$monthly_marked" \
+  >"$monthly_full/$monthly_marked.sha256"
+cat >"$monthly_state/local-last-success.env" <<EOF
+SUCCESS_ARCHIVE=$monthly_marked
+SUCCESS_COMPLETED_UTC=20260720T120001Z
+SUCCESS_SHA256=$monthly_marked_hash
+EOF
+chmod 0600 "$monthly_state/local-last-success.env"
+
+PATH="$work/bin:$PATH" BACKUP_CONFIG_FILE="$monthly_config" bash "$prune" >/dev/null
+monthly_count="$(find "$monthly_full" -maxdepth 1 -type f \
+  -name 'learncoding-full-*.tar.gz.age' | wc -l | tr -d ' ')"
+[[ "$monthly_count" == 13 ]] \
+  || { echo "retention did not keep exactly twelve months plus the marker" >&2; exit 1; }
+for ((offset = 0; offset < 12; offset++)); do
+  stamp="$(date -u -d "2026-07-01 -$offset months" +%Y%m%dT120000Z)"
+  [[ -f "$monthly_full/learncoding-full-$stamp.tar.gz.age" ]]
+done
+for ((offset = 12; offset < 15; offset++)); do
+  stamp="$(date -u -d "2026-07-01 -$offset months" +%Y%m%dT120000Z)"
+  [[ ! -e "$monthly_full/learncoding-full-$stamp.tar.gz.age" ]]
+  [[ ! -e "$monthly_full/learncoding-full-$stamp.tar.gz.age.sha256" ]]
+done
+[[ -f "$monthly_full/$monthly_marked" \
+  && -f "$monthly_full/$monthly_marked.sha256" ]]
+
 echo "backup-retention-tests-ok"

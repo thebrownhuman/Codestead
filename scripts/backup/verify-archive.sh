@@ -72,9 +72,14 @@ source "$config_file"
 : "${LEARN_DATA_ROOT:=/srv/learncoding}"
 : "${BACKUP_ROOT:?BACKUP_ROOT is required}"
 
-for command_name in age find sha256sum tar; do
+for command_name in age find realpath sha256sum tar; do
   command -v "$command_name" >/dev/null 2>&1 || verification_fail tooling
 done
+
+destination_canonical="$(realpath -m -- "$destination" 2>/dev/null)" \
+  || verification_fail destination
+[[ "$destination_canonical" == "$destination" ]] \
+  || verification_fail destination
 
 protected_roots=("$REPO_ROOT" "$LEARN_DATA_ROOT" "$BACKUP_ROOT")
 if [[ -n "${EMERGENCY_BACKUP_ROOT:-}" ]]; then
@@ -221,7 +226,9 @@ case "$format" in
       practice-runner-recovery-worker project-review-correction-worker
       regrade-worker reward-worker
     )
-    readonly -a optional_services=(clamav scan-worker)
+    readonly -a optional_services=(
+      clamav scan-worker lifecycle platform-seed admin-bootstrap
+    )
     for service in "${image_order[@]}"; do
       known=0
       for allowed in "${required_services[@]}" "${optional_services[@]}"; do
@@ -313,7 +320,8 @@ if ! (cd "$destination" && sha256sum --check --strict --quiet SHA256SUMS) \
 fi
 
 validate_nested_archive() {
-  local nested="$1" schema="$2" nested_name nested_canonical nested_root nested_index nested_type
+  local nested="$1" schema="$2" nested_name nested_canonical nested_index nested_type
+  local nested_permissions nested_lower nested_basename
   local nested_parent
   local nested_names_output nested_verbose_output
   local -a nested_names=() nested_verbose=()
@@ -342,6 +350,13 @@ validate_nested_archive() {
       && "$nested_name" != */.. ]] || return 1
     nested_type="${nested_verbose[$nested_index]:0:1}"
     [[ "$nested_type" == - || "$nested_type" == d ]] || return 1
+    nested_permissions="${nested_verbose[$nested_index]:0:10}"
+    if [[ "$nested_type" == d ]]; then
+      [[ "$nested_permissions" == drwxr-xr-x ]] || return 1
+    else
+      [[ "$nested_permissions" == -rw-r--r-- \
+        || "$nested_permissions" == -rwxr-xr-x ]] || return 1
+    fi
     if [[ "$nested_type" == d ]]; then
       [[ "$nested_name" == */ ]] || return 1
     else
@@ -367,16 +382,68 @@ validate_nested_archive() {
       nested_parent="${nested_parent%/*}"
       nested_has_descendants[$nested_parent]=1
     done
-    nested_root="${nested_canonical%%/*}"
-    case "$schema:$nested_root" in
-      repository:content|repository:drizzle|repository:infra|repository:docs|\
-      repository:compose.yaml|repository:Dockerfile|repository:.dockerignore|\
-      app-data:app-data|\
-      recovery:drizzle|recovery:infra|recovery:docs|recovery:compose.yaml|\
-      recovery:Dockerfile|recovery:.dockerignore) ;;
+    nested_lower="${nested_canonical,,}"
+    nested_basename="${nested_lower##*/}"
+    case "$nested_basename" in
+      .env|.env.*|*.pem|*.key|*credentials*.json|*.eml|*.mbox|*.pst|*.ost)
+        return 1
+        ;;
+    esac
+    case "/$nested_lower/" in
+      */infra/secrets/*|*/infra/cloudflare/config.yml/*|*/mail/*|*/email/*|*mail-backup*)
+        return 1
+        ;;
+    esac
+    case "$schema" in
+      repository)
+        case "$nested_canonical" in
+          .dockerignore|Dockerfile|compose.yaml|content|content/*|drizzle|drizzle/*|\
+          infra|infra/*|docs|docs/deployment.md|docs/runbooks|docs/runbooks/*) ;;
+          *) return 1 ;;
+        esac
+        ;;
+      app-data)
+        case "$nested_canonical" in
+          app-data|app-data/*) ;;
+          *) return 1 ;;
+        esac
+        ;;
+      recovery)
+        case "$nested_canonical" in
+          .dockerignore|Dockerfile|compose.yaml|drizzle|drizzle/*|docs|\
+          docs/deployment.md|docs/runbooks|docs/runbooks/*|infra|infra/env|\
+          infra/env/*|infra/systemd|infra/systemd/*) ;;
+          *) return 1 ;;
+        esac
+        ;;
       *) return 1 ;;
     esac
   done
+  case "$schema" in
+    repository)
+      [[ "${nested_types[.dockerignore]:-}" == - \
+        && "${nested_types[Dockerfile]:-}" == - \
+        && "${nested_types[compose.yaml]:-}" == - \
+        && "${nested_types[content]:-}" == d \
+        && "${nested_types[drizzle]:-}" == d \
+        && "${nested_types[infra]:-}" == d \
+        && "${nested_types[docs/deployment.md]:-}" == - \
+        && "${nested_types[docs/runbooks]:-}" == d ]] || return 1
+      ;;
+    app-data)
+      [[ "${nested_types[app-data]:-}" == d ]] || return 1
+      ;;
+    recovery)
+      [[ "${nested_types[.dockerignore]:-}" == - \
+        && "${nested_types[Dockerfile]:-}" == - \
+        && "${nested_types[compose.yaml]:-}" == - \
+        && "${nested_types[drizzle]:-}" == d \
+        && "${nested_types[infra/env]:-}" == d \
+        && "${nested_types[infra/systemd]:-}" == d \
+        && "${nested_types[docs/deployment.md]:-}" == - \
+        && "${nested_types[docs/runbooks]:-}" == d ]] || return 1
+      ;;
+  esac
 }
 
 phase=nested-archives

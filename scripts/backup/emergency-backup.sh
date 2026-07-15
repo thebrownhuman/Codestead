@@ -32,9 +32,16 @@ if grep -Eq 'AGE-SECRET-KEY-|AGE-PLUGIN-.+-' "$AGE_RECIPIENT_FILE"; then
 fi
 
 secure_directory() {
-  local directory="$1" mode="$2" resolved
+  local directory="$1" mode="$2" resolved current_mode owner
   if [[ -e "$directory" || -L "$directory" ]]; then
     [[ -d "$directory" && ! -L "$directory" ]] || return 1
+    resolved="$(realpath -e -- "$directory")" || return 1
+    [[ "$resolved" == "$directory" ]] || return 1
+    owner="$(stat -c '%u' -- "$directory")" || return 1
+    [[ "$owner" == "$(id -u)" ]] || return 1
+    current_mode="$(stat -c '%a' -- "$directory")" || return 1
+    [[ "$current_mode" =~ ^[0-7]{3,4}$ ]] || return 1
+    (( (8#$current_mode & 07022) == 0 )) || return 1
     chmod "$mode" -- "$directory" || return 1
   else
     mkdir -m "$mode" -- "$directory" || return 1
@@ -100,8 +107,6 @@ combined_recipients="$ephemeral_dir/recipients.txt"
 plaintext="$stage/.plaintext-envelope.tar.gz"
 temporary=""
 checksum_temporary=""
-archive_published=0
-checksum_published=0
 published=0
 
 safe_remove_stage_tree() {
@@ -131,8 +136,7 @@ cleanup() {
   [[ -z "$temporary" ]] || rm -f -- "$temporary" 2>/dev/null || cleanup_failed=1
   [[ -z "$checksum_temporary" ]] || rm -f -- "$checksum_temporary" 2>/dev/null || cleanup_failed=1
   if ((published == 0)); then
-    ((archive_published == 0)) || rm -f -- "$final" 2>/dev/null || cleanup_failed=1
-    ((checksum_published == 0)) || rm -f -- "$final_checksum" 2>/dev/null || cleanup_failed=1
+    rm -f -- "$final" "$final_checksum" 2>/dev/null || cleanup_failed=1
   fi
   safe_remove_stage_tree "$verify_dir" || cleanup_failed=1
   safe_remove_stage_tree "$stage" || cleanup_failed=1
@@ -180,7 +184,7 @@ assert_safe_source_tree "${recovery_sources[@]}" \
   || die "emergency recovery configuration contains an unsafe entry"
 tar_mtime="${timestamp:0:4}-${timestamp:4:2}-${timestamp:6:2} ${timestamp:9:2}:${timestamp:11:2}:${timestamp:13:2} UTC"
 tar --sort=name --format=posix --pax-option=delete=atime,delete=ctime \
-  --owner=0 --group=0 --numeric-owner --mode='u+rwX,go+rX,go-w' \
+  --owner=0 --group=0 --numeric-owner --mode='a-s,a-t,u+rwX,go+rX,go-w' \
   --mtime="$tar_mtime" --use-compress-program='gzip -n' \
   --exclude='infra/secrets' --exclude='infra/cloudflare/config.yml' \
   --exclude='.env' --exclude='.env.*' --exclude='*.pem' --exclude='*.key' \
@@ -226,10 +230,8 @@ sync -f -- "$checksum_temporary"
 
 mv -T -- "$temporary" "$final"
 temporary=""
-archive_published=1
 mv -T -- "$checksum_temporary" "$final_checksum"
 checksum_temporary=""
-checksum_published=1
 require_secure_regular_file "$final" 600 "$(id -u)" \
   || die "emergency archive metadata is unsafe"
 require_secure_regular_file "$final_checksum" 600 "$(id -u)" \

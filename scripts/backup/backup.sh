@@ -9,15 +9,25 @@ source "$SCRIPT_DIR/common.sh"
 load_backup_config
 
 readonly QUIESCE_BUDGET_SECONDS=600
+readonly DEADLINE_KILL_GRACE_SECONDS=15
+readonly DEADLINE_RESUME_RESERVE_SECONDS=5
+readonly MAX_EVENT_LOG_BYTES=1048576
+readonly MAX_EVENT_LOG_LINES=4096
 readonly -a REQUIRED_IMAGE_SERVICES=(
   app cloudflared exam-finalization-worker mail-worker migrate postgres
   practice-runner-recovery-worker project-review-correction-worker
   regrade-worker reward-worker
 )
-readonly -a OPTIONAL_IMAGE_SERVICES=(clamav scan-worker)
+readonly -a OPTIONAL_CREATED_IMAGE_SERVICES=(
+  clamav scan-worker lifecycle platform-seed admin-bootstrap
+)
+readonly -a REPOSITORY_ARCHIVE_PATHS=(
+  .dockerignore Dockerfile compose.yaml content docs/deployment.md docs/runbooks
+  drizzle infra
+)
 
-for command_name in age age-keygen docker find flock git gzip hostname realpath \
-  sha256sum sync tar timeout; do
+for command_name in age age-keygen docker find flock git grep gzip head hostname python3 realpath \
+  sha256sum sleep stat sync tar timeout; do
   require_command "$command_name"
 done
 
@@ -34,9 +44,16 @@ done
   || die "backup configuration contains a non-absolute path"
 
 secure_directory() {
-  local directory="$1" mode="$2" resolved
+  local directory="$1" mode="$2" resolved current_mode owner
   if [[ -e "$directory" || -L "$directory" ]]; then
     [[ -d "$directory" && ! -L "$directory" ]] || return 1
+    resolved="$(realpath -e -- "$directory")" || return 1
+    [[ "$resolved" == "$directory" ]] || return 1
+    owner="$(stat -c '%u' -- "$directory")" || return 1
+    [[ "$owner" == "$(id -u)" ]] || return 1
+    current_mode="$(stat -c '%a' -- "$directory")" || return 1
+    [[ "$current_mode" =~ ^[0-7]{3,4}$ ]] || return 1
+    (( (8#$current_mode & 07022) == 0 )) || return 1
     chmod "$mode" -- "$directory" || return 1
   else
     mkdir -m "$mode" -- "$directory" || return 1
@@ -88,6 +105,16 @@ credential_key_owner="$(id -u)"
   || credential_key_owner=0
 require_secure_regular_file "$CREDENTIAL_MASTER_KEY_FILE" 440 "$credential_key_owner" \
   || die "credential master key is missing or unsafe"
+credential_key_real="$(realpath -e -- "$CREDENTIAL_MASTER_KEY_FILE")" \
+  || die "credential master key path is invalid"
+[[ "$credential_key_real" == "$CREDENTIAL_MASTER_KEY_FILE" ]] \
+  || die "credential master key path is not canonical"
+credential_key_links="$(stat -c '%h' -- "$CREDENTIAL_MASTER_KEY_FILE")" \
+  || die "credential master key link count is unavailable"
+[[ "$credential_key_links" == 1 ]] \
+  || die "credential master key must have exactly one filesystem link"
+credential_key_inode="$(stat -c '%d:%i' -- "$CREDENTIAL_MASTER_KEY_FILE")" \
+  || die "credential master key identity is unavailable"
 
 operations_image="$(read_compose_env_value APP_OPERATIONS_IMAGE)" \
   || die "APP_OPERATIONS_IMAGE is missing or ambiguous"
@@ -107,6 +134,25 @@ done
 [[ -f "$REPO_ROOT/compose.yaml" && ! -L "$REPO_ROOT/compose.yaml" ]] \
   || die "repository deployment files are missing"
 repo_real="$(realpath -e -- "$REPO_ROOT")" || die "repository path is invalid"
+compose_config_json="$(timeout --foreground --kill-after=5s 30s \
+  docker compose --env-file "$COMPOSE_ENV_FILE" -f "$REPO_ROOT/compose.yaml" \
+    config --format json)" \
+  || die "Compose project contract could not be resolved"
+compose_project_name="$(python3 -c '
+import json
+import sys
+value = json.load(sys.stdin).get("name")
+if not isinstance(value, str):
+    raise SystemExit(1)
+sys.stdout.write(value)
+' <<<"$compose_config_json")" || die "Compose project contract is invalid"
+unset compose_config_json
+[[ "$compose_project_name" == learncoding ]] \
+  || die "Compose project name is outside the reviewed release contract"
+if path_is_within "$credential_key_real" "$repo_real" \
+  || path_is_within "$credential_key_real" "$LEARN_DATA_ROOT"; then
+  die "credential master key overlaps a packaged source"
+fi
 git_top="$(git -C "$repo_real" rev-parse --show-toplevel 2>/dev/null)" \
   || die "installed release Git metadata is unavailable"
 [[ "$(realpath -e -- "$git_top")" == "$repo_real" ]] \
@@ -115,6 +161,28 @@ pre_commit="$(git -C "$repo_real" rev-parse --verify HEAD 2>/dev/null)" \
   || die "installed release commit is unavailable"
 [[ "$pre_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] \
   || die "installed release commit is invalid"
+
+require_clean_release() {
+  local bounded="$1" status_output ignored_output
+  local -a status_command=(
+    git -C "$repo_real" status --porcelain=v1 --untracked-files=all
+    --ignore-submodules=none
+  )
+  local -a ignored_command=(
+    git -C "$repo_real" ls-files --others --ignored --exclude-standard --
+    "${REPOSITORY_ARCHIVE_PATHS[@]}"
+  )
+  if [[ "$bounded" == true ]]; then
+    status_output="$(run_deadline "${status_command[@]}")" || return 1
+    ignored_output="$(run_deadline "${ignored_command[@]}")" || return 1
+  else
+    status_output="$("${status_command[@]}")" || return 1
+    ignored_output="$("${ignored_command[@]}")" || return 1
+  fi
+  [[ -z "$status_output" && -z "$ignored_output" ]]
+}
+
+require_clean_release false || die "installed release worktree is not clean"
 source_host="$(hostname -s)"
 [[ "$source_host" =~ ^[A-Za-z0-9][A-Za-z0-9.-]{0,252}$ ]] \
   || die "source host name is unsafe"
@@ -163,16 +231,21 @@ combined_recipients="$ephemeral_dir/recipients.txt"
 tmp_archive=""
 tmp_checksum=""
 outer_plain="$stage/.plaintext-envelope.tar.gz"
+marker_before="$stage/.marker-before"
+marker_before_present=0
 phase=preflight
 marker_committed=0
+marker_published=0
+marker_validation_pending=0
 publication_commit_uncertain=0
-archive_published=0
-checksum_published=0
 quiesce_started=0
 resume_attempted=0
 resumed=0
-completed=0
 deadline_seconds=0
+event_monitor_pid=""
+event_monitor_active=0
+event_monitor_closed=0
+active_event_sentinel=""
 declare -a captured_mutators=()
 
 safe_remove_tree() {
@@ -195,11 +268,15 @@ remove_ephemeral_material() {
   rmdir -- "$ephemeral_dir"
 }
 
+unlink_ephemeral_identity() {
+  rm -f -- "$identity" "$ephemeral_recipient" "$combined_recipients" 2>/dev/null
+}
+
 resume_captured() {
   resume_attempted=1
-  log "backup phase=resuming"
   if resume_mutators captured_mutators; then
     resumed=1
+    log "backup phase=resuming"
     log "backup phase=resumed"
     return 0
   fi
@@ -208,24 +285,89 @@ resume_captured() {
   return 1
 }
 
+rollback_unvalidated_marker() {
+  local rollback_command
+  if ((marker_before_present == 1)); then
+    rollback_command='set -Eeuo pipefail
+before="$1"
+marker="$2"
+directory="$3"
+[[ -f "$before" && ! -L "$before" && -d "$directory" && ! -L "$directory" ]]
+temporary="$(mktemp -- "$directory/.local-last-success.env.rollback.XXXXXX")"
+trap '\''rm -f -- "$temporary"'\'' EXIT
+cp -- "$before" "$temporary"
+chmod 0600 -- "$temporary"
+sync -f -- "$temporary"
+mv -fT -- "$temporary" "$marker"
+temporary=""
+sync -f -- "$directory"
+cmp -s -- "$before" "$marker"'
+    timeout --foreground --kill-after=1s 4s bash -c "$rollback_command" _ \
+      "$marker_before" "$marker" "$state_dir"
+  else
+    rollback_command='set -Eeuo pipefail
+marker="$1"
+directory="$2"
+[[ -d "$directory" && ! -L "$directory" ]]
+rm -f -- "$marker"
+sync -f -- "$directory"
+[[ ! -e "$marker" && ! -L "$marker" ]]'
+    timeout --foreground --kill-after=1s 4s bash -c "$rollback_command" _ \
+      "$marker" "$state_dir"
+  fi
+}
+
 cleanup() {
   local original_status=$? cleanup_failed=0 resume_failed=0
   trap - EXIT
 
-  remove_ephemeral_material || cleanup_failed=1
+  unlink_ephemeral_identity || cleanup_failed=1
+  if ((quiesce_started == 1 && resumed == 0)); then
+    resume_captured || resume_failed=1
+  fi
+  if ((event_monitor_active == 1)); then
+    terminate_event_monitor_cleanup || cleanup_failed=1
+  fi
+
+  if ((marker_validation_pending == 1 && marker_published == 1 \
+    && marker_committed == 0)); then
+    if rollback_unvalidated_marker; then
+      marker_published=0
+      marker_validation_pending=0
+      publication_commit_uncertain=0
+    else
+      cleanup_failed=1
+    fi
+  fi
+
+  if ((publication_commit_uncertain == 1 && marker_validation_pending == 0)); then
+    if read_success_marker "$marker"; then
+      if [[ "$SUCCESS_ARCHIVE" == "$filename" \
+        && "$SUCCESS_COMPLETED_UTC" == "${completed_utc:-}" \
+        && "$SUCCESS_SHA256" == "${ciphertext_hash:-}" ]]; then
+        marker_committed=1
+      fi
+    fi
+    if ((marker_committed == 0 && marker_before_present == 1)) \
+      && require_secure_regular_file "$marker" 600 "$(id -u)" \
+      && cmp -s -- "$marker_before" "$marker"; then
+      publication_commit_uncertain=0
+    elif ((marker_committed == 0 && marker_before_present == 0)) \
+      && [[ ! -e "$marker" && ! -L "$marker" ]]; then
+      publication_commit_uncertain=0
+    fi
+  fi
+
   if ((marker_committed == 0 && publication_commit_uncertain == 0)); then
     [[ -z "$tmp_archive" ]] || rm -f -- "$tmp_archive" 2>/dev/null || cleanup_failed=1
     [[ -z "$tmp_checksum" ]] || rm -f -- "$tmp_checksum" 2>/dev/null || cleanup_failed=1
-    ((archive_published == 0)) || rm -f -- "$final_archive" 2>/dev/null || cleanup_failed=1
-    ((checksum_published == 0)) || rm -f -- "$final_checksum" 2>/dev/null || cleanup_failed=1
+    rm -f -- "$final_archive" "$final_checksum" 2>/dev/null || cleanup_failed=1
   else
     [[ -z "$tmp_archive" ]] || rm -f -- "$tmp_archive" 2>/dev/null || cleanup_failed=1
     [[ -z "$tmp_checksum" ]] || rm -f -- "$tmp_checksum" 2>/dev/null || cleanup_failed=1
   fi
 
-  if ((quiesce_started == 1 && resumed == 0)); then
-    resume_captured || resume_failed=1
-  fi
+  remove_ephemeral_material || cleanup_failed=1
   safe_remove_tree "$verify_dir" || cleanup_failed=1
   safe_remove_tree "$stage" || cleanup_failed=1
 
@@ -259,10 +401,277 @@ remaining_seconds() {
 }
 
 run_deadline() {
-  local remaining
+  local remaining command_seconds
   remaining="$(remaining_seconds)" || return 124
-  timeout --foreground --kill-after=15s "${remaining}s" "$@"
+  ((remaining > DEADLINE_KILL_GRACE_SECONDS + DEADLINE_RESUME_RESERVE_SECONDS)) \
+    || return 124
+  command_seconds=$((remaining - DEADLINE_KILL_GRACE_SECONDS - DEADLINE_RESUME_RESERVE_SECONDS))
+  timeout --foreground --kill-after="${DEADLINE_KILL_GRACE_SECONDS}s" \
+    "${command_seconds}s" "$@"
 }
+
+event_monitor_is_alive() {
+  ((event_monitor_active == 1)) \
+    && [[ "$event_monitor_pid" =~ ^[0-9]+$ ]] \
+    && kill -0 "$event_monitor_pid" 2>/dev/null
+}
+
+wait_for_event_monitor_line() {
+  local expected="$1" snapshot="$stage/.docker-events-wait"
+  run_deadline bash -c '
+    set -Eeuo pipefail
+    output="$1"
+    expected="$2"
+    monitor_pid="$3"
+    snapshot="$4"
+    max_bytes="$5"
+    trap '\''rm -f -- "$snapshot"'\'' EXIT
+    while :; do
+      kill -0 "$monitor_pid" 2>/dev/null || exit 70
+      head -c "$((max_bytes + 1))" -- "$output" >"$snapshot"
+      bytes="$(stat -c "%s" -- "$snapshot")"
+      [[ "$bytes" =~ ^[0-9]+$ ]] || exit 71
+      ((bytes <= max_bytes)) || exit 72
+      grep -Fqx -- "$expected" "$snapshot" && exit 0
+      sleep 0.02
+    done
+  ' event-wait "$event_monitor_output" "$expected" "$event_monitor_pid" \
+    "$snapshot" "$MAX_EVENT_LOG_BYTES"
+}
+
+emit_event_monitor_sentinel() {
+  local sentinel_phase="$1" sentinel_name sentinel_id removed_id expected_line
+  [[ "$sentinel_phase" == start || "$sentinel_phase" == end ]] || return 1
+  event_monitor_is_alive || return 1
+  sentinel_name="codestead-backup-monitor-${timestamp}-${sentinel_phase}-$$"
+  sentinel_id="$(run_deadline docker create --pull=never \
+    --name "$sentinel_name" \
+    --label "com.docker.compose.project=$compose_project_name" \
+    --label "com.docker.compose.project.working_dir=$repo_real" \
+    --label com.docker.compose.service=backup-monitor \
+    --label com.centurylinklabs.watchtower.enable=false \
+    --label "com.codestead.backup.monitor.token=$event_monitor_token" \
+    --label "com.codestead.backup.monitor.phase=$sentinel_phase" \
+    --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --pids-limit 16 --memory 32m --cpus 0.1 \
+    "$operations_image")" || return 1
+  sentinel_id="${sentinel_id//$'\r'/}"
+  sentinel_id="${sentinel_id//$'\n'/}"
+  [[ "$sentinel_id" =~ ^[0-9a-f]{64}$ ]] || return 1
+  active_event_sentinel="$sentinel_id"
+  expected_line="create|backup-monitor|$repo_real|$event_monitor_token|$sentinel_phase"
+  wait_for_event_monitor_line "$expected_line" || return 1
+  removed_id="$(run_deadline docker rm --force "$sentinel_id")" || return 1
+  removed_id="${removed_id//$'\r'/}"
+  removed_id="${removed_id//$'\n'/}"
+  [[ "$removed_id" == "$sentinel_id" ]] || return 1
+  expected_line="destroy|backup-monitor|$repo_real|$event_monitor_token|$sentinel_phase"
+  wait_for_event_monitor_line "$expected_line" || return 1
+  active_event_sentinel=""
+}
+
+audit_event_monitor() {
+  local expected_state="$1" snapshot="$stage/.docker-events-audit"
+  [[ "$expected_state" == active || "$expected_state" == closed ]] || return 1
+  [[ -f "$event_monitor_output" && ! -L "$event_monitor_output" ]] || return 1
+  run_deadline bash -c '
+    set -Eeuo pipefail
+    output="$1"
+    snapshot="$2"
+    max_bytes="$3"
+    max_lines="$4"
+    expected_repo="$5"
+    expected_token="$6"
+    expected_state="$7"
+    trap '\''rm -f -- "$snapshot"'\'' EXIT
+    head -c "$((max_bytes + 1))" -- "$output" >"$snapshot"
+    bytes="$(stat -c "%s" -- "$snapshot")"
+    [[ "$bytes" =~ ^[0-9]+$ ]] || exit 71
+    ((bytes <= max_bytes)) || exit 72
+    start_create=0
+    start_destroy=0
+    end_create=0
+    end_destroy=0
+    line_count=0
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ -n "$line" ]] || continue
+      ((line_count += 1))
+      ((line_count <= max_lines)) || exit 73
+      IFS="|" read -r action service event_repo token sentinel_phase extra <<<"$line"
+      [[ -z "${extra:-}" && "$event_repo" == "$expected_repo" ]] || exit 74
+      case "$service" in
+        backup-monitor)
+          [[ "$token" == "$expected_token" \
+            && "$sentinel_phase" =~ ^(start|end)$ \
+            && "$action" =~ ^(create|destroy)$ ]] || exit 75
+          case "$sentinel_phase:$action" in
+            start:create) ((start_create += 1)) ;;
+            start:destroy) ((start_destroy += 1)) ;;
+            end:create) ((end_create += 1)) ;;
+            end:destroy) ((end_destroy += 1)) ;;
+          esac
+          ;;
+        clamav)
+          [[ -z "$token" && -z "$sentinel_phase" \
+            && "$action" =~ ^(start|restart|unpause)$ ]] || exit 76
+          ;;
+        *)
+          # PostgreSQL and every application/worker action invalidate the
+          # recovery-point window. Unknown rows fail closed as stream ambiguity.
+          exit 77
+          ;;
+      esac
+    done <"$snapshot"
+    ((start_create == 1 && start_destroy == 1)) || exit 78
+    if [[ "$expected_state" == active ]]; then
+      ((end_create == 0 && end_destroy == 0)) || exit 79
+    else
+      ((end_create == 1 && end_destroy == 1)) || exit 80
+    fi
+  ' event-audit "$event_monitor_output" "$snapshot" "$MAX_EVENT_LOG_BYTES" \
+    "$MAX_EVENT_LOG_LINES" "$repo_real" "$event_monitor_token" "$expected_state" \
+    || return 1
+  if [[ "$expected_state" == active ]]; then
+    event_monitor_is_alive
+  else
+    ((event_monitor_closed == 1 && event_monitor_active == 0))
+  fi
+}
+
+terminate_event_monitor_cleanup() {
+  local cleanup_status=0 attempt
+  if [[ -n "$active_event_sentinel" ]]; then
+    timeout --foreground --kill-after=1s 2s \
+      docker rm --force "$active_event_sentinel" >/dev/null 2>&1 \
+      || cleanup_status=1
+    active_event_sentinel=""
+  fi
+  if [[ "$event_monitor_pid" =~ ^[0-9]+$ ]]; then
+    if kill -0 "$event_monitor_pid" 2>/dev/null; then
+      kill -TERM "$event_monitor_pid" 2>/dev/null || cleanup_status=1
+      for attempt in {1..50}; do
+        kill -0 "$event_monitor_pid" 2>/dev/null || break
+        sleep 0.02
+      done
+      if kill -0 "$event_monitor_pid" 2>/dev/null; then
+        kill -KILL "$event_monitor_pid" 2>/dev/null || true
+        cleanup_status=1
+      fi
+    else
+      cleanup_status=1
+    fi
+    wait "$event_monitor_pid" 2>/dev/null || true
+  fi
+  event_monitor_active=0
+  event_monitor_pid=""
+  return "$cleanup_status"
+}
+
+start_event_monitor() {
+  local events_since remaining monitor_seconds
+  event_monitor_output="$stage/docker-events.log"
+  event_monitor_error="$stage/docker-events.stderr"
+  event_monitor_token="${timestamp}.$$.${pre_commit:0:12}"
+  : >"$event_monitor_output"
+  : >"$event_monitor_error"
+  chmod 0600 -- "$event_monitor_output" "$event_monitor_error"
+  events_since="$(run_deadline date -u +%Y-%m-%dT%H:%M:%S.%NZ)" || return 1
+  remaining="$(remaining_seconds)" || return 1
+  ((remaining > DEADLINE_KILL_GRACE_SECONDS + DEADLINE_RESUME_RESERVE_SECONDS)) \
+    || return 1
+  monitor_seconds=$((remaining - DEADLINE_KILL_GRACE_SECONDS - DEADLINE_RESUME_RESERVE_SECONDS))
+  timeout --foreground --kill-after="${DEADLINE_KILL_GRACE_SECONDS}s" \
+    "${monitor_seconds}s" docker events --since "$events_since" \
+      --filter type=container \
+      --filter "label=com.docker.compose.project=$compose_project_name" \
+      --filter "label=com.docker.compose.project.working_dir=$repo_real" \
+      --filter event=create --filter event=destroy --filter event=start \
+      --filter event=restart --filter event=unpause \
+      --format '{{.Action}}|{{ index .Actor.Attributes "com.docker.compose.service" }}|{{ index .Actor.Attributes "com.docker.compose.project.working_dir" }}|{{ index .Actor.Attributes "com.codestead.backup.monitor.token" }}|{{ index .Actor.Attributes "com.codestead.backup.monitor.phase" }}' \
+      >"$event_monitor_output" 2>"$event_monitor_error" &
+  event_monitor_pid=$!
+  event_monitor_active=1
+  emit_event_monitor_sentinel start || return 1
+  audit_event_monitor active
+}
+
+reconcile_stale_event_sentinels() {
+  local listing container_id details full_id configured_image runtime_image status
+  local container_name project_label working_dir_label service_label token phase watchtower extra
+  local stale_stamp stale_phase stale_pid removed_id expected_runtime_image
+  expected_runtime_image="$(timeout --foreground --kill-after=5s 30s \
+    docker image inspect --format '{{.Id}}' "$operations_image")" || return 1
+  expected_runtime_image="${expected_runtime_image//$'\r'/}"
+  expected_runtime_image="${expected_runtime_image//$'\n'/}"
+  [[ "$expected_runtime_image" =~ ^sha256:[0-9a-f]{64}$ ]] || return 1
+  listing="$(timeout --foreground --kill-after=5s 30s docker ps -a \
+    --filter 'name=^codestead-backup-monitor-' \
+    --format '{{.ID}}')" || return 1
+  while IFS= read -r container_id; do
+    [[ -n "$container_id" ]] || continue
+    [[ "$container_id" =~ ^[0-9a-f]{12,64}$ ]] || return 1
+    details="$(timeout --foreground --kill-after=5s 30s docker inspect \
+      --format '{{.Id}}|{{.Config.Image}}|{{.Image}}|{{.State.Status}}|{{.Name}}|{{ index .Config.Labels "com.docker.compose.project" }}|{{ index .Config.Labels "com.docker.compose.project.working_dir" }}|{{ index .Config.Labels "com.docker.compose.service" }}|{{ index .Config.Labels "com.codestead.backup.monitor.token" }}|{{ index .Config.Labels "com.codestead.backup.monitor.phase" }}|{{ index .Config.Labels "com.centurylinklabs.watchtower.enable" }}' \
+      "$container_id")" || return 1
+    IFS='|' read -r full_id configured_image runtime_image status container_name \
+      project_label working_dir_label service_label token phase watchtower extra \
+      <<<"$details"
+    [[ -z "${extra:-}" \
+      && "$full_id" =~ ^[0-9a-f]{64}$ \
+      && "$full_id" == "$container_id"* \
+      && "$configured_image" == "$operations_image" \
+      && "$runtime_image" == "$expected_runtime_image" \
+      && "$status" == created \
+      && "$project_label" == "$compose_project_name" \
+      && "$working_dir_label" == "$repo_real" \
+      && "$service_label" == backup-monitor \
+      && "$watchtower" == false ]] || return 1
+    if [[ "$container_name" =~ ^/codestead-backup-monitor-([0-9]{8}T[0-9]{6}Z)-(start|end)-([0-9]+)$ ]]; then
+      stale_stamp="${BASH_REMATCH[1]}"
+      stale_phase="${BASH_REMATCH[2]}"
+      stale_pid="${BASH_REMATCH[3]}"
+    else
+      return 1
+    fi
+    [[ "$phase" == "$stale_phase" \
+      && "$token" =~ ^${stale_stamp}[.]${stale_pid}[.][0-9a-f]{12}$ ]] \
+      || return 1
+    removed_id="$(timeout --foreground --kill-after=5s 30s \
+      docker rm --force "$full_id")" || return 1
+    removed_id="${removed_id//$'\r'/}"
+    removed_id="${removed_id//$'\n'/}"
+    [[ "$removed_id" == "$full_id" ]] || return 1
+  done <<<"$listing"
+}
+
+close_event_monitor() {
+  emit_event_monitor_sentinel end || return 1
+  event_monitor_is_alive || return 1
+  kill -TERM "$event_monitor_pid" 2>/dev/null || return 1
+  run_deadline bash -c '
+    set -Eeuo pipefail
+    monitor_pid="$1"
+    while kill -0 "$monitor_pid" 2>/dev/null; do
+      sleep 0.02
+    done
+  ' _ "$event_monitor_pid" || return 1
+  wait "$event_monitor_pid" 2>/dev/null || true
+  event_monitor_active=0
+  event_monitor_pid=""
+  event_monitor_closed=1
+  [[ ! -s "$event_monitor_error" ]] || return 1
+  audit_event_monitor closed
+}
+
+if [[ -e "$marker" || -L "$marker" ]]; then
+  require_secure_regular_file "$marker" 600 "$(id -u)" \
+    || die "existing success marker is unsafe"
+  cp -- "$marker" "$marker_before" || die "existing success marker snapshot failed"
+  chmod 0600 -- "$marker_before" || die "existing success marker snapshot mode failed"
+  marker_before_present=1
+fi
+reconcile_stale_event_sentinels \
+  || die "stale backup-monitor sentinel reconciliation failed closed"
 
 canonical_tar() {
   local output="$1" base="$2" mtime="$3"
@@ -270,15 +679,22 @@ canonical_tar() {
   tar --sort=name --format=posix \
     --pax-option=delete=atime,delete=ctime \
     --owner=0 --group=0 --numeric-owner \
-    --mode='u+rwX,go+rX,go-w' --mtime="$mtime" \
+    --mode='a-s,a-t,u+rwX,go+rX,go-w' --mtime="$mtime" \
     --use-compress-program='gzip -n' --create --file "$output" \
     --directory "$base" "$@"
 }
 
 assert_safe_source_tree() {
-  local source
+  local source source_inode
   for source in "$@"; do
     [[ ! -L "$source" && ( -f "$source" || -d "$source" ) ]] || return 1
+    if [[ -f "$source" ]]; then
+      source_inode="$(stat -c '%d:%i' -- "$source")" || return 1
+      [[ "$source_inode" != "$credential_key_inode" ]] || return 1
+    elif find -P "$source" -type f -printf '%D:%i\n' \
+      | grep -Fqx -- "$credential_key_inode"; then
+      return 1
+    fi
     if [[ -d "$source" ]] \
       && find -P "$source" -mindepth 1 ! -type f ! -type d -print -quit | grep -q .; then
       return 1
@@ -291,14 +707,17 @@ capture_image_map() {
   local -a compose_args=(
     docker compose --env-file "$COMPOSE_ENV_FILE" -f "$REPO_ROOT/compose.yaml"
     ps -a --format '{{.Service}} {{.ID}}'
-    "${REQUIRED_IMAGE_SERVICES[@]}" "${OPTIONAL_IMAGE_SERVICES[@]}"
   )
   if [[ "$bounded" == true ]]; then
     listing="$(run_deadline "${compose_args[@]}")" || return 1
   else
     listing="$("${compose_args[@]}")" || return 1
   fi
-  : >"$output_file"
+  if [[ "$bounded" == true ]]; then
+    run_deadline bash -c ': >"$1"' _ "$output_file" || return 1
+  else
+    : >"$output_file"
+  fi
   declare -A seen_services=()
   while IFS= read -r line; do
     [[ -n "$line" ]] || continue
@@ -307,7 +726,7 @@ capture_image_map() {
       && "$container_id" =~ ^[A-Za-z0-9_.-]+$ \
       && -z "${seen_services[$service]+x}" ]] || return 1
     known=0
-    for allowed in "${REQUIRED_IMAGE_SERVICES[@]}" "${OPTIONAL_IMAGE_SERVICES[@]}"; do
+    for allowed in "${REQUIRED_IMAGE_SERVICES[@]}" "${OPTIONAL_CREATED_IMAGE_SERVICES[@]}"; do
       [[ "$service" != "$allowed" ]] || known=1
     done
     ((known == 1)) || return 1
@@ -318,12 +737,21 @@ capture_image_map() {
       image="$(docker inspect --format '{{.Image}}' "$container_id")" || return 1
     fi
     [[ "$image" =~ ^sha256:[0-9a-f]{64}$ ]] || return 1
-    printf '%s=%s\n' "$service" "$image" >>"$output_file"
+    if [[ "$bounded" == true ]]; then
+      run_deadline bash -c 'printf "%s=%s\n" "$2" "$3" >>"$1"' \
+        _ "$output_file" "$service" "$image" || return 1
+    else
+      printf '%s=%s\n' "$service" "$image" >>"$output_file"
+    fi
   done <<<"$listing"
   for service in "${REQUIRED_IMAGE_SERVICES[@]}"; do
     [[ -n "${seen_services[$service]+x}" ]] || return 1
   done
-  sort -o "$output_file" "$output_file"
+  if [[ "$bounded" == true ]]; then
+    run_deadline sort -o "$output_file" "$output_file"
+  else
+    sort -o "$output_file" "$output_file"
+  fi
 }
 
 validate_running_services() {
@@ -356,15 +784,23 @@ validate_running_services() {
 }
 
 tar_mtime="${timestamp:0:4}-${timestamp:4:2}-${timestamp:6:2} ${timestamp:9:2}:${timestamp:11:2}:${timestamp:13:2} UTC"
+repo_snapshot="$stage/repository-source"
+mkdir -m 0700 -- "$repo_snapshot"
+if ! git -C "$repo_real" archive --format=tar "$pre_commit" -- \
+  "${REPOSITORY_ARCHIVE_PATHS[@]}" \
+  | tar --extract --file=- --directory "$repo_snapshot" \
+    --no-same-owner --no-same-permissions; then
+  die "reviewed repository snapshot creation failed"
+fi
 repo_sources=(
-  "$REPO_ROOT/content" "$REPO_ROOT/drizzle" "$REPO_ROOT/infra"
-  "$REPO_ROOT/docs/deployment.md" "$REPO_ROOT/docs/runbooks"
-  "$REPO_ROOT/compose.yaml" "$REPO_ROOT/Dockerfile" "$REPO_ROOT/.dockerignore"
+  "$repo_snapshot/content" "$repo_snapshot/drizzle" "$repo_snapshot/infra"
+  "$repo_snapshot/docs/deployment.md" "$repo_snapshot/docs/runbooks"
+  "$repo_snapshot/compose.yaml" "$repo_snapshot/Dockerfile" "$repo_snapshot/.dockerignore"
 )
 assert_safe_source_tree "${repo_sources[@]}" \
   || die "repository backup source contains an unsafe entry"
 log "backup phase=repository-packaging"
-if ! canonical_tar "$stage/repository.tar.gz" "$REPO_ROOT" "$tar_mtime" \
+if ! canonical_tar "$stage/repository.tar.gz" "$repo_snapshot" "$tar_mtime" \
   --exclude='.git' --exclude='.env' --exclude='.env.*' \
   --exclude='infra/secrets' --exclude='infra/cloudflare/config.yml' \
   --exclude='*.pem' --exclude='*.key' --exclude='*credentials*.json' \
@@ -373,6 +809,7 @@ if ! canonical_tar "$stage/repository.tar.gz" "$REPO_ROOT" "$tar_mtime" \
   >/dev/null 2>&1; then
   die "repository packaging failed"
 fi
+safe_remove_tree "$repo_snapshot" || die "reviewed repository snapshot cleanup failed"
 
 probe_output_dir="$stage/probe-output"
 mkdir -m 0700 -- "$probe_output_dir"
@@ -423,14 +860,25 @@ cat -- "$AGE_RECIPIENT_FILE" "$ephemeral_recipient" >"$combined_recipients"
 chmod 0600 -- "$combined_recipients"
 
 deadline_seconds=$((SECONDS + QUIESCE_BUDGET_SECONDS))
+start_event_monitor || die "release-scoped Docker event monitor could not establish continuity"
 quiesce_started=1
+deadline_log() {
+  local message="$*"
+  run_deadline bash -c \
+    'printf "%s %s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >&2' \
+    _ "$message"
+}
+die() {
+  printf '%s\n' 'fatal: quiesced backup transaction failed' >&2
+  exit 1
+}
 phase=quiescing
-log "backup phase=quiescing"
+deadline_log "backup phase=quiescing" || die
 quiesce_command='set -Eeuo pipefail; source "$1"; config="$2"; shift 2; BACKUP_CONFIG_FILE="$config"; load_backup_config; captured_for_child=("$@"); quiesce_mutators captured_for_child'
 run_deadline bash -c "$quiesce_command" _ "$SCRIPT_DIR/common.sh" \
   "${BACKUP_CONFIG_FILE:-/etc/learncoding/backup.env}" "${captured_mutators[@]}"
 phase=quiesced
-log "backup phase=quiesced"
+deadline_log "backup phase=quiesced" || die
 
 running_after="$(run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
   -f "$REPO_ROOT/compose.yaml" ps --status running --services)" \
@@ -440,7 +888,8 @@ while IFS= read -r service; do
     || die "a mutating or unknown service remained running"
 done <<<"$running_after"
 
-snapshot_timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+snapshot_timestamp="$(run_deadline date -u +%Y%m%dT%H%M%SZ)" \
+  || die "snapshot timestamp failed"
 database_version="$(run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
   -f "$REPO_ROOT/compose.yaml" exec -T postgres postgres --version)" \
   || die "PostgreSQL version query failed"
@@ -450,10 +899,11 @@ database_version="${database_version//$'\n'/}"
   || die "PostgreSQL version is outside the reviewed major"
 
 migration_rows="$stage/migrations.rows"
-run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
-  -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
-  'exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --field-separator="|" --set=ON_ERROR_STOP=1 --command="SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id"' \
-  >"$migration_rows"
+redirect_command='output="$1"; shift; exec "$@" >"$output"'
+run_deadline bash -c "$redirect_command" _ "$migration_rows" \
+  docker compose --env-file "$COMPOSE_ENV_FILE" \
+    -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
+    'exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --field-separator="|" --set=ON_ERROR_STOP=1 --command="SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id"'
 migration_count=0
 migration_last_id=0
 migration_last_created_at=0
@@ -471,26 +921,32 @@ migration_state_sha256="$(run_deadline sha256sum "$migration_rows")" \
   || die "migration state checksum failed"
 migration_state_sha256="${migration_state_sha256%% *}"
 
-log "backup phase=dumping"
-run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
-  -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
-  'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl' \
-  >"$stage/database.dump"
+deadline_log "backup phase=dumping" || die
+run_deadline bash -c "$redirect_command" _ "$stage/database.dump" \
+  docker compose --env-file "$COMPOSE_ENV_FILE" \
+    -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
+    'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl'
 [[ -s "$stage/database.dump" ]] || die "PostgreSQL dump is empty"
 phase=dump_complete
-log "backup phase=dump_complete"
+deadline_log "backup phase=dump_complete" || die
 
 app_data_included=false
 if [[ -e "$LEARN_DATA_ROOT/app-data" || -L "$LEARN_DATA_ROOT/app-data" ]]; then
   [[ -d "$LEARN_DATA_ROOT/app-data" && ! -L "$LEARN_DATA_ROOT/app-data" ]] \
     || die "application data root is unsafe"
+  credential_inode_match="$(run_deadline find -P "$LEARN_DATA_ROOT/app-data" \
+    -type f -samefile "$CREDENTIAL_MASTER_KEY_FILE" -print -quit)" \
+    || die "application data credential-key identity scan failed"
+  if [[ -n "$credential_inode_match" ]]; then
+    die "application data contains the credential master key inode"
+  fi
   unsafe_app_entry="$(run_deadline find -P "$LEARN_DATA_ROOT/app-data" \
     -mindepth 1 ! -type f ! -type d -print -quit)" \
     || die "application data safety scan failed"
   [[ -z "$unsafe_app_entry" ]] || die "application data contains an unsafe entry"
   run_deadline tar --sort=name --format=posix \
     --pax-option=delete=atime,delete=ctime \
-    --owner=0 --group=0 --numeric-owner --mode='u+rwX,go+rX,go-w' \
+    --owner=0 --group=0 --numeric-owner --mode='a-s,a-t,u+rwX,go+rX,go-w' \
     --mtime="$tar_mtime" --use-compress-program='gzip -n' \
     --exclude='.env' --exclude='.env.*' --exclude='*.pem' --exclude='*.key' \
     --exclude='*credentials*.json' --exclude='*.eml' --exclude='*.mbox' \
@@ -500,7 +956,10 @@ if [[ -e "$LEARN_DATA_ROOT/app-data" || -L "$LEARN_DATA_ROOT/app-data" ]]; then
   app_data_included=true
 fi
 phase=objects_complete
-log "backup phase=objects_complete"
+deadline_log "backup phase=objects_complete" || die
+
+audit_event_monitor active \
+  || die "release-scoped Docker event continuity failed during recovery-point capture"
 
 running_after_objects="$(run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
   -f "$REPO_ROOT/compose.yaml" ps --status running --services)" \
@@ -513,27 +972,37 @@ done <<<"$running_after_objects"
 post_commit="$(run_deadline git -C "$repo_real" rev-parse --verify HEAD)" \
   || die "installed release commit recheck failed"
 [[ "$post_commit" == "$pre_commit" ]] || die "installed release changed during backup"
+require_clean_release true || die "installed release worktree changed during backup"
 capture_image_map "$post_images" true || die "container image inventory recheck failed"
-cmp -s -- "$pre_images" "$post_images" || die "container image inventory changed during backup"
+run_deadline cmp -s -- "$pre_images" "$post_images" \
+  || die "container image inventory changed during backup"
 
-cat >"$stage/MANIFEST.txt" <<EOF
-format=learncoding-backup-v1
-created_utc=$timestamp
-snapshot_utc=$snapshot_timestamp
-source_host=$source_host
-git_commit=$pre_commit
-database_version=$database_version
-migration_count=$migration_count
-migration_last_id=$migration_last_id
-migration_last_created_at=$migration_last_created_at
-migration_state_sha256=$migration_state_sha256
-app_data_included=$app_data_included
-contains_secret_files=false
-contains_email_exports=false
-EOF
-while IFS='=' read -r image_service image_id; do
-  printf 'image_id.%s=%s\n' "$image_service" "$image_id" >>"$stage/MANIFEST.txt"
-done <"$pre_images"
+manifest_command='set -Eeuo pipefail
+output="$1"
+images="$2"
+shift 2
+printf "%s\n" \
+  "format=learncoding-backup-v1" \
+  "created_utc=$1" \
+  "snapshot_utc=$2" \
+  "source_host=$3" \
+  "git_commit=$4" \
+  "database_version=$5" \
+  "migration_count=$6" \
+  "migration_last_id=$7" \
+  "migration_last_created_at=$8" \
+  "migration_state_sha256=$9" \
+  "app_data_included=${10}" \
+  "contains_secret_files=false" \
+  "contains_email_exports=false" >"$output"
+while IFS="=" read -r image_service image_id; do
+  printf "image_id.%s=%s\n" "$image_service" "$image_id" >>"$output"
+done <"$images"'
+run_deadline bash -c "$manifest_command" _ \
+  "$stage/MANIFEST.txt" "$pre_images" "$timestamp" "$snapshot_timestamp" \
+  "$source_host" "$pre_commit" "$database_version" "$migration_count" \
+  "$migration_last_id" "$migration_last_created_at" "$migration_state_sha256" \
+  "$app_data_included"
 
 checksum_command='set -Eeuo pipefail; cd "$1"; if [[ "$2" == true ]]; then sha256sum --text database.dump repository.tar.gz app-data.tar.gz credential-probe.json MANIFEST.txt >SHA256SUMS; else sha256sum --text database.dump repository.tar.gz credential-probe.json MANIFEST.txt >SHA256SUMS; fi'
 run_deadline bash -c "$checksum_command" _ "$stage" "$app_data_included"
@@ -547,15 +1016,16 @@ run_deadline tar --sort=name --format=posix \
   --use-compress-program='gzip -n' --create --file "$outer_plain" \
   --directory "$stage" "${outer_members[@]}"
 
-tmp_archive="$(mktemp -- "$full_dir/.${filename}.tmp.XXXXXX")"
-rm -f -- "$tmp_archive"
+tmp_archive="$(run_deadline mktemp -- "$full_dir/.${filename}.tmp.XXXXXX")" \
+  || die "ciphertext temporary creation failed"
+run_deadline rm -f -- "$tmp_archive" || die "ciphertext temporary preparation failed"
 run_deadline age --encrypt --recipients-file "$combined_recipients" \
   --output "$tmp_archive" "$outer_plain" >/dev/null 2>&1
 [[ -f "$tmp_archive" && ! -L "$tmp_archive" && -s "$tmp_archive" ]] \
   || die "encrypted candidate is empty"
-chmod 0600 -- "$tmp_archive"
+run_deadline chmod 0600 -- "$tmp_archive" || die "encrypted candidate mode failed"
 phase=encrypted
-log "backup phase=encrypted"
+deadline_log "backup phase=encrypted" || die
 
 verify_result="$(run_deadline bash "$SCRIPT_DIR/verify-archive.sh" \
   "$tmp_archive" "$identity" "$verify_dir")" \
@@ -563,60 +1033,61 @@ verify_result="$(run_deadline bash "$SCRIPT_DIR/verify-archive.sh" \
 [[ "$verify_result" == archive_valid=true ]] \
   || die "candidate verifier returned an invalid acknowledgement"
 phase=candidate_verified
-log "backup phase=candidate_verified"
+deadline_log "backup phase=candidate_verified" || die
 
 run_deadline sync -f -- "$tmp_archive"
 ciphertext_hash="$(run_deadline sha256sum "$tmp_archive")" \
   || die "ciphertext checksum creation failed"
 ciphertext_hash="${ciphertext_hash%% *}"
 [[ "$ciphertext_hash" =~ ^[0-9a-f]{64}$ ]] || die "ciphertext checksum is invalid"
-tmp_checksum="$(mktemp -- "$full_dir/.${filename}.sha256.tmp.XXXXXX")"
-printf '%s  %s\n' "$ciphertext_hash" "$filename" >"$tmp_checksum"
-chmod 0600 -- "$tmp_checksum"
+tmp_checksum="$(run_deadline mktemp -- "$full_dir/.${filename}.sha256.tmp.XXXXXX")" \
+  || die "ciphertext sidecar temporary creation failed"
+sidecar_command='printf "%s  %s\n" "$2" "$3" >"$1"; chmod 0600 -- "$1"'
+run_deadline bash -c "$sidecar_command" _ \
+  "$tmp_checksum" "$ciphertext_hash" "$filename" \
+  || die "ciphertext sidecar creation failed"
 run_deadline sync -f -- "$tmp_checksum"
 
 run_deadline mv -T -- "$tmp_archive" "$final_archive"
 tmp_archive=""
-archive_published=1
 run_deadline mv -T -- "$tmp_checksum" "$final_checksum"
 tmp_checksum=""
-checksum_published=1
-require_secure_regular_file "$final_archive" 600 "$(id -u)" \
+metadata_command='source "$1"; require_secure_regular_file "$2" 600 "$(id -u)"'
+run_deadline bash -c "$metadata_command" _ "$SCRIPT_DIR/common.sh" "$final_archive" \
   || die "published archive metadata is unsafe"
-require_secure_regular_file "$final_checksum" 600 "$(id -u)" \
+run_deadline bash -c "$metadata_command" _ "$SCRIPT_DIR/common.sh" "$final_checksum" \
   || die "published checksum metadata is unsafe"
 published_sidecar="$(run_deadline cat -- "$final_checksum")" \
   || die "published checksum could not be read"
 [[ "$published_sidecar" == "$ciphertext_hash  $filename" ]] \
   || die "published checksum content is invalid"
-final_hash="$(run_deadline sha256sum "$final_archive")"
+final_hash="$(run_deadline sha256sum "$final_archive")" \
+  || die "published archive checksum failed"
 final_hash="${final_hash%% *}"
 [[ "$final_hash" == "$ciphertext_hash" ]] || die "published archive hash changed"
 run_deadline sync -f -- "$full_dir"
 phase=files_published
-log "backup phase=files_published"
+deadline_log "backup phase=files_published" || die
 
-completed_utc="$(date -u +%Y%m%dT%H%M%SZ)"
+completed_utc="$(run_deadline date -u +%Y%m%dT%H%M%SZ)" \
+  || die "completion timestamp failed"
 marker_command='set -Eeuo pipefail; source "$1"; write_success_marker "$2" "$3" "$4" "$5"'
+publication_commit_uncertain=1
 if ! run_deadline bash -c "$marker_command" _ "$SCRIPT_DIR/common.sh" \
   "$marker" "$filename" "$completed_utc" "$ciphertext_hash"; then
-  if read_success_marker "$marker" \
-    && [[ "$SUCCESS_ARCHIVE" == "$filename" \
-      && "$SUCCESS_COMPLETED_UTC" == "$completed_utc" \
-      && "$SUCCESS_SHA256" == "$ciphertext_hash" ]]; then
-    marker_committed=1
-  elif [[ -e "$marker" || -L "$marker" ]]; then
-    if ! read_success_marker "$marker"; then
-      publication_commit_uncertain=1
-    fi
-  fi
   die "success marker durability failed"
 fi
+marker_published=1
+marker_validation_pending=1
+close_event_monitor \
+  || die "release-scoped Docker event continuity failed after marker durability"
+marker_validation_pending=0
 marker_committed=1
+publication_commit_uncertain=0
 phase=marker_committed
-log "backup phase=marker_committed"
+deadline_log "backup phase=marker_committed" || die
 
-log "backup phase=pruning"
+deadline_log "backup phase=pruning" || die
 run_deadline env BACKUP_LOCK_HELD=1 \
   BACKUP_CONFIG_FILE="${BACKUP_CONFIG_FILE:-/etc/learncoding/backup.env}" \
   bash "$SCRIPT_DIR/prune.sh"
@@ -628,5 +1099,4 @@ if ! enqueue_backup_status success "$timestamp"; then
 fi
 emit_alert info backup_complete \
   "nightly encrypted backup completed and passed decrypt verification"
-completed=1
 log "backup phase=complete"

@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 backup="$repo_root/scripts/backup/emergency-backup.sh"
+test_group="${EMERGENCY_BACKUP_TEST_GROUP:-all}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -109,12 +110,26 @@ EOF
 cat >"$work/bin/sha256sum" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+if [[ "${TEST_CHECKSUM_CREATE_FAIL:-0}" == 1 \
+  && " $* " == *" --text "* ]]; then
+  exit 73
+fi
 exec /usr/bin/sha256sum "$@"
 EOF
 
 cat >"$work/bin/mv" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+if [[ "${TEST_ARCHIVE_RENAME_POST_EFFECT_FAIL:-0}" == 1 \
+  && "${@: -1}" == *.tar.gz.age ]]; then
+  /usr/bin/mv "$@"
+  exit 75
+fi
+if [[ "${TEST_SIDECAR_RENAME_POST_EFFECT_FAIL:-0}" == 1 \
+  && "${@: -1}" == *.tar.gz.age.sha256 ]]; then
+  /usr/bin/mv "$@"
+  exit 74
+fi
 if [[ "${TEST_SIDECAR_RENAME_FAIL:-0}" == 1 \
   && "${@: -1}" == *.tar.gz.age.sha256 ]]; then
   exit 74
@@ -139,20 +154,38 @@ if [[ "${TEST_CLEANUP_FAIL:-0}" == 1 ]]; then
 fi
 exec /usr/bin/rmdir "$@"
 EOF
-chmod 0755 "$work/bin/docker" "$work/bin/age" "$work/bin/age-keygen" \
-  "$work/bin/sha256sum" "$work/bin/mv" "$work/bin/flock" "$work/bin/rmdir"
-if [[ "${OSTYPE:-}" == msys* ]]; then
-  cat >"$work/bin/stat" <<'EOF'
+cat >"$work/bin/chmod" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-if [[ "$*" == *"%a"* && "${@: -1}" == */compose.env ]]; then
+if [[ -n "${TEST_WATCH_CHMOD_PATH:-}" ]]; then
+  for argument in "$@"; do
+    if [[ "$argument" == "$TEST_WATCH_CHMOD_PATH" ]]; then
+      printf '%s\n' "$argument" >"${TEST_CHMOD_MUTATION_FILE:?}"
+    fi
+  done
+fi
+exec /usr/bin/chmod "$@"
+EOF
+chmod 0755 "$work/bin/docker" "$work/bin/age" "$work/bin/age-keygen" \
+  "$work/bin/sha256sum" "$work/bin/mv" "$work/bin/flock" "$work/bin/rmdir" \
+  "$work/bin/chmod"
+cat >"$work/bin/stat" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+if [[ -n "${TEST_UNSAFE_DIRECTORY_PATH:-}" \
+  && "${@: -1}" == "$TEST_UNSAFE_DIRECTORY_PATH" \
+  && "$*" == *"%u"* ]]; then
+  printf '%s\n' 2147483646
+  exit 0
+fi
+if [[ "${OSTYPE:-}" == msys* \
+  && "$*" == *"%a"* && "${@: -1}" == */compose.env ]]; then
   printf '%s\n' 640
   exit 0
 fi
 exec /usr/bin/stat "$@"
 EOF
-  chmod 0755 "$work/bin/stat"
-fi
+chmod 0755 "$work/bin/stat"
 
 config="$work/backup.env"
 cat >"$config" <<EOF
@@ -169,6 +202,40 @@ FILESYSTEM_WARN_PERCENT=70
 FILESYSTEM_CRITICAL_PERCENT=85
 EOF
 chmod 0600 "$config"
+
+assert_rejected_directory_was_not_chmodded() {
+  local label="$1" config_file="$2" watched_path="$3" mutation_file="$4"
+  shift 4
+  if /usr/bin/env PATH="$work/bin:$PATH" TEST_AGE_EVENTS="$work/age-events" \
+    TEST_WATCH_CHMOD_PATH="$watched_path" \
+    TEST_CHMOD_MUTATION_FILE="$mutation_file" \
+    BACKUP_CONFIG_FILE="$config_file" "$@" bash "$backup" \
+    >"$work/$label.stdout" 2>"$work/$label.stderr"; then
+    fail "emergency backup accepted unsafe directory fixture: $label"
+  fi
+  [[ ! -e "$mutation_file" ]] \
+    || fail "$label was chmodded before its ownership/canonical safety was validated"
+}
+
+if [[ "$test_group" == all || "$test_group" == m7-directory-safety ]]; then
+  assert_rejected_directory_was_not_chmodded unsafe-directory-owner \
+    "$config" "$work/target/emergency" "$work/owner-chmod-mutation" \
+    TEST_UNSAFE_DIRECTORY_PATH="$work/target/emergency"
+
+  alias_config="$work/alias-backup.env"
+  cp -- "$config" "$alias_config"
+  mkdir -p -- "$work/alias-parent"
+  chmod 0700 -- "$work/alias-parent"
+  alias_stage="$work/alias-parent/../stage"
+  sed -i "s|^BACKUP_STAGE_ROOT=.*|BACKUP_STAGE_ROOT=$alias_stage|" "$alias_config"
+  assert_rejected_directory_was_not_chmodded noncanonical-directory-alias \
+    "$alias_config" "$alias_stage" "$work/alias-chmod-mutation"
+fi
+
+if [[ "$test_group" == m7-directory-safety ]]; then
+  echo "emergency-backup-m7-directory-safety-tests-ok"
+  exit 0
+fi
 
 archive_count() {
   find "$work/target/emergency" -maxdepth 1 -type f \
@@ -213,6 +280,7 @@ assert_emergency_failure() {
 }
 
 assert_emergency_failure dump false TEST_DUMP_FAIL=1
+assert_emergency_failure checksum-creation false TEST_CHECKSUM_CREATE_FAIL=1
 assert_emergency_failure encryption false TEST_AGE_ENCRYPT_FAIL=1
 assert_emergency_failure decryption true TEST_AGE_DECRYPT_FAIL=1
 assert_emergency_failure bad-manifest true TEST_BAD_MANIFEST=1
@@ -220,6 +288,10 @@ assert_emergency_failure bad-internal-checksum true TEST_BAD_INTERNAL_CHECKSUM=1
 assert_emergency_failure unsafe-member true TEST_UNSAFE_MEMBER=1
 assert_emergency_failure archive-rename true TEST_ARCHIVE_RENAME_FAIL=1
 assert_emergency_failure sidecar-rename true TEST_SIDECAR_RENAME_FAIL=1
+assert_emergency_failure archive-rename-post-effect true \
+  TEST_ARCHIVE_RENAME_POST_EFFECT_FAIL=1
+assert_emergency_failure sidecar-rename-post-effect true \
+  TEST_SIDECAR_RENAME_POST_EFFECT_FAIL=1
 assert_emergency_failure cleanup false TEST_AGE_ENCRYPT_FAIL=1 TEST_CLEANUP_FAIL=1
 
 # Four old valid pairs prove a failed candidate cannot trigger keep-three.
