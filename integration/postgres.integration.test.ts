@@ -1354,15 +1354,19 @@ describe("atomic administrator fallback budget", () => {
 describe("exam persistence", () => {
   it("serializes autosaves, detects stale revisions, enforces ownership, and deduplicates events", async () => {
     await seedExam();
-    const autosave = () =>
+    const autosave = (clientMutationId: string) =>
       autosaveExamAnswer({
         userId: USER_A,
         sessionId: EXAM_SESSION_ID,
+        clientMutationId,
         itemId: "item-1",
         baseRevision: 0,
         answer: { text: "first" },
       });
-    const competing = await Promise.allSettled([autosave(), autosave()]);
+    const competing = await Promise.allSettled([
+      autosave("21000000-0000-4000-8000-000000000001"),
+      autosave("21000000-0000-4000-8000-000000000002"),
+    ]);
     expect(competing.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     const conflict = competing.find(
       (result): result is PromiseRejectedResult => result.status === "rejected",
@@ -1373,6 +1377,7 @@ describe("exam persistence", () => {
     const second = await autosaveExamAnswer({
       userId: USER_A,
       sessionId: EXAM_SESSION_ID,
+      clientMutationId: "21000000-0000-4000-8000-000000000003",
       itemId: "item-1",
       baseRevision: 1,
       answer: { text: "second" },
@@ -1382,6 +1387,7 @@ describe("exam persistence", () => {
       autosaveExamAnswer({
         userId: USER_A,
         sessionId: EXAM_SESSION_ID,
+        clientMutationId: "21000000-0000-4000-8000-000000000004",
         itemId: "item-1",
         baseRevision: 1,
         answer: { text: "stale" },
@@ -1391,6 +1397,7 @@ describe("exam persistence", () => {
       autosaveExamAnswer({
         userId: USER_B,
         sessionId: EXAM_SESSION_ID,
+        clientMutationId: "21000000-0000-4000-8000-000000000005",
         itemId: "item-1",
         baseRevision: 2,
         answer: { text: "cross-tenant" },

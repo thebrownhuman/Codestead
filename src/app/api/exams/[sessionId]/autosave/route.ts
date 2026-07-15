@@ -8,14 +8,15 @@ import { examError, examJson } from "../../_lib/http";
 import { autosaveExamAnswer } from "../../_lib/service";
 
 const autosaveSchema = z.object({
+  clientMutationId: z.uuid(),
   itemId: z.string().trim().min(3).max(180),
   baseRevision: z.number().int().min(0).max(1_000_000),
   answer: z.object({
     text: z.string().max(32_000).optional(),
     sourceCode: z.string().max(131_072).optional(),
     language: z.enum(SUPPORTED_EXAM_LANGUAGES).optional(),
-  }),
-});
+  }).strict(),
+}).strict();
 
 export async function PUT(
   request: NextRequest,

@@ -832,6 +832,7 @@ describe("canonical persisted learner journey", () => {
     await autosaveExamAnswer({
       userId: LEARNER_ID,
       sessionId: exam.sessionId,
+      clientMutationId: "a7100000-0000-4000-8000-000000000001",
       itemId: examItem.id,
       baseRevision: 0,
       answer: { text: "algorithm" },

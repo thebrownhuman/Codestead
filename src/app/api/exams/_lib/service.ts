@@ -14,6 +14,7 @@ import {
   concept,
   conceptMastery,
   enrollment,
+  examAutosaveMutation,
   examEvent,
   examFinalizationJob,
   examMasteryRecheck,
@@ -85,6 +86,7 @@ import {
   type ExamSessionStatus,
   type ExamSessionView,
   type SavedExamAnswer,
+  type SavedExamAutosaveResult,
 } from "./contracts";
 import {
   canConsumeEquivalentReexamGrant,
@@ -1178,12 +1180,30 @@ export async function getExamSession(
 export async function autosaveExamAnswer(input: {
   readonly userId: string;
   readonly sessionId: string;
+  readonly clientMutationId: string;
   readonly itemId: string;
   readonly baseRevision: number;
   readonly answer: ExamAnswer;
   readonly now?: Date;
-}): Promise<SavedExamAnswer> {
+}): Promise<SavedExamAutosaveResult> {
   const now = input.now ?? new Date();
+  const normalizedAnswer: ExamAnswer = {
+    ...(input.answer.text === undefined ? {} : { text: input.answer.text }),
+    ...(input.answer.sourceCode === undefined ? {} : { sourceCode: input.answer.sourceCode }),
+    ...(input.answer.language === undefined ? {} : { language: input.answer.language }),
+  };
+  const inputHash = createHash("sha256")
+    .update("codestead-exam-autosave-mutation-v1\0")
+    .update(JSON.stringify([
+      input.userId,
+      input.sessionId,
+      input.itemId,
+      input.baseRevision,
+      normalizedAnswer.text ?? null,
+      normalizedAnswer.sourceCode ?? null,
+      normalizedAnswer.language ?? null,
+    ]))
+    .digest("hex");
   try {
     return await db.transaction(async (tx) => {
       const [owned] = await tx
@@ -1198,6 +1218,45 @@ export async function autosaveExamAnswer(input: {
         .for("update");
       if (!owned) {
         throw new ExamServiceError("Exam session was not found.", 404, "EXAM_NOT_FOUND");
+      }
+      await tx.execute(sql`
+        select pg_advisory_xact_lock(
+          hashtextextended(${`exam-autosave:${input.sessionId}:${input.clientMutationId}`}, 0)
+        )
+      `);
+      const [receipt] = await tx
+        .select({
+          itemKey: examAutosaveMutation.itemKey,
+          inputHash: examAutosaveMutation.inputHash,
+          expectedRevision: examAutosaveMutation.expectedRevision,
+          resultingRevision: examAutosaveMutation.resultingRevision,
+          resultingSavedAt: examAutosaveMutation.resultingSavedAt,
+        })
+        .from(examAutosaveMutation)
+        .where(and(
+          eq(examAutosaveMutation.examSessionId, input.sessionId),
+          eq(examAutosaveMutation.clientMutationId, input.clientMutationId),
+        ))
+        .limit(1);
+      if (receipt) {
+        if (
+          receipt.itemKey !== input.itemId ||
+          receipt.expectedRevision !== input.baseRevision ||
+          receipt.inputHash !== inputHash
+        ) {
+          throw new ExamServiceError(
+            "This autosave mutation identifier was already used for different input.",
+            409,
+            "AUTOSAVE_IDEMPOTENCY_MISMATCH",
+          );
+        }
+        return {
+          revision: receipt.resultingRevision,
+          answer: normalizedAnswer,
+          savedAt: receipt.resultingSavedAt.toISOString(),
+          clientMutationId: input.clientMutationId,
+          replayed: true,
+        };
       }
       if (owned.session.status !== "active") {
         throw new ExamServiceError("This exam no longer accepts answers.", 409, "EXAM_NOT_ACTIVE");
@@ -1250,15 +1309,26 @@ export async function autosaveExamAnswer(input: {
           attemptId: owned.attempt.id,
           itemKey: input.itemId,
           revision,
-          answer: jsonRecord(input.answer),
+          answer: jsonRecord(normalizedAnswer),
           source: "browser",
           savedAt: now,
         })
         .returning({ savedAt: examResponse.savedAt });
+      await tx.insert(examAutosaveMutation).values({
+        examSessionId: input.sessionId,
+        clientMutationId: input.clientMutationId,
+        itemKey: input.itemId,
+        inputHash,
+        expectedRevision: input.baseRevision,
+        resultingRevision: revision,
+        resultingSavedAt: saved.savedAt,
+      });
       return {
         revision,
-        answer: input.answer,
+        answer: normalizedAnswer,
         savedAt: saved.savedAt.toISOString(),
+        clientMutationId: input.clientMutationId,
+        replayed: false,
       };
     });
   } catch (error) {

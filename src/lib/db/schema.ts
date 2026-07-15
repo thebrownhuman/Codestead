@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   bigint,
   boolean,
+  char,
   check,
   foreignKey,
   index,
@@ -1859,6 +1860,40 @@ export const examSession = pgTable(
     ...timestamps,
   },
   (table) => [uniqueIndex("exam_attempt_unique").on(table.attemptId)],
+);
+
+export const examAutosaveMutation = pgTable(
+  "exam_autosave_mutation",
+  {
+    examSessionId: uuid("exam_session_id")
+      .notNull()
+      .references(() => examSession.id, { onDelete: "cascade" }),
+    clientMutationId: uuid("client_mutation_id").notNull(),
+    itemKey: text("item_key").notNull(),
+    inputHash: char("input_hash", { length: 64 }).notNull(),
+    expectedRevision: integer("expected_revision").notNull(),
+    resultingRevision: integer("resulting_revision").notNull(),
+    resultingSavedAt: timestamp("resulting_saved_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "exam_autosave_mutation_pk",
+      columns: [table.examSessionId, table.clientMutationId],
+    }),
+    index("exam_autosave_mutation_session_item_created_idx").on(
+      table.examSessionId,
+      table.itemKey,
+      table.createdAt,
+    ),
+    check("exam_autosave_mutation_input_hash_check", sql`${table.inputHash} ~ '^[0-9a-f]{64}$'`),
+    check("exam_autosave_mutation_expected_revision_nonnegative", sql`${table.expectedRevision} >= 0`),
+    check("exam_autosave_mutation_resulting_revision_nonnegative", sql`${table.resultingRevision} >= 0`),
+    check(
+      "exam_autosave_mutation_revision_transition",
+      sql`${table.resultingRevision} = ${table.expectedRevision} + 1`,
+    ),
+  ],
 );
 
 export const examEvent = pgTable(

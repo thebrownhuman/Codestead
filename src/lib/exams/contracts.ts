@@ -105,6 +105,11 @@ export interface SavedExamAnswer {
   readonly savedAt: string;
 }
 
+export type SavedExamAutosaveResult = SavedExamAnswer & {
+  readonly clientMutationId: string;
+  readonly replayed: boolean;
+};
+
 export interface RunnerCompileResult {
   readonly status:
     | "OK"
