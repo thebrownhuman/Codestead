@@ -465,7 +465,7 @@ function CodeLabSession({
   const [result, setResult] = useState<PracticeRunView | null>(null);
   const [resultSource, setResultSource] = useState<string | null>(null);
   const [resultStdin, setResultStdin] = useState<string | null>(null);
-  const draftBlocksEditing = ["loading", "reauthenticate", "exam-locked"].includes(draft.status);
+  const draftBlocksEditing = ["loading", "conflict", "reauthenticate", "exam-locked"].includes(draft.status);
   const inputBlocksEditing = draftBlocksEditing || stdinRestoring;
   const runDisabled = running || inputBlocksEditing;
   const visibleResult = resultSource === source && resultStdin === stdin ? result : null;

@@ -689,6 +689,11 @@ describe("CodeLab authoritative draft synchronization", () => {
       key,
       putBodies(fetchMock)[0]?.requestId,
     );
+
+    fireEvent.change(editor, { target: { value: "must_not_bypass_external_conflict = 3\n" } });
+    expect(editor).toHaveValue("newer_other_tab = 2\n");
+    expect(screen.getByRole("button", { name: "Keep my draft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
   });
 
   it("rebases an edit queued while acknowledgement cleanup is settling", async () => {
@@ -788,6 +793,79 @@ describe("CodeLab authoritative draft synchronization", () => {
     const bodies = putBodies(fetchMock);
     expect(new Set(bodies.map((body) => body.requestId)).size).toBe(1);
     expect(maximumActivePuts).toBe(1);
+    view.unmount();
+  });
+
+  it("supersedes a stale 30-second retry with the newest committed edit without overlapping PUTs", async () => {
+    const newerResponse = deferred<Response>();
+    let activePuts = 0;
+    let maximumActivePuts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      activePuts += 1;
+      maximumActivePuts = Math.max(maximumActivePuts, activePuts);
+      try {
+        if (body.content === "older_backoff_edit = 1\n") {
+          throw new Error("temporary network failure");
+        }
+        return await newerResponse.promise;
+      } finally {
+        activePuts -= 1;
+      }
+    });
+
+    const view = renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    vi.useFakeTimers();
+    fireEvent.change(editor, { target: { value: "older_backoff_edit = 1\n" } });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(putBodies(fetchMock)).toHaveLength(1);
+
+    for (const delay of [1_000, 2_000, 5_000, 10_000]) {
+      await act(async () => {
+        vi.advanceTimersByTime(delay);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    }
+    expect(putBodies(fetchMock)).toHaveLength(5);
+    expect(putBodies(fetchMock).every((body) => body.content === "older_backoff_edit = 1\n"))
+      .toBe(true);
+
+    fireEvent.change(editor, { target: { value: "newest_committed_edit = 2\n" } });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      vi.advanceTimersByTime(649);
+      await Promise.resolve();
+    });
+    expect(putBodies(fetchMock)).toHaveLength(5);
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(putBodies(fetchMock)).toHaveLength(6);
+    expect(putBodies(fetchMock)[5]).toMatchObject({ content: "newest_committed_edit = 2\n" });
+    expect(activePuts).toBe(1);
+
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+      vi.advanceTimersByTime(30_000);
+      await Promise.resolve();
+    });
+    expect(putBodies(fetchMock)).toHaveLength(6);
+    expect(maximumActivePuts).toBe(1);
+
+    await act(async () => newerResponse.resolve(successfulPut("newest_committed_edit = 2\n", 1)));
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "synced");
+    expect(activePuts).toBe(0);
     view.unmount();
   });
 
@@ -1026,6 +1104,61 @@ describe("CodeLab authoritative draft synchronization", () => {
     await screen.findByText("Saved to Codestead.");
     expect(editor).toHaveValue("my_local_solution = 7\n");
   });
+
+  it("keeps a 409 conflict resolvable instead of letting another edit dismiss it", async () => {
+    const newer = { ...serverDraft, content: "newer_server = 99\n", rowVersion: 2 };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+      return json({ code: "DRAFT_VERSION_CONFLICT", current: newer }, 409);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "conflicted_local = 1\n" } });
+    await screen.findByText(/newer server draft exists/i);
+
+    fireEvent.change(editor, { target: { value: "must_not_dismiss_conflict = 2\n" } });
+    expect(editor).toHaveValue("conflicted_local = 1\n");
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    expect(screen.getByRole("button", { name: "Keep my draft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      label: "returns false",
+      remove: async () => false,
+    },
+    {
+      label: "rejects",
+      remove: async () => { throw new Error("conditional deletion unavailable"); },
+    },
+  ])(
+    "keeps conflict choices active when Use server draft $label",
+    async ({ remove }) => {
+      const repository = installRepository({ deleteDraftIfMutation: remove });
+      const newer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
+      vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+        if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+        return json({ code: "DRAFT_VERSION_CONFLICT", current: newer }, 409);
+      });
+
+      renderLab();
+      const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+      await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+      fireEvent.change(editor, { target: { value: "local_choice = 1\n" } });
+      await screen.findByText(/newer server draft exists/i);
+      await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+      await waitFor(() => expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(1));
+
+      fireEvent.change(editor, { target: { value: "must_not_bypass_failed_choice = 2\n" } });
+      expect(editor).toHaveValue("local_choice = 1\n");
+      expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+      expect(screen.getByRole("button", { name: "Keep my draft" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
+    },
+  );
 
   it("keeps an explicit conflict blocked when a newer local commit finishes afterward", async () => {
     const newerLocalCommit = deferred<void>();

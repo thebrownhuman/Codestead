@@ -319,6 +319,7 @@ export function useSyncedDraft({
       && latest.record.requestId !== failedNetwork.record.requestId
       && latest.state === "committed") {
       runtime.networkMutation = { record: latest.record, hasSent: false };
+      runtime.retryIndex = 0;
     }
     const delay = DRAFT_RETRY_DELAYS_MS[Math.min(
       runtime.retryIndex,
@@ -345,7 +346,7 @@ export function useSyncedDraft({
     runtime.latestMutation = mutation;
     runtime.localValidationFailed = false;
 
-    if (runtime.networkMutation && !runtime.networkMutation.hasSent && !runtime.networkActive) {
+    if (runtime.networkMutation && !runtime.networkActive) {
       clearTimer(runtime);
       runtime.networkMutation = null;
     }
@@ -478,7 +479,7 @@ export function useSyncedDraft({
         runtime.nextSequence += 1;
         applyDraft(runtime, outboxDraftToCached(durableWinner));
         setServerCopy(body.draft);
-        runtime.pendingConflict = false;
+        runtime.pendingConflict = true;
         transition(runtime, "conflict");
         return;
       }
@@ -809,7 +810,6 @@ export function useSyncedDraft({
 
     clearTimer(runtime);
     runtime.networkMutation = null;
-    runtime.pendingConflict = false;
     void ensureRepository(runtime).then(async (repository) => {
       const deleted = await repository.deleteDraftIfMutation(
         runtime.namespace,
@@ -829,6 +829,7 @@ export function useSyncedDraft({
         dirty: false,
       };
       runtime.latestMutation = null;
+      runtime.pendingConflict = false;
       applyDraft(runtime, clean);
       setServerCopy(null);
       transition(runtime, "synced");
