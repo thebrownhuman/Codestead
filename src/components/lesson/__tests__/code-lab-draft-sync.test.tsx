@@ -461,6 +461,58 @@ describe("CodeLab authoritative draft synchronization", () => {
     );
   });
 
+  it("keeps an authoritative save truthful when cleanup rejects and safely replays it after reopen", async () => {
+    let durableRecord: DraftOutboxRecord | null = null;
+    const firstRepository = installRepository({
+      putDraft: async (record) => { durableRecord = record; },
+      deleteDraftIfMutation: async () => { throw new Error("cleanup transaction failed"); },
+    });
+    let currentServerDraft = { ...serverDraft, content: "cleanup_replay = true\n", rowVersion: 1 };
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") {
+        return json({ draft: puts === 0 ? null : currentServerDraft, cacheNamespace: namespace });
+      }
+      puts += 1;
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      currentServerDraft = {
+        ...currentServerDraft,
+        content: String(body.content),
+      };
+      return successfulPut(String(body.content), 1, puts > 1);
+    });
+
+    const firstMount = renderLab();
+    const firstEditor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(firstEditor, { target: { value: "cleanup_replay = true\n" } });
+    await screen.findByText("Saved to Codestead.");
+    const firstBody = putBodies(fetchMock)[0];
+    expect(firstRepository.deleteDraftIfMutation).toHaveBeenCalledWith(
+      namespace,
+      key,
+      firstBody?.requestId,
+    );
+    expect(firstRepository.clearNamespace).not.toHaveBeenCalled();
+    expect(firstRepository.clearAll).not.toHaveBeenCalled();
+    expect(durableRecord).not.toBeNull();
+    firstMount.unmount();
+
+    const secondRepository = installRepository({
+      getDraft: async () => durableRecord,
+      deleteDraftIfMutation: async () => true,
+    });
+    renderLab();
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[1]).toEqual(firstBody);
+    await screen.findByText("Saved to Codestead.");
+    expect(secondRepository.deleteDraftIfMutation).toHaveBeenCalledWith(
+      namespace,
+      key,
+      firstBody?.requestId,
+    );
+  });
+
   it.each(staleNetworkOutcomes)(
     "keeps a newer pending local write truthful when an older PUT settles with $label",
     async (outcome) => {
@@ -1038,6 +1090,101 @@ describe("CodeLab authoritative draft synchronization", () => {
     await screen.findByText("Saved to Codestead.");
   });
 
+  it("recovers the route-shaped idempotency mismatch with a fresh durable request", async () => {
+    const acknowledgement = deferred<Response>();
+    const repository = installRepository();
+    let activePuts = 0;
+    let maximumActivePuts = 0;
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      activePuts += 1;
+      maximumActivePuts = Math.max(maximumActivePuts, activePuts);
+      puts += 1;
+      try {
+        if (puts === 1) {
+          return json({
+            error: "This request ID was already used for different draft content.",
+            code: "DRAFT_IDEMPOTENCY_MISMATCH",
+          }, 409);
+        }
+        return await acknowledgement.promise;
+      } finally {
+        activePuts -= 1;
+      }
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "fresh_identity_needed = true\n" } });
+    await screen.findByText(/could not reuse this saved request/i);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "idempotency-mismatch");
+    expect(screen.queryByText(/newer server draft exists/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+    expect(repository.deleteDraftIfMutation).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry with fresh request" }));
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[1]).toMatchObject({ content: "fresh_identity_needed = true\n" });
+    expect(putBodies(fetchMock)[1]?.requestId).not.toBe(putBodies(fetchMock)[0]?.requestId);
+    expect(maximumActivePuts).toBe(1);
+    expect(repository.deleteDraftIfMutation).not.toHaveBeenCalled();
+
+    await act(async () => acknowledgement.resolve(successfulPut("fresh_identity_needed = true\n", 1)));
+    await screen.findByText("Saved to Codestead.");
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledWith(
+      namespace,
+      key,
+      putBodies(fetchMock)[1]?.requestId,
+    );
+  });
+
+  it("keeps the route-shaped quota response durable and retries the same request on demand", async () => {
+    const acknowledgement = deferred<Response>();
+    const repository = installRepository();
+    let activePuts = 0;
+    let maximumActivePuts = 0;
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: null, cacheNamespace: namespace });
+      activePuts += 1;
+      maximumActivePuts = Math.max(maximumActivePuts, activePuts);
+      puts += 1;
+      try {
+        if (puts === 1) {
+          return json({
+            error: "Draft quota exceeded.",
+            code: "DRAFT_QUOTA_EXCEEDED",
+            limit: 10,
+          }, 409);
+        }
+        return await acknowledgement.promise;
+      } finally {
+        activePuts -= 1;
+      }
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    fireEvent.change(editor, { target: { value: "quota_safe_browser_copy = true\n" } });
+    await screen.findByText(/draft storage limit is full/i);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "quota-exceeded");
+    expect(screen.queryByText(/newer server draft exists/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+    expect(repository.deleteDraftIfMutation).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry sync" }));
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[1]).toEqual(putBodies(fetchMock)[0]);
+    expect(maximumActivePuts).toBe(1);
+    expect(repository.deleteDraftIfMutation).not.toHaveBeenCalled();
+
+    await act(async () => acknowledgement.resolve(successfulPut("quota_safe_browser_copy = true\n", 1)));
+    await screen.findByText("Saved to Codestead.");
+  });
+
   it("retries an initial transient load failure even when no local draft exists", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(json({ code: "DRAFT_STORE_UNAVAILABLE" }, 503))
@@ -1125,40 +1272,162 @@ describe("CodeLab authoritative draft synchronization", () => {
     expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
   });
 
-  it.each([
-    {
-      label: "returns false",
-      remove: async () => false,
-    },
-    {
-      label: "rejects",
-      remove: async () => { throw new Error("conditional deletion unavailable"); },
-    },
-  ])(
-    "keeps conflict choices active when Use server draft $label",
-    async ({ remove }) => {
-      const repository = installRepository({ deleteDraftIfMutation: remove });
-      const newer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
-      vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
-        if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
-        return json({ code: "DRAFT_VERSION_CONFLICT", current: newer }, 409);
-      });
+  it("adopts an external durable winner after Use server loses, then deletes that winner exactly", async () => {
+    const externalWinner = outbox({
+      content: "external_winner = 3\n",
+      requestId: "10000000-0000-4000-8000-000000000099",
+    });
+    const repository = installRepository({
+      getDraft: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(externalWinner),
+      deleteDraftIfMutation: vi.fn()
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true),
+    });
+    const newerServer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+      return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+    });
 
-      renderLab();
-      const editor = await screen.findByRole("textbox", { name: "Practice source code" });
-      await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
-      fireEvent.change(editor, { target: { value: "local_choice = 1\n" } });
-      await screen.findByText(/newer server draft exists/i);
-      await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
-      await waitFor(() => expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(1));
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "stale_local_b = 2\n" } });
+    await screen.findByText(/newer server draft exists/i);
+    const staleRequestId = putBodies(fetchMock)[0]?.requestId;
 
-      fireEvent.change(editor, { target: { value: "must_not_bypass_failed_choice = 2\n" } });
-      expect(editor).toHaveValue("local_choice = 1\n");
-      expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
-      expect(screen.getByRole("button", { name: "Keep my draft" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Use server draft" })).toBeInTheDocument();
-    },
-  );
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await waitFor(() => expect(editor).toHaveValue("external_winner = 3\n"));
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    expect(repository.deleteDraftIfMutation).toHaveBeenNthCalledWith(
+      1,
+      namespace,
+      key,
+      staleRequestId,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await waitFor(() => expect(editor).toHaveValue("server_choice = 9\n"));
+    expect(repository.deleteDraftIfMutation).toHaveBeenNthCalledWith(
+      2,
+      namespace,
+      key,
+      externalWinner.requestId,
+    );
+    expect(screen.getByText("Saved to Codestead.")).toBeInTheDocument();
+    expect(putBodies(fetchMock)).toHaveLength(1);
+  });
+
+  it("rebases the adopted external durable winner when the learner keeps the local side", async () => {
+    const externalWinner = outbox({
+      content: "external_winner_to_keep = 4\n",
+      requestId: "10000000-0000-4000-8000-000000000098",
+    });
+    const repository = installRepository({
+      getDraft: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(externalWinner),
+      deleteDraftIfMutation: async () => false,
+    });
+    const newerServer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
+    let puts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+      puts += 1;
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      if (puts === 1) return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+      return successfulPut(String(body.content), 3);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "stale_local_b = 2\n" } });
+    await screen.findByText(/newer server draft exists/i);
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await waitFor(() => expect(editor).toHaveValue("external_winner_to_keep = 4\n"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Keep my draft" }));
+    await waitFor(() => expect(putBodies(fetchMock)).toHaveLength(2), { timeout: 2_000 });
+    expect(putBodies(fetchMock)[1]).toMatchObject({
+      content: "external_winner_to_keep = 4\n",
+      expectedRowVersion: 2,
+    });
+    expect(putBodies(fetchMock)[1]?.requestId).not.toBe(externalWinner.requestId);
+    expect(repository.putDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ content: "external_winner_to_keep = 4\n" }),
+    }));
+  });
+
+  it("blocks stale Keep when the external winner cannot be read, then retries adoption", async () => {
+    const externalWinner = outbox({
+      content: "winner_after_retry = 5\n",
+      requestId: "10000000-0000-4000-8000-000000000097",
+    });
+    const repository = installRepository({
+      getDraft: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockRejectedValueOnce(new Error("browser store temporarily unavailable"))
+        .mockResolvedValueOnce(externalWinner),
+      deleteDraftIfMutation: vi.fn()
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true),
+    });
+    const newerServer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+      return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "stale_local_b = 2\n" } });
+    await screen.findByText(/newer server draft exists/i);
+
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await screen.findByText(/another browser changed this draft/i);
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict-recovery");
+    expect(editor).toHaveValue("stale_local_b = 2\n");
+    expect(screen.queryByRole("button", { name: "Keep my draft" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Reload browser draft" }));
+    await waitFor(() => expect(editor).toHaveValue("winner_after_retry = 5\n"));
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await waitFor(() => expect(editor).toHaveValue("server_choice = 9\n"));
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the conflict retryable when conditional deletion rejects", async () => {
+    const repository = installRepository({
+      deleteDraftIfMutation: vi.fn()
+        .mockRejectedValueOnce(new Error("conditional deletion unavailable"))
+        .mockResolvedValueOnce(true),
+    });
+    const newerServer = { ...serverDraft, content: "server_choice = 9\n", rowVersion: 2 };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "GET") return json({ draft: serverDraft, cacheNamespace: namespace });
+      return json({ code: "DRAFT_VERSION_CONFLICT", current: newerServer }, 409);
+    });
+
+    renderLab();
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    await waitFor(() => expect(editor).toHaveValue(serverDraft.content));
+    fireEvent.change(editor, { target: { value: "local_choice = 1\n" } });
+    await screen.findByText(/newer server draft exists/i);
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await waitFor(() => expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(1));
+    expect(editor).toHaveValue("local_choice = 1\n");
+    expect(draftNotice()).toHaveAttribute("data-draft-status", "conflict");
+
+    await userEvent.click(screen.getByRole("button", { name: "Use server draft" }));
+    await waitFor(() => expect(editor).toHaveValue("server_choice = 9\n"));
+    expect(repository.deleteDraftIfMutation).toHaveBeenCalledTimes(2);
+  });
 
   it("keeps an explicit conflict blocked when a newer local commit finishes afterward", async () => {
     const newerLocalCommit = deferred<void>();

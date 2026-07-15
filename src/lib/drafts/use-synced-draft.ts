@@ -6,7 +6,11 @@ import {
   openBrowserOutbox,
   type BrowserOutboxRepository,
 } from "@/lib/browser-durability/indexed-db";
-import type { DraftOutboxRecord } from "@/lib/browser-durability/types";
+import {
+  draftOutboxStorageKey,
+  isDraftOutboxRecord,
+  type DraftOutboxRecord,
+} from "@/lib/browser-durability/types";
 
 import {
   cachedDraftToOutbox,
@@ -29,6 +33,9 @@ export type DraftSyncStatus =
   | "offline-saved-local"
   | "local-save-error"
   | "conflict"
+  | "conflict-recovery"
+  | "idempotency-mismatch"
+  | "quota-exceeded"
   | "reauthenticate"
   | "exam-locked"
   | "scope-unavailable"
@@ -137,6 +144,15 @@ function clearTimer(runtime: DraftRuntime) {
 function abortRequest(runtime: DraftRuntime) {
   runtime.abortController?.abort();
   runtime.abortController = null;
+}
+
+function isRuntimeDraftRecord(
+  runtime: DraftRuntime,
+  value: unknown,
+): value is DraftOutboxRecord {
+  return isDraftOutboxRecord(value)
+    && value.namespace === runtime.namespace
+    && value.storageKey === draftOutboxStorageKey(runtime.namespace, runtime.key);
 }
 
 export function useSyncedDraft({
@@ -571,11 +587,15 @@ export function useSyncedDraft({
         }
         return;
       }
-      if (response.status === 409) {
+      const validatedConflictCopy = body.code === "DRAFT_VERSION_CONFLICT"
+        && isServerDraft(body.current, runtime.key)
+        ? body.current
+        : null;
+      if (response.status === 409 && validatedConflictCopy) {
         runtime.networkMutation = null;
         runtime.retryIndex = 0;
         clearTimer(runtime);
-        setServerCopy(isServerDraft(body.current, runtime.key) ? body.current : null);
+        setServerCopy(validatedConflictCopy);
         runtime.pendingConflict = true;
         const latest = runtime.latestMutation;
         if (!runtime.localValidationFailed
@@ -584,6 +604,46 @@ export function useSyncedDraft({
             || latest.state === "committed")) {
           transition(runtime, "conflict");
         }
+        return;
+      }
+      if (response.status === 409 && body.code === "DRAFT_IDEMPOTENCY_MISMATCH") {
+        runtime.networkMutation = null;
+        runtime.retryIndex = 0;
+        runtime.pendingConflict = false;
+        clearTimer(runtime);
+        setServerCopy(null);
+        const latest = runtime.latestMutation;
+        if (!runtime.localValidationFailed
+          && (!latest
+            || latest.record.requestId === network.record.requestId
+            || latest.state === "committed")) {
+          transition(runtime, "idempotency-mismatch");
+        }
+        return;
+      }
+      if (response.status === 409 && body.code === "DRAFT_QUOTA_EXCEEDED") {
+        runtime.retryIndex = 0;
+        runtime.pendingConflict = false;
+        clearTimer(runtime);
+        setServerCopy(null);
+        const latest = runtime.latestMutation;
+        if (latest && latest.record.requestId !== network.record.requestId) {
+          runtime.networkMutation = latest.state === "committed"
+            ? { record: latest.record, hasSent: false }
+            : null;
+        }
+        if (!runtime.localValidationFailed
+          && (!latest
+            || latest.record.requestId === network.record.requestId
+            || latest.state === "committed")) {
+          transition(runtime, "quota-exceeded");
+        }
+        return;
+      }
+      if (response.status === 409) {
+        runtime.pendingConflict = false;
+        setServerCopy(null);
+        scheduleRetry(runtime);
         return;
       }
       if (!response.ok
@@ -798,7 +858,7 @@ export function useSyncedDraft({
     void enqueueRecord(runtime, record);
   }, [applyDraft, enqueueRecord, isCurrent, language, namespace, transition]);
 
-  const useServerCopy = useCallback(() => {
+  const chooseServerCopy = useCallback(() => {
     const runtime = runtimeRef.current;
     const selected = serverCopy;
     const currentMutation = runtime?.latestMutation;
@@ -806,7 +866,7 @@ export function useSyncedDraft({
       || !selected
       || !currentMutation
       || !isCurrent(runtime)
-      || statusRef.current !== "conflict") return;
+      || !["conflict", "conflict-recovery"].includes(statusRef.current)) return;
 
     clearTimer(runtime);
     runtime.networkMutation = null;
@@ -816,9 +876,34 @@ export function useSyncedDraft({
         runtime.key,
         currentMutation.record.requestId,
       );
-      if (!deleted
-        || !isCurrent(runtime)
-        || runtime.latestMutation !== currentMutation) return;
+      if (!isCurrent(runtime) || runtime.latestMutation !== currentMutation) return;
+      if (!deleted) {
+        let durableWinner: DraftOutboxRecord | null = null;
+        try {
+          durableWinner = await repository.getDraft(runtime.namespace, runtime.key);
+        } catch {
+          if (isCurrent(runtime) && runtime.latestMutation === currentMutation) {
+            transition(runtime, "conflict-recovery");
+          }
+          return;
+        }
+        if (!isCurrent(runtime) || runtime.latestMutation !== currentMutation) return;
+        if (!isRuntimeDraftRecord(runtime, durableWinner)
+          || durableWinner.requestId === currentMutation.record.requestId) {
+          transition(runtime, "conflict-recovery");
+          return;
+        }
+        runtime.latestMutation = {
+          record: durableWinner,
+          sequence: runtime.nextSequence,
+          state: "committed",
+        };
+        runtime.nextSequence += 1;
+        runtime.pendingConflict = true;
+        applyDraft(runtime, outboxDraftToCached(durableWinner));
+        transition(runtime, "conflict");
+        return;
+      }
       const clean: CachedLearnerDraft = {
         schemaVersion: 1,
         content: selected.content,
@@ -862,6 +947,41 @@ export function useSyncedDraft({
 
   const retry = useCallback(() => {
     const runtime = runtimeRef.current;
+    if (statusRef.current === "conflict-recovery") {
+      chooseServerCopy();
+      return;
+    }
+    if (statusRef.current === "idempotency-mismatch"
+      && runtime
+      && isCurrent(runtime)) {
+      const current = draftRef.current;
+      if (!current) return;
+      const renewed: CachedLearnerDraft = {
+        ...current,
+        requestId: newRequestId(),
+        locallyUpdatedAt: new Date().toISOString(),
+        dirty: true,
+      };
+      let record: DraftOutboxRecord;
+      try {
+        record = cachedDraftToOutbox(runtime.namespace, runtime.key, renewed);
+      } catch {
+        transition(runtime, "local-save-error");
+        return;
+      }
+      applyDraft(runtime, renewed);
+      void enqueueRecord(runtime, record);
+      return;
+    }
+    if (statusRef.current === "quota-exceeded"
+      && runtime
+      && isCurrent(runtime)
+      && runtime.networkMutation
+      && !runtime.networkActive) {
+      clearTimer(runtime);
+      attemptNetworkRef.current(runtime);
+      return;
+    }
     if (statusRef.current === "local-save-error"
       && runtime
       && isCurrent(runtime)
@@ -882,14 +1002,14 @@ export function useSyncedDraft({
     if (statusRef.current === "unavailable") {
       setLoadRetryTick((value) => value + 1);
     }
-  }, [enqueueRecord, isCurrent]);
+  }, [applyDraft, chooseServerCopy, enqueueRecord, isCurrent, transition]);
 
   return {
     content: draft?.content ?? initialContent,
     setContent,
     status,
     serverCopy,
-    useServerCopy,
+    useServerCopy: chooseServerCopy,
     keepLocalCopy,
     retry,
   } as const;

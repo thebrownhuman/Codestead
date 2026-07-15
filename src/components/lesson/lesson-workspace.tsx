@@ -465,7 +465,13 @@ function CodeLabSession({
   const [result, setResult] = useState<PracticeRunView | null>(null);
   const [resultSource, setResultSource] = useState<string | null>(null);
   const [resultStdin, setResultStdin] = useState<string | null>(null);
-  const draftBlocksEditing = ["loading", "conflict", "reauthenticate", "exam-locked"].includes(draft.status);
+  const draftBlocksEditing = [
+    "loading",
+    "conflict",
+    "conflict-recovery",
+    "reauthenticate",
+    "exam-locked",
+  ].includes(draft.status);
   const inputBlocksEditing = draftBlocksEditing || stdinRestoring;
   const runDisabled = running || inputBlocksEditing;
   const visibleResult = resultSource === source && resultStdin === stdin ? result : null;
@@ -763,6 +769,9 @@ const draftStatusCopy: Record<DraftSyncStatus, string> = {
   "offline-saved-local": "Saved locally on this browser. Codestead will retry automatically.",
   "local-save-error": "Could not save on this browser. Keep this tab open and copy your work before leaving.",
   conflict: "A newer server draft exists. Choose which copy to keep; neither was overwritten.",
+  "conflict-recovery": "Another browser changed this draft while your choice was being applied. Reload that browser draft before choosing either copy.",
+  "idempotency-mismatch": "Codestead could not reuse this saved request. Your browser copy is safe; retry with a fresh request.",
+  "quota-exceeded": "Codestead's draft storage limit is full. Your browser copy is safe; free server space or ask the administrator, then retry.",
   reauthenticate: "Your session expired or was revoked. Sign in before syncing.",
   "exam-locked": "Draft access is locked during a closed-book exam.",
   "scope-unavailable": "This editor is outside an available server draft scope. Automatic sync is blocked.",
@@ -791,7 +800,10 @@ function DraftSyncNotice({
       {exceedsSaveLimit && <small>This draft exceeds the 131,072-byte UTF-8 save limit. Shorten it before retrying.</small>}
     </span>
     {status === "conflict" && hasServerCopy && <div><button type="button" onClick={onKeepLocal}>Keep my draft</button><button type="button" onClick={onUseServer}>Use server draft</button></div>}
+    {status === "conflict-recovery" && <button type="button" onClick={onRetry}>Reload browser draft</button>}
+    {status === "idempotency-mismatch" && <button type="button" onClick={onRetry}>Retry with fresh request</button>}
     {(["unavailable", "offline-saved-local"].includes(status)
+      || status === "quota-exceeded"
       || (status === "local-save-error" && !exceedsSaveLimit)) && <button type="button" onClick={onRetry}>Retry sync</button>}
     {status === "reauthenticate" && <Link href="/login">Sign in</Link>}
   </div>;

@@ -141,7 +141,10 @@ describe("authoritative learner draft route", () => {
     mocks.save.mockRejectedValueOnce(new DraftIdempotencyMismatchError());
     const response = await PUT(putRequest());
     expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({ code: "DRAFT_IDEMPOTENCY_MISMATCH" });
+    const body = await response.json();
+    expect(body).toMatchObject({ code: "DRAFT_IDEMPOTENCY_MISMATCH" });
+    expect(body).not.toHaveProperty("current");
+    expect(body).not.toHaveProperty("cacheNamespace");
   });
 
   it("fails closed for inaccessible curriculum scope and reports aggregate quota", async () => {
@@ -153,7 +156,10 @@ describe("authoritative learner draft route", () => {
     mocks.save.mockRejectedValueOnce(new DraftQuotaExceededError("bytes"));
     const quota = await PUT(putRequest());
     expect(quota.status).toBe(409);
-    expect(await quota.json()).toMatchObject({ code: "DRAFT_QUOTA_EXCEEDED", limit: "bytes" });
+    const quotaBody = await quota.json();
+    expect(quotaBody).toMatchObject({ code: "DRAFT_QUOTA_EXCEEDED", limit: "bytes" });
+    expect(quotaBody).not.toHaveProperty("current");
+    expect(quotaBody).not.toHaveProperty("cacheNamespace");
   });
 
   it("requires a language facet for code and forbids one for lesson notes", async () => {
