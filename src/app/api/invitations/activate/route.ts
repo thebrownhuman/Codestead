@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth";
-import { findUsableInvitationByToken } from "@/lib/security/invitation-store";
+import {
+  consumeInvitationByToken,
+  findUsableInvitationByToken,
+} from "@/lib/security/invitation-store";
 import { rateLimitIp, withRateLimit } from "@/lib/security/rate-limit";
 import { runAuthorizedActivation } from "@/lib/security/activation-context";
 
@@ -28,12 +31,27 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "This invitation is invalid or expired." }, { status: 404 });
           }
 
+          const claimed = await consumeInvitationByToken({
+            rawToken: parsed.data.token,
+            expectedEmail: record.email,
+          });
+          if (!claimed?.consumedAt) {
+            return NextResponse.json({ error: "This invitation is invalid or expired." }, { status: 404 });
+          }
+
+          // This claim is deliberately irreversible. Restoring it after an
+          // ambiguous signup failure could let a replay race create a second
+          // account; the safe recovery is an administrator-issued fresh invite.
           try {
             await runAuthorizedActivation(
-              { invitationId: record.id, email: record.email },
+              {
+                invitationId: claimed.id,
+                email: claimed.email,
+                consumedAt: claimed.consumedAt,
+              },
               () => auth.api.signUpEmail({
                 body: {
-                  email: record.email.toLowerCase(),
+                  email: claimed.email.trim().toLowerCase(),
                   name: parsed.data.name,
                   password: parsed.data.password,
                 },

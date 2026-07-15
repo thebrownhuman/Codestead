@@ -166,6 +166,7 @@ export const auth = betterAuth({
 
           const activation = currentActivationAuthorization();
           if (!activation || activation.email !== email) return false;
+          const claimedAt = new Date(activation.consumedAt);
 
           const [validInvite] = await db
             .select({ id: schema.invitation.id })
@@ -174,8 +175,8 @@ export const auth = betterAuth({
               and(
                 eq(schema.invitation.id, activation.invitationId),
                 sql`lower(${schema.invitation.email}) = ${activation.email}`,
-                isNull(schema.invitation.consumedAt),
-                gt(schema.invitation.expiresAt, new Date()),
+                eq(schema.invitation.consumedAt, claimedAt),
+                gt(schema.invitation.expiresAt, claimedAt),
               ),
             )
             .limit(1);
@@ -183,23 +184,11 @@ export const auth = betterAuth({
           if (!validInvite) return false;
         },
         after: async (createdUser) => {
-          const activation = currentActivationAuthorization();
           await db.transaction(async (tx) => {
             await tx
               .insert(schema.learnerProfile)
               .values({ userId: createdUser.id })
               .onConflictDoNothing();
-            if (activation) {
-              await tx
-                .update(schema.invitation)
-                .set({ consumedAt: new Date() })
-                .where(
-                  and(
-                    eq(schema.invitation.id, activation.invitationId),
-                    isNull(schema.invitation.consumedAt),
-                  ),
-                );
-            }
           });
         },
       },

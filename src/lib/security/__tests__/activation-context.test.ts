@@ -10,13 +10,15 @@ import {
 describe("invitation activation context", () => {
   it("is scoped to the authorized asynchronous signup operation", async () => {
     expect(currentActivationAuthorization()).toBeNull();
+    const consumedAt = new Date("2029-12-31T23:00:00.000Z");
     await runAuthorizedActivation(
-      { invitationId: "invite-1", email: " Learner@Example.COM " },
+      { invitationId: "invite-1", email: " Learner@Example.COM ", consumedAt },
       async () => {
         await Promise.resolve();
         expect(currentActivationAuthorization()).toEqual({
           invitationId: "invite-1",
           email: "learner@example.com",
+          consumedAt: consumedAt.toISOString(),
         });
       },
     );

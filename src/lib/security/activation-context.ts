@@ -3,17 +3,26 @@ import { AsyncLocalStorage } from "node:async_hooks";
 export interface ActivationAuthorization {
   readonly invitationId: string;
   readonly email: string;
+  readonly consumedAt: string;
+}
+
+interface ActivationAuthorizationInput extends Omit<ActivationAuthorization, "consumedAt"> {
+  readonly consumedAt: Date;
 }
 
 const activationStorage = new AsyncLocalStorage<ActivationAuthorization>();
 const bootstrapStorage = new AsyncLocalStorage<string>();
 
 export function runAuthorizedActivation<T>(
-  authorization: ActivationAuthorization,
+  authorization: ActivationAuthorizationInput,
   operation: () => T,
 ) {
   return activationStorage.run(
-    { ...authorization, email: authorization.email.trim().toLowerCase() },
+    {
+      ...authorization,
+      email: authorization.email.trim().toLowerCase(),
+      consumedAt: authorization.consumedAt.toISOString(),
+    },
     operation,
   );
 }
