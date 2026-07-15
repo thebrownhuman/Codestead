@@ -3,6 +3,9 @@ set -Eeuo pipefail
 umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+bash_bin="$(command -v bash)"
+env_bin="$(command -v env)"
+node_bin="$(command -v node)"
 checker="$repo_root/infra/ops/check-recovery.sh"
 tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
 work="$(mktemp -d "$tmp_base/power-recovery-check.XXXXXX")"
@@ -29,7 +32,7 @@ if (( EUID != 0 )); then
   if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     cleanup
     trap - EXIT
-    exec sudo -n bash "$repo_root/infra/tests/power-recovery-check.test.sh"
+    exec sudo -n "$bash_bin" "$repo_root/infra/tests/power-recovery-check.test.sh"
   fi
   echo 'FAIL: power recovery checker contract requires passwordless sudo for root-owned fixture metadata' >&2
   exit 1
@@ -40,8 +43,26 @@ fail() {
   exit 1
 }
 
-if grep -Eq '/(usr/)?s?bin/(systemctl|virsh|docker|curl|date|sleep|journalctl|findmnt|smartctl|mount|umount|nft|ping|nc|wget|stat|realpath|readlink|cat)([[:space:]"'\'']|$)' "$checker"; then
-  fail 'recovery checker hard-codes a host command path and can bypass the isolated fake PATH'
+if tail -n +2 "$checker" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
+  fail 'recovery checker hard-codes an executable path and can bypass the isolated fake PATH'
+fi
+if tail -n +2 "$checker" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
+  fail 'recovery checker can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH'
+fi
+if tail -n +2 "$checker" | grep -Eq 'command[[:space:]]+-p|enable[[:space:]]+-f|hash[[:space:]]+-p|/dev/(tcp|udp)/'; then
+  fail 'recovery checker can bypass fake command lookup'
+fi
+unsafe_absolute_redirects="$(tail -n +2 "$checker" | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+if [[ -n "$unsafe_absolute_redirects" ]]; then
+  fail 'recovery checker redirects output to an absolute path other than /dev/null'
+fi
+redirect_prefix_probe="$(printf '%s\n' 'printf unsafe >/dev/null.evil' | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+[[ -n "$redirect_prefix_probe" ]] || fail 'recovery redirect guard accepted a /dev/null prefix sibling'
+if tail -n +2 "$checker" | grep -Eq '(^|[;&|()[:space:]])(env|sh|bash|dash|zsh)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])(eval|source)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])\.[[:space:]]+/'; then
+  fail 'recovery checker can spawn or source an uninstrumented shell command'
+fi
+if tail -n +2 "$checker" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
+  fail 'recovery checker contains an uninstrumented shell file read'
 fi
 grep -Fq 'RECOVERY_CHECK_TEST_ROOT' "$checker" || fail 'recovery checker is missing the single narrow test-root seam'
 grep -Fq '/etc/learncoding/existing-containers.txt' "$checker" || fail 'recovery checker changed the protected production baseline path'
@@ -60,11 +81,16 @@ runner_expired_body_file="$state_root/runner-expired-body"
 runner_expired_signature_file="$state_root/runner-expired-signature"
 curl_root="$state_root/curl"
 baseline="$host_root/etc/learncoding/existing-containers.txt"
+compose_env_path="$host_root/etc/learncoding/compose.env"
 runner_secret_file="$host_root/etc/learncoding/secrets/runner_shared_secret"
+postgres_sql="SELECT name, setting FROM pg_settings WHERE name IN ('fsync', 'synchronous_commit', 'full_page_writes');"
 mkdir -m 0700 -p "$fake_bin" "$state_root" "$curl_root" "$host_root/etc/learncoding/secrets"
 printf '%s\n' legacy-alpha legacy-bravo >"$baseline"
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
+: >"$compose_env_path"
+chown 0:0 "$compose_env_path"
+chmod 0640 "$compose_env_path"
 
 secret_canary='RECOVERY_SECRET_CANARY_0cbb4185_DO_NOT_PRINT'
 learner_canary='RECOVERY_LEARNER_CANARY_learner@example.invalid'
@@ -86,7 +112,7 @@ sign_runner_body() {
   local body_file="$1"
   local signature_file="$2"
   RUNNER_SECRET_FILE="$runner_secret_file" RUNNER_BODY_FILE="$body_file" \
-    node -e '
+    "$node_bin" -e '
     const fs = require("node:fs");
     const { createHash, createHmac } = require("node:crypto");
     const secret = fs.readFileSync(process.env.RUNNER_SECRET_FILE, "utf8");
@@ -99,8 +125,8 @@ sign_runner_body "$runner_body_file" "$runner_signature_file"
 sign_runner_body "$runner_concurrency_body_file" "$runner_concurrency_signature_file"
 sign_runner_body "$runner_expired_body_file" "$runner_expired_signature_file"
 
-cat >"$fake_bin/fake-recovery-command" <<'FAKE'
-#!/usr/bin/env bash
+printf '#!%s\n' "$bash_bin" >"$fake_bin/fake-recovery-command"
+cat >>"$fake_bin/fake-recovery-command" <<'FAKE'
 set -Eeuo pipefail
 umask 077
 
@@ -137,7 +163,46 @@ safe_under() {
   done
 }
 
+emit_compose_status() {
+  local first=true
+  local service
+  local state
+  printf '['
+  for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
+    practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    [[ "$scenario" != app-incomplete || "$service" != app ]] || continue
+    [[ "$scenario" != worker-incomplete || "$service" != reward-worker ]] || continue
+    [[ "$scenario" != cloudflared-incomplete || "$service" != cloudflared ]] || continue
+    state=running
+    [[ "$scenario" != app-malformed || "$service" != app ]] || state=mystery
+    [[ "$scenario" != worker-malformed || "$service" != mail-worker ]] || state=mystery
+    [[ "$scenario" != cloudflared-malformed || "$service" != cloudflared ]] || state=mystery
+    [[ "$first" == true ]] || printf ','
+    first=false
+    case "$service" in
+      app)
+        printf '{"Service":"%s","State":"%s","Health":"healthy","IgnoredLearner":"%s"}' \
+          "$service" "$state" "$FAKE_LEARNER_CANARY"
+        ;;
+      mail-worker)
+        printf '{"Service":"%s","State":"%s","Health":"healthy","IgnoredSource":"%s"}' \
+          "$service" "$state" "$FAKE_SOURCE_CANARY"
+        ;;
+      cloudflared)
+        printf '{"Service":"%s","State":"%s","Health":"healthy","Ignored":"%s"}' \
+          "$service" "$state" "$FAKE_RAW_COMMAND_CANARY"
+        ;;
+      *) printf '{"Service":"%s","State":"%s","Health":"healthy"}' "$service" "$state" ;;
+    esac
+  done
+  printf ']\n'
+}
+
 case "$command_name" in
+  id)
+    [[ "$#" == 1 && "$1" == -u ]] || exit 64
+    printf '%s\n' "$EUID"
+    ;;
   date)
     [[ "$#" == 1 && "$1" == +%s ]] || exit 64
     printf '%s\n' "$((1784116800 + clock))"
@@ -157,6 +222,7 @@ case "$command_name" in
     unit="${2:-}"
     case "$verb" in
       is-active)
+        [[ "$#" == 2 ]] || exit 64
         if [[ "$delayed" == true ]]; then exit 3; fi
         if [[ "$scenario" == permanent && "$unit" == learncoding-compose.service ]]; then exit 3; fi
         if [[ "$scenario" == docker-down && "$unit" == docker.service ]]; then exit 3; fi
@@ -170,6 +236,7 @@ case "$command_name" in
         esac
         ;;
       is-enabled)
+        [[ "$#" == 2 ]] || exit 64
         if [[ "$scenario" == timer-incomplete && "$unit" == learncoding-retention.timer ]]; then printf '%s\n' disabled; exit 1; fi
         if [[ "$scenario" == timer-malformed && "$unit" == learncoding-retention.timer ]]; then printf '%s\n' 'enabled unexpected'; exit 0; fi
         case "$unit" in
@@ -191,6 +258,7 @@ case "$command_name" in
     ;;
   virsh)
     if [[ "${1:-}" == --connect && "${2:-}" == qemu:///system ]]; then shift 2; fi
+    [[ "$#" == 2 ]] || exit 64
     case "${1:-}:${2:-}" in
       domstate:codestead-runner)
         if [[ "$scenario" == runner-inactive || "$delayed" == true ]]; then printf '%s\n' 'shut off'; else printf '%s\n' running; fi
@@ -211,17 +279,23 @@ case "$command_name" in
     esac
     ;;
   docker)
-    joined=" $* "
-    if [[ "$joined" == *' info '* || "${1:-}" == info ]]; then
+    if [[ "$#" == 1 && "$1" == info ]]; then
       [[ "$delayed" == false && "$scenario" != docker-down ]] || exit 1
       exit 0
     fi
-    if [[ "$joined" == *' pg_isready '* ]]; then
+    if [[ "$#" == 11 && "$1" == compose && "$2" == --env-file && "$3" == "$FAKE_COMPOSE_ENV" && \
+      "$4" == -f && "$5" == "$FAKE_COMPOSE_FILE" && "$6" == exec && "$7" == -T && \
+      "$8" == postgres && "$9" == pg_isready && "${10}" == --username=learncoding && \
+      "${11}" == --dbname=learncoding ]]; then
       [[ "$scenario" != postgres-unhealthy && "$delayed" == false ]] || exit 1
       printf '%s\n' 'accepting connections'
       exit 0
     fi
-    if [[ "$joined" == *' pg_settings '* || "$joined" == *' synchronous_commit '* ]]; then
+    if [[ "$#" == 16 && "$1" == compose && "$2" == --env-file && "$3" == "$FAKE_COMPOSE_ENV" && \
+      "$4" == -f && "$5" == "$FAKE_COMPOSE_FILE" && "$6" == exec && "$7" == -T && \
+      "$8" == postgres && "$9" == psql && "${10}" == --username=learncoding && \
+      "${11}" == --dbname=learncoding && "${12}" == --no-align && "${13}" == --tuples-only && \
+      "${14}" == '--field-separator=|' && "${15}" == --command && "${16}" == "$FAKE_POSTGRES_SQL" ]]; then
       case "$scenario" in
         postgres-fsync-off) printf '%s\n' 'fsync|off' 'synchronous_commit|on' 'full_page_writes|on' ;;
         postgres-sync-off) printf '%s\n' 'fsync|on' 'synchronous_commit|off' 'full_page_writes|on' ;;
@@ -230,22 +304,13 @@ case "$command_name" in
       esac
       exit 0
     fi
-    if [[ "$joined" == *' compose '* && "$joined" == *' ps '* ]]; then
+    if [[ "$#" == 8 && "$1" == compose && "$2" == --env-file && "$3" == "$FAKE_COMPOSE_ENV" && \
+      "$4" == -f && "$5" == "$FAKE_COMPOSE_FILE" && "$6" == ps && "$7" == --format && "$8" == json ]]; then
       [[ "$delayed" == false ]] || exit 1
-      case "$scenario" in
-        worker-malformed) printf '%s\n' '{malformed-compose-status' ;;
-        app-incomplete) printf '%s\n' '[{"Service":"postgres","State":"running","Health":"healthy"}]' ;;
-        app-malformed) printf '%s\n' '[{"Service":"app","State":"mystery","Health":"healthy"}]' ;;
-        worker-incomplete) printf '%s\n' '[{"Service":"app","State":"running","Health":"healthy"},{"Service":"mail-worker","State":"running","Health":"healthy"}]' ;;
-        cloudflared-incomplete) printf '%s\n' '[{"Service":"app","State":"running","Health":"healthy"}]' ;;
-        cloudflared-malformed) printf '%s\n' '[{"Service":"cloudflared","State":"running","Health":"unknown"}]' ;;
-        *)
-          printf '%s\n' "[{\"Service\":\"app\",\"State\":\"running\",\"Health\":\"healthy\",\"IgnoredLearner\":\"$FAKE_LEARNER_CANARY\"},{\"Service\":\"mail-worker\",\"State\":\"running\",\"Health\":\"healthy\",\"IgnoredSource\":\"$FAKE_SOURCE_CANARY\"},{\"Service\":\"reward-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"regrade-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"exam-finalization-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"practice-runner-recovery-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"project-review-correction-worker\",\"State\":\"running\",\"Health\":\"healthy\"},{\"Service\":\"cloudflared\",\"State\":\"running\",\"Health\":\"healthy\",\"Ignored\":\"$FAKE_RAW_COMMAND_CANARY\"}]"
-          ;;
-      esac
+      emit_compose_status
       exit 0
     fi
-    if [[ "$joined" == *' ps '* || "${1:-}" == ps ]]; then
+    if [[ "$#" == 3 && "$1" == ps && "$2" == --format && "$3" == '{{.Names}}' ]]; then
       [[ "$delayed" == false ]] || { printf '%s\n' legacy-alpha; exit 0; }
       printf '%s\n' legacy-alpha
       [[ "$scenario" == existing-stopped ]] || printf '%s\n' legacy-bravo
@@ -257,26 +322,13 @@ case "$command_name" in
     exit 64
     ;;
   curl)
-    output=
-    headers=
-    url=
-    while (( $# > 0 )); do
-      case "$1" in
-        --output|-o) [[ $# -ge 2 ]] || exit 64; output="$2"; shift 2 ;;
-        --output=*) output="${1#*=}"; shift ;;
-        --dump-header|-D) [[ $# -ge 2 ]] || exit 64; headers="$2"; shift 2 ;;
-        --dump-header=*) headers="${1#*=}"; shift ;;
-        --silent|-s|--show-error|-S|--fail|--fail-with-body|--no-progress-meter) shift ;;
-        --max-time|--connect-timeout) [[ $# -ge 2 && "$2" =~ ^([1-9]|[12][0-9]|30)$ ]] || exit 64; shift 2 ;;
-        --request|-X) [[ $# -ge 2 && "$2" == GET ]] || exit 64; shift 2 ;;
-        --header|-H) [[ $# -ge 2 && "$2" != *$'\n'* && "$2" != *$'\r'* ]] || exit 64; shift 2 ;;
-        --url) [[ $# -ge 2 ]] || exit 64; url="$2"; shift 2 ;;
-        --url=*) url="${1#*=}"; shift ;;
-        http://*|https://*) url="$1"; shift ;;
-        *) exit 64 ;;
-      esac
-    done
-    [[ -n "$url" ]] || exit 64
+    [[ "$#" == 11 && "$1" == --silent && "$2" == --show-error && "$3" == --fail && \
+      "$4" == --max-time && "$5" == 10 && "$6" == --output && "$8" == --dump-header && \
+      "${10}" == --url ]] || exit 64
+    output="$7"
+    headers="$9"
+    url="${11}"
+    safe_under "$FAKE_CURL_ROOT" "$output" && safe_under "$FAKE_CURL_ROOT" "$headers" || exit 97
     body=
     header_text=
     if [[ "$url" == http://10.20.0.12:4100/healthz ]]; then
@@ -319,8 +371,8 @@ x-content-type-options: nosniff
 x-fixture-private: $FAKE_HTTP_HEADER_CANARY"
       fi
     fi
-    if [[ -n "$output" ]]; then safe_under "$FAKE_CURL_ROOT" "$output" || exit 97; printf '%s' "$body" >"$output"; else printf '%s' "$body"; fi
-    if [[ -n "$headers" ]]; then safe_under "$FAKE_CURL_ROOT" "$headers" || exit 97; printf '%s\n' "$header_text" >"$headers"; fi
+    printf '%s' "$body" >"$output"
+    printf '%s\n' "$header_text" >"$headers"
     ;;
   stat|realpath|readlink|cat)
     targets=()
@@ -329,7 +381,7 @@ x-fixture-private: $FAKE_HTTP_HEADER_CANARY"
       if [[ "$expect_format" == true ]]; then expect_format=false; continue; fi
       case "$argument" in -c|--format|--printf) expect_format=true ;; --|-e|-f|-m|-n|-q|-s|-v|--format=*|--printf=*) ;; -*) exit 64 ;; *) targets+=("$argument") ;; esac
     done
-    [[ "$expect_format" == false && ${#targets[@]} -gt 0 ]] || exit 64
+    [[ "$expect_format" == false && ${#targets[@]} == 1 ]] || exit 64
     for target in "${targets[@]}"; do
       safe_under "$FAKE_HOST_ROOT" "$target" || safe_under "$FAKE_STATE_ROOT" "$target" || exit 97
     done
@@ -369,10 +421,25 @@ x-fixture-private: $FAKE_HTTP_HEADER_CANARY"
 esac
 FAKE
 chmod 0755 "$fake_bin/fake-recovery-command"
-for command_name in systemctl virsh docker curl date sleep stat realpath readlink cat mktemp rm \
+for command_name in id systemctl virsh docker curl date sleep stat realpath readlink cat mktemp rm \
   journalctl findmnt smartctl mount umount nft ping nc wget dd truncate touch tee ln rsync sudo ssh scp socat; do
   cp "$fake_bin/fake-recovery-command" "$fake_bin/$command_name"
 done
+
+outside_sentinel="$work/outside-fake-roots.sentinel"
+printf '%s' 'outside-fixture-sentinel-unchanged' >"$outside_sentinel"
+set +e
+PATH="$fake_bin" "$fake_bin/cat" -- "$outside_sentinel" >"$work/outside-read.stdout" 2>"$work/outside-read.stderr"
+outside_read_status=$?
+PATH="$fake_bin" cp -- "$baseline" "$outside_sentinel" >"$work/outside-write.stdout" 2>"$work/outside-write.stderr"
+outside_write_status=$?
+PATH="$fake_bin" recovery-contract-unknown-command >"$work/outside-unknown.stdout" 2>"$work/outside-unknown.stderr"
+outside_unknown_status=$?
+set -e
+(( outside_read_status != 0 && outside_write_status != 0 && outside_unknown_status != 0 )) ||
+  fail 'fake-only recovery PATH allowed an unknown, outside read, or outside write command'
+[[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
+  fail 'outside-fixture recovery sentinel was modified'
 
 run_checker() {
   local scenario="$1"
@@ -381,9 +448,9 @@ run_checker() {
   printf '%s' 0 >"$clock_file"
   : >"$events"
   set +e
-  printf '%s' "$stdin_canary" | env -i \
+  printf '%s' "$stdin_canary" | "$env_bin" -i \
     HOME="$work" \
-    PATH="$fake_bin:/usr/bin:/bin" \
+    PATH="$fake_bin" \
     TMPDIR="$curl_root" \
     RECOVERY_CHECK_TEST_ROOT="$host_root" \
     RECOVERY_PUBLIC_URL='https://pilot.example.test/health/ready' \
@@ -408,9 +475,14 @@ run_checker() {
     FAKE_RAW_COMMAND_CANARY="$raw_command_canary" \
     FAKE_LEARNER_CANARY="$learner_canary" \
     FAKE_SOURCE_CANARY="$source_canary" \
-    bash "$checker" >"$prefix.stdout" 2>"$prefix.stderr"
+    FAKE_COMPOSE_ENV="$compose_env_path" \
+    FAKE_COMPOSE_FILE="$repo_root/compose.yaml" \
+    FAKE_POSTGRES_SQL="$postgres_sql" \
+    "$bash_bin" "$checker" >"$prefix.stdout" 2>"$prefix.stderr"
   checker_status=$?
   set -e
+  [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
+    fail 'recovery checker modified the outside-fixture sentinel'
 }
 
 validate_json_contract() {
@@ -418,13 +490,16 @@ validate_json_contract() {
   local expected_recovered="$2"
   local expected_timeout="$3"
   local expected_elapsed="$4"
-  local expected_false_keys="$5"
+  local expected_health_map="$5"
+  local expected_count="$6"
+  local running_count="$7"
   local line_count
   line_count="$(grep -cve '^[[:space:]]*$' "$output_file" || true)"
   [[ "$line_count" == 1 ]] || fail "checker must emit exactly one final JSON object: ${output_file##*/}"
   EXPECTED_RECOVERED="$expected_recovered" EXPECTED_TIMEOUT="$expected_timeout" \
-    EXPECTED_ELAPSED="$expected_elapsed" EXPECTED_FALSE_KEYS="$expected_false_keys" \
-    OUTPUT_FILE="$output_file" node <<'NODE'
+    EXPECTED_ELAPSED="$expected_elapsed" EXPECTED_HEALTH_MAP="$expected_health_map" \
+    EXPECTED_COUNT="$expected_count" RUNNING_COUNT="$running_count" \
+    OUTPUT_FILE="$output_file" "$node_bin" <<'NODE'
 const fs = require("node:fs");
 const allowed = [
   "appHealthy", "cloudflaredHealthy", "dockerHealthy", "elapsedSeconds",
@@ -445,12 +520,18 @@ if (value.recovered !== (process.env.EXPECTED_RECOVERED === "true")) process.exi
 if (value.timedOut !== (process.env.EXPECTED_TIMEOUT === "true")) process.exit(7);
 if (value.elapsedSeconds > 900) process.exit(8);
 if (value.existingContainersRunning > value.existingContainersExpected) process.exit(9);
-if (value.recovered && (value.existingContainersExpected !== 2 || value.existingContainersRunning !== 2)) process.exit(10);
+if (value.existingContainersExpected !== Number(process.env.EXPECTED_COUNT) ||
+    value.existingContainersRunning !== Number(process.env.RUNNING_COUNT)) process.exit(10);
 if (value.elapsedSeconds !== Number(process.env.EXPECTED_ELAPSED)) process.exit(11);
 const healthKeys = allowed.filter((key) => key.endsWith("Healthy") || key === "postgresDurable");
-if (value.recovered && healthKeys.some((key) => value[key] !== true)) process.exit(12);
-for (const key of (process.env.EXPECTED_FALSE_KEYS ?? "").split(",").filter(Boolean)) {
-  if (!healthKeys.includes(key) || value[key] !== false) process.exit(13);
+const expectedHealth = Object.fromEntries((process.env.EXPECTED_HEALTH_MAP ?? "").split(",").filter(Boolean).map((entry) => {
+  const [key, raw] = entry.split("=");
+  if (raw !== "true" && raw !== "false") process.exit(12);
+  return [key, raw === "true"];
+}));
+if (JSON.stringify(Object.keys(expectedHealth).sort()) !== JSON.stringify([...healthKeys].sort())) process.exit(13);
+for (const key of healthKeys) {
+  if (value[key] !== expectedHealth[key]) process.exit(14);
 }
 NODE
 }
@@ -479,7 +560,9 @@ expect_result() {
   local expected_recovered="$3"
   local expected_timeout="$4"
   local expected_elapsed="$5"
-  local expected_false_keys="${6:-}"
+  local expected_health_map="$6"
+  local expected_count="$7"
+  local running_count="$8"
   local prefix="$work/result-$scenario"
   run_checker "$scenario" "$prefix"
   if [[ "$expected_status" == zero ]]; then
@@ -487,15 +570,32 @@ expect_result() {
   else
     (( checker_status != 0 )) || fail "$scenario returned zero, expected nonzero"
   fi
-  validate_json_contract "$prefix.stdout" "$expected_recovered" "$expected_timeout" "$expected_elapsed" "$expected_false_keys"
+  validate_json_contract "$prefix.stdout" "$expected_recovered" "$expected_timeout" "$expected_elapsed" \
+    "$expected_health_map" "$expected_count" "$running_count"
   assert_private_result "$prefix"
 }
 
-expect_result immediate zero true false 0
-expect_result delayed zero true false 30
+health_keys=(
+  appHealthy cloudflaredHealthy dockerHealthy firewallHealthy libvirtHealthy postgresDurable
+  postgresHealthy publicHttpsHealthy runnerHealthy timersHealthy workersHealthy
+)
+health_map_with_false() {
+  local false_keys=",${1:-},"
+  local key
+  local separator=
+  for key in "${health_keys[@]}"; do
+    printf '%s%s=%s' "$separator" "$key" "$([[ "$false_keys" == *",$key,"* ]] && printf false || printf true)"
+    separator=,
+  done
+}
+all_true_health_map="$(health_map_with_false '')"
+all_false_health_map='appHealthy=false,cloudflaredHealthy=false,dockerHealthy=false,firewallHealthy=false,libvirtHealthy=false,postgresDurable=false,postgresHealthy=false,publicHttpsHealthy=false,runnerHealthy=false,timersHealthy=false,workersHealthy=false'
+
+expect_result immediate zero true false 0 "$all_true_health_map" 2 2
+expect_result delayed zero true false 30 "$all_true_health_map" 2 2
 [[ "$(<"$clock_file")" == 30 ]] || fail 'delayed recovery did not use the virtual monotonic clock'
 
-expect_result permanent nonzero false true 900 appHealthy
+expect_result permanent nonzero false true 900 "$(health_map_with_false appHealthy)" 2 2
 [[ "$(<"$clock_file")" == 900 ]] || fail 'permanent failure did not stop exactly at the 900-second bound'
 last_sleep="$(grep '^sleep ' "$events" | tail -n 1)"
 [[ "$last_sleep" == 'sleep 10' ]] || fail 'permanent failure used an unexpected polling sleep'
@@ -520,9 +620,13 @@ for scenario in \
     cloudflared-*) expected_false=cloudflaredHealthy ;;
     timer-*) expected_false=timersHealthy ;;
   esac
-  expect_result "$scenario" nonzero false true 900 "$expected_false"
+  expected_count=2
+  running_count=2
+  [[ "$scenario" != existing-stopped ]] || running_count=1
+  expect_result "$scenario" nonzero false true 900 "$(health_map_with_false "$expected_false")" \
+    "$expected_count" "$running_count"
 done
-EXISTING_STOPPED_FILE="$work/result-existing-stopped.stdout" node <<'NODE'
+EXISTING_STOPPED_FILE="$work/result-existing-stopped.stdout" "$node_bin" <<'NODE'
 const fs = require("node:fs");
 const value = JSON.parse(fs.readFileSync(process.env.EXISTING_STOPPED_FILE, "utf8"));
 if (value.existingContainersExpected !== 2 || value.existingContainersRunning !== 1) process.exit(1);
@@ -530,26 +634,26 @@ NODE
 
 cp "$baseline" "$work/baseline.saved"
 chmod 0644 "$baseline"
-expect_result baseline-mode nonzero false false 0
+expect_result baseline-mode nonzero false false 0 "$all_false_health_map" 0 0
 cp "$work/baseline.saved" "$baseline"
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
 
 printf '%s\n' 'invalid name with spaces' >"$baseline"
 chmod 0600 "$baseline"
-expect_result baseline-malformed nonzero false false 0
+expect_result baseline-malformed nonzero false false 0 "$all_false_health_map" 0 0
 cp "$work/baseline.saved" "$baseline"
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
 
 mv "$baseline" "$baseline.real"
 ln -s "$baseline.real" "$baseline"
-expect_result baseline-symlink nonzero false false 0
+expect_result baseline-symlink nonzero false false 0 "$all_false_health_map" 0 0
 rm -- "$baseline"
 mv "$baseline.real" "$baseline"
 
 chown 65534:65534 "$baseline"
-expect_result baseline-owner nonzero false false 0
+expect_result baseline-owner nonzero false false 0 "$all_false_health_map" 0 0
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
 

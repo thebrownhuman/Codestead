@@ -3,6 +3,8 @@ set -Eeuo pipefail
 umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+bash_bin="$(command -v bash)"
+env_bin="$(command -v env)"
 compose="$repo_root/compose.yaml"
 compose_unit="$repo_root/infra/systemd/learncoding-compose.service"
 retention_unit="$repo_root/infra/systemd/learncoding-retention.service"
@@ -381,6 +383,172 @@ if expect_required_file "$recovery_timer"; then
   expect_directive "$recovery_timer" Install WantedBy timers.target 'Recovery timer must be installable at boot'
 fi
 
+tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+parser_work="$(mktemp -d "$tmp_base/systemd-recovery-parser.XXXXXX")"
+parser_work="$(cd "$parser_work" && pwd -P)"
+if [[ -L "$parser_work" || "$parser_work" != "$tmp_base"/* ]]; then
+  echo 'FAIL: systemd parser fixture escaped its verified temporary root' >&2
+  exit 1
+fi
+chmod 0700 "$parser_work"
+cleanup_parser_work() {
+  if [[ -d "$parser_work" && ! -L "$parser_work" && "$parser_work" == "$tmp_base"/* ]]; then
+    rm -rf -- "$parser_work"
+  fi
+}
+trap cleanup_parser_work EXIT
+
+installer_root="$parser_work/installer-root"
+installer_fake_bin="$parser_work/installer-bin"
+installer_events="$parser_work/installer-events.log"
+installer_under_test="$parser_work/install-systemd.sh"
+mkdir -m 0700 -p "$installer_root/infra/systemd" "$installer_fake_bin"
+cp "$compose" "$installer_root/compose.yaml"
+cp "$repo_root"/infra/systemd/* "$installer_root/infra/systemd/"
+
+installer_root_guard='[[ "${EUID:-$(id -u)}" -eq 0 ]] || { echo "run as root" >&2; exit 1; }'
+if [[ "$(grep -Fxc -- "$installer_root_guard" "$installer" || true)" != 1 ]]; then
+  fail 'Systemd installer must retain one explicit root execution guard'
+fi
+if tail -n +2 "$installer" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
+  fail 'Systemd installer hard-codes an executable path and can bypass the isolated fake PATH'
+fi
+if tail -n +2 "$installer" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
+  fail 'Systemd installer can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH'
+fi
+if tail -n +2 "$installer" | grep -Eq 'command[[:space:]]+-p|enable[[:space:]]+-f|hash[[:space:]]+-p|/dev/(tcp|udp)/'; then
+  fail 'Systemd installer can bypass fake command lookup'
+fi
+unsafe_absolute_redirects="$(tail -n +2 "$installer" | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+if [[ -n "$unsafe_absolute_redirects" ]]; then
+  fail 'Systemd installer redirects output to an absolute path other than /dev/null'
+fi
+redirect_prefix_probe="$(printf '%s\n' 'printf unsafe >/dev/null.evil' | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+[[ -n "$redirect_prefix_probe" ]] || fail 'Systemd redirect guard accepted a /dev/null prefix sibling'
+if tail -n +2 "$installer" | grep -Eq '(^|[;&|()[:space:]])(env|sh|bash|dash|zsh)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])(eval|source)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])\.[[:space:]]+/'; then
+  fail 'Systemd installer can spawn or source an uninstrumented shell command'
+fi
+if tail -n +2 "$installer" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
+  fail 'Systemd installer contains an uninstrumented shell file read'
+fi
+while IFS= read -r installer_line || [[ -n "$installer_line" ]]; do
+  if [[ "$installer_line" == '#!/usr/bin/env bash' ]]; then
+    printf '#!%s\n' "$bash_bin"
+  elif [[ "$installer_line" == "$installer_root_guard" ]]; then
+    printf '%s\n' ': # root guard verified above; behavior runs in a fake-only command root'
+  else
+    printf '%s\n' "$installer_line"
+  fi
+done <"$installer" >"$installer_under_test"
+chmod 0700 "$installer_under_test"
+
+printf '#!%s\n' "$bash_bin" >"$installer_fake_bin/fake-installer-command"
+cat >>"$installer_fake_bin/fake-installer-command" <<'FAKE'
+set -Eeuo pipefail
+
+command_name="${0##*/}"
+{
+  printf '%q' "$command_name"
+  for argument in "$@"; do printf ' %q' "$argument"; done
+  printf '\n'
+} >>"$INSTALLER_EVENTS"
+
+unit_source_is_exact() {
+  local source="$1"
+  local name="${source##*/}"
+  [[ "$source" == "$INSTALLER_ROOT/infra/systemd/$name" && -f "$source" && ! -L "$source" &&
+    "$name" =~ ^learncoding-[A-Za-z0-9@_.-]+\.(service|timer)$ ]]
+}
+
+case "$command_name" in
+  basename)
+    [[ "$#" == 2 && "$1" == -- ]] || exit 64
+    unit_source_is_exact "$2" || exit 97
+    printf '%s\n' "${2##*/}"
+    ;;
+  install)
+    [[ "$#" == 8 && "$1" == -o && "$2" == root && "$3" == -g && "$4" == root &&
+      "$5" == -m && "$6" == 0644 ]] || exit 64
+    unit_source_is_exact "$7" || exit 97
+    [[ "$8" == "/etc/systemd/system/${7##*/}" ]] || exit 97
+    ;;
+  systemctl)
+    if [[ "$#" == 1 && "$1" == daemon-reload ]]; then :
+    elif [[ "$#" == 3 && "$1" == enable && "$2" == --now &&
+      ( "$3" == learncoding-runner-firewall.service || "$3" == learncoding-compose.service ||
+        "$3" == learncoding-recovery-check.timer ) ]]; then :
+    elif [[ "$#" == 5 && "$1" == enable && "$2" == --now &&
+      "$3" == learncoding-backup.timer && "$4" == learncoding-backup-check.timer &&
+      "$5" == learncoding-retention.timer ]]; then :
+    else
+      exit 64
+    fi
+    ;;
+  *) exit 64 ;;
+esac
+FAKE
+chmod 0755 "$installer_fake_bin/fake-installer-command"
+for command_name in basename install systemctl; do
+  cp "$installer_fake_bin/fake-installer-command" "$installer_fake_bin/$command_name"
+done
+
+: >"$installer_events"
+installer_outside_sentinel="$parser_work/installer-outside.sentinel"
+printf '%s' 'outside-fixture-sentinel-unchanged' >"$installer_outside_sentinel"
+set +e
+for rejected_installer_action in \
+  'disable --now learncoding-compose.service' \
+  'mask learncoding-compose.service' \
+  'enable --now learncoding-restore-drill.service'; do
+  read -r -a rejected_installer_argv <<<"$rejected_installer_action"
+  "$env_bin" -i PATH="$installer_fake_bin" INSTALLER_EVENTS="$installer_events" \
+    INSTALLER_ROOT="$installer_root" "$installer_fake_bin/systemctl" "${rejected_installer_argv[@]}" \
+    >"$parser_work/rejected-installer.stdout" 2>"$parser_work/rejected-installer.stderr"
+  rejected_installer_status=$?
+  if (( rejected_installer_status == 0 )); then
+    set -e
+    fail "Systemd installer fake accepted unsafe action: $rejected_installer_action"
+    break
+  fi
+done
+set -e
+: >"$installer_events"
+set +e
+"$env_bin" -i HOME="$parser_work" PATH="$installer_fake_bin" REPO_ROOT="$installer_root" \
+  INSTALLER_EVENTS="$installer_events" INSTALLER_ROOT="$installer_root" \
+  "$bash_bin" "$installer_under_test" --enable \
+  >"$parser_work/installer.stdout" 2>"$parser_work/installer.stderr"
+installer_status=$?
+set -e
+[[ "$(<"$installer_outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
+  fail 'Systemd installer modified the outside-fixture sentinel'
+if (( installer_status != 0 )); then
+  fail "Systemd installer did not execute inside the strict fake root: $(<"$parser_work/installer.stderr")"
+else
+  expected_installer_events=()
+  for unit in "$installer_root"/infra/systemd/*; do
+    printf -v basename_event 'basename -- %q' "$unit"
+    expected_installer_events+=("$basename_event")
+    printf -v install_event 'install -o root -g root -m 0644 %q %q' \
+      "$unit" "/etc/systemd/system/${unit##*/}"
+    expected_installer_events+=("$install_event")
+  done
+  expected_installer_events+=(
+    'systemctl daemon-reload'
+    'systemctl enable --now learncoding-runner-firewall.service'
+    'systemctl enable --now learncoding-compose.service'
+    'systemctl enable --now learncoding-recovery-check.timer'
+    'systemctl enable --now learncoding-backup.timer learncoding-backup-check.timer learncoding-retention.timer'
+  )
+  mapfile -t actual_installer_events <"$installer_events"
+  expect_sequence \
+    'Systemd installer must behaviorally publish every mapped unit, reload, and enable only the reviewed ordered automatic set' \
+    actual_installer_events "${expected_installer_events[@]}"
+  if grep -Eq '^systemctl (disable|mask)|^systemctl .*learncoding-restore-drill\.service' "$installer_events"; then
+    fail 'Systemd installer behavior must never disable, mask, or enable the restore drill'
+  fi
+fi
+
 installer_loop_count="$(grep -Fxc 'for unit in "$repo_root"/infra/systemd/*; do' "$installer" || true)"
 installer_publish_count="$(grep -Fxc '  install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename -- "$unit")"' "$installer" || true)"
 if [[ "$installer_loop_count" != 1 || "$installer_publish_count" != 1 ]]; then
@@ -424,20 +592,6 @@ for enabled_unit in "${actual_enable_units[@]}"; do
   [[ "$enabled_unit" != learncoding-restore-drill.service ]] || fail 'Systemd installer must never enable the manual restore-drill service'
 done
 
-tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
-parser_work="$(mktemp -d "$tmp_base/systemd-recovery-parser.XXXXXX")"
-parser_work="$(cd "$parser_work" && pwd -P)"
-if [[ -L "$parser_work" || "$parser_work" != "$tmp_base"/* ]]; then
-  echo 'FAIL: systemd parser fixture escaped its verified temporary root' >&2
-  exit 1
-fi
-chmod 0700 "$parser_work"
-cleanup_parser_work() {
-  if [[ -d "$parser_work" && ! -L "$parser_work" && "$parser_work" == "$tmp_base"/* ]]; then
-    rm -rf -- "$parser_work"
-  fi
-}
-trap cleanup_parser_work EXIT
 mutated_compose_unit="$parser_work/learncoding-compose.service"
 mutated_timer="$parser_work/learncoding-backup.timer"
 comment_mutated_compose_unit="$parser_work/comment-override-compose.service"

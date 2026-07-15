@@ -3,6 +3,9 @@ set -Eeuo pipefail
 umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+bash_bin="$(command -v bash)"
+env_bin="$(command -v env)"
+node_bin="$(command -v node)"
 collector="$repo_root/infra/ops/capture-recovery-evidence.sh"
 tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
 work="$(mktemp -d "$tmp_base/power-evidence.XXXXXX")"
@@ -29,7 +32,7 @@ if (( EUID != 0 )); then
   if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     cleanup
     trap - EXIT
-    exec sudo -n bash "$repo_root/infra/tests/power-evidence.test.sh"
+    exec sudo -n "$bash_bin" "$repo_root/infra/tests/power-evidence.test.sh"
   fi
   echo 'FAIL: power evidence contract requires passwordless sudo for root-owned fixture metadata' >&2
   exit 1
@@ -40,8 +43,29 @@ fail() {
   exit 1
 }
 
-if grep -Eq '/(usr/)?s?bin/(systemctl|virsh|docker|curl|journalctl|findmnt|smartctl|date|git|uname|mount|umount|wget|nc|ping|stat|realpath|readlink|sha256sum)([[:space:]"'\'']|$)' "$collector"; then
-  fail 'evidence collector hard-codes a host command path and can bypass the isolated fake PATH'
+if tail -n +2 "$collector" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
+  fail 'evidence collector hard-codes an executable path and can bypass the isolated fake PATH'
+fi
+if tail -n +2 "$collector" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
+  fail 'evidence collector can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH'
+fi
+if tail -n +2 "$collector" | grep -Eq 'command[[:space:]]+-p|enable[[:space:]]+-f|hash[[:space:]]+-p|/dev/(tcp|udp)/'; then
+  fail 'evidence collector can bypass fake command lookup'
+fi
+unsafe_absolute_redirects="$(tail -n +2 "$collector" | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+if [[ -n "$unsafe_absolute_redirects" ]]; then
+  fail 'evidence collector redirects output to an absolute path other than /dev/null'
+fi
+redirect_prefix_probe="$(printf '%s\n' 'printf unsafe >/dev/null.evil' | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+[[ -n "$redirect_prefix_probe" ]] || fail 'evidence redirect guard accepted a /dev/null prefix sibling'
+if tail -n +2 "$collector" | grep -Eq '(^|[;&|()[:space:]])(env|sh|bash|dash|zsh)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])(eval|source)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])\.[[:space:]]+/'; then
+  fail 'evidence collector can spawn or source an uninstrumented shell command'
+fi
+if tail -n +2 "$collector" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
+  fail 'evidence collector contains an uninstrumented shell file read'
+fi
+if grep -Eiq '/etc/learncoding/secrets|/secrets/|runner_shared_secret|RUNNER_[A-Z0-9_]*SECRET' "$collector"; then
+  fail 'evidence collector references a runner or application secret path'
 fi
 grep -Fq 'RECOVERY_EVIDENCE_TEST_ROOT' "$collector" || fail 'evidence collector is missing the single narrow test-root seam'
 grep -Fq '/var/lib/learncoding/recovery-evidence' "$collector" || fail 'evidence collector changed the fixed production root'
@@ -53,6 +77,7 @@ state_root="$work/state"
 curl_root="$state_root/curl"
 events="$work/events.log"
 scenario_file="$state_root/scenario"
+compose_env_path="$host_root/etc/learncoding/compose.env"
 mkdir -m 0700 -p "$evidence_root" "$fake_bin" "$state_root" "$curl_root" "$host_root/proc/sys/kernel" \
   "$host_root/proc" "$host_root/var/lib/learncoding-runner" "$host_root/etc/learncoding/secrets" \
   "$host_root/var/lib/learncoding/backups"
@@ -61,6 +86,9 @@ chmod 0700 "$evidence_root"
 printf '%s' '11111111-2222-3333-4444-555555555555' >"$host_root/proc/sys/kernel/random/boot_id"
 printf '%s' '3723.14 100.00' >"$host_root/proc/uptime"
 printf '%s' 'backup-20260715T120000Z-fixture' >"$host_root/var/lib/learncoding/backups/last-success"
+: >"$compose_env_path"
+chown 0:0 "$compose_env_path"
+chmod 0640 "$compose_env_path"
 
 secret_canary='EVIDENCE_SECRET_CANARY_867ec16a_DO_NOT_PRINT'
 learner_canary='EVIDENCE_LEARNER_CANARY_learner@example.invalid'
@@ -72,12 +100,13 @@ http_header_canary='EVIDENCE_HTTP_HEADER_CANARY_239ff961'
 smart_serial_canary='EVIDENCE_SMART_SERIAL_CANARY_S3CR3T42'
 runner_journal_canary='EVIDENCE_RUNNER_JOURNAL_CANARY_c80386e0'
 raw_command_canary='EVIDENCE_RAW_COMMAND_CANARY_cc4af739'
+postgres_sql="SELECT name, setting FROM pg_settings WHERE name IN ('fsync', 'synchronous_commit', 'full_page_writes');"
 printf '%s' "$runner_journal_canary" >"$host_root/var/lib/learncoding-runner/private-journal.json"
 printf '%s' "$secret_canary" >"$host_root/etc/learncoding/secrets/runner_shared_secret"
 chmod 0400 "$host_root/etc/learncoding/secrets/runner_shared_secret"
 
-cat >"$fake_bin/fake-evidence-command" <<'FAKE'
-#!/usr/bin/env bash
+printf '#!%s\n' "$bash_bin" >"$fake_bin/fake-evidence-command"
+cat >>"$fake_bin/fake-evidence-command" <<'FAKE'
 set -Eeuo pipefail
 umask 077
 
@@ -127,17 +156,32 @@ safe_under() {
 }
 
 case "$command_name" in
+  id)
+    [[ "$#" == 1 && "$1" == -u ]] || exit 64
+    printf '%s\n' "$EUID"
+    ;;
   systemctl)
-    case "${1:-}:${2:-}" in
-      is-active:*) printf '%s\n' active ;;
-      is-enabled:*) printf '%s\n' enabled ;;
-      show:*) printf '%s\n' 'NRestarts=1' ;;
+    case "${1:-}" in
+      is-active)
+        [[ "$#" == 2 && "$2" =~ ^(docker|libvirtd|learncoding-runner-firewall|learncoding-compose)\.service$ ]] || exit 64
+        printf '%s\n' active
+        ;;
+      is-enabled)
+        [[ "$#" == 2 && "$2" =~ ^learncoding-(backup|backup-check|retention|recovery-check)\.timer$ ]] || exit 64
+        printf '%s\n' enabled
+        ;;
+      show)
+        [[ "$#" == 4 && "$3" == --property=NRestarts && "$4" == --value ]] || exit 64
+        [[ "$2" =~ ^learncoding-[A-Za-z0-9@_.-]+\.(service|timer)$ ]] || exit 64
+        printf '%s\n' 1
+        ;;
       *) exit 64 ;;
     esac
     ;;
   virsh)
     if [[ "${1:-}" == --version ]]; then printf '%s\n' '10.0.0-fixture'; exit 0; fi
     if [[ "${1:-}" == --connect && "${2:-}" == qemu:///system ]]; then shift 2; fi
+    [[ "$#" == 2 ]] || exit 64
     case "${1:-}:${2:-}" in
       domstate:codestead-runner) printf '%s\n' running ;;
       dominfo:codestead-runner) printf '%s\n' 'Name: codestead-runner' 'Autostart: enable' ;;
@@ -146,44 +190,46 @@ case "$command_name" in
     esac
     ;;
   docker)
-    joined=" $* "
-    if [[ "${1:-}" == version ]]; then printf '%s\n' '29.6.1-fixture'; exit 0; fi
-    if [[ "${1:-}" == info ]]; then exit 0; fi
-    if [[ "$joined" == *' pg_settings '* || "$joined" == *' synchronous_commit '* ]]; then
+    if [[ "$#" == 3 && "$1" == version && "$2" == --format && "$3" == '{{.Server.Version}}' ]]; then
+      printf '%s\n' '29.6.1-fixture'
+      exit 0
+    fi
+    if [[ "$#" == 1 && "$1" == info ]]; then exit 0; fi
+    if [[ "$#" == 16 && "$1" == compose && "$2" == --env-file && "$3" == "$FAKE_COMPOSE_ENV" && \
+      "$4" == -f && "$5" == "$FAKE_COMPOSE_FILE" && "$6" == exec && "$7" == -T && \
+      "$8" == postgres && "$9" == psql && "${10}" == --username=learncoding && \
+      "${11}" == --dbname=learncoding && "${12}" == --no-align && "${13}" == --tuples-only && \
+      "${14}" == '--field-separator=|' && "${15}" == --command && "${16}" == "$FAKE_POSTGRES_SQL" ]]; then
       printf '%s\n' 'fsync|on' 'synchronous_commit|on' 'full_page_writes|on' 'data_checksums|on'
       exit 0
     fi
-    if [[ "$joined" == *' ps '* || "${1:-}" == ps ]]; then
-      printf '%s\n' \
-        "learncoding-postgres|running|1|sha256:$(printf 'a%.0s' {1..64})|$FAKE_RAW_COMMAND_CANARY" \
-        "learncoding-app|running|0|sha256:$(printf 'b%.0s' {1..64})|$FAKE_LEARNER_CANARY" \
-        "learncoding-mail-worker|running|0|sha256:$(printf 'c%.0s' {1..64})|$FAKE_SOURCE_CANARY" \
-        "learncoding-reward-worker|running|0|sha256:$(printf 'd%.0s' {1..64})|$FAKE_LEARNER_ID_CANARY" \
-        "learncoding-cloudflared|running|0|sha256:$(printf 'e%.0s' {1..64})|ok"
+    if [[ "$#" == 3 && "$1" == ps && "$2" == --all && "$3" == --quiet ]]; then
+      printf '%s\n' aaaaaaaaaaaa bbbbbbbbbbbb cccccccccccc dddddddddddd eeeeeeeeeeee
+      printf 'private Docker diagnostic: %s %s %s %s\n' \
+        "$FAKE_RAW_COMMAND_CANARY" "$FAKE_LEARNER_CANARY" "$FAKE_SOURCE_CANARY" "$FAKE_LEARNER_ID_CANARY" >&2
+      exit 0
+    fi
+    if [[ "$#" == 4 && "$1" == inspect && "$2" == --format && \
+      "$3" == '{{.Name}}|{{.State.Status}}|{{.RestartCount}}|{{.Image}}' ]]; then
+      case "$4" in
+        aaaaaaaaaaaa) printf '/learncoding-postgres|running|1|sha256:%s\n' "$(printf 'a%.0s' {1..64})" ;;
+        bbbbbbbbbbbb) printf '/learncoding-app|running|0|sha256:%s\n' "$(printf 'b%.0s' {1..64})" ;;
+        cccccccccccc) printf '/learncoding-mail-worker|running|0|sha256:%s\n' "$(printf 'c%.0s' {1..64})" ;;
+        dddddddddddd) printf '/learncoding-reward-worker|running|0|sha256:%s\n' "$(printf 'd%.0s' {1..64})" ;;
+        eeeeeeeeeeee) printf '/learncoding-cloudflared|running|0|sha256:%s\n' "$(printf 'e%.0s' {1..64})" ;;
+        *) exit 64 ;;
+      esac
       exit 0
     fi
     exit 64
     ;;
   curl)
-    output=
-    headers=
-    url=
-    while (( $# > 0 )); do
-      case "$1" in
-        --output|-o) [[ $# -ge 2 ]] || exit 64; output="$2"; shift 2 ;;
-        --output=*) output="${1#*=}"; shift ;;
-        --dump-header|-D) [[ $# -ge 2 ]] || exit 64; headers="$2"; shift 2 ;;
-        --dump-header=*) headers="${1#*=}"; shift ;;
-        --silent|-s|--show-error|-S|--fail|--fail-with-body|--no-progress-meter) shift ;;
-        --max-time|--connect-timeout) [[ $# -ge 2 && "$2" =~ ^([1-9]|[12][0-9]|30)$ ]] || exit 64; shift 2 ;;
-        --request|-X) [[ $# -ge 2 && "$2" == GET ]] || exit 64; shift 2 ;;
-        --header|-H) [[ $# -ge 2 && "$2" != *$'\n'* && "$2" != *$'\r'* ]] || exit 64; shift 2 ;;
-        --url) [[ $# -ge 2 ]] || exit 64; url="$2"; shift 2 ;;
-        --url=*) url="${1#*=}"; shift ;;
-        http://*|https://*) url="$1"; shift ;;
-        *) exit 64 ;;
-      esac
-    done
+    [[ "$#" == 11 && "$1" == --silent && "$2" == --show-error && "$3" == --fail && \
+      "$4" == --max-time && "$5" == 10 && "$6" == --output && "$8" == --dump-header && \
+      "${10}" == --url && "${11}" == https://pilot.example.test/health/ready ]] || exit 64
+    output="$7"
+    headers="$9"
+    url="${11}"
     [[ "$url" == https://pilot.example.test/health/ready ]] || exit 97
     body="{\"status\":\"ok\",\"private\":\"$FAKE_HTTP_BODY_CANARY\"}"
     header="HTTP/2 200
@@ -200,12 +246,16 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
     fi
     ;;
   journalctl)
+    [[ "$#" == 0 ]] || exit 64
     printf '%s\n' "$FAKE_RUNNER_JOURNAL_CANARY"
     ;;
   findmnt)
-    printf '%s\n' '/srv/learncoding|UUID=fixture-data|rw,nodev,nosuid'
+    [[ "$#" == 5 && "$1" == --json && "$2" == --output && "$3" == TARGET,SOURCE,OPTIONS && \
+      "$4" == --target && "$5" == /srv/learncoding ]] || exit 64
+    printf '%s\n' '{"filesystems":[{"target":"/srv/learncoding","source":"UUID=fixture-data","options":"rw,nodev,nosuid"}]}'
     ;;
   smartctl)
+    [[ "$#" == 3 && "$1" == --health && "$2" == --attributes && "$3" == /dev/nvme0n1 ]] || exit 64
     [[ "$scenario" != smart-fail ]] || exit 2
     printf '%s\n' \
       "Serial Number: $FAKE_SMART_SERIAL_CANARY" \
@@ -214,14 +264,14 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
       'Media and Data Integrity Errors: 0'
     ;;
   date)
-    case "$*" in
-      '--utc +%Y-%m-%dT%H:%M:%SZ'|'-u +%Y-%m-%dT%H:%M:%SZ') printf '%s\n' '2026-07-15T12:00:00Z' ;;
-      '+%s') printf '%s\n' 1784116800 ;;
+    case "$#:${1:-}:${2:-}" in
+      '2:--utc:+%Y-%m-%dT%H:%M:%SZ') printf '%s\n' '2026-07-15T12:00:00Z' ;;
+      '1:+%s:') printf '%s\n' 1784116800 ;;
       *) exit 64 ;;
     esac
     ;;
   git)
-    [[ "$*" == 'rev-parse HEAD' ]] || exit 64
+    [[ "$#" == 4 && "$1" == -C && "$2" == "$FAKE_REPO_ROOT" && "$3" == rev-parse && "$4" == HEAD ]] || exit 64
     printf '%s\n' '0123456789abcdef0123456789abcdef01234567'
     ;;
   uname)
@@ -259,7 +309,7 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
     source_path="${args[0]}"
     destination_path="${args[1]}"
     inside_evidence_root "$source_path" && inside_evidence_root "$destination_path" || exit 97
-    [[ "$(dirname -- "$source_path")" == "$(dirname -- "$destination_path")" ]] || exit 96
+    [[ "$(/usr/bin/dirname -- "$source_path")" == "$(/usr/bin/dirname -- "$destination_path")" ]] || exit 96
     /usr/bin/mv -- "$source_path" "$destination_path"
     ;;
   sync)
@@ -296,7 +346,7 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
       if [[ "$expect_format" == true ]]; then expect_format=false; continue; fi
       case "$argument" in -c|--format|--printf) expect_format=true ;; --|-e|-f|-m|-n|-q|-s|-v|--check|--status|--strict|--format=*|--printf=*) ;; -*) exit 64 ;; *) read_targets+=("$argument") ;; esac
     done
-    [[ "$expect_format" == false && ${#read_targets[@]} -gt 0 ]] || exit 64
+    [[ "$expect_format" == false && ${#read_targets[@]} == 1 ]] || exit 64
     for target in "${read_targets[@]}"; do inside_host_root "$target" || exit 97; done
     "/usr/bin/$command_name" "$@"
     ;;
@@ -332,11 +382,36 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
 esac
 FAKE
 chmod 0755 "$fake_bin/fake-evidence-command"
-for command_name in systemctl virsh docker curl journalctl findmnt smartctl date git uname mktemp mv sync rm cat \
+for command_name in id systemctl virsh docker curl journalctl findmnt smartctl date git uname mktemp mv sync rm cat \
   stat realpath readlink sha256sum chmod chown mkdir \
   mount umount wget nc ping dd truncate touch tee ln rsync sudo ssh scp socat install; do
   cp "$fake_bin/fake-evidence-command" "$fake_bin/$command_name"
 done
+
+outside_sentinel="$work/outside-fake-roots.sentinel"
+printf '%s' 'outside-fixture-sentinel-unchanged' >"$outside_sentinel"
+printf '%s' success >"$scenario_file"
+: >"$events"
+set +e
+"$env_bin" -i PATH="$fake_bin" FAKE_EVENTS="$events" FAKE_SCENARIO_FILE="$scenario_file" \
+  FAKE_HOST_ROOT="$host_root" FAKE_EVIDENCE_ROOT="$evidence_root" FAKE_CURL_ROOT="$curl_root" \
+  "$fake_bin/cat" -- "$outside_sentinel" >"$work/outside-read.stdout" 2>"$work/outside-read.stderr"
+outside_read_status=$?
+"$env_bin" -i PATH="$fake_bin" FAKE_EVENTS="$events" FAKE_SCENARIO_FILE="$scenario_file" \
+  FAKE_HOST_ROOT="$host_root" FAKE_EVIDENCE_ROOT="$evidence_root" FAKE_CURL_ROOT="$curl_root" \
+  "$fake_bin/cat" -- "$host_root/etc/learncoding/secrets/runner_shared_secret" \
+  >"$work/secret-read.stdout" 2>"$work/secret-read.stderr"
+secret_read_status=$?
+PATH="$fake_bin" cp -- "$host_root/proc/uptime" "$outside_sentinel" >"$work/outside-write.stdout" 2>"$work/outside-write.stderr"
+outside_write_status=$?
+PATH="$fake_bin" evidence-contract-unknown-command >"$work/outside-unknown.stdout" 2>"$work/outside-unknown.stderr"
+outside_unknown_status=$?
+set -e
+(( outside_read_status != 0 && secret_read_status != 0 && outside_write_status != 0 && outside_unknown_status != 0 )) ||
+  fail 'fake-only evidence PATH allowed an unknown, secret/outside read, or outside write command'
+[[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
+  fail 'outside-fixture evidence sentinel was modified'
+[[ ! -s "$work/secret-read.stdout" ]] || fail 'secret-read boundary returned secret bytes'
 
 run_collector() {
   local scenario="$1"
@@ -346,9 +421,9 @@ run_collector() {
   printf '%s' "$scenario" >"$scenario_file"
   : >"$events"
   set +e
-  printf '%s' "$stdin_canary" | env -i \
+  printf '%s' "$stdin_canary" | "$env_bin" -i \
     HOME="$work" \
-    PATH="$fake_bin:/usr/bin:/bin" \
+    PATH="$fake_bin" \
     TMPDIR="$curl_root" \
     RECOVERY_EVIDENCE_TEST_ROOT="$host_root" \
     RECOVERY_PUBLIC_URL='https://pilot.example.test/health/ready' \
@@ -357,6 +432,10 @@ run_collector() {
     FAKE_HOST_ROOT="$host_root" \
     FAKE_EVIDENCE_ROOT="$evidence_root" \
     FAKE_CURL_ROOT="$curl_root" \
+    FAKE_COMPOSE_ENV="$compose_env_path" \
+    FAKE_COMPOSE_FILE="$repo_root/compose.yaml" \
+    FAKE_POSTGRES_SQL="$postgres_sql" \
+    FAKE_REPO_ROOT="$repo_root" \
     FAKE_SECRET_CANARY="$secret_canary" \
     FAKE_LEARNER_CANARY="$learner_canary" \
     FAKE_LEARNER_ID_CANARY="$learner_id_canary" \
@@ -366,9 +445,11 @@ run_collector() {
     FAKE_SMART_SERIAL_CANARY="$smart_serial_canary" \
     FAKE_RUNNER_JOURNAL_CANARY="$runner_journal_canary" \
     FAKE_RAW_COMMAND_CANARY="$raw_command_canary" \
-    bash "$collector" "$phase" "$destination" >"$prefix.stdout" 2>"$prefix.stderr"
+    "$bash_bin" "$collector" "$phase" "$destination" >"$prefix.stdout" 2>"$prefix.stderr"
   collector_status=$?
   set -e
+  [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
+    fail 'evidence collector modified the outside-fixture sentinel'
 }
 
 assert_canaries_absent() {
@@ -385,10 +466,15 @@ assert_canaries_absent() {
   done
 }
 
+assert_no_secret_or_runner_read() {
+  ! grep -Eiq '/etc/learncoding/secrets|/secrets/|runner_shared_secret|RUNNER_[A-Z0-9_]*SECRET|/var/lib/learncoding-runner' "$events" ||
+    fail 'evidence collector attempted a secret or runner-private read'
+}
+
 validate_evidence_json() {
   local file="$1"
   local phase="$2"
-  EVIDENCE_FILE="$file" EXPECTED_PHASE="$phase" node <<'NODE'
+  EVIDENCE_FILE="$file" EXPECTED_PHASE="$phase" "$node_bin" <<'NODE'
 const fs = require("node:fs");
 const value = JSON.parse(fs.readFileSync(process.env.EVIDENCE_FILE, "utf8"));
 const exactKeys = (object, expected) =>
@@ -400,7 +486,7 @@ if (!exactKeys(value, [
 if (value.schemaVersion !== 1 || value.phase !== process.env.EXPECTED_PHASE) process.exit(3);
 if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value.capturedAtUtc)) process.exit(4);
 if (!/^[0-9a-f]{40}$/.test(value.gitCommit) || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value.bootId)) process.exit(5);
-if (!Number.isSafeInteger(value.uptimeSeconds) || value.uptimeSeconds < 0) process.exit(6);
+if (!Number.isSafeInteger(value.uptimeSeconds) || value.uptimeSeconds < 0 || value.uptimeSeconds > 315576000) process.exit(6);
 if (!exactKeys(value.services, ["compose", "docker", "firewall", "libvirt", "recoveryTimer"])) process.exit(7);
 if (Object.values(value.services).some((entry) => typeof entry !== "boolean")) process.exit(8);
 if (!exactKeys(value.containers, ["expected", "items", "running"]) || !Array.isArray(value.containers.items)) process.exit(9);
@@ -411,19 +497,24 @@ if (!Number.isSafeInteger(value.containers.expected) || !Number.isSafeInteger(va
 for (const item of value.containers.items) {
   if (!exactKeys(item, ["imageId", "name", "restartCount", "status"])) process.exit(11);
   if (!/^[a-z0-9][a-z0-9_.-]{0,63}$/.test(item.name) || !/^sha256:[0-9a-f]{64}$/.test(item.imageId)) process.exit(12);
-  if (!Number.isSafeInteger(item.restartCount) || item.restartCount < 0) process.exit(13);
+  if (!Number.isSafeInteger(item.restartCount) || item.restartCount < 0 || item.restartCount > 1000000) process.exit(13);
   if (!new Set(["running", "exited", "paused", "restarting"]).has(item.status)) process.exit(26);
 }
 if (value.containers.running !== value.containers.items.filter((item) => item.status === "running").length) process.exit(34);
 if (!exactKeys(value.runner, ["domainActive", "domainAutostart", "networkActive", "networkAutostart"])) process.exit(14);
 if (Object.values(value.runner).some((entry) => typeof entry !== "boolean")) process.exit(27);
-if (!Array.isArray(value.mounts) || value.mounts.length > 8) process.exit(15);
+if (!Array.isArray(value.mounts) || value.mounts.length < 1 || value.mounts.length > 3) process.exit(15);
+const allowedMountTargets = new Set(["/etc/learncoding", "/opt/learncoding", "/srv/learncoding"]);
+const observedMountTargets = new Set();
 for (const mount of value.mounts) {
   if (!exactKeys(mount, ["options", "source", "target"])) process.exit(16);
   for (const field of ["options", "source", "target"]) {
     if (typeof mount[field] !== "string" || mount[field].length < 1 || mount[field].length > 256 || /[\r\n\0]/u.test(mount[field])) process.exit(28);
   }
-  if (!mount.target.startsWith("/") || !/^[A-Za-z0-9_.,=:/-]+$/u.test(mount.source) || !/^[A-Za-z0-9_.,=:/-]+$/u.test(mount.options)) process.exit(29);
+  if (!allowedMountTargets.has(mount.target) || observedMountTargets.has(mount.target) ||
+      !/^\/(?:etc|opt|srv)\/learncoding$/u.test(mount.target) ||
+      !/^[A-Za-z0-9_.,=:/+-]+$/u.test(mount.source) || !/^[A-Za-z0-9_.,=:/+-]+$/u.test(mount.options)) process.exit(29);
+  observedMountTargets.add(mount.target);
 }
 if (!exactKeys(value.postgres, ["checksums", "durability", "healthy"])) process.exit(17);
 if (!exactKeys(value.postgres.durability, ["fsync", "fullPageWrites", "synchronousCommit"])) process.exit(18);
@@ -431,7 +522,8 @@ if (Object.values(value.postgres.durability).some((entry) => entry !== "on")) pr
 if (typeof value.postgres.checksums !== "boolean" || typeof value.postgres.healthy !== "boolean") process.exit(30);
 if (!exactKeys(value.smart, ["criticalWarnings", "healthy", "mediaErrors"])) process.exit(20);
 if (typeof value.smart.healthy !== "boolean" || !Number.isSafeInteger(value.smart.criticalWarnings) ||
-    !Number.isSafeInteger(value.smart.mediaErrors) || value.smart.criticalWarnings < 0 || value.smart.mediaErrors < 0) process.exit(31);
+    !Number.isSafeInteger(value.smart.mediaErrors) || value.smart.criticalWarnings < 0 ||
+    value.smart.criticalWarnings > 255 || value.smart.mediaErrors < 0 || value.smart.mediaErrors > 1000000000) process.exit(31);
 if (!exactKeys(value.backup, ["lastSuccessfulId"])) process.exit(21);
 if (typeof value.backup.lastSuccessfulId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.backup.lastSuccessfulId)) process.exit(32);
 if (!exactKeys(value.recovery, ["elapsedSeconds", "recovered", "timedOut"])) process.exit(22);
@@ -439,7 +531,8 @@ if (!Number.isSafeInteger(value.recovery.elapsedSeconds) || value.recovery.elaps
     typeof value.recovery.recovered !== "boolean" || typeof value.recovery.timedOut !== "boolean") process.exit(33);
 if (value.recovery.recovered && value.recovery.timedOut) process.exit(35);
 if (!exactKeys(value.versions, ["docker", "hostKernel", "libvirt"])) process.exit(23);
-if (Object.values(value.versions).some((entry) => typeof entry !== "string" || entry.length < 1 || entry.length > 64 || /[\r\n\0]/u.test(entry))) process.exit(24);
+if (Object.values(value.versions).some((entry) => typeof entry !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/u.test(entry))) process.exit(24);
 NODE
 }
 
@@ -460,8 +553,7 @@ assert_published() {
   [[ "$sidecar_line" != *'/var/'* && "$sidecar_line" != *"$host_root"* ]] || fail 'checksum sidecar embedded an absolute path'
   (cd "$evidence_root" && sha256sum --check -- "$name.sha256" >/dev/null) || fail 'checksum does not verify the exact final JSON bytes'
   assert_canaries_absent "$prefix" "$json" "$sidecar" "$events"
-  ! grep -Eq '/etc/learncoding/secrets/|/var/lib/learncoding-runner' "$events" ||
-    fail 'evidence collector attempted to read a secret or runner-private path'
+  assert_no_secret_or_runner_read
   [[ ! -s "$prefix.stderr" ]] || fail 'successful evidence collection emitted raw stderr output'
   if find "$evidence_root" -maxdepth 1 -type f \( -name '*.tmp*' -o -name '.*.tmp*' \) -print -quit | grep -q .; then
     fail 'temporary evidence file remained after successful publication'
@@ -488,6 +580,7 @@ expect_rejected_before_collection() {
   run_collector invalid "$phase" "$destination" "$prefix"
   (( collector_status != 0 )) || fail "$label unexpectedly succeeded"
   assert_canaries_absent "$prefix" "$events"
+  assert_no_secret_or_runner_read
   if grep -Eq '^(systemctl|virsh|docker|curl|journalctl|findmnt|smartctl|date|git|uname) ' "$events"; then
     fail "$label collected host evidence before rejecting its destination"
   fi
@@ -548,5 +641,6 @@ if find "$evidence_root" -maxdepth 1 \( -name '*interrupted*tmp*' -o -name '.*in
   fail 'collector left its exact publication temporary after failure'
 fi
 assert_canaries_absent "$work/interrupted" "$events"
+assert_no_secret_or_runner_read
 
 echo 'power-evidence-tests-ok'

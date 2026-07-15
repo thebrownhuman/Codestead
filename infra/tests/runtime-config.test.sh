@@ -3,11 +3,13 @@ set -Eeuo pipefail
 umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+bash_bin="$(command -v bash)"
+env_bin="$(command -v env)"
 validator="$repo_root/infra/ops/validate-runtime.sh"
 
 if (( EUID != 0 )); then
   if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
-    exec sudo -n bash "$repo_root/infra/tests/runtime-config.test.sh"
+    exec sudo -n "$bash_bin" "$repo_root/infra/tests/runtime-config.test.sh"
   fi
 
   echo "sudo bash infra/tests/runtime-config.test.sh" >&2
@@ -42,6 +44,58 @@ readonly digest_1='1111111111111111111111111111111111111111111111111111111111111
 readonly digest_2='2222222222222222222222222222222222222222222222222222222222222222'
 readonly digest_3='3333333333333333333333333333333333333333333333333333333333333333'
 readonly pilot_clamav='clamav/clamav:pilot-disabled'
+readonly postgres_probe_sql="SELECT name, setting FROM pg_settings WHERE name IN ('fsync', 'synchronous_commit', 'full_page_writes');"
+
+trusted_stat_assignment_count="$(grep -Fxc 'readonly trusted_stat_bin="/usr/bin/stat"' "$validator" || true)"
+trusted_realpath_assignment_count="$(grep -Fxc 'readonly trusted_realpath_bin="/usr/bin/realpath"' "$validator" || true)"
+if [[ "$trusted_stat_assignment_count" != 1 || "$trusted_realpath_assignment_count" != 1 ]]; then
+  echo 'FAIL: runtime validator trusted metadata-tool boundary changed unexpectedly' >&2
+  exit 1
+fi
+unexpected_absolute_commands="$(tail -n +2 "$validator" | \
+  grep -E '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+' | \
+  grep -Fv 'readonly trusted_stat_bin="/usr/bin/stat"' | \
+  grep -Fv 'readonly trusted_realpath_bin="/usr/bin/realpath"' || true)"
+if [[ -n "$unexpected_absolute_commands" ]]; then
+  echo 'FAIL: runtime validator can bypass the isolated command root with an absolute executable' >&2
+  exit 1
+fi
+if tail -n +2 "$validator" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
+  echo 'FAIL: runtime validator can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH' >&2
+  exit 1
+fi
+if tail -n +2 "$validator" | grep -Eq 'command[[:space:]]+-p|enable[[:space:]]+-f|hash[[:space:]]+-p|/dev/(tcp|udp)/'; then
+  echo 'FAIL: runtime validator can bypass fake command lookup' >&2
+  exit 1
+fi
+unsafe_absolute_redirects="$(tail -n +2 "$validator" | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+if [[ -n "$unsafe_absolute_redirects" ]]; then
+  echo 'FAIL: runtime validator redirects output to an absolute path other than /dev/null' >&2
+  exit 1
+fi
+redirect_prefix_probe="$(printf '%s\n' 'printf unsafe >/dev/null.evil' | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+if [[ -z "$redirect_prefix_probe" ]]; then
+  echo 'FAIL: runtime redirect guard accepted a /dev/null prefix sibling' >&2
+  exit 1
+fi
+if tail -n +2 "$validator" | grep -Eq '(^|[;&|()[:space:]])(env|sh|bash|dash|zsh)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])eval([;&|()[:space:]]|$)'; then
+  echo 'FAIL: runtime validator can spawn an uninstrumented shell command' >&2
+  exit 1
+fi
+runtime_source_count="$(grep -Fxc 'source "$compose_env"' "$validator" || true)"
+all_runtime_source_count="$(tail -n +2 "$validator" | grep -Ec '(^|[;&|()[:space:]])source([;&|()[:space:]]|$)|(^|[;&|()[:space:]])\.[[:space:]]+/' || true)"
+if [[ "$runtime_source_count" != 1 || "$all_runtime_source_count" != 1 ]]; then
+  echo 'FAIL: runtime validator may source only the already-validated Compose environment file' >&2
+  exit 1
+fi
+runtime_input_redirects="$(tail -n +2 "$validator" | grep -E '(^|[^<])<[[:space:]]*([^<(&]|$)' || true)"
+expected_runtime_input_redirects="$(printf '%s\n' \
+  '  tr -d '\''[:space:]'\'' <"$file" | wc -c' \
+  'decoded_key_bytes="$(tr -d '\''\r\n '\'' <"$secrets_dir/credential_master_key" | base64 --decode 2>/dev/null | wc -c)" || {')"
+if [[ "$runtime_input_redirects" != "$expected_runtime_input_redirects" ]]; then
+  echo 'FAIL: runtime validator contains an uninstrumented input redirection outside the two validated secret reads' >&2
+  exit 1
+fi
 
 case_number=0
 case_dir=
@@ -65,6 +119,7 @@ fake_docker_log=
 fake_mutate_service=
 fake_mutate_field=
 fake_mutate_value=
+validator_under_test=
 
 make_fixture() {
   local label="$1"
@@ -90,6 +145,7 @@ make_fixture() {
   fake_mutate_service=
   fake_mutate_field=
   fake_mutate_value=
+  validator_under_test="$case_dir/validate-runtime.sh"
 
   mkdir -p \
     "$case_dir/bin" \
@@ -100,8 +156,8 @@ make_fixture() {
     "$case_dir/data/uploads" \
     "$case_dir/data/clamav"
 
-  cat >"$case_dir/bin/docker" <<'EOF'
-#!/usr/bin/env bash
+  printf '#!%s\n' "$bash_bin" >"$case_dir/bin/docker"
+  cat >>"$case_dir/bin/docker" <<'EOF'
 set -Eeuo pipefail
 
 {
@@ -118,29 +174,11 @@ if [[ "$#" == 1 && "${1:-}" == "info" ]]; then
   exit 0
 fi
 
-is_exec=false
-for argument in "$@"; do
-  if [[ "$argument" == exec ]]; then is_exec=true; fi
-done
-if [[ "$is_exec" == true ]]; then
-  [[ "${1:-}" == compose ]] || exit 64
-  joined=" $* "
-  [[ "$joined" == *" --env-file $FAKE_EXPECTED_COMPOSE_ENV "* ]] || exit 64
-  [[ "$joined" == *" -f $FAKE_EXPECTED_COMPOSE_FILE "* ]] || exit 64
-  exec_count=0
-  exec_index=-1
-  index=0
-  for argument in "$@"; do
-    if [[ "$argument" == exec ]]; then exec_count=$((exec_count + 1)); exec_index=$index; fi
-    index=$((index + 1))
-  done
-  (( exec_count == 1 && exec_index >= 0 )) || exit 64
-  args=("$@")
-  index=$((exec_index + 1))
-  [[ "${args[$index]:-}" == -T ]] && index=$((index + 1))
-  [[ "${args[$index]:-}" == postgres ]] || exit 64
-  [[ "$joined" == *' psql '* && "$joined" == *'SELECT name, setting'* && "$joined" == *'pg_settings'* ]] || exit 64
-  for setting in fsync synchronous_commit full_page_writes; do [[ "$joined" == *"$setting"* ]] || exit 64; done
+if [[ "$#" == 16 && "$1" == compose && "$2" == --env-file && "$3" == "$FAKE_EXPECTED_COMPOSE_ENV" && \
+  "$4" == -f && "$5" == "$FAKE_EXPECTED_COMPOSE_FILE" && "$6" == exec && "$7" == -T && \
+  "$8" == postgres && "$9" == psql && "${10}" == --username=learncoding && \
+  "${11}" == --dbname=learncoding && "${12}" == --no-align && "${13}" == --tuples-only && \
+  "${14}" == '--field-separator=|' && "${15}" == --command && "${16}" == "$FAKE_EXPECTED_POSTGRES_SQL" ]]; then
   printf '%s|%s\n' \
     fsync "$FAKE_LIVE_FSYNC" \
     synchronous_commit "$FAKE_LIVE_SYNC_COMMIT" \
@@ -249,22 +287,138 @@ fi
 exit 64
 EOF
   chmod 0755 "$case_dir/bin/docker"
-  cat >"$case_dir/bin/timeout" <<'EOF'
-#!/usr/bin/env bash
+  printf '#!%s\n' "$bash_bin" >"$case_dir/bin/timeout"
+  cat >>"$case_dir/bin/timeout" <<'EOF'
 set -Eeuo pipefail
 {
   printf 'timeout'
   for argument in "$@"; do printf ' %q' "$argument"; done
   printf '\n'
 } >>"$FAKE_DOCKER_LOG"
-duration="${1:-}"
-[[ "$duration" =~ ^([1-9]|[12][0-9]|30)s$ ]] || exit 64
+[[ "$#" == 18 && "${1:-}" == 30s ]] || exit 64
 shift
-[[ "${1:-}" == docker || "${1:-}" == "$FAKE_DOCKER_BINARY" ]] || exit 64
+[[ "${1:-}" == "$FAKE_DOCKER_BINARY" ]] || exit 64
 shift
 exec "$FAKE_DOCKER_BINARY" "$@"
 EOF
   chmod 0755 "$case_dir/bin/timeout"
+  mkdir -m 0700 "$case_dir/tmp"
+  printf '#!%s\n' "$bash_bin" >"$case_dir/bin/fake-safe-command"
+  cat >>"$case_dir/bin/fake-safe-command" <<'EOF'
+set -Eeuo pipefail
+
+command_name="${0##*/}"
+has_fixture_prefix() {
+  local candidate="$1"
+  [[ "$candidate" == "$FAKE_CASE_ROOT" || "$candidate" == "$FAKE_CASE_ROOT"/* ]]
+}
+contained_fixture_path() {
+  local candidate="$1"
+  local relative
+  local cursor="$FAKE_CASE_ROOT"
+  local component
+  local resolved
+  local -a components=()
+  has_fixture_prefix "$candidate" || return 1
+  relative="${candidate#"$FAKE_CASE_ROOT"}"
+  relative="${relative#/}"
+  [[ "/$relative/" != *'/../'* && "/$relative/" != *'/./'* && "$relative" != *'//'* ]] || return 1
+  [[ ! -L "$cursor" ]] || return 1
+  [[ -n "$relative" ]] || return 0
+  IFS='/' read -r -a components <<<"$relative"
+  for component in "${components[@]}"; do
+    [[ -n "$component" && "$component" != . && "$component" != .. ]] || return 1
+    cursor="$cursor/$component"
+    if [[ -L "$cursor" ]]; then
+      resolved="$(/usr/bin/realpath --canonicalize-missing -- "$cursor")" || return 1
+      has_fixture_prefix "$resolved" || return 1
+    fi
+  done
+}
+safe_fixture_path() {
+  local candidate="$1"
+  local relative
+  local cursor="$FAKE_CASE_ROOT"
+  local component
+  local -a components=()
+  contained_fixture_path "$candidate" || return 1
+  relative="${candidate#"$FAKE_CASE_ROOT"}"
+  relative="${relative#/}"
+  [[ -n "$relative" ]] || return 0
+  IFS='/' read -r -a components <<<"$relative"
+  for component in "${components[@]}"; do
+    cursor="$cursor/$component"
+    [[ ! -L "$cursor" ]] || return 1
+  done
+}
+realpath_input_is_contained() {
+  local candidate="$1"
+  local resolved
+  has_fixture_prefix "$candidate" || return 1
+  resolved="$(/usr/bin/realpath --canonicalize-missing -- "$candidate")" || return 1
+  has_fixture_prefix "$resolved"
+}
+
+case "$command_name" in
+  trusted-stat)
+    [[ "$#" == 4 && "$1" == -c && "$3" == -- && ( "$2" == '%u:%g:%a' || "$2" == '%a' || "$2" == '%u' ) ]] || exit 64
+    safe_fixture_path "$4" || exit 97
+    exec /usr/bin/stat -c "$2" -- "$4"
+    ;;
+  trusted-realpath)
+    [[ "$#" == 4 && "$1" == --canonicalize-missing && "$2" == --no-symlinks && "$3" == -- ]] || exit 64
+    realpath_input_is_contained "$4" || exit 97
+    resolved="$(/usr/bin/realpath --canonicalize-missing --no-symlinks -- "$4")" || exit 97
+    has_fixture_prefix "$resolved" || exit 97
+    printf '%s\n' "$resolved"
+    ;;
+  grep)
+    [[ "$#" == 3 && "$1" == -Eq ]] || exit 64
+    safe_fixture_path "$3" || exit 97
+    exec /usr/bin/grep -Eq -- "$2" "$3"
+    ;;
+  mktemp)
+    [[ "$#" == 0 ]] || exit 64
+    exec /usr/bin/mktemp "$FAKE_TMPDIR/runtime-render.XXXXXX"
+    ;;
+  rm)
+    [[ "$#" == 3 && "$1" == -f && "$2" == -- ]] || exit 64
+    safe_fixture_path "$3" || exit 97
+    exec /usr/bin/rm -f -- "$3"
+    ;;
+  tr)
+    [[ "$#" == 2 && "$1" == -d && ( "$2" == '[:space:]' || "$2" == $'\r\n ' ) ]] || exit 64
+    exec /usr/bin/tr -d "$2"
+    ;;
+  wc)
+    [[ "$#" == 1 && "$1" == -c ]] || exit 64
+    exec /usr/bin/wc -c
+    ;;
+  base64)
+    [[ "$#" == 1 && "$1" == --decode ]] || exit 64
+    exec /usr/bin/base64 --decode
+    ;;
+  *) exit 64 ;;
+esac
+EOF
+  chmod 0755 "$case_dir/bin/fake-safe-command"
+  for command_name in trusted-stat trusted-realpath grep mktemp rm tr wc base64; do
+    cp "$case_dir/bin/fake-safe-command" "$case_dir/bin/$command_name"
+  done
+
+  /usr/bin/sed \
+    -e "s#readonly trusted_stat_bin=\"/usr/bin/stat\"#readonly trusted_stat_bin=\"$case_dir/bin/trusted-stat\"#" \
+    -e "s#readonly trusted_realpath_bin=\"/usr/bin/realpath\"#readonly trusted_realpath_bin=\"$case_dir/bin/trusted-realpath\"#" \
+    "$validator" >"$validator_under_test"
+  chmod 0600 "$validator_under_test"
+  grep -Fq "readonly trusted_stat_bin=\"$case_dir/bin/trusted-stat\"" "$validator_under_test" || {
+    echo 'FAIL: runtime test did not instrument trusted stat' >&2
+    exit 1
+  }
+  grep -Fq "readonly trusted_realpath_bin=\"$case_dir/bin/trusted-realpath\"" "$validator_under_test" || {
+    echo 'FAIL: runtime test did not instrument trusted realpath' >&2
+    exit 1
+  }
   : >"$fake_docker_log"
 
   cat >"$case_dir/cloudflare.yml" <<'EOF'
@@ -341,14 +495,20 @@ add_bootstrap_secret() {
 
 run_validator() {
   local validation_mode="${1:-pilot}"
+  local validator_status
   shift || true
-  PATH="$case_dir/bin:$PATH" \
+  "$env_bin" -i \
+    HOME="$case_dir" \
+    PATH="$case_dir/bin" \
+    TMPDIR="$case_dir/tmp" \
     REPO_ROOT="$repo_root" \
     COMPOSE_ENV_FILE="$config" \
     VALIDATION_MODE="$validation_mode" \
     FAKE_STAT_TARGET="$fake_stat_target" \
     FAKE_DOCKER_LOG="$fake_docker_log" \
     FAKE_DOCKER_BINARY="$case_dir/bin/docker" \
+    FAKE_CASE_ROOT="$case_dir" \
+    FAKE_TMPDIR="$case_dir/tmp" \
     FAKE_EXPECTED_COMPOSE_ENV="$config" \
     FAKE_EXPECTED_COMPOSE_FILE="$repo_root/compose.yaml" \
     FAKE_RUNNER_URL="$fake_runner_url" \
@@ -367,7 +527,14 @@ run_validator() {
     FAKE_MUTATE_SERVICE="$fake_mutate_service" \
     FAKE_MUTATE_FIELD="$fake_mutate_field" \
     FAKE_MUTATE_VALUE="$fake_mutate_value" \
-    bash "$validator" "$@"
+    FAKE_EXPECTED_POSTGRES_SQL="$postgres_probe_sql" \
+    "$bash_bin" "$validator_under_test" "$@"
+  validator_status=$?
+  [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] || {
+    echo 'FAIL: runtime validator modified the outside-fixture sentinel' >&2
+    return 97
+  }
+  return "$validator_status"
 }
 
 assert_canary_absent() {
@@ -440,6 +607,87 @@ expect_failure() {
   fi
 
   echo "ok - $label"
+}
+
+run_fake_docker_contract() {
+  "$env_bin" -i \
+    PATH="$case_dir/bin" \
+    FAKE_DOCKER_LOG="$fake_docker_log" \
+    FAKE_EXPECTED_COMPOSE_ENV="$config" \
+    FAKE_EXPECTED_COMPOSE_FILE="$repo_root/compose.yaml" \
+    FAKE_EXPECTED_POSTGRES_SQL="$postgres_probe_sql" \
+    FAKE_LIVE_FSYNC=on \
+    FAKE_LIVE_SYNC_COMMIT=on \
+    FAKE_LIVE_FULL_PAGE_WRITES=on \
+    "$case_dir/bin/docker" "$@"
+}
+
+expect_fake_probe_rejected() {
+  local label="$1"
+  shift
+  set +e
+  run_fake_docker_contract "$@" >"$case_dir/$label.stdout" 2>"$case_dir/$label.stderr"
+  local status=$?
+  set -e
+  (( status != 0 )) || {
+    echo "FAIL: exact PostgreSQL fake accepted $label" >&2
+    exit 1
+  }
+}
+
+make_fixture exact-postgres-probe-fake
+postgres_probe_argv=(
+  compose --env-file "$config" -f "$repo_root/compose.yaml" exec -T postgres
+  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|'
+  --command "$postgres_probe_sql"
+)
+run_fake_docker_contract "${postgres_probe_argv[@]}" >/dev/null || {
+  echo 'FAIL: exact PostgreSQL fake rejected the canonical probe' >&2
+  exit 1
+}
+expect_fake_probe_rejected extra-compose-command \
+  compose --env-file "$config" -f "$repo_root/compose.yaml" --profile operations exec -T postgres \
+  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|' \
+  --command "$postgres_probe_sql"
+expect_fake_probe_rejected extra-psql-command \
+  compose --env-file "$config" -f "$repo_root/compose.yaml" exec -T postgres \
+  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|' --list \
+  --command "$postgres_probe_sql"
+expect_fake_probe_rejected extra-sql-command \
+  compose --env-file "$config" -f "$repo_root/compose.yaml" exec -T postgres \
+  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|' \
+  --command "$postgres_probe_sql SELECT 1;"
+
+outside_sentinel="$work/outside-runtime-case.sentinel"
+printf '%s' 'outside-fixture-sentinel-unchanged' >"$outside_sentinel"
+outside_sentinel_link="$case_dir/outside-sentinel-link"
+ln -s "$outside_sentinel" "$outside_sentinel_link"
+set +e
+"$env_bin" -i PATH="$case_dir/bin" FAKE_CASE_ROOT="$case_dir" FAKE_TMPDIR="$case_dir/tmp" \
+  "$case_dir/bin/grep" -Eq sentinel "$outside_sentinel" >"$case_dir/outside-read.stdout" 2>"$case_dir/outside-read.stderr"
+outside_read_status=$?
+"$env_bin" -i PATH="$case_dir/bin" FAKE_CASE_ROOT="$case_dir" FAKE_TMPDIR="$case_dir/tmp" \
+  "$case_dir/bin/grep" -Eq sentinel "$outside_sentinel_link" \
+  >"$case_dir/symlink-read.stdout" 2>"$case_dir/symlink-read.stderr"
+symlink_read_status=$?
+"$env_bin" -i PATH="$case_dir/bin" FAKE_CASE_ROOT="$case_dir" FAKE_TMPDIR="$case_dir/tmp" \
+  "$case_dir/bin/trusted-realpath" --canonicalize-missing --no-symlinks -- "$outside_sentinel_link" \
+  >"$case_dir/symlink-realpath.stdout" 2>"$case_dir/symlink-realpath.stderr"
+symlink_realpath_status=$?
+PATH="$case_dir/bin" cp -- "$config" "$outside_sentinel" >"$case_dir/outside-write.stdout" 2>"$case_dir/outside-write.stderr"
+outside_write_status=$?
+PATH="$case_dir/bin" runtime-contract-unknown-command >"$case_dir/outside-unknown.stdout" 2>"$case_dir/outside-unknown.stderr"
+outside_unknown_status=$?
+set -e
+rm -- "$outside_sentinel_link"
+(( outside_read_status != 0 && symlink_read_status != 0 && symlink_realpath_status != 0 &&
+   outside_write_status != 0 && outside_unknown_status != 0 )) || {
+  echo 'FAIL: fake-only runtime PATH allowed an unknown, direct/symlink outside read, or outside write command' >&2
+  exit 1
+}
+[[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] || {
+  echo 'FAIL: outside-fixture runtime sentinel was modified' >&2
+  exit 1
 }
 
 make_fixture valid-pilot
@@ -577,16 +825,29 @@ if [[ "$timeout_invocations" != 1 ]]; then
   exit 1
 fi
 postgres_event="$(grep -E '^docker .* exec([[:space:]]|$)' "$fake_docker_log")"
-if [[ "$postgres_event" != *"compose --env-file $config -f $repo_root/compose.yaml"* ||
-  "$postgres_event" != *' exec -T postgres '* || "$postgres_event" != *' psql '* ||
-  "$postgres_event" != *'SELECT name, setting'* || "$postgres_event" != *pg_settings* ||
-  "$postgres_event" != *fsync* || "$postgres_event" != *synchronous_commit* || "$postgres_event" != *full_page_writes* ]]; then
-  echo 'FAIL: post-start validation must query all three durability settings together' >&2
+current_postgres_probe_argv=(
+  compose --env-file "$config" -f "$repo_root/compose.yaml" exec -T postgres
+  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|'
+  --command "$postgres_probe_sql"
+)
+expected_postgres_event=docker
+for argument in "${current_postgres_probe_argv[@]}"; do
+  printf -v escaped_argument '%q' "$argument"
+  expected_postgres_event+=" $escaped_argument"
+done
+if [[ "$postgres_event" != "$expected_postgres_event" ]]; then
+  echo 'FAIL: post-start validation must use the exact canonical read-only PostgreSQL argv and SQL' >&2
   exit 1
 fi
 timeout_event="$(grep '^timeout ' "$fake_docker_log")"
-if [[ "$timeout_event" != *" $case_dir/bin/docker compose --env-file $config -f $repo_root/compose.yaml"* &&
-  "$timeout_event" != *" docker compose --env-file $config -f $repo_root/compose.yaml"* ]]; then
+printf -v escaped_duration '%q' 30s
+printf -v escaped_docker_path '%q' "$case_dir/bin/docker"
+expected_timeout_event="timeout $escaped_duration $escaped_docker_path"
+for argument in "${current_postgres_probe_argv[@]}"; do
+  printf -v escaped_argument '%q' "$argument"
+  expected_timeout_event+=" $escaped_argument"
+done
+if [[ "$timeout_event" != "$expected_timeout_event" ]]; then
   echo 'FAIL: post-start timeout must wrap only the exact fake-Docker Compose invocation' >&2
   exit 1
 fi
@@ -709,8 +970,8 @@ done
 make_fixture untrusted-path-stat
 chmod 0400 "$secrets/postgres_password"
 fake_stat_target="$secrets/postgres_password"
-cat >"$case_dir/bin/stat" <<'EOF'
-#!/usr/bin/env bash
+printf '#!%s\n' "$bash_bin" >"$case_dir/bin/stat"
+cat >>"$case_dir/bin/stat" <<'EOF'
 set -eu
 
 target="${!#}"

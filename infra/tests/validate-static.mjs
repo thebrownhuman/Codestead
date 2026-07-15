@@ -784,8 +784,11 @@ if (recoveryEvidence) {
   expect(
     /\/var\/lib\/learncoding\/recovery-evidence/.test(recoveryEvidence) &&
       /RECOVERY_EVIDENCE_TEST_ROOT/.test(recoveryEvidence) &&
-      !/\/var\/lib\/learncoding-runner|RUNNER_STATE_ROOT|journalctl[^\n]*learncoding-runner/i.test(recoveryEvidence),
-    "recovery evidence must stay below its fixed root and never inspect runner state or journal data",
+      !/\/var\/lib\/learncoding-runner|RUNNER_STATE_ROOT|journalctl[^\n]*learncoding-runner/i.test(recoveryEvidence) &&
+      !/\/etc\/learncoding\/secrets|\/secrets\/|runner_shared_secret|RUNNER_[A-Z0-9_]*SECRET/i.test(
+        recoveryEvidence,
+      ),
+    "recovery evidence must stay below its fixed root and never reference runner state, journals, or secret paths",
   );
 }
 

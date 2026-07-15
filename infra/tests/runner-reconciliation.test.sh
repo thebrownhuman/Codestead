@@ -3,6 +3,8 @@ set -Eeuo pipefail
 umask 077
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+bash_bin="$(command -v bash)"
+sh_bin="$(command -v sh)"
 launcher="$repo_root/infra/runner/run-runner.sh"
 runner_unit="$repo_root/infra/runner/learncoding-runner.service.example"
 runner_env="$repo_root/infra/env/runner.env.example"
@@ -31,9 +33,9 @@ cleanup() {
 trap cleanup EXIT
 
 printf '%s' 'runner-test-secret-is-at-least-thirty-two-bytes' >"$work/secret"
-chmod 0600 "$work/secret"
-cat >"$work/docker" <<'EOF'
-#!/usr/bin/env bash
+chmod 0440 "$work/secret"
+printf '#!%s\n' "$bash_bin" >"$work/docker"
+cat >>"$work/docker" <<'EOF'
 set -eu
 {
   printf '%q' "${1:-}"
@@ -53,10 +55,11 @@ chmod 0755 "$work/docker"
 
 if RUNNER_SHARED_SECRET_FILE="$work/secret" \
   RUNNER_DOCKER_BINARY="$work/docker" \
+  RUNNER_MAX_QUEUE_DEPTH=100 \
   RUNNER_STATE_ROOT="$work/state" \
   RUNNER_TEMP_ROOT="$work/tmp" \
   TEST_DOCKER_LOG="$work/docker.log" \
-  sh "$launcher" >/dev/null 2>&1; then
+  "$sh_bin" "$launcher" >/dev/null 2>&1; then
   echo "test launcher unexpectedly reached a runnable production Node entrypoint" >&2
   exit 1
 fi
@@ -81,60 +84,179 @@ assert_rejected_before_docker() {
   }
 }
 
-assert_rejected_before_docker \
+assert_rejected_before_reconciliation() {
+  local label="$1"
+  local state_path="$2"
+  local temp_path="$3"
+  shift 3
+  assert_rejected_before_docker "$label" "$@"
+  [[ ! -e "$state_path" && ! -e "$temp_path" ]] || {
+    echo "$label created state/temp before rejecting unsafe configuration" >&2
+    exit 1
+  }
+}
+
+assert_directory_empty() {
+  local directory="$1"
+  local -a entries=()
+  shopt -s nullglob dotglob
+  entries=("$directory"/*)
+  shopt -u nullglob dotglob
+  (( ${#entries[@]} == 0 )) || {
+    echo "unsafe configuration wrote beneath $directory before rejection" >&2
+    exit 1
+  }
+}
+
+make_stat_ownership_override() {
+  local bin_dir="$1"
+  local target_path="$2"
+  local override_kind="$3"
+  local actual_uid
+  local actual_gid
+  actual_uid="$(id -u)"
+  actual_gid="$(id -g)"
+  mkdir -m 0700 "$bin_dir"
+  printf '#!%s\n' "$bash_bin" >"$bin_dir/stat"
+  cat >>"$bin_dir/stat" <<EOF
+set -Eeuo pipefail
+target="\${!#}"
+[[ "\$#" == 4 && "\${1:-}" == -c && "\${3:-}" == -- && "\$target" == "$work"/* ]] || exit 97
+if [[ "\$target" != "$target_path" ]]; then exec /usr/bin/stat "\$@"; fi
+case "$override_kind:\${2:-}" in
+  owner:%u) printf '%s\\n' 999999 ;;
+  owner:%g) printf '%s\\n' "$actual_gid" ;;
+  owner:%u:%g:%a) printf '%s\\n' "999999:$actual_gid:\$(/usr/bin/stat -c '%a' -- \"\$target\")" ;;
+  group:%u) printf '%s\\n' "$actual_uid" ;;
+  group:%g) printf '%s\\n' 999999 ;;
+  group:%u:%g:%a) printf '%s\\n' "$actual_uid:999999:\$(/usr/bin/stat -c '%a' -- \"\$target\")" ;;
+  *) exec /usr/bin/stat "\$@" ;;
+esac
+EOF
+  chmod 0755 "$bin_dir/stat"
+}
+
+assert_rejected_before_reconciliation \
   'missing runner secret' \
+  "$work/missing-secret-state" "$work/missing-secret-tmp" \
   env RUNNER_SHARED_SECRET_FILE="$work/missing-secret" RUNNER_STATE_ROOT="$work/missing-secret-state" \
-    RUNNER_TEMP_ROOT="$work/missing-secret-tmp" sh "$launcher" >/dev/null 2>&1
+    RUNNER_TEMP_ROOT="$work/missing-secret-tmp" RUNNER_MAX_QUEUE_DEPTH=100 "$sh_bin" "$launcher" >/dev/null 2>&1
 
 printf '%s' short >"$work/short-secret"
-chmod 0600 "$work/short-secret"
-assert_rejected_before_docker \
+chmod 0440 "$work/short-secret"
+assert_rejected_before_reconciliation \
   'short runner secret' \
+  "$work/short-secret-state" "$work/short-secret-tmp" \
   env RUNNER_SHARED_SECRET_FILE="$work/short-secret" RUNNER_STATE_ROOT="$work/short-secret-state" \
-    RUNNER_TEMP_ROOT="$work/short-secret-tmp" sh "$launcher" >/dev/null 2>&1
+    RUNNER_TEMP_ROOT="$work/short-secret-tmp" RUNNER_MAX_QUEUE_DEPTH=100 "$sh_bin" "$launcher" >/dev/null 2>&1
 
-assert_rejected_before_docker \
+cp "$work/secret" "$work/secret-bad-mode"
+chmod 0640 "$work/secret-bad-mode"
+assert_rejected_before_reconciliation \
+  'secret mode must be exact 0440' \
+  "$work/secret-mode-state" "$work/secret-mode-tmp" \
+  env RUNNER_SHARED_SECRET_FILE="$work/secret-bad-mode" RUNNER_MAX_QUEUE_DEPTH=100 \
+    RUNNER_STATE_ROOT="$work/secret-mode-state" RUNNER_TEMP_ROOT="$work/secret-mode-tmp" \
+    "$sh_bin" "$launcher" >/dev/null 2>&1
+
+cp "$work/secret" "$work/secret-bad-owner"
+chmod 0440 "$work/secret-bad-owner"
+make_stat_ownership_override "$work/secret-owner-bin" "$work/secret-bad-owner" owner
+assert_rejected_before_reconciliation \
+  'secret owner must match the runner ownership contract' \
+  "$work/secret-owner-state" "$work/secret-owner-tmp" \
+  env PATH="$work/secret-owner-bin:$PATH" RUNNER_SHARED_SECRET_FILE="$work/secret-bad-owner" RUNNER_MAX_QUEUE_DEPTH=100 \
+    RUNNER_STATE_ROOT="$work/secret-owner-state" RUNNER_TEMP_ROOT="$work/secret-owner-tmp" \
+    "$sh_bin" "$launcher" >/dev/null 2>&1
+
+cp "$work/secret" "$work/secret-bad-group"
+chmod 0440 "$work/secret-bad-group"
+make_stat_ownership_override "$work/secret-group-bin" "$work/secret-bad-group" group
+assert_rejected_before_reconciliation \
+  'secret ownership group must match the runner' \
+  "$work/secret-group-state" "$work/secret-group-tmp" \
+  env PATH="$work/secret-group-bin:$PATH" RUNNER_SHARED_SECRET_FILE="$work/secret-bad-group" RUNNER_MAX_QUEUE_DEPTH=100 \
+    RUNNER_STATE_ROOT="$work/secret-group-state" RUNNER_TEMP_ROOT="$work/secret-group-tmp" \
+    "$sh_bin" "$launcher" >/dev/null 2>&1
+
+cp "$work/secret" "$work/secret-target"
+chmod 0440 "$work/secret-target"
+[[ "$(stat -c '%u:%g:%a' -- "$work/secret-target")" == "$(stat -c '%u:%g:%a' -- "$work/secret")" ]]
+ln -s "$work/secret-target" "$work/secret-symlink"
+assert_rejected_before_reconciliation \
+  'secret symlink must be rejected' \
+  "$work/secret-symlink-state" "$work/secret-symlink-tmp" \
+  env RUNNER_SHARED_SECRET_FILE="$work/secret-symlink" RUNNER_MAX_QUEUE_DEPTH=100 \
+    RUNNER_STATE_ROOT="$work/secret-symlink-state" RUNNER_TEMP_ROOT="$work/secret-symlink-tmp" \
+    "$sh_bin" "$launcher" >/dev/null 2>&1
+
+assert_rejected_before_reconciliation \
   'wrong runner concurrency' \
+  "$work/concurrency-state" "$work/concurrency-tmp" \
   env RUNNER_SHARED_SECRET_FILE="$work/secret" RUNNER_MAX_CONCURRENCY=3 RUNNER_STATE_ROOT="$work/concurrency-state" \
-    RUNNER_TEMP_ROOT="$work/concurrency-tmp" sh "$launcher" >/dev/null 2>&1
+    RUNNER_TEMP_ROOT="$work/concurrency-tmp" RUNNER_MAX_QUEUE_DEPTH=100 "$sh_bin" "$launcher" >/dev/null 2>&1
+
+while IFS='|' read -r queue_label queue_value; do
+  queue_state="$work/queue-$queue_label-state"
+  queue_temp="$work/queue-$queue_label-tmp"
+  if [[ "$queue_label" == missing ]]; then
+    assert_rejected_before_reconciliation \
+      'queue depth missing' "$queue_state" "$queue_temp" \
+      env -u RUNNER_MAX_QUEUE_DEPTH RUNNER_SHARED_SECRET_FILE="$work/secret" \
+        RUNNER_STATE_ROOT="$queue_state" RUNNER_TEMP_ROOT="$queue_temp" "$sh_bin" "$launcher" >/dev/null 2>&1
+  else
+    assert_rejected_before_reconciliation \
+      "queue depth $queue_label" "$queue_state" "$queue_temp" \
+      env RUNNER_MAX_QUEUE_DEPTH="$queue_value" RUNNER_SHARED_SECRET_FILE="$work/secret" \
+        RUNNER_STATE_ROOT="$queue_state" RUNNER_TEMP_ROOT="$queue_temp" "$sh_bin" "$launcher" >/dev/null 2>&1
+  fi
+done <<'EOF'
+missing|
+zero|0
+negative|-1
+unbounded|unbounded
+wrong|99
+upper-bound|101
+oversized|2147483647
+EOF
 
 mkdir -m 0755 "$work/bad-mode-state"
 assert_rejected_before_docker \
   'unsafe runner state mode' \
   env RUNNER_SHARED_SECRET_FILE="$work/secret" RUNNER_STATE_ROOT="$work/bad-mode-state" \
-    RUNNER_TEMP_ROOT="$work/bad-mode-tmp" sh "$launcher" >/dev/null 2>&1
+    RUNNER_TEMP_ROOT="$work/bad-mode-tmp" RUNNER_MAX_QUEUE_DEPTH=100 "$sh_bin" "$launcher" >/dev/null 2>&1
+[[ ! -e "$work/bad-mode-state/.runner-process.lock" && ! -e "$work/bad-mode-tmp" ]]
 
 mkdir -m 0700 "$work/bad-temp-state"
 mkdir -m 0755 "$work/bad-mode-tmp"
 assert_rejected_before_docker \
   'unsafe runner temp mode' \
   env RUNNER_SHARED_SECRET_FILE="$work/secret" RUNNER_STATE_ROOT="$work/bad-temp-state" \
-    RUNNER_TEMP_ROOT="$work/bad-mode-tmp" sh "$launcher" >/dev/null 2>&1
+    RUNNER_TEMP_ROOT="$work/bad-mode-tmp" RUNNER_MAX_QUEUE_DEPTH=100 "$sh_bin" "$launcher" >/dev/null 2>&1
+assert_directory_empty "$work/bad-mode-tmp"
 
-mkdir -m 0700 "$work/owner-state" "$work/owner-bin"
-cat >"$work/owner-bin/stat" <<EOF
-#!/usr/bin/env bash
-set -Eeuo pipefail
-target="\${!#}"
-[[ "\$#" == 4 && "\${1:-}" == -c && "\${3:-}" == -- && "\$target" == "$work/owner-state" ]] || exit 97
-case "\${2:-}" in
-  %a) exec /usr/bin/stat -c '%a' -- "$work/owner-state" ;;
-  %u) printf '%s\\n' 999999 ;;
-  *) exit 64 ;;
-esac
-EOF
-chmod 0755 "$work/owner-bin/stat"
+mkdir -m 0700 "$work/bad-owner-temp-state" "$work/bad-owner-tmp"
+make_stat_ownership_override "$work/temp-owner-bin" "$work/bad-owner-tmp" owner
+assert_rejected_before_docker \
+  'unsafe runner temp owner' \
+  env PATH="$work/temp-owner-bin:$PATH" RUNNER_SHARED_SECRET_FILE="$work/secret" RUNNER_STATE_ROOT="$work/bad-owner-temp-state" \
+    RUNNER_TEMP_ROOT="$work/bad-owner-tmp" RUNNER_MAX_QUEUE_DEPTH=100 "$sh_bin" "$launcher" >/dev/null 2>&1
+assert_directory_empty "$work/bad-owner-tmp"
+
+mkdir -m 0700 "$work/owner-state"
+make_stat_ownership_override "$work/owner-bin" "$work/owner-state" owner
 : >"$work/rejected-docker.log"
 if PATH="$work/owner-bin:$PATH" TEST_DOCKER_LOG="$work/rejected-docker.log" RUNNER_DOCKER_BINARY="$work/docker" \
   RUNNER_SHARED_SECRET_FILE="$work/secret" RUNNER_STATE_ROOT="$work/owner-state" \
-  RUNNER_TEMP_ROOT="$work/owner-tmp" sh "$launcher" >/dev/null 2>&1; then
+  RUNNER_TEMP_ROOT="$work/owner-tmp" RUNNER_MAX_QUEUE_DEPTH=100 "$sh_bin" "$launcher" >/dev/null 2>&1; then
   echo 'unsafe runner state owner unexpectedly succeeded' >&2
   exit 1
 fi
 [[ ! -s "$work/rejected-docker.log" ]]
+[[ ! -e "$work/owner-state/.runner-process.lock" && ! -e "$work/owner-tmp" ]]
 
-cat >"$work/docker-invalid" <<'EOF'
-#!/usr/bin/env bash
+printf '#!%s\n' "$bash_bin" >"$work/docker-invalid"
+cat >>"$work/docker-invalid" <<'EOF'
 set -eu
 if [[ "${1:-}" == "ps" ]]; then printf '%s\n' 'not-a-container-id'; exit 0; fi
 exit 91
@@ -142,9 +264,10 @@ EOF
 chmod 0755 "$work/docker-invalid"
 if RUNNER_SHARED_SECRET_FILE="$work/secret" \
   RUNNER_DOCKER_BINARY="$work/docker-invalid" \
+  RUNNER_MAX_QUEUE_DEPTH=100 \
   RUNNER_STATE_ROOT="$work/invalid-state" \
   RUNNER_TEMP_ROOT="$work/invalid-tmp" \
-  sh "$launcher" >/dev/null 2>&1; then
+  "$sh_bin" "$launcher" >/dev/null 2>&1; then
   echo "runner launcher accepted an invalid Docker container id" >&2
   exit 1
 fi
@@ -154,7 +277,7 @@ mkdir -m 0700 "$work/locked-state"
 : >"$work/locked-docker.log"
 printf '%s' 'state-must-remain-unchanged' >"$work/locked-state/state-sentinel"
 /usr/bin/flock --exclusive --no-fork "$work/locked-state/.runner-process.lock" \
-  sh -c 'touch "$1"; exec sleep 30' _ "$work/lock-ready" &
+  "$sh_bin" -c 'touch "$1"; exec sleep 30' _ "$work/lock-ready" &
 lock_holder=$!
 for _ in $(seq 1 100); do
   [[ -f "$work/lock-ready" ]] && break
@@ -167,10 +290,11 @@ for _ in $(seq 1 12); do
   (
     if RUNNER_SHARED_SECRET_FILE="$work/secret" \
       RUNNER_DOCKER_BINARY="$work/docker" \
+      RUNNER_MAX_QUEUE_DEPTH=100 \
       RUNNER_STATE_ROOT="$work/locked-state" \
       RUNNER_TEMP_ROOT="$work/locked-tmp" \
       TEST_DOCKER_LOG="$work/locked-docker.log" \
-      sh "$launcher" >/dev/null 2>&1; then
+      "$sh_bin" "$launcher" >/dev/null 2>&1; then
       echo "duplicate runner launcher unexpectedly acquired the process lock" >&2
       exit 1
     fi
@@ -187,10 +311,11 @@ lock_holder=""
 
 if RUNNER_SHARED_SECRET_FILE="$work/secret" \
   RUNNER_DOCKER_BINARY="$work/docker" \
+  RUNNER_MAX_QUEUE_DEPTH=100 \
   RUNNER_STATE_ROOT="$work/locked-state" \
   RUNNER_TEMP_ROOT="$work/locked-tmp" \
   TEST_DOCKER_LOG="$work/locked-docker.log" \
-  sh "$launcher" >/dev/null 2>&1; then
+  "$sh_bin" "$launcher" >/dev/null 2>&1; then
   echo "test launcher unexpectedly reached a runnable production Node entrypoint" >&2
   exit 1
 fi
