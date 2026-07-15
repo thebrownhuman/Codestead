@@ -69,6 +69,8 @@ const INVALID_UUID_VERSION = "00000000-0000-f000-8000-000000000000";
 const INVALID_UUID_VARIANT = "00000000-0000-4000-0000-000000000000";
 const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 const MAX_UUID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+const UPPERCASE_MAX_UUID = "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF";
+const MIXED_CASE_MAX_UUID = "fFffffff-ffff-ffff-ffff-ffffffffffff";
 const UPPERCASE_UUID = "ABCDEF12-3456-7000-BABC-DEF012345678";
 
 const TIME_1 = "2026-07-15T01:00:00.000Z";
@@ -374,10 +376,15 @@ describe("browser outbox IndexedDB repository", () => {
   });
 
   it("matches Zod UUID semantics for draft and answer mutation IDs", async () => {
-    for (const invalidId of [INVALID_UUID_VERSION, INVALID_UUID_VARIANT]) {
-      await expect(repository!.putDraft(makeDraftRecord({ requestId: invalidId })))
+    for (const invalidId of [
+      INVALID_UUID_VERSION,
+      INVALID_UUID_VARIANT,
+      UPPERCASE_MAX_UUID,
+      MIXED_CASE_MAX_UUID,
+    ]) {
+      await expect.soft(repository!.putDraft(makeDraftRecord({ requestId: invalidId })))
         .rejects.toThrow("Draft outbox record is invalid.");
-      await expect(repository!.putExamAnswer(makeAnswerRecord({ clientMutationId: invalidId })))
+      await expect.soft(repository!.putExamAnswer(makeAnswerRecord({ clientMutationId: invalidId })))
         .rejects.toThrow("Exam answer outbox record is invalid.");
     }
 
