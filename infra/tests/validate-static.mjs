@@ -35,62 +35,42 @@ function composeService(name) {
   ).exec(compose)?.[1] ?? "";
 }
 
-function systemdLogicalLines(content) {
-  const logicalLines = [];
-  let continuing = false;
-  let pending = "";
-
-  for (const physicalLine of content.split(/\r?\n/u)) {
-    const physicalTrimmed = physicalLine.trim();
-    if (physicalTrimmed.startsWith("#") || physicalTrimmed.startsWith(";")) continue;
-
-    pending += continuing ? physicalLine.trimStart() : physicalLine;
-    const rightTrimmed = pending.trimEnd();
-    if (rightTrimmed.endsWith("\\")) {
-      pending = `${rightTrimmed.slice(0, -1)} `;
-      continuing = true;
-      continue;
-    }
-
-    logicalLines.push(pending);
-    continuing = false;
-    pending = "";
-  }
-
-  if (pending) logicalLines.push(pending);
-  return logicalLines;
-}
-
 function systemdDirectives(content) {
+  const recognizedSections = new Map([
+    ["[Unit]", "Unit"],
+    ["[Service]", "Service"],
+    ["[Install]", "Install"],
+    ["[Timer]", "Timer"],
+  ]);
   const directives = [];
   let section = "";
-  for (const rawLine of systemdLogicalLines(content)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#") || line.startsWith(";")) continue;
+  for (const line of content.split(/\r?\n/u)) {
+    if (!line) continue;
+    if (line !== line.trim() || line.includes("\\")) return null;
+    if (line.startsWith("#") || line.startsWith(";")) continue;
 
-    const sectionMatch = /^\[([^\]]+)\]$/u.exec(line);
-    if (sectionMatch) {
-      section = sectionMatch[1].trim();
+    const recognizedSection = recognizedSections.get(line);
+    if (recognizedSection) {
+      section = recognizedSection;
       continue;
     }
 
-    const equals = line.indexOf("=");
-    if (equals <= 0) continue;
+    const assignment = /^([A-Za-z][A-Za-z0-9]*)=(.*)$/u.exec(line);
+    if (!assignment || /^\s/u.test(assignment[2])) return null;
     directives.push({
-      key: line.slice(0, equals).trim(),
+      key: assignment[1],
       section,
-      value: line.slice(equals + 1).trim(),
+      value: assignment[2],
     });
   }
   return directives;
 }
 
 function hasSingleSystemdDirective(content, section, key, value) {
-  const normalizedKey = key.trim();
-  const matches = systemdDirectives(content).filter((directive) => directive.key === normalizedKey);
-  return (
-    matches.length === 1 && matches[0].section === section.trim() && matches[0].value === value.trim()
-  );
+  const directives = systemdDirectives(content);
+  if (!directives) return false;
+  const matches = directives.filter((directive) => directive.key === key);
+  return matches.length === 1 && matches[0].section === section && matches[0].value === value;
 }
 
 const dockerfile = read("Dockerfile");
@@ -271,6 +251,17 @@ expect(
   "production smoke must be bounded, use explicit Compose inputs, and emit the canonical success marker",
 );
 
+for (const [systemdPath, systemdContent] of [
+  ["infra/systemd/learncoding-compose.service", composeUnit],
+  ["infra/systemd/learncoding-retention.service", retentionUnit],
+  ...persistentTimers,
+]) {
+  expect(
+    systemdDirectives(systemdContent) !== null,
+    `${systemdPath} must use canonical physical systemd syntax`,
+  );
+}
+
 const expectedComposeUp =
   "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans";
 const expectedComposeStop =
@@ -303,13 +294,93 @@ const commentMutationTimer = [
   "# harmless timer comment \\",
   " Persistent = false",
 ].join("\n");
-const continuedCommentUnit = [
-  " [Service]",
-  " ExecStart = /usr/bin/docker compose \\",
-  " # ignored comment while the directive is continued",
-  " ; ignored continued comment \\",
-  " --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
+const spacedSectionUnit = [
+  "[ Service ]",
+  `ExecStart=${expectedComposeUp}`,
 ].join("\n");
+const paddedAssignmentUnit = [
+  "[Service]",
+  ` ExecStart = ${expectedComposeUp}`,
+].join("\n");
+const trailingWhitespaceUnit = [
+  "[Service] ",
+  `ExecStart=${expectedComposeUp} `,
+].join("\n");
+const oddBackslashUnit = [
+  "[Service]",
+  "Restart=on-failure\\   ",
+].join("\n");
+const evenBackslashUnit = [
+  "[Service]",
+  "Restart=on-failure\\\\   ",
+].join("\n");
+const standaloneCommentBackslashUnit = [
+  "[Service]",
+  "# standalone comment backslash \\",
+  "Restart=on-failure",
+].join("\n");
+const hiddenExecUnit = [
+  composeUnit,
+  "[Service]",
+  "Description=noncanonical continuation \\",
+  "# ignored comment block",
+  "ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
+].join("\n");
+const hiddenRestartUnit = [
+  composeUnit,
+  "[Service]",
+  "Description=noncanonical continuation \\",
+  "; ignored comment block",
+  "Restart=no",
+].join("\n");
+const hiddenPersistentTimer = [
+  persistentTimers[0][1],
+  "[Timer]",
+  "Description=noncanonical continuation \\",
+  "# ignored comment block",
+  "Persistent=false",
+].join("\n");
+expect(
+  !hasSingleSystemdDirective(spacedSectionUnit, "Service", "ExecStart", expectedComposeUp),
+  "systemd parser must reject a section header with internal padding",
+);
+expect(
+  !hasSingleSystemdDirective(paddedAssignmentUnit, "Service", "ExecStart", expectedComposeUp),
+  "systemd parser must reject leading and around-equals assignment whitespace",
+);
+expect(
+  !hasSingleSystemdDirective(trailingWhitespaceUnit, "Service", "ExecStart", expectedComposeUp),
+  "systemd parser must reject trailing physical-line whitespace",
+);
+expect(
+  !hasSingleSystemdDirective(oddBackslashUnit, "Service", "Restart", "on-failure"),
+  "systemd parser must reject an odd trailing backslash followed by spaces",
+);
+expect(
+  !hasSingleSystemdDirective(evenBackslashUnit, "Service", "Restart", "on-failure\\"),
+  "systemd parser must reject even trailing backslashes followed by spaces",
+);
+expect(
+  !hasSingleSystemdDirective(
+    standaloneCommentBackslashUnit,
+    "Service",
+    "Restart",
+    "on-failure",
+  ),
+  "systemd parser must reject a standalone comment containing a backslash",
+);
+expect(
+  !hasSingleSystemdDirective(hiddenExecUnit, "Service", "ExecStart", expectedComposeUp),
+  "systemd parser must not hide an unsafe ExecStart after a continuation/comment block",
+);
+expect(
+  !hasSingleSystemdDirective(hiddenRestartUnit, "Service", "Restart", "on-failure"),
+  "systemd parser must not hide an unsafe Restart after a continuation/comment block",
+);
+expect(
+  !hasSingleSystemdDirective(hiddenPersistentTimer, "Timer", "Persistent", "true"),
+  "systemd parser must not hide an unsafe Persistent value after a continuation/comment block",
+);
 expect(
   !hasSingleSystemdDirective(whitespaceMutationUnit, "Service", "ExecStart", expectedComposeUp),
   "systemd parser must reject a whitespace-indented continued ExecStart build override",
@@ -341,15 +412,6 @@ expect(
 expect(
   !hasSingleSystemdDirective(commentMutationTimer, "Timer", "Persistent", "true"),
   "systemd parser must reject a Persistent override after a backslash comment",
-);
-expect(
-  hasSingleSystemdDirective(
-    continuedCommentUnit,
-    "Service",
-    "ExecStart",
-    "/usr/bin/docker compose  --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build",
-  ),
-  "systemd parser must preserve a continued directive across a comment block",
 );
 expect(
   hasSingleSystemdDirective(
@@ -391,7 +453,7 @@ expect(
     hasSingleSystemdDirective(composeUnit, "Service", "ExecReload", expectedComposeUp),
   "Compose systemd start and reload must use explicit inputs with no build or implicit pull",
 );
-const composeExecLines = systemdDirectives(composeUnit)
+const composeExecLines = (systemdDirectives(composeUnit) ?? [])
   .filter((directive) => directive.key === "ExecStart" || directive.key === "ExecReload")
   .map((directive) => directive.value);
 expect(

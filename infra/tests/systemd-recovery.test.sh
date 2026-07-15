@@ -12,45 +12,31 @@ fail() {
   failures+=("$1")
 }
 
-trim_systemd_whitespace() {
-  local value="$1"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "$value"
-}
-
-systemd_logical_lines() {
+systemd_syntax_is_canonical() {
   local file="$1"
   local line
-  local pending=
-  local physical_trimmed
-  local right_trimmed
-  local continuing=0
 
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%$'\r'}"
-    physical_trimmed="$(trim_systemd_whitespace "$line")"
-    if [[ "$physical_trimmed" == \#* || "$physical_trimmed" == \;* ]]; then
+    if [[ -z "$line" ]]; then
       continue
     fi
-    if (( continuing )); then
-      line="${line#"${line%%[![:space:]]*}"}"
+    if [[ "$line" =~ ^[[:space:]] || "$line" =~ [[:space:]]$ ]]; then
+      return 1
     fi
-    pending+="$line"
-    right_trimmed="${pending%"${pending##*[![:space:]]}"}"
-    if [[ "${right_trimmed: -1}" == '\' ]]; then
-      pending="${right_trimmed::-1} "
-      continuing=1
+    if [[ "$line" == *\\* ]]; then
+      return 1
+    fi
+    if [[ "$line" == \#* || "$line" == \;* ]]; then
       continue
     fi
-    printf '%s\n' "$pending"
-    pending=
-    continuing=0
+    case "$line" in
+      '[Unit]'|'[Service]'|'[Install]'|'[Timer]') continue ;;
+    esac
+    if [[ ! "$line" =~ ^[A-Za-z][A-Za-z0-9]*=([^[:space:]].*)?$ ]]; then
+      return 1
+    fi
   done <"$file"
-
-  if (( continuing )) || [[ -n "$pending" ]]; then
-    printf '%s\n' "$pending"
-  fi
 }
 
 directive_is_exact() {
@@ -60,36 +46,34 @@ directive_is_exact() {
   local expected_value="$4"
   local section=
   local line
-  local normalized
   local parsed_key
   local parsed_value
   local matches=0
   local correct=0
 
-  expected_section="$(trim_systemd_whitespace "$expected_section")"
-  key="$(trim_systemd_whitespace "$key")"
-  expected_value="$(trim_systemd_whitespace "$expected_value")"
+  if ! systemd_syntax_is_canonical "$file"; then
+    return 1
+  fi
   while IFS= read -r line; do
-    normalized="$(trim_systemd_whitespace "$line")"
-    if [[ -z "$normalized" || "$normalized" == \#* || "$normalized" == \;* ]]; then
+    line="${line%$'\r'}"
+    if [[ -z "$line" || "$line" == \#* || "$line" == \;* ]]; then
       continue
     fi
-    if [[ "$normalized" =~ ^\[([^]]+)\]$ ]]; then
-      section="$(trim_systemd_whitespace "${BASH_REMATCH[1]}")"
-      continue
-    fi
-    if [[ "$normalized" != *"="* ]]; then
-      continue
-    fi
-    parsed_key="$(trim_systemd_whitespace "${normalized%%=*}")"
-    parsed_value="$(trim_systemd_whitespace "${normalized#*=}")"
+    case "$line" in
+      '[Unit]') section=Unit; continue ;;
+      '[Service]') section=Service; continue ;;
+      '[Install]') section=Install; continue ;;
+      '[Timer]') section=Timer; continue ;;
+    esac
+    parsed_key="${line%%=*}"
+    parsed_value="${line#*=}"
     if [[ "$parsed_key" == "$key" ]]; then
       matches=$((matches + 1))
       if [[ "$section" == "$expected_section" && "$parsed_value" == "$expected_value" ]]; then
         correct=$((correct + 1))
       fi
     fi
-  done < <(systemd_logical_lines "$file")
+  done <"$file"
 
   (( matches == 1 && correct == 1 ))
 }
@@ -127,6 +111,23 @@ expect_contains() {
     fail "$label"
   fi
 }
+
+expect_canonical_systemd_file() {
+  local file="$1"
+
+  if ! systemd_syntax_is_canonical "$file"; then
+    fail "Owned systemd file must use canonical physical syntax: ${file#"$repo_root/"}"
+  fi
+}
+
+expect_canonical_systemd_file "$compose_unit"
+expect_canonical_systemd_file "$retention_unit"
+for canonical_timer in \
+  "$repo_root/infra/systemd/learncoding-backup.timer" \
+  "$repo_root/infra/systemd/learncoding-backup-check.timer" \
+  "$repo_root/infra/systemd/learncoding-retention.timer"; do
+  expect_canonical_systemd_file "$canonical_timer"
+done
 
 expect_directive \
   "$compose_unit" \
@@ -275,7 +276,15 @@ mutated_compose_unit="$parser_work/learncoding-compose.service"
 mutated_timer="$parser_work/learncoding-backup.timer"
 comment_mutated_compose_unit="$parser_work/comment-override-compose.service"
 comment_mutated_timer="$parser_work/comment-override-backup.timer"
-continued_comment_unit="$parser_work/continued-comment.service"
+spaced_section_unit="$parser_work/spaced-section.service"
+padded_assignment_unit="$parser_work/padded-assignment.service"
+trailing_whitespace_unit="$parser_work/trailing-whitespace.service"
+odd_backslash_unit="$parser_work/odd-backslash.service"
+even_backslash_unit="$parser_work/even-backslash.service"
+standalone_comment_backslash_unit="$parser_work/standalone-comment-backslash.service"
+hidden_exec_unit="$parser_work/hidden-exec.service"
+hidden_restart_unit="$parser_work/hidden-restart.service"
+hidden_persistent_timer="$parser_work/hidden-persistent.timer"
 cp "$compose_unit" "$mutated_compose_unit"
 cp "$repo_root/infra/systemd/learncoding-backup.timer" "$mutated_timer"
 cp "$compose_unit" "$comment_mutated_compose_unit"
@@ -302,11 +311,77 @@ printf '%s\n' \
   '# harmless timer comment \' \
   ' Persistent = false' >>"$comment_mutated_timer"
 printf '%s\n' \
-  ' [Service]' \
-  ' ExecStart = /usr/bin/docker compose \' \
-  ' # ignored comment while the directive is continued' \
-  ' ; ignored continued comment \' \
-  ' --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' >"$continued_comment_unit"
+  '[ Service ]' \
+  'ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' >"$spaced_section_unit"
+printf '%s\n' \
+  '[Service]' \
+  ' ExecStart = /usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' >"$padded_assignment_unit"
+printf '%s\n' \
+  '[Service] ' \
+  'ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans ' >"$trailing_whitespace_unit"
+printf '%s\n' \
+  '[Service]' \
+  'Restart=on-failure\   ' >"$odd_backslash_unit"
+printf '%s\n' \
+  '[Service]' \
+  'Restart=on-failure\\   ' >"$even_backslash_unit"
+printf '%s\n' \
+  '[Service]' \
+  '# standalone comment backslash \' \
+  'Restart=on-failure' >"$standalone_comment_backslash_unit"
+cp "$compose_unit" "$hidden_exec_unit"
+printf '%s\n' \
+  '' \
+  '[Service]' \
+  'Description=noncanonical continuation \' \
+  '# ignored comment block' \
+  'ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' >>"$hidden_exec_unit"
+cp "$compose_unit" "$hidden_restart_unit"
+printf '%s\n' \
+  '' \
+  '[Service]' \
+  'Description=noncanonical continuation \' \
+  '; ignored comment block' \
+  'Restart=no' >>"$hidden_restart_unit"
+cp "$repo_root/infra/systemd/learncoding-backup.timer" "$hidden_persistent_timer"
+printf '%s\n' \
+  '' \
+  '[Timer]' \
+  'Description=noncanonical continuation \' \
+  '# ignored comment block' \
+  'Persistent=false' >>"$hidden_persistent_timer"
+
+expect_mutation_rejected \
+  "$spaced_section_unit" Service ExecStart \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
+  'systemd parser accepted a section header with internal padding'
+expect_mutation_rejected \
+  "$padded_assignment_unit" Service ExecStart \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
+  'systemd parser accepted leading and around-equals assignment whitespace'
+expect_mutation_rejected \
+  "$trailing_whitespace_unit" Service ExecStart \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
+  'systemd parser accepted trailing physical-line whitespace'
+expect_mutation_rejected \
+  "$odd_backslash_unit" Service Restart on-failure \
+  'systemd parser accepted an odd trailing backslash followed by spaces'
+expect_mutation_rejected \
+  "$even_backslash_unit" Service Restart 'on-failure\' \
+  'systemd parser accepted even trailing backslashes followed by spaces'
+expect_mutation_rejected \
+  "$standalone_comment_backslash_unit" Service Restart on-failure \
+  'systemd parser accepted a standalone comment containing a backslash'
+expect_mutation_rejected \
+  "$hidden_exec_unit" Service ExecStart \
+  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
+  'systemd parser hid an unsafe ExecStart after a continuation/comment block'
+expect_mutation_rejected \
+  "$hidden_restart_unit" Service Restart on-failure \
+  'systemd parser hid an unsafe Restart after a continuation/comment block'
+expect_mutation_rejected \
+  "$hidden_persistent_timer" Timer Persistent true \
+  'systemd parser hid an unsafe Persistent value after a continuation/comment block'
 
 expect_mutation_rejected \
   "$mutated_compose_unit" Service ExecStart \
@@ -336,11 +411,6 @@ expect_mutation_rejected \
 expect_mutation_rejected \
   "$comment_mutated_timer" Timer Persistent true \
   'systemd parser accepted a Persistent override after a backslash comment'
-expect_directive \
-  "$continued_comment_unit" Service ExecStart \
-  '/usr/bin/docker compose  --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --build' \
-  'systemd parser did not preserve a continued directive across a comment block'
-
 if (( ${#failures[@]} > 0 )); then
   echo 'systemd recovery contract failed:' >&2
   for failure in "${failures[@]}"; do
