@@ -247,7 +247,8 @@ const requiredContainmentTokens = [
   "--disable-userns",
   "--cap-drop ALL",
   "--as-pid-1",
-  "--ro-bind / /",
+  "--tmpfs /",
+  "--remount-ro /",
   "--proc /proc",
   "--dev /dev",
   "/usr/bin/timeout",
@@ -259,27 +260,78 @@ const requiredContainmentTokens = [
   "CapBnd:",
   "Groups:",
   "NoNewPrivs:",
-  "/usr/bin/setpriv --clear-groups",
+  "--clear-groups",
   "/run/docker.sock",
   "/run/libvirt/libvirt-sock",
   "/dev/kvm",
   "/etc/learncoding",
   "/var/lib/learncoding",
-  "namespace-repo-mask",
-  '--ro-bind "$empty" "$empty"',
-  '--ro-bind "$repo_mask" "$repo_mask"',
   '"$containment_repo/.env"',
   '"$containment_repo/.git"',
   "verify_fixed_outer_binary",
   "assert_containment_gate_mutations",
+  "minimal_runtime_mounts",
+  "prepare_minimal_runtime_mounts",
+  "/usr/bin/ldd",
+  "containment_ro_mounts",
+  "containment_rw_mounts",
+];
+const requiredSourceStagingTokens = [
+  "stage_live_source_once",
+  "O_NOFOLLOW",
+  "O_CLOEXEC",
+  "fstat",
+  "path-swap-restore",
+  "inplace-restore",
+  "verify_exact_staged_shell_source",
+  "expected_transformed_sha256",
+];
+const requiredResourceLimitTokens = [
+  "--nproc=64:64",
+  "--nofile=128:128",
+  "--core=0:0",
+  "--cpu=30:30",
+  "--as=536870912:536870912",
+  "--fsize=1048576:1048576",
+  "--data=268435456:268435456",
+  "--stack=16777216:16777216",
+  "--rss=268435456:268435456",
+  "assert_exact_resource_limits",
+  "missing-address-space-limit",
+  "weakened-address-space-limit",
+  "missing-file-size-limit",
+  "weakened-file-size-limit",
+  "missing-data-limit",
+  "weakened-data-limit",
+  "missing-stack-limit",
+  "weakened-stack-limit",
+  "missing-rss-limit",
+  "weakened-rss-limit",
+  "missing-process-count-limit",
+  "weakened-process-count-limit",
+  "missing-file-descriptor-limit",
+  "weakened-file-descriptor-limit",
+  "missing-core-limit",
+  "weakened-core-limit",
+  "missing-cpu-limit",
+  "weakened-cpu-limit",
+  "duplicate-resource-limit",
+  "Max processes",
+  "Max open files",
+  "Max core file size",
+  "Max cpu time",
+  "Max address space",
+  "Max file size",
+  "Max data size",
+  "Max stack size",
+  "Max resident set",
 ];
 for (const [label, harness] of shellHarnesses) {
-  expect(harness.includes("verify_exact_reviewed_shell_source"), `${label} harness must verify exact source identity`);
+  expect(harness.includes("verify_exact_staged_shell_source"), `${label} harness must verify the exact one-FD staged source identity`);
   expect(harness.includes("sha256_file"), `${label} harness must verify reviewed SHA-256 identities`);
-  expect(harness.includes("! -L \"$source\""), `${label} harness must reject symlinked reviewed source`);
   expect(harness.includes("shebang_count"), `${label} harness must verify exactly one reviewed shebang`);
   expect(harness.includes("$'\\r'"), `${label} harness must reject CR/CRLF reviewed source`);
-  expect(harness.includes('"$interpreter" -n "$source"'), `${label} harness must syntax-check the exact reviewed source`);
+  expect(harness.includes('"$interpreter" -n "$staged_source"'), `${label} harness must syntax-check the exact immutable stage`);
   expect(harness.includes("'PATH='") && harness.includes("'readonly PATH'"), `${label} harness must use an empty readonly SUT PATH`);
   for (const mutation of requiredIdentityMutations) {
     expect(harness.includes(mutation), `${label} harness is missing the ${mutation} source-identity mutation`);
@@ -287,6 +339,21 @@ for (const [label, harness] of shellHarnesses) {
   for (const token of requiredContainmentTokens) {
     expect(harness.includes(token), `${label} harness is missing mandatory containment token: ${token}`);
   }
+  for (const token of requiredSourceStagingTokens) {
+    expect(harness.includes(token), `${label} harness is missing mandatory one-FD staging token: ${token}`);
+  }
+  for (const token of requiredResourceLimitTokens) {
+    expect(harness.includes(token), `${label} harness is missing mandatory hard resource-limit token: ${token}`);
+  }
+  expect(!harness.includes("--ro-bind / /"), `${label} harness must not expose the host root inside containment`);
+  expect(
+    !/--ro-bind\s+"\$(work|parser_work|case_dir|repo_root|host_root)"\s+"\$\1"/u.test(harness),
+    `${label} harness must not expose a broad fixture or worktree root read-only`,
+  );
+  expect(
+    !/--bind\s+"\$(work|parser_work|case_dir|repo_root|host_root)"\s+"\$\1"/u.test(harness),
+    `${label} harness must not bind its whole fixture tree read-write`,
+  );
   expect(!harness.includes("--unshare-all"), `${label} harness must not use best-effort --unshare-all`);
   expect(!harness.includes("--unshare-user-try"), `${label} harness must not use best-effort user namespaces`);
   expect(/\/usr\/bin\/env -i[\s\S]{0,1200}PATH=/u.test(harness), `${label} harness must enter containment from an empty environment and PATH`);
@@ -370,9 +437,13 @@ for (const mutation of [
 }
 expect(
   runtimeHarness.includes("Compose environment must contain only strict data assignments before source") &&
+    runtimeHarness.includes('stage_live_source_once "$config" "$runtime_config_stage"') &&
+    runtimeHarness.includes('source_manipulates_path "$runtime_config_stage"') &&
+    runtimeHarness.includes('verify_compose_env_fixture "$runtime_config_stage"') &&
+    runtimeHarness.includes("verify_staged_runtime_config") &&
     runtimeHarness.includes("RUNTIME_CONFIG_VERIFY_SHA256") &&
     runtimeHarness.includes('source "$compose_env"') &&
-    runtimeHarness.includes('--ro-bind "$config" "$config"'),
+    runtimeHarness.includes('--ro-bind "$runtime_config_stage" "$config"'),
   "runtime harness must validate and hash the sole sourced Compose environment immediately before execution",
 );
 

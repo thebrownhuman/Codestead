@@ -8,6 +8,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 bash_bin=/usr/bin/bash
 env_bin=/usr/bin/env
 sha256_bin=/usr/bin/sha256sum
+perl_bin=/usr/bin/perl
 node_bin=/usr/bin/node
 collector="$repo_root/infra/ops/capture-recovery-evidence.sh"
 collector_shebang='#!/usr/bin/env bash'
@@ -66,30 +67,35 @@ source_manipulates_path() {
   return 1
 }
 
+render_path_sealed_copy() {
+  local staged_source="$1" destination="$2" interpreter="$3" command_root="$4" command_name
+  shift 4
+  printf '#!%s\n' "$interpreter" >"$destination"
+  if [[ -n "$command_root" ]]; then
+    for command_name in "$@"; do
+      [[ "$command_name" =~ ^[a-z][a-z0-9-]*$ ]] || return 1
+      printf '%s() { %q/%s "$@"; }\n' "$command_name" "$command_root" "$command_name" >>"$destination"
+    done
+  fi
+  printf '%s\n' 'PATH=' 'readonly PATH' >>"$destination"
+  tail -n +2 "$staged_source" >>"$destination"
+}
+
 make_path_sealed_copy() {
-  local source="$1"
-  local destination="$2"
-  local interpreter="$3"
-  local expected_shebang="$4"
-  local expected_sha256="$5"
-  local command_root="${6:-}"
-  local command_name
-
-  verify_exact_reviewed_shell_source "$source" "$interpreter" "$expected_shebang" "$expected_sha256" || return 1
-
-  {
-    printf '#!%s\n' "$interpreter"
-    if [[ -n "$command_root" ]]; then
-      shift 6
-      for command_name in "$@"; do
-        [[ "$command_name" =~ ^[a-z][a-z0-9-]*$ ]] || return 1
-        printf '%s() { %q/%s "$@"; }\n' "$command_name" "$command_root" "$command_name"
-      done
-    fi
-    printf '%s\n' 'PATH=' 'readonly PATH'
-    tail -n +2 "$source"
-  } >"$destination"
-  chmod 0700 "$destination"
+  local staged_source="$1" destination="$2" interpreter="$3" expected_shebang="$4" expected_sha256="$5"
+  local expected_file="$destination.expected" candidate="$destination.candidate" actual_sha256
+  shift 5
+  verify_exact_staged_shell_source "$staged_source" "$interpreter" "$expected_shebang" "$expected_sha256" || return 1
+  rm -f -- "$expected_file" "$candidate" "$destination"
+  render_path_sealed_copy "$staged_source" "$expected_file" "$interpreter" "${1:-}" "${@:2}" || return 1
+  expected_transformed_sha256="$(sha256_file "$expected_file")" || return 1
+  render_path_sealed_copy "$staged_source" "$candidate" "$interpreter" "${1:-}" "${@:2}" || return 1
+  actual_sha256="$(sha256_file "$candidate")" || return 1
+  [[ "$actual_sha256" == "$expected_transformed_sha256" ]] || return 1
+  chmod 0500 "$candidate"
+  mv -- "$candidate" "$destination"
+  rm -f -- "$expected_file"
+  verify_exact_staged_shell_source "$destination" "$interpreter" "#!$interpreter" "$expected_transformed_sha256"
 }
 
 sha256_file() {
@@ -100,23 +106,186 @@ sha256_file() {
   printf '%s' "$digest"
 }
 
-verify_exact_reviewed_shell_source() {
-  local source="$1" interpreter="$2" expected_shebang="$3" expected_sha256="$4"
+verify_exact_staged_shell_source() {
+  local staged_source="$1" interpreter="$2" expected_shebang="$3" expected_sha256="$4"
   local first_line line actual_sha256
+  local metadata mode mode_value
   local shebang_count=0
-  [[ -f "$source" && ! -L "$source" ]] || return 1
-  IFS= read -r first_line <"$source" || return 1
+  [[ -f "$staged_source" && ! -L "$staged_source" ]] || return 1
+  metadata="$(/usr/bin/stat -L -c '%a' -- "$staged_source")" || return 1
+  mode="${metadata##*:}"; [[ "$mode" =~ ^[0-7]{3,4}$ ]] || return 1; mode_value=$((8#$mode))
+  (( (mode_value & 8#222) == 0 )) || return 1
+  IFS= read -r first_line <"$staged_source" || return 1
   [[ "$first_line" == "$expected_shebang" && "$first_line" != *$'\r'* ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" != *$'\r'* ]] || return 1
     [[ "$line" == '#!'* ]] && shebang_count=$((shebang_count + 1))
-  done <"$source"
+  done <"$staged_source"
   (( shebang_count == 1 )) || return 1
   [[ "$expected_sha256" =~ ^[0-9a-f]{64}$ ]] || return 1
-  actual_sha256="$(sha256_file "$source")" || return 1
+  actual_sha256="$(sha256_file "$staged_source")" || return 1
   [[ "$actual_sha256" == "$expected_sha256" ]] || return 1
-  "$interpreter" -n "$source" >/dev/null 2>&1
+  "$interpreter" -n "$staged_source" >/dev/null 2>&1
 }
+
+initialize_source_stager() {
+  source_stager="$source_staging_root/source-stager.pl"
+  cat >"$source_stager" <<'PERL'
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Fcntl qw(O_RDONLY O_WRONLY O_CREAT O_EXCL O_TRUNC O_NOFOLLOW SEEK_SET S_ISREG F_SETFD FD_CLOEXEC);
+
+sub set_cloexec {
+  my ($handle) = @_;
+  fcntl($handle, F_SETFD, FD_CLOEXEC) or die "O_CLOEXEC setup failed: $!\n";
+}
+
+sub write_all {
+  my ($handle, $bytes) = @_;
+  my $offset = 0;
+  while ($offset < length($bytes)) {
+    my $written = syswrite($handle, $bytes, length($bytes) - $offset, $offset);
+    die "write failed: $!\n" unless defined $written && $written > 0;
+    $offset += $written;
+  }
+}
+
+sub read_all {
+  my ($handle) = @_;
+  my $bytes = '';
+  while (1) {
+    my $count = sysread($handle, my $chunk, 65536);
+    die "read failed: $!\n" unless defined $count;
+    last if $count == 0;
+    $bytes .= $chunk;
+  }
+  return $bytes;
+}
+
+sub copy_all {
+  my ($input, $output) = @_;
+  while (1) {
+    my $count = sysread($input, my $chunk, 65536);
+    die "read failed: $!\n" unless defined $count;
+    last if $count == 0;
+    write_all($output, $chunk);
+  }
+}
+
+my ($source, $destination, $hook, $race_root) = @ARGV;
+die "invalid arguments\n" unless defined $race_root && ($hook eq 'none' || $hook eq 'path-swap-restore' || $hook eq 'inplace-restore');
+my $o_cloexec = eval { Fcntl::O_CLOEXEC() } || 0;
+sysopen(my $input, $source, O_RDONLY | O_NOFOLLOW | $o_cloexec) or die "open source failed: $!\n";
+set_cloexec($input);
+# Perl stat(FILEHANDLE) is the exact-descriptor fstat identity check.
+my @before = stat($input);
+die "source is not regular\n" unless @before && S_ISREG($before[2]);
+my @path_before = lstat($source);
+die "source path identity changed\n" unless @path_before && S_ISREG($path_before[2]) && $path_before[0] == $before[0] && $path_before[1] == $before[1];
+if ($hook ne 'none') {
+  my $prefix = "$race_root/reviewed-source-";
+  die "race hook escaped fixture\n" unless index($source, $prefix) == 0;
+}
+sysopen(my $output, $destination, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | $o_cloexec, 0400) or die "open stage failed: $!\n";
+set_cloexec($output);
+my ($backup, $original_bytes, $error);
+eval {
+  if ($hook eq 'path-swap-restore') {
+    $backup = "$source.stage-race-backup";
+    unlink($backup);
+    rename($source, $backup) or die "rename source failed: $!\n";
+    sysopen(my $attacker, $source, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600) or die "create attacker failed: $!\n";
+    set_cloexec($attacker);
+    write_all($attacker, "#!/usr/bin/env bash\nprintf compromised >\"\$SOURCE_IDENTITY_SENTINEL\"\n");
+    close($attacker) or die "close attacker failed: $!\n";
+  } elsif ($hook eq 'inplace-restore') {
+    $original_bytes = read_all($input);
+    sysseek($input, 0, SEEK_SET) or die "seek source failed: $!\n";
+    sysopen(my $mutator, $source, O_WRONLY | O_TRUNC | O_NOFOLLOW) or die "open mutator failed: $!\n";
+    set_cloexec($mutator);
+    write_all($mutator, "#!/usr/bin/env bash\nprintf compromised >\"\$SOURCE_IDENTITY_SENTINEL\"\n");
+    close($mutator) or die "close mutator failed: $!\n";
+  }
+  copy_all($input, $output);
+  close($output) or die "close stage failed: $!\n";
+  1;
+} or $error = $@ || "staging failed\n";
+
+if ($hook eq 'path-swap-restore' && defined $backup && -e $backup) {
+  unlink($source);
+  rename($backup, $source) or $error ||= "restore rename failed: $!\n";
+} elsif ($hook eq 'inplace-restore' && defined $original_bytes) {
+  if (sysopen(my $restorer, $source, O_WRONLY | O_TRUNC | O_NOFOLLOW)) {
+    set_cloexec($restorer);
+    eval { write_all($restorer, $original_bytes); close($restorer) or die "close restorer failed: $!\n"; 1 } or $error ||= $@;
+  } else {
+    $error ||= "open restorer failed: $!\n";
+  }
+}
+
+my @after = stat($input);
+my @path_after = lstat($source);
+for my $index (0, 1, 2, 3, 4, 5, 6, 7) {
+  $error ||= "descriptor identity changed\n" unless @after && $after[$index] == $before[$index];
+}
+$error ||= "source path was not restored\n" unless @path_after && S_ISREG($path_after[2]) && $path_after[0] == $before[0] && $path_after[1] == $before[1];
+close($input) or $error ||= "close source failed: $!\n";
+if ($error) {
+  unlink($destination);
+  die $error;
+}
+chmod(0400, $destination) == 1 or die "chmod stage failed: $!\n";
+PERL
+  chmod 0500 "$source_stager"
+  source_stager_sha256="$(sha256_file "$source_stager")" || return 1
+  "$perl_bin" -c "$source_stager" >/dev/null 2>&1 || return 1
+}
+
+stage_live_source_once() {
+  local live_source="$1" staged_source="$2" hook="${3:-none}"
+  [[ "$staged_source" == "$source_staging_root"/* && ! -e "$staged_source" ]] || return 1
+  [[ "$(sha256_file "$source_stager")" == "$source_stager_sha256" ]] || return 1
+  "$perl_bin" "$source_stager" "$live_source" "$staged_source" "$hook" "$source_staging_root"
+}
+
+stage_and_make_path_sealed_copy() {
+  local live_source="$1" destination="$2"
+  local staged_source="$destination.source-stage"
+  shift 2
+  rm -f -- "$staged_source"
+  stage_live_source_once "$live_source" "$staged_source" || return 1
+  make_path_sealed_copy "$staged_source" "$destination" "$@"
+}
+
+assert_source_race_mutations() {
+  local interpreter="$1" expected_shebang="$2"
+  local safe_source="$source_staging_root/reviewed-source-race.sh"
+  local staged_source="$source_staging_root/reviewed-source-race.stage.sh"
+  local transformed="$source_staging_root/reviewed-source-race.transformed.sh"
+  local sentinel="$source_staging_root/reviewed-source-race.sentinel"
+  local safe_sha256
+  printf '%s\n%s\n' "$expected_shebang" 'set -e' >"$safe_source"
+  safe_sha256="$(sha256_file "$safe_source")" || return 1
+  printf '%s' unchanged >"$sentinel"
+
+  rm -f -- "$staged_source" "$transformed"
+  stage_live_source_once "$safe_source" "$staged_source" path-swap-restore || return 1
+  make_path_sealed_copy "$staged_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" || return 1
+  [[ "$(sha256_file "$safe_source")" == "$safe_sha256" && "$(<"$transformed")" != *compromised* ]] || return 1
+
+  rm -f -- "$staged_source" "$transformed"
+  stage_live_source_once "$safe_source" "$staged_source" inplace-restore || true
+  if [[ -e "$staged_source" ]] && make_path_sealed_copy "$staged_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256"; then
+    return 1
+  fi
+  [[ "$(sha256_file "$safe_source")" == "$safe_sha256" && ! -e "$transformed" && "$(<"$sentinel")" == unchanged ]]
+}
+
+
+
+source_staging_root="$work"
+initialize_source_stager || fail 'could not initialize one-FD source stager'
 
 assert_source_identity_mutations() {
   local interpreter="$1" expected_shebang="$2"
@@ -130,7 +299,7 @@ assert_source_identity_mutations() {
     printf '%s\n%s\n%s\n%s\n' "$expected_shebang" 'set -e' "$mutation" \
       'printf reached >"$SOURCE_IDENTITY_SENTINEL"' >"$mutated_source"
     rm -f -- "$transformed"
-    make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+    stage_and_make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
       fail "reviewed source identity accepted $label mutation"
     [[ ! -e "$transformed" && "$(<"$sentinel")" == unchanged ]] || fail "$label mutation escaped source verification"
   done <<'EOF'
@@ -146,19 +315,19 @@ dynamic-exec|verb=exec; "$verb" /usr/bin/sh -c 'command -v cp'
 EOF
   printf '%s\n%s\n' '/usr/bin/cp -- "$SOURCE" "$DESTINATION"' 'set -e' >"$mutated_source"
   rm -f -- "$transformed"
-  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+  stage_and_make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
     fail 'reviewed source identity accepted a line-1 absolute command'
   [[ ! -e "$transformed" && "$(<"$sentinel")" == unchanged ]] || fail 'line-1 mutation escaped verification'
   printf '%s\n%s\n%s\n' "$expected_shebang" "$expected_shebang" 'set -e' >"$mutated_source"
-  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+  stage_and_make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
     fail 'reviewed source identity accepted duplicate shebangs'
   printf '%s\r\n%s\r\n' "$expected_shebang" 'set -e' >"$mutated_source"
-  make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+  stage_and_make_path_sealed_copy "$mutated_source" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
     fail 'reviewed source identity accepted CRLF source'
   rm -f -- "$work/reviewed-source-symlink.sh"
   ln -s "$safe_source" "$work/reviewed-source-symlink.sh"
   if [[ -L "$work/reviewed-source-symlink.sh" ]]; then
-    make_path_sealed_copy "$work/reviewed-source-symlink.sh" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+    stage_and_make_path_sealed_copy "$work/reviewed-source-symlink.sh" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
       fail 'reviewed source identity accepted a symlink'
   fi
   rm -f -- "$work/reviewed-source-symlink.sh"
@@ -193,7 +362,7 @@ assert_path_mutation_defenses() {
     source_manipulates_path "$mutation_source" || fail "PATH static guard missed: $mutation"
     mutation_sha256="$(sha256_file "$mutation_source")" || fail 'could not hash PATH mutation source'
     rm -f -- "$sealed_mutation" "$resolution"
-    make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter" "#!$interpreter" "$mutation_sha256" ||
+    stage_and_make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter" "#!$interpreter" "$mutation_sha256" ||
       fail 'could not create reviewed PATH mutation copy'
     printf '%s' unchanged >"$sentinel"
     set +e
@@ -209,10 +378,14 @@ assert_path_mutation_defenses() {
   done
 }
 
-verify_exact_reviewed_shell_source "$collector" "$bash_bin" "$collector_shebang" "$collector_reviewed_sha256" ||
-  fail 'evidence collector source identity, shebang, regular-file, LF, syntax, or SHA is not reviewed'
+collector_stage="$work/capture-recovery-evidence.reviewed.stage.sh"
+stage_live_source_once "$collector" "$collector_stage" ||
+  fail 'could not open the evidence collector exactly once with O_NOFOLLOW'
+verify_exact_staged_shell_source "$collector_stage" "$bash_bin" "$collector_shebang" "$collector_reviewed_sha256" ||
+  fail 'evidence collector staged identity, shebang, regular-file, LF, syntax, or SHA is not reviewed'
 assert_source_identity_mutations "$bash_bin" "$collector_shebang"
-if source_manipulates_path "$collector"; then
+assert_source_race_mutations "$bash_bin" "$collector_shebang" || fail 'evidence source race defenses failed'
+if source_manipulates_path "$collector_stage"; then
   fail 'evidence collector may not reference or mutate the harness-owned PATH'
 fi
 assert_path_mutation_defenses "$bash_bin"
@@ -220,40 +393,40 @@ collector_under_test="$work/capture-recovery-evidence.sealed.sh"
 fake_bin="$work/bin"
 collector_fake_commands=(id systemctl virsh docker curl journalctl findmnt smartctl date git uname mktemp mv sync rm cat \
   stat realpath readlink sha256sum chmod chown mkdir mount umount wget nc ping dd truncate touch tee ln rsync sudo ssh scp socat install)
-make_path_sealed_copy "$collector" "$collector_under_test" "$bash_bin" "$collector_shebang" "$collector_reviewed_sha256" \
+make_path_sealed_copy "$collector_stage" "$collector_under_test" "$bash_bin" "$collector_shebang" "$collector_reviewed_sha256" \
   "$fake_bin" "${collector_fake_commands[@]}" || fail 'could not create reviewed evidence collector test copy'
 grep -Fxq 'PATH=' "$collector_under_test" && grep -Fxq 'readonly PATH' "$collector_under_test" ||
   fail 'evidence collector test copy did not seal PATH before the SUT body'
 collector_under_test_sha256="$(sha256_file "$collector_under_test")" || fail 'could not hash transformed evidence collector'
-verify_exact_reviewed_shell_source "$collector_under_test" "$bash_bin" "#!$bash_bin" "$collector_under_test_sha256" ||
+verify_exact_staged_shell_source "$collector_under_test" "$bash_bin" "#!$bash_bin" "$collector_under_test_sha256" ||
   fail 'transformed evidence collector identity is not verified'
 
-if tail -n +2 "$collector" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
+if tail -n +2 "$collector_stage" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
   fail 'evidence collector hard-codes an executable path and can bypass the isolated fake PATH'
 fi
-if tail -n +2 "$collector" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
+if tail -n +2 "$collector_stage" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
   fail 'evidence collector can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH'
 fi
-if tail -n +2 "$collector" | grep -Eq 'command[[:space:]]+-p|enable[[:space:]]+-f|hash[[:space:]]+-p|/dev/(tcp|udp)/'; then
+if tail -n +2 "$collector_stage" | grep -Eq 'command[[:space:]]+-p|enable[[:space:]]+-f|hash[[:space:]]+-p|/dev/(tcp|udp)/'; then
   fail 'evidence collector can bypass fake command lookup'
 fi
-unsafe_absolute_redirects="$(tail -n +2 "$collector" | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
+unsafe_absolute_redirects="$(tail -n +2 "$collector_stage" | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
 if [[ -n "$unsafe_absolute_redirects" ]]; then
   fail 'evidence collector redirects output to an absolute path other than /dev/null'
 fi
 redirect_prefix_probe="$(printf '%s\n' 'printf unsafe >/dev/null.evil' | sed -E 's#(>>?&?|>\|)[[:space:]]*["'"'"']?/dev/null["'"'"']?([;&|)}[:space:]]|$)#\2#g' | grep -E '(>>?&?|>\|)[[:space:]]*["'"'"']?/' || true)"
 [[ -n "$redirect_prefix_probe" ]] || fail 'evidence redirect guard accepted a /dev/null prefix sibling'
-if tail -n +2 "$collector" | grep -Eq '(^|[;&|()[:space:]])(env|sh|bash|dash|zsh)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])(eval|source)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])\.[[:space:]]+/'; then
+if tail -n +2 "$collector_stage" | grep -Eq '(^|[;&|()[:space:]])(env|sh|bash|dash|zsh)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])(eval|source)([;&|()[:space:]]|$)|(^|[;&|()[:space:]])\.[[:space:]]+/'; then
   fail 'evidence collector can spawn or source an uninstrumented shell command'
 fi
-if tail -n +2 "$collector" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
+if tail -n +2 "$collector_stage" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
   fail 'evidence collector contains an uninstrumented shell file read'
 fi
-if grep -Eiq '/etc/learncoding/secrets|/secrets/|runner_shared_secret|RUNNER_[A-Z0-9_]*SECRET' "$collector"; then
+if grep -Eiq '/etc/learncoding/secrets|/secrets/|runner_shared_secret|RUNNER_[A-Z0-9_]*SECRET' "$collector_stage"; then
   fail 'evidence collector references a runner or application secret path'
 fi
-grep -Fq 'RECOVERY_EVIDENCE_TEST_ROOT' "$collector" || fail 'evidence collector is missing the single narrow test-root seam'
-grep -Fq '/var/lib/learncoding/recovery-evidence' "$collector" || fail 'evidence collector changed the fixed production root'
+grep -Fq 'RECOVERY_EVIDENCE_TEST_ROOT' "$collector_stage" || fail 'evidence collector is missing the single narrow test-root seam'
+grep -Fq '/var/lib/learncoding/recovery-evidence' "$collector_stage" || fail 'evidence collector changed the fixed production root'
 
 host_root="$work/host-root"
 evidence_root="$host_root/var/lib/learncoding/recovery-evidence"
@@ -566,15 +739,16 @@ x-private-fixture: $FAKE_HTTP_HEADER_CANARY"
   *) exit 64 ;;
 esac
 FAKE
-chmod 0755 "$fake_bin/fake-evidence-command"
+chmod 0555 "$fake_bin/fake-evidence-command"
 for command_name in id systemctl virsh docker curl journalctl findmnt smartctl date git uname mktemp mv sync rm cat \
   stat realpath readlink sha256sum chmod chown mkdir \
   mount umount wget nc ping dd truncate touch tee ln rsync sudo ssh scp socat install; do
   cp "$fake_bin/fake-evidence-command" "$fake_bin/$command_name"
 done
+chmod 0555 "$fake_bin"/*
 fake_evidence_sha256="$(sha256_file "$fake_bin/fake-evidence-command")" || fail 'could not hash strict evidence fake command'
 for command_name in "${collector_fake_commands[@]}"; do
-  verify_exact_reviewed_shell_source "$fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_evidence_sha256" ||
+  verify_exact_staged_shell_source "$fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_evidence_sha256" ||
     fail "evidence fake command identity is not verified: $command_name"
 done
 
@@ -613,6 +787,83 @@ verify_fixed_outer_binary() {
   mode_value=$((8#$mode)); (( (mode_value & 8#022) == 0 ))
 }
 
+resource_limit_args=(
+  --nproc=64:64 --nofile=128:128 --core=0:0 --cpu=30:30
+  --as=536870912:536870912 --fsize=1048576:1048576
+  --data=268435456:268435456 --stack=16777216:16777216 --rss=268435456:268435456
+)
+
+assert_exact_resource_limits() {
+  local -a candidate=("$@")
+  local -a expected=(
+    --nproc=64:64 --nofile=128:128 --core=0:0 --cpu=30:30
+    --as=536870912:536870912 --fsize=1048576:1048576
+    --data=268435456:268435456 --stack=16777216:16777216 --rss=268435456:268435456
+  )
+  local index
+  (( ${#candidate[@]} == ${#expected[@]} )) || return 1
+  for index in "${!expected[@]}"; do
+    [[ "${candidate[$index]}" == "${expected[$index]}" ]] || return 1
+  done
+}
+
+assert_resource_limit_mutations() {
+  local missing_label weakened_label target weakened token
+  local -a candidate=()
+  while IFS='|' read -r missing_label weakened_label target weakened; do
+    candidate=()
+    for token in "${resource_limit_args[@]}"; do [[ "$token" == "$target" ]] || candidate+=("$token"); done
+    ! assert_exact_resource_limits "${candidate[@]}" || fail "resource mutation gate accepted $missing_label"
+    candidate=()
+    for token in "${resource_limit_args[@]}"; do [[ "$token" == "$target" ]] && candidate+=("$weakened") || candidate+=("$token"); done
+    ! assert_exact_resource_limits "${candidate[@]}" || fail "resource mutation gate accepted $weakened_label"
+  done <<'EOF'
+missing-address-space-limit|weakened-address-space-limit|--as=536870912:536870912|--as=1073741824:1073741824
+missing-file-size-limit|weakened-file-size-limit|--fsize=1048576:1048576|--fsize=2097152:2097152
+missing-data-limit|weakened-data-limit|--data=268435456:268435456|--data=536870912:536870912
+missing-stack-limit|weakened-stack-limit|--stack=16777216:16777216|--stack=33554432:33554432
+missing-rss-limit|weakened-rss-limit|--rss=268435456:268435456|--rss=536870912:536870912
+missing-process-count-limit|weakened-process-count-limit|--nproc=64:64|--nproc=128:128
+missing-file-descriptor-limit|weakened-file-descriptor-limit|--nofile=128:128|--nofile=256:256
+missing-core-limit|weakened-core-limit|--core=0:0|--core=1:1
+missing-cpu-limit|weakened-cpu-limit|--cpu=30:30|--cpu=60:60
+EOF
+  candidate=("${resource_limit_args[@]}" "${resource_limit_args[0]}")
+  ! assert_exact_resource_limits "${candidate[@]}" || fail 'resource mutation gate accepted duplicate-resource-limit'
+}
+
+verify_minimal_runtime_file() {
+  local source="$1" metadata owner group mode mode_value
+  [[ "$source" == /* && "$source" != *'/../'* && "$source" != */.. && -f "$source" && -r "$source" ]] || return 1
+  metadata="$(/usr/bin/stat -L -c '%u:%g:%a' -- "$source")" || return 1
+  IFS=: read -r owner group mode <<<"$metadata"
+  [[ "$owner" == 0 && "$group" == 0 && "$mode" =~ ^[0-7]{3,4}$ ]] || return 1
+  mode_value=$((8#$mode)); (( (mode_value & 8#022) == 0 ))
+}
+
+prepare_minimal_runtime_mounts() {
+  local binary ldd_output line first second third dependency
+  local -A seen=()
+  minimal_runtime_mounts=()
+  verify_fixed_outer_binary /usr/bin/ldd true || return 1
+  for binary in "$@"; do
+    verify_minimal_runtime_file "$binary" || return 1
+    if [[ -z "${seen[$binary]:-}" ]]; then minimal_runtime_mounts+=(--ro-bind "$binary" "$binary"); seen["$binary"]=1; fi
+    ldd_output="$(/usr/bin/ldd -- "$binary")" || return 1
+    [[ "$ldd_output" != *'not found'* ]] || return 1
+    while IFS= read -r line; do
+      read -r first second third _ <<<"$line"; dependency=
+      if [[ "${first:-}" == /* ]]; then dependency="$first"; elif [[ "${second:-}" == '=>' && "${third:-}" == /* ]]; then dependency="$third"; fi
+      [[ -n "$dependency" ]] || continue
+      verify_minimal_runtime_file "$dependency" || return 1
+      if [[ -z "${seen[$dependency]:-}" ]]; then minimal_runtime_mounts+=(--ro-bind "$dependency" "$dependency"); seen["$dependency"]=1; fi
+    done <<<"$ldd_output"
+  done
+}
+
+assert_resource_limit_mutations
+assert_exact_resource_limits "${resource_limit_args[@]}" || fail 'canonical resource-limit vector is not exact'
+
 assert_containment_gate_mutations() {
   local sentinel="$work/containment-gate.sentinel" rejected="$work/rejected-bwrap" candidate="$work/containment-candidate" status
   printf '%s' unchanged >"$sentinel"
@@ -628,25 +879,46 @@ assert_containment_gate_mutations() {
 }
 
 prepare_linux_containment() {
-  local entry="$work/namespace-entry.sh" empty="$work/namespace-empty" repo_mask="$work/namespace-repo-mask"
-  local outside="/tmp/learncoding-power-evidence-outside-$$" binary probe_status
+  local entry="$work/namespace-entry.sh"
+  local outside="/tmp/learncoding-power-evidence-outside-$$" binary probe_status preflight_ro_probes
   [[ "$(/usr/bin/uname -s 2>/dev/null || true)" == Linux && "$EUID" == 0 ]] ||
     fail 'authoritative evidence contract requires Ubuntu/Linux root with Bubblewrap user/mount/PID/network containment'
   for binary in /usr/bin/stat /usr/bin/uname /usr/bin/bash /usr/bin/env /usr/bin/sha256sum \
-    /usr/bin/timeout /usr/bin/prlimit /usr/bin/setpriv /usr/bin/node; do
+    /usr/bin/timeout /usr/bin/prlimit /usr/bin/setpriv /usr/bin/node /usr/bin/ldd /usr/bin/mktemp \
+    /usr/bin/dirname /usr/bin/mv /usr/bin/rm /usr/bin/cat /usr/bin/realpath /usr/bin/readlink \
+    /usr/bin/chmod /usr/bin/mkdir; do
     verify_fixed_outer_binary "$binary" false || fail "containment dependency is not fixed root-owned and non-writable: $binary"
   done
   verify_fixed_outer_binary /usr/bin/bwrap true ||
     fail '/usr/bin/bwrap must be a regular root-owned non-writable authoritative test dependency'
-  mkdir -m 0700 -p "$empty/$(basename -- "$work")" "$repo_mask"
-  : >"$repo_mask/compose.yaml"
+  containment_probe_dir="$work/containment-output-probe"
+  mkdir -m 0700 -p "$containment_probe_dir"
   {
     printf '%s\n' '#!/usr/bin/bash'
-    printf 'readonly containment_work=%q\nreadonly containment_outside=%q\nreadonly containment_repo=%q\n' \
-      "$work" "$outside" "$repo_root"
+    printf 'readonly containment_probe_dir=%q\nreadonly containment_outside=%q\nreadonly containment_repo=%q\n' \
+      "$containment_probe_dir" "$outside" "$repo_root"
     cat <<'EOF'
 set -Eeuo pipefail
 [[ "$EUID" == 0 && "$$" == 1 ]] || exit 90
+assert_exact_resource_limit() {
+  local label="$1" expected_soft="$2" expected_hard="$3" line remainder soft hard units found=0
+  while IFS= read -r line; do
+    [[ "$line" == "$label"* ]] || continue
+    remainder="${line#"$label"}"; read -r soft hard units <<<"$remainder"
+    [[ "$soft" == "$expected_soft" && "$hard" == "$expected_hard" ]] || exit 96
+    found=$((found + 1))
+  done </proc/self/limits
+  [[ "$found" == 1 ]] || exit 96
+}
+assert_exact_resource_limit 'Max processes' 64 64
+assert_exact_resource_limit 'Max open files' 128 128
+assert_exact_resource_limit 'Max core file size' 0 0
+assert_exact_resource_limit 'Max cpu time' 30 30
+assert_exact_resource_limit 'Max address space' 536870912 536870912
+assert_exact_resource_limit 'Max file size' 1048576 1048576
+assert_exact_resource_limit 'Max data size' 268435456 268435456
+assert_exact_resource_limit 'Max stack size' 16777216 16777216
+assert_exact_resource_limit 'Max resident set' 268435456 268435456
 capability_set_count=0 no_new_privs=
 while IFS=$'\t ' read -r key value _; do
   case "$key" in CapEff:|CapPrm:|CapInh:|CapBnd:|CapAmb:) [[ "$value" =~ ^0+$ ]] || exit 91; capability_set_count=$((capability_set_count + 1)) ;; Groups:) [[ -z "${value:-}" ]] || exit 91 ;; NoNewPrivs:) no_new_privs="$value" ;; esac
@@ -656,51 +928,94 @@ interface_count=0
 while IFS= read -r line; do case "$line" in *:*) interface="${line%%:*}"; interface="${interface//[[:space:]]/}"; [[ "$interface" == lo ]] || exit 92; interface_count=$((interface_count + 1)) ;; esac; done </proc/net/dev
 [[ "$interface_count" == 1 ]] || exit 92
 [[ ! -e /run/docker.sock && ! -e /run/libvirt/libvirt-sock && ! -e /dev/kvm ]] || exit 93
-[[ ! -e /etc/passwd && ! -e /etc/learncoding && ! -e /root/.ssh && ! -e /var/lib/learncoding ]] || exit 94
+repo_fixture_mounted=0
+[[ -e "$containment_repo" ]] && repo_fixture_mounted=1
+for protected_root in /bin /sbin /usr/local /boot /sys /var /etc /home /root; do
+  if (( repo_fixture_mounted == 1 )) && { [[ "$containment_repo" == "$protected_root" ]] || [[ "$containment_repo" == "$protected_root"/* ]]; }; then continue; fi
+  [[ ! -e "$protected_root" ]] || exit 94
+done
+[[ ! -e /etc/learncoding && ! -e /var/lib/learncoding ]] || exit 94
 [[ ! -e "$containment_repo/.env" && ! -e "$containment_repo/.git" ]] || exit 94
 if { : >"$containment_outside"; } 2>/dev/null; then exit 95; fi
-: >"$containment_work/.namespace-write-probe"
+IFS=: read -r -a containment_ro_probe_paths <<<"${CONTAINMENT_RO_PROBES:-}"
+for protected_path in "${containment_ro_probe_paths[@]}"; do
+  [[ -n "$protected_path" && -e "$protected_path" ]] || exit 97
+  if [[ -d "$protected_path" ]]; then
+    if { : >"$protected_path/.namespace-ro-mutation"; } 2>/dev/null; then exit 97; fi
+  elif { printf x >>"$protected_path"; } 2>/dev/null; then exit 97
+  fi
+done
+: >"$containment_probe_dir/.namespace-write-probe"
+if [[ "${CONTAINMENT_EXPECT_REGULAR_OUTPUTS:-0}" == 1 ]]; then
+  [[ -f /proc/self/fd/1 && -f /proc/self/fd/2 ]] || exit 98
+fi
 exec "$@"
 EOF
   } >"$entry"
-  chmod 0700 "$entry"
+  chmod 0500 "$entry"
   containment_entry="$entry"
   containment_entry_sha256="$(sha256_file "$entry")" || fail 'could not hash namespace entry'
-  verify_exact_reviewed_shell_source "$entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || fail 'namespace entry identity is not verified'
+  verify_exact_staged_shell_source "$entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || fail 'namespace entry identity is not verified'
+  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/mktemp /usr/bin/dirname /usr/bin/mv /usr/bin/rm \
+    /usr/bin/cat /usr/bin/stat /usr/bin/realpath /usr/bin/readlink /usr/bin/sha256sum /usr/bin/chmod \
+    /usr/bin/mkdir || fail 'could not assemble the minimal evidence runtime'
+  containment_ro_mounts=(
+    --ro-bind "$entry" "$entry"
+    --ro-bind "$collector_under_test" "$collector_under_test"
+    --ro-bind "$fake_bin" "$fake_bin"
+    --ro-bind "$scenario_file" "$scenario_file"
+    --ro-bind "$compose_env_path" "$compose_env_path"
+    --ro-bind "$host_root/proc/sys/kernel/random/boot_id" "$host_root/proc/sys/kernel/random/boot_id"
+    --ro-bind "$host_root/proc/uptime" "$host_root/proc/uptime"
+    --ro-bind "$host_root/var/lib/learncoding/backups/last-success" "$host_root/var/lib/learncoding/backups/last-success"
+    --ro-bind "$repo_root/compose.yaml" "$repo_root/compose.yaml"
+  )
+  containment_rw_mounts=(--bind "$containment_probe_dir" "$containment_probe_dir")
+  evidence_execution_rw_mounts=(
+    --bind "$evidence_root" "$evidence_root"
+    --bind "$curl_root" "$curl_root"
+    --bind "$events" "$events"
+  )
   containment_command=(
     /usr/bin/timeout --signal=KILL --kill-after=5s 45s
-    /usr/bin/prlimit --nproc=64:64 --nofile=128:128 --core=0:0 --cpu=30:30 --
-    /usr/bin/setpriv --clear-groups
+    /usr/bin/prlimit "${resource_limit_args[@]}" --
+    /usr/bin/setpriv --clear-groups --no-new-privs --bounding-set=-all --inh-caps=-all --ambient-caps=-all
     /usr/bin/bwrap --die-with-parent --new-session --unshare-user --uid 0 --gid 0
-    --unshare-pid --unshare-net --unshare-ipc --unshare-uts --disable-userns --cap-drop ALL --as-pid-1 --ro-bind / /
-    --ro-bind "$empty" /etc --ro-bind "$empty" /home --ro-bind "$empty" /root --ro-bind "$empty" /run
-    --ro-bind "$empty" /srv --ro-bind "$empty" /mnt --ro-bind "$empty" /media --ro-bind "$empty" /opt
-    --ro-bind "$empty" /var/lib --ro-bind "$empty" /var/backups --ro-bind "$empty" /var/log --ro-bind "$empty" /tmp
-    --ro-bind "$repo_mask" "$repo_root" --ro-bind "$repo_root/compose.yaml" "$repo_root/compose.yaml"
-    --bind "$work" "$work"
-    --ro-bind "$empty" "$empty" --ro-bind "$repo_mask" "$repo_mask"
-    --ro-bind "$fake_bin" "$fake_bin"
-    --ro-bind "$entry" "$entry" --ro-bind "$collector_under_test" "$collector_under_test"
-    --proc /proc --dev /dev --chdir "$work" --
-    /usr/bin/setpriv --no-new-privs --bounding-set=-all --inh-caps=-all --ambient-caps=-all /usr/bin/bash "$entry"
+    --unshare-pid --unshare-net --unshare-ipc --unshare-uts --disable-userns --cap-drop ALL --as-pid-1
+    --tmpfs /
+    "${minimal_runtime_mounts[@]}"
+    --perms 0700 --dir "$host_root"
+    --dir "$host_root/proc/sys/kernel" --dir "$host_root/var/lib/learncoding/backups"
+    --dir "$host_root/var/lib/learncoding/recovery-evidence" --dir "$host_root/etc/learncoding"
+    --dir "$repo_root"
+    "${containment_ro_mounts[@]}"
+    "${containment_rw_mounts[@]}"
+    --proc /proc --dev /dev --remount-ro / --chdir "$containment_probe_dir" --
+    /usr/bin/bash "$entry"
   )
+  preflight_ro_probes="$entry:$collector_under_test:$fake_bin:$scenario_file:$compose_env_path:$host_root/proc/sys/kernel/random/boot_id:$host_root/proc/uptime:$host_root/var/lib/learncoding/backups/last-success:$repo_root/compose.yaml"
   set +e
-  /usr/bin/env -i PATH= HOME="$work" "${containment_command[@]}" /usr/bin/bash -c ':' >/dev/null 2>"$work/containment-preflight.stderr"
+  /usr/bin/env -i PATH= HOME="$containment_probe_dir" CONTAINMENT_RO_PROBES="$preflight_ro_probes" \
+    "${containment_command[@]}" /usr/bin/bash -c ':' >/dev/null 2>"$work/containment-preflight.stderr"
   probe_status=$?
   set -e
   (( probe_status == 0 )) || fail 'Bubblewrap containment preflight or mandatory user namespace was rejected'
-  [[ -f "$work/.namespace-write-probe" && ! -e "$outside" ]] || fail 'containment did not prove fixture-only writes'
+  [[ -f "$containment_probe_dir/.namespace-write-probe" && ! -e "$outside" ]] || fail 'containment did not prove fixture-only writes'
 }
 
 assert_evidence_execution_identity() {
   local command_name
-  verify_exact_reviewed_shell_source "$collector" "$bash_bin" "$collector_shebang" "$collector_reviewed_sha256" || fail 'evidence source changed after transformation'
-  verify_exact_reviewed_shell_source "$collector_under_test" "$bash_bin" "#!$bash_bin" "$collector_under_test_sha256" || fail 'transformed evidence collector changed before execution'
-  verify_exact_reviewed_shell_source "$containment_entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || fail 'namespace entry changed before execution'
+  verify_exact_staged_shell_source "$collector_stage" "$bash_bin" "$collector_shebang" "$collector_reviewed_sha256" || fail 'evidence source stage changed after transformation'
+  verify_exact_staged_shell_source "$collector_under_test" "$bash_bin" "#!$bash_bin" "$collector_under_test_sha256" || fail 'transformed evidence collector changed before execution'
+  verify_exact_staged_shell_source "$containment_entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || fail 'namespace entry changed before execution'
   for command_name in "${collector_fake_commands[@]}"; do
-    verify_exact_reviewed_shell_source "$fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_evidence_sha256" || fail "evidence fake command changed before execution: $command_name"
+    verify_exact_staged_shell_source "$fake_bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_evidence_sha256" || fail "evidence fake command changed before execution: $command_name"
   done
   verify_fixed_outer_binary /usr/bin/bwrap true || fail 'Bubblewrap changed before evidence collector execution'
+  assert_exact_resource_limits "${resource_limit_args[@]}" || fail 'evidence resource-limit vector changed before execution'
+  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/mktemp /usr/bin/dirname /usr/bin/mv /usr/bin/rm \
+    /usr/bin/cat /usr/bin/stat /usr/bin/realpath /usr/bin/readlink /usr/bin/sha256sum /usr/bin/chmod \
+    /usr/bin/mkdir || fail 'evidence minimal runtime changed before execution'
 }
 
 assert_containment_gate_mutations
@@ -711,13 +1026,22 @@ run_collector() {
   local phase="$2"
   local destination="$3"
   local prefix="$4"
+  local token
+  local -a execution_containment=()
+  local ro_probes="$containment_entry:$collector_under_test:$fake_bin:$scenario_file:$compose_env_path:$host_root/proc/sys/kernel/random/boot_id:$host_root/proc/uptime:$host_root/var/lib/learncoding/backups/last-success:$repo_root/compose.yaml"
   printf '%s' "$scenario" >"$scenario_file"
   : >"$events"
+  for token in "${containment_command[@]}"; do
+    if [[ "$token" == --proc ]]; then execution_containment+=("${evidence_execution_rw_mounts[@]}"); fi
+    execution_containment+=("$token")
+  done
   set +e
   assert_evidence_execution_identity
   printf '%s' "$stdin_canary" | /usr/bin/env -i \
-    HOME="$work" \
+    HOME="$containment_probe_dir" \
     PATH= \
+    CONTAINMENT_RO_PROBES="$ro_probes" \
+    CONTAINMENT_EXPECT_REGULAR_OUTPUTS=1 \
     TMPDIR="$curl_root" \
     RECOVERY_EVIDENCE_TEST_ROOT="$host_root" \
     RECOVERY_PUBLIC_URL='https://pilot.example.test/health/ready' \
@@ -739,7 +1063,7 @@ run_collector() {
     FAKE_SMART_SERIAL_CANARY="$smart_serial_canary" \
     FAKE_RUNNER_JOURNAL_CANARY="$runner_journal_canary" \
     FAKE_RAW_COMMAND_CANARY="$raw_command_canary" \
-    "${containment_command[@]}" /usr/bin/bash "$collector_under_test" "$phase" "$destination" >"$prefix.stdout" 2>"$prefix.stderr"
+    "${execution_containment[@]}" /usr/bin/bash "$collector_under_test" "$phase" "$destination" >"$prefix.stdout" 2>"$prefix.stderr"
   collector_status=$?
   set -e
   [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
