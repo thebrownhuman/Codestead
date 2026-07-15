@@ -403,6 +403,52 @@ describe("browser recovery lifecycle", () => {
     expect(window.localStorage.length).toBe(1);
   });
 
+  it.each(["active", "malformed", "nonce-mismatched"] as const)(
+    "rejects namespace preparation when global compaction is %s",
+    async (state) => {
+      const localStorage = new MemoryStorage();
+      const origin = window.location.origin;
+      if (state === "malformed") {
+        localStorage.setItem("codestead:browser-recovery-compaction:v1", "{malformed");
+      } else if (state === "active") {
+        localStorage.setItem("codestead:browser-recovery-compaction:v1", JSON.stringify({
+          schemaVersion: 1,
+          origin,
+          phase: "active",
+          globalNonce: "active-global-nonce-0001",
+          sourceId: "tab-preparation-active",
+        }));
+      } else {
+        localStorage.setItem("codestead:browser-recovery-boundary:v1:all", JSON.stringify({
+          schemaVersion: 1,
+          origin,
+          generation: 1,
+          nonce: "current-global-nonce-0001",
+          sourceId: "tab-preparation-global",
+          createdAt: "2026-07-15T01:00:00.000Z",
+          boundary: { kind: "all" },
+        }));
+        localStorage.setItem("codestead:browser-recovery-compaction:v1", JSON.stringify({
+          schemaVersion: 1,
+          origin,
+          phase: "complete",
+          globalNonce: "different-global-nonce-0001",
+          sourceId: "tab-preparation-complete",
+        }));
+      }
+      const clearForeignNamespaces = vi.fn(async () => undefined);
+      const repo = repository({ clearForeignNamespaces });
+
+      await expect(prepareBrowserRecoveryNamespace({
+        namespace: NAMESPACE_A,
+        sessionStorage: new MemoryStorage(),
+        localStorage,
+        repository: repo,
+      })).rejects.toThrow("Browser recovery cleanup failed: local-storage.");
+      expect(clearForeignNamespaces).toHaveBeenCalledWith(NAMESPACE_A);
+    },
+  );
+
   it("keeps exam recovery during draft-only purge and other exams during exact-exam purge", async () => {
     seedWarmStorage();
     writeEmergencyExamEvent(window.localStorage, eventRecord());
@@ -779,8 +825,23 @@ describe("browser recovery lifecycle", () => {
     }
   });
 
-  it("does not deliver a delayed durable notice to a writer captured after that boundary", async () => {
+  it("preserves post-boundary draft and practice recovery when a durable notice is delayed", async () => {
     const sharedLocalStorage = new MemoryStorage();
+    const writerSessionStorage = new MemoryStorage();
+    const practiceKey = `${DRAFT_CACHE_PREFIX}${encodeURIComponent(NAMESPACE_A)}:practice-run:${"a".repeat(64)}`;
+    writeDraftCache(writerSessionStorage, NAMESPACE_A, DRAFT_KEY, {
+      schemaVersion: 1,
+      content: "stale before boundary",
+      language: "python",
+      baseRowVersion: 0,
+      requestId: "10000000-0000-4000-8000-000000000001",
+      locallyUpdatedAt: "2026-07-15T01:00:00.000Z",
+      dirty: true,
+    });
+    writerSessionStorage.setItem(
+      practiceKey,
+      "20000000-0000-4000-8000-000000000001",
+    );
     const hub = new BoundaryChannelHub();
     hub.pause();
     const publisher = createBrowserRecoveryBoundaryContext({
@@ -793,7 +854,7 @@ describe("browser recovery lifecycle", () => {
     const writer = createBrowserRecoveryBoundaryContext({
       origin: "https://codestead.test",
       localStorage: sharedLocalStorage,
-      sessionStorage: new MemoryStorage(),
+      sessionStorage: writerSessionStorage,
       channel: hub.create(),
       sourceId: "tab-delayed-writer",
     });
@@ -807,6 +868,21 @@ describe("browser recovery lifecycle", () => {
         boundaryContext: publisher,
       });
       const fence = writer.captureWriteFence({ kind: "drafts", namespace: NAMESPACE_A });
+      expect(writerSessionStorage.getItem(draftCacheKey(NAMESPACE_A, DRAFT_KEY))).toBeNull();
+      expect(writerSessionStorage.getItem(practiceKey)).toBeNull();
+      writeDraftCache(writerSessionStorage, NAMESPACE_A, DRAFT_KEY, {
+        schemaVersion: 1,
+        content: "created after observing boundary",
+        language: "python",
+        baseRowVersion: 0,
+        requestId: "10000000-0000-4000-8000-000000000002",
+        locallyUpdatedAt: "2026-07-15T02:00:00.000Z",
+        dirty: true,
+      });
+      writerSessionStorage.setItem(
+        practiceKey,
+        "20000000-0000-4000-8000-000000000002",
+      );
       let retired = false;
       const subscribeAfterFence = (writer as unknown as {
         subscribeAfterFence?: (
@@ -821,7 +897,76 @@ describe("browser recovery lifecycle", () => {
 
       expect(retired).toBe(false);
       expect(writer.isWriteFenceCurrent(fence)).toBe(true);
+      expect(writerSessionStorage.getItem(draftCacheKey(NAMESPACE_A, DRAFT_KEY)))
+        .not.toBeNull();
+      expect(writerSessionStorage.getItem(practiceKey))
+        .toBe("20000000-0000-4000-8000-000000000002");
       unsubscribe();
+    } finally {
+      publisher.close();
+      writer.close();
+    }
+  });
+
+  it("cannot return a current fence when a boundary lands after reconciliation", () => {
+    const sharedLocalStorage = new MemoryStorage();
+    const backingSessionStorage = new MemoryStorage();
+    writeDraftCache(backingSessionStorage, NAMESPACE_A, DRAFT_KEY, {
+      schemaVersion: 1,
+      content: "stale warm recovery",
+      language: "python",
+      baseRowVersion: 0,
+      requestId: "10000000-0000-4000-8000-000000000001",
+      locallyUpdatedAt: "2026-07-15T01:00:00.000Z",
+      dirty: true,
+    });
+    let interleaved = false;
+    const writerSessionStorage = new Proxy(backingSessionStorage, {
+      get(target, property) {
+        if (property === "setItem") {
+          return (key: string, value: string) => {
+            target.setItem(key, value);
+            if (!interleaved
+              && key.startsWith("codestead:browser-recovery-session:v1:")) {
+              interleaved = true;
+              publisher.publish({ kind: "namespace", namespace: NAMESPACE_A });
+            }
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const publisher = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-capture-interleaving-publisher",
+    });
+    const writer = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: writerSessionStorage,
+      channel: null,
+      sourceId: "tab-capture-interleaving-writer",
+    });
+
+    try {
+      const racedFence = writer.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_A,
+      });
+      expect(interleaved).toBe(true);
+      expect(writer.isWriteFenceCurrent(racedFence)).toBe(false);
+
+      const reconciledFence = writer.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_A,
+      });
+      expect(writer.isWriteFenceCurrent(reconciledFence)).toBe(true);
+      expect(backingSessionStorage.getItem(draftCacheKey(NAMESPACE_A, DRAFT_KEY)))
+        .toBeNull();
     } finally {
       publisher.close();
       writer.close();
@@ -1259,6 +1404,68 @@ describe("browser recovery lifecycle", () => {
     }
   });
 
+  it("does not let a stale global finalizer overwrite a newer completed publisher", () => {
+    const backingStorage = new MemoryStorage();
+    let interleaved = false;
+    let newerFailures: string[] | null = null;
+    const sharedLocalStorage = new Proxy(backingStorage, {
+      get(target, property) {
+        if (property === "removeItem") {
+          return (key: string) => {
+            if (!interleaved
+              && key.startsWith("codestead:browser-recovery-boundary:v1:")
+              && !key.endsWith(":all")) {
+              interleaved = true;
+              newerFailures = newerPublisher.publish({ kind: "all" });
+            }
+            target.removeItem(key);
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const stalePublisher = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-overlap-stale-publisher",
+    });
+    const newerPublisher = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-overlap-newer-publisher",
+    });
+    const futureWriter = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: sharedLocalStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-overlap-future-writer",
+    });
+
+    try {
+      stalePublisher.publish({ kind: "drafts", namespace: NAMESPACE_A });
+      const staleFailures = stalePublisher.publish({ kind: "all" });
+
+      expect(interleaved).toBe(true);
+      expect(newerFailures).toEqual([]);
+      expect(staleFailures).toEqual(["local-storage"]);
+      const currentFence = futureWriter.captureWriteFence({
+        kind: "drafts",
+        namespace: NAMESPACE_B,
+      });
+      expect(futureWriter.isWriteFenceCurrent(currentFence)).toBe(true);
+    } finally {
+      stalePublisher.close();
+      newerPublisher.close();
+      futureWriter.close();
+    }
+  });
+
   it("reports a durable-boundary quota failure while still attempting every cleanup layer", async () => {
     const sharedLocalStorage = new MemoryStorage();
     const flakyLocalStorage = new Proxy(sharedLocalStorage, {
@@ -1345,6 +1552,173 @@ describe("browser recovery lifecycle", () => {
       firstTab.close();
       secondTab.close();
       repo.close();
+    }
+  });
+
+  it.each(["resolves", "rejects"] as const)(
+    "rolls back an async late write when the operation %s and final fence reads fail",
+    async (outcome) => {
+      const factory = new FakeIDBFactory();
+      const repo = await openBrowserOutbox(factory);
+      const backingStorage = new MemoryStorage();
+      let failReads = false;
+      const writerLocalStorage = new Proxy(backingStorage, {
+        get(target, property) {
+          if (property === "getItem") {
+            return (key: string) => {
+              if (failReads) throw new DOMException("blocked", "InvalidStateError");
+              return target.getItem(key);
+            };
+          }
+          const value = Reflect.get(target, property, target) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+      const publisher = createBrowserRecoveryBoundaryContext({
+        origin: "https://codestead.test",
+        localStorage: backingStorage,
+        sessionStorage: new MemoryStorage(),
+        channel: null,
+        sourceId: `tab-read-failure-publisher-${outcome}`,
+      });
+      const writer = createBrowserRecoveryBoundaryContext({
+        origin: "https://codestead.test",
+        localStorage: writerLocalStorage,
+        sessionStorage: new MemoryStorage(),
+        channel: null,
+        sourceId: `tab-read-failure-writer-${outcome}`,
+      });
+      const fence = writer.captureWriteFence({ kind: "drafts", namespace: NAMESPACE_A });
+      const started = deferred<void>();
+      const release = deferred<void>();
+      const record = draftRecord(NAMESPACE_A);
+      const guardedWrite = writer.guardWrite(
+        fence,
+        async () => {
+          started.resolve();
+          await release.promise;
+          await repo.putDraft(record);
+          failReads = true;
+          if (outcome === "rejects") throw new Error("operation failed after writing");
+          return record.requestId;
+        },
+        () => repo.deleteDraftIfMutation(NAMESPACE_A, DRAFT_KEY, record.requestId),
+      );
+
+      try {
+        await started.promise;
+        await purgeBrowserRecoveryData({
+          namespace: NAMESPACE_A,
+          sessionStorage: new MemoryStorage(),
+          localStorage: backingStorage,
+          repository: repo,
+          boundaryContext: publisher,
+        });
+        release.resolve();
+        const error = await guardedWrite.then(
+          () => null,
+          (reason: unknown) => reason,
+        );
+        failReads = false;
+
+        await expect(repo.getDraft(NAMESPACE_A, DRAFT_KEY)).resolves.toBeNull();
+        expect(error).toMatchObject({ name: "AbortError" });
+      } finally {
+        failReads = false;
+        release.resolve();
+        await guardedWrite.catch(() => undefined);
+        publisher.close();
+        writer.close();
+        repo.close();
+      }
+    },
+  );
+
+  it("rolls back a synchronous late write when final fence reads fail", () => {
+    const backingStorage = new MemoryStorage();
+    const sessionStorage = new MemoryStorage();
+    let failReads = false;
+    const writerLocalStorage = new Proxy(backingStorage, {
+      get(target, property) {
+        if (property === "getItem") {
+          return (key: string) => {
+            if (failReads) throw new DOMException("blocked", "InvalidStateError");
+            return target.getItem(key);
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const publisher = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: backingStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-sync-read-failure-publisher",
+    });
+    const writer = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage: writerLocalStorage,
+      sessionStorage,
+      channel: null,
+      sourceId: "tab-sync-read-failure-writer",
+    });
+    const fence = writer.captureWriteFence({ kind: "drafts", namespace: NAMESPACE_A });
+    const lateKey = draftCacheKey(NAMESPACE_A, DRAFT_KEY);
+
+    try {
+      let error: unknown;
+      try {
+        writer.guardSynchronousWrite(
+          fence,
+          () => {
+            publisher.publish({ kind: "namespace", namespace: NAMESPACE_A });
+            sessionStorage.removeItem(lateKey);
+            sessionStorage.setItem(lateKey, "late warm recovery");
+            failReads = true;
+          },
+          () => sessionStorage.removeItem(lateKey),
+        );
+      } catch (reason) {
+        error = reason;
+      }
+      failReads = false;
+
+      expect(sessionStorage.getItem(lateKey)).toBeNull();
+      expect(error).toMatchObject({ name: "AbortError" });
+    } finally {
+      failReads = false;
+      publisher.close();
+      writer.close();
+    }
+  });
+
+  it("does not admit an unchanged malformed tombstone as a current fence", () => {
+    const localStorage = new MemoryStorage();
+    localStorage.setItem(
+      `codestead:browser-recovery-boundary:v1:namespace:${encodeURIComponent(NAMESPACE_A)}`,
+      "{malformed",
+    );
+    const context = createBrowserRecoveryBoundaryContext({
+      origin: "https://codestead.test",
+      localStorage,
+      sessionStorage: new MemoryStorage(),
+      channel: null,
+      sourceId: "tab-malformed-tombstone-writer",
+    });
+
+    try {
+      const fence = context.captureWriteFence({ kind: "drafts", namespace: NAMESPACE_A });
+      let operationRan = false;
+      expect(() => context.guardSynchronousWrite(
+        fence,
+        () => { operationRan = true; },
+        () => undefined,
+      )).toThrow(expect.objectContaining({ name: "AbortError" }));
+      expect(operationRan).toBe(false);
+    } finally {
+      context.close();
     }
   });
 

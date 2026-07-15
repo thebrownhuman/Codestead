@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { IDBFactory as FakeIDBFactory } from "fake-indexeddb";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,6 +32,25 @@ vi.mock("../exam-lockdown-overlay", () => ({ ExamLockdownOverlay: () => null }))
 import { AppShell } from "../app-shell";
 
 const shellCss = readFileSync(resolve(process.cwd(), "src/components/shell/app-shell.module.css"), "utf8");
+
+async function useActualBrowserPreparation() {
+  const actualIndexedDb = await vi.importActual<
+    typeof import("@/lib/browser-durability/indexed-db")
+  >("@/lib/browser-durability/indexed-db");
+  const actualLifecycle = await vi.importActual<
+    typeof import("@/lib/browser-durability/lifecycle")
+  >("@/lib/browser-durability/lifecycle");
+  const factory = new FakeIDBFactory();
+  durability.openBrowserOutbox.mockImplementation(() => (
+    actualIndexedDb.openBrowserOutbox(factory)
+  ));
+  durability.prepareNamespace.mockImplementation(
+    actualLifecycle.prepareBrowserRecoveryNamespace,
+  );
+  durability.withRepository.mockImplementation(
+    actualLifecycle.withBrowserRecoveryRepository,
+  );
+}
 
 describe("AppShell compact navigation", () => {
   beforeEach(() => {
@@ -156,6 +176,53 @@ describe("AppShell compact navigation", () => {
     expect(durability.openBrowserOutbox).toHaveBeenCalledTimes(2);
     expect(durability.prepareNamespace).toHaveBeenCalledTimes(2);
   });
+
+  it.each(["active", "nonce-mismatched"] as const)(
+    "keeps recovery consumers gated for a %s global compaction marker",
+    async (state) => {
+      await useActualBrowserPreparation();
+      const origin = window.location.origin;
+      if (state === "active") {
+        localStorage.setItem("codestead:browser-recovery-compaction:v1", JSON.stringify({
+          schemaVersion: 1,
+          origin,
+          phase: "active",
+          globalNonce: "active-app-shell-nonce-0001",
+          sourceId: "tab-app-shell-active",
+        }));
+      } else {
+        localStorage.setItem("codestead:browser-recovery-boundary:v1:all", JSON.stringify({
+          schemaVersion: 1,
+          origin,
+          generation: 1,
+          nonce: "current-app-shell-nonce-0001",
+          sourceId: "tab-app-shell-global",
+          createdAt: "2026-07-15T01:00:00.000Z",
+          boundary: { kind: "all" },
+        }));
+        localStorage.setItem("codestead:browser-recovery-compaction:v1", JSON.stringify({
+          schemaVersion: 1,
+          origin,
+          phase: "complete",
+          globalNonce: "different-app-shell-nonce-0001",
+          sourceId: "tab-app-shell-complete",
+        }));
+      }
+
+      render(
+        <AppShell browserDurabilityNamespace="namespace-current">
+          <p>Private lesson editor</p>
+        </AppShell>,
+      );
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        /could not prepare private browser recovery storage/i,
+      );
+      expect(screen.queryByText("Private lesson editor")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Retry browser storage cleanup" }))
+        .toBeEnabled();
+    },
+  );
 
   it("keeps demo mode usable without opening authenticated browser storage", () => {
     render(<AppShell browserDurabilityNamespace={null}><p>Demo content</p></AppShell>);
