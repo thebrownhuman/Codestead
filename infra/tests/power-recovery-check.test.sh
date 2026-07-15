@@ -43,6 +43,83 @@ fail() {
   exit 1
 }
 
+source_manipulates_path() {
+  local source="$1"
+  local line
+  local path_token_regex='(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)'
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    [[ "$line" =~ $path_token_regex ]] && return 0
+  done <"$source"
+  return 1
+}
+
+make_path_sealed_copy() {
+  local source="$1"
+  local destination="$2"
+  local interpreter="$3"
+
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' 'readonly PATH'
+    tail -n +2 "$source"
+  } >"$destination"
+  chmod 0700 "$destination"
+}
+
+assert_path_mutation_defenses() {
+  local interpreter="$1"
+  local mutation_source="$work/path-mutation-source.sh"
+  local sealed_mutation="$work/path-mutation-sealed.sh"
+  local mutation_bin="$work/path-mutation-bin"
+  local resolution="$work/path-mutation-resolution"
+  local sentinel="$work/path-mutation-sentinel"
+  local mutation
+  local mutation_status
+
+  for mutation in \
+    'PATH=/usr/bin:/bin' \
+    'export PATH=/usr/bin:/bin' \
+    'unset PATH' \
+    'readonly PATH=/usr/bin:/bin'; do
+    printf '#!%s\n%s\n' "$interpreter" "$mutation" >"$mutation_source"
+    source_manipulates_path "$mutation_source" || fail "PATH static guard missed: $mutation"
+  done
+
+  # command -v is a shell builtin; this mutation probe never executes cp.
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' \
+      'set -e' \
+      'PATH=/usr/bin:/bin' \
+      'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
+      'printf compromised >"$PATH_MUTATION_SENTINEL"'
+  } >"$mutation_source"
+  make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter"
+  mkdir -m 0700 "$mutation_bin"
+  printf '%s' unchanged >"$sentinel"
+  set +e
+  "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
+    PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
+    >"$work/path-mutation.stdout" 2>"$work/path-mutation.stderr"
+  mutation_status=$?
+  set -e
+
+  (( mutation_status != 0 )) || fail 'same-interpreter PATH mutation unexpectedly succeeded'
+  [[ ! -e "$resolution" ]] || fail 'PATH mutation resolved a host executable before rejection'
+  [[ "$(<"$sentinel")" == unchanged ]] || fail 'PATH mutation reached the outside sentinel after changing command lookup'
+}
+
+if source_manipulates_path "$checker"; then
+  fail 'recovery checker may not reference or mutate the harness-owned PATH'
+fi
+assert_path_mutation_defenses "$bash_bin"
+checker_under_test="$work/check-recovery.sealed.sh"
+make_path_sealed_copy "$checker" "$checker_under_test" "$bash_bin"
+[[ "$(sed -n '2p' "$checker_under_test")" == 'readonly PATH' ]] ||
+  fail 'recovery checker test copy did not seal PATH before the SUT body'
+
 if tail -n +2 "$checker" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
   fail 'recovery checker hard-codes an executable path and can bypass the isolated fake PATH'
 fi
@@ -478,7 +555,7 @@ run_checker() {
     FAKE_COMPOSE_ENV="$compose_env_path" \
     FAKE_COMPOSE_FILE="$repo_root/compose.yaml" \
     FAKE_POSTGRES_SQL="$postgres_sql" \
-    "$bash_bin" "$checker" >"$prefix.stdout" 2>"$prefix.stderr"
+    "$bash_bin" "$checker_under_test" >"$prefix.stdout" 2>"$prefix.stderr"
   checker_status=$?
   set -e
   [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||

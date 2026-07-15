@@ -18,6 +18,13 @@ function expect(condition, message) {
   if (!condition) failures.push(message);
 }
 
+function sourceManipulatesHarnessPath(content) {
+  const pathToken = /(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)/u;
+  return content
+    .split(/\r?\n/u)
+    .some((line) => !/^\s*(?:#|$)/u.test(line) && pathToken.test(line));
+}
+
 function dockerStage(name) {
   const marker = new RegExp(`^FROM [^\\n]+ AS ${name}\\s*$`, "m").exec(dockerfile);
   if (!marker) return "";
@@ -166,6 +173,35 @@ const recoveryService = read("infra/systemd/learncoding-recovery-check.service")
 const recoveryTimer = read("infra/systemd/learncoding-recovery-check.timer");
 const recoveryEvidence = read("infra/ops/capture-recovery-evidence.sh");
 const systemdInstaller = read("infra/ops/install-systemd.sh");
+
+for (const mutation of [
+  "PATH=/usr/bin:/bin",
+  "export PATH=/usr/bin:/bin",
+  "unset PATH",
+  "readonly PATH=/usr/bin:/bin",
+]) {
+  expect(sourceManipulatesHarnessPath(mutation), `PATH static guard missed mutation: ${mutation}`);
+}
+expect(
+  !sourceManipulatesHarnessPath("RUNNER_PATH=/fixture/bin"),
+  "PATH static guard must distinguish PATH from longer variable names",
+);
+for (const [label, source] of [
+  ["runtime validator", runtimeValidation],
+  ["sourced Compose environment", composeEnv],
+  ["runner provisioner", runnerProvisioner],
+  ["recovery checker", recoveryChecker],
+  ["recovery evidence collector", recoveryEvidence],
+  ["systemd installer", systemdInstaller],
+  ["runner launcher", read("infra/runner/run-runner.sh")],
+]) {
+  if (source) {
+    expect(
+      !sourceManipulatesHarnessPath(source),
+      `${label} may not reference or mutate the test harness-owned PATH`,
+    );
+  }
+}
 
 expect(/@sha256:[0-9a-f]{64}/i.test(dockerfile), "Docker base image must be digest-pinned");
 expect(

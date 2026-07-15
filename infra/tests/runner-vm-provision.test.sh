@@ -42,6 +42,83 @@ fail() {
   exit 1
 }
 
+source_manipulates_path() {
+  local source="$1"
+  local line
+  local path_token_regex='(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)'
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    [[ "$line" =~ $path_token_regex ]] && return 0
+  done <"$source"
+  return 1
+}
+
+make_path_sealed_copy() {
+  local source="$1"
+  local destination="$2"
+  local interpreter="$3"
+
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' 'readonly PATH'
+    tail -n +2 "$source"
+  } >"$destination"
+  chmod 0700 "$destination"
+}
+
+assert_path_mutation_defenses() {
+  local interpreter="$1"
+  local mutation_source="$work/path-mutation-source.sh"
+  local sealed_mutation="$work/path-mutation-sealed.sh"
+  local mutation_bin="$work/path-mutation-bin"
+  local resolution="$work/path-mutation-resolution"
+  local sentinel="$work/path-mutation-sentinel"
+  local mutation
+  local mutation_status
+
+  for mutation in \
+    'PATH=/usr/bin:/bin' \
+    'export PATH=/usr/bin:/bin' \
+    'unset PATH' \
+    'readonly PATH=/usr/bin:/bin'; do
+    printf '#!%s\n%s\n' "$interpreter" "$mutation" >"$mutation_source"
+    source_manipulates_path "$mutation_source" || fail "PATH static guard missed: $mutation"
+  done
+
+  # command -v is a shell builtin; this mutation probe never executes cp.
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' \
+      'set -e' \
+      'PATH=/usr/bin:/bin' \
+      'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
+      'printf compromised >"$PATH_MUTATION_SENTINEL"'
+  } >"$mutation_source"
+  make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter"
+  mkdir -m 0700 "$mutation_bin"
+  printf '%s' unchanged >"$sentinel"
+  set +e
+  "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
+    PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
+    >"$work/path-mutation.stdout" 2>"$work/path-mutation.stderr"
+  mutation_status=$?
+  set -e
+
+  (( mutation_status != 0 )) || fail 'same-interpreter PATH mutation unexpectedly succeeded'
+  [[ ! -e "$resolution" ]] || fail 'PATH mutation resolved a host executable before rejection'
+  [[ "$(<"$sentinel")" == unchanged ]] || fail 'PATH mutation reached the outside sentinel after changing command lookup'
+}
+
+if source_manipulates_path "$provisioner"; then
+  fail 'provisioner may not reference or mutate the harness-owned PATH'
+fi
+assert_path_mutation_defenses "$bash_bin"
+provisioner_under_test="$work/provision-host.sealed.sh"
+make_path_sealed_copy "$provisioner" "$provisioner_under_test" "$bash_bin"
+[[ "$(sed -n '2p' "$provisioner_under_test")" == 'readonly PATH' ]] ||
+  fail 'provisioner test copy did not seal PATH before the SUT body'
+
 if tail -n +2 "$provisioner" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
   fail 'provisioner hard-codes an executable path and can bypass the isolated fake PATH'
 fi
@@ -563,7 +640,7 @@ run_provisioner() {
     FAKE_SSH_KEY_PATH="$ssh_key" \
     FAKE_CLOUD_META="$cloud_meta" \
     FAKE_CLOUD_USER="$cloud_user" \
-    "$bash_bin" "$provisioner" "$@" >"$output_file.stdout" 2>"$output_file.stderr"
+    "$bash_bin" "$provisioner_under_test" "$@" >"$output_file.stdout" 2>"$output_file.stderr"
   run_status=$?
   set -e
   [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
@@ -613,7 +690,7 @@ if (( EUID == 0 )); then
       FAKE_SSH_KEY_PATH="$ssh_key" \
       FAKE_CLOUD_META="$cloud_meta" \
       FAKE_CLOUD_USER="$cloud_user" \
-      "$bash_bin" "$provisioner" >"$work/nonroot.stdout" 2>"$work/nonroot.stderr"
+      "$bash_bin" "$provisioner_under_test" >"$work/nonroot.stdout" 2>"$work/nonroot.stderr"
   nonroot_status=$?
   chown -R 0:0 "$work"
 else
@@ -632,7 +709,7 @@ else
     FAKE_SSH_KEY_PATH="$ssh_key" \
     FAKE_CLOUD_META="$cloud_meta" \
     FAKE_CLOUD_USER="$cloud_user" \
-    "$bash_bin" "$provisioner" >"$work/nonroot.stdout" 2>"$work/nonroot.stderr"
+    "$bash_bin" "$provisioner_under_test" >"$work/nonroot.stdout" 2>"$work/nonroot.stderr"
   nonroot_status=$?
 fi
 set -e

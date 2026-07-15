@@ -19,6 +19,74 @@ fail() {
   failures+=("$1")
 }
 
+source_manipulates_path() {
+  local source="$1"
+  local line
+  local path_token_regex='(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)'
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    [[ "$line" =~ $path_token_regex ]] && return 0
+  done <"$source"
+  return 1
+}
+
+make_path_sealed_copy() {
+  local source="$1"
+  local destination="$2"
+  local interpreter="$3"
+
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' 'readonly PATH'
+    tail -n +2 "$source"
+  } >"$destination"
+  chmod 0700 "$destination"
+}
+
+assert_path_mutation_defenses() {
+  local interpreter="$1"
+  local mutation_source="$parser_work/path-mutation-source.sh"
+  local sealed_mutation="$parser_work/path-mutation-sealed.sh"
+  local mutation_bin="$parser_work/path-mutation-bin"
+  local resolution="$parser_work/path-mutation-resolution"
+  local sentinel="$parser_work/path-mutation-sentinel"
+  local mutation
+  local mutation_status
+
+  for mutation in \
+    'PATH=/usr/bin:/bin' \
+    'export PATH=/usr/bin:/bin' \
+    'unset PATH' \
+    'readonly PATH=/usr/bin:/bin'; do
+    printf '#!%s\n%s\n' "$interpreter" "$mutation" >"$mutation_source"
+    source_manipulates_path "$mutation_source" || fail "PATH static guard missed: $mutation"
+  done
+
+  # command -v is a shell builtin; this mutation probe never executes cp.
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' \
+      'set -e' \
+      'PATH=/usr/bin:/bin' \
+      'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
+      'printf compromised >"$PATH_MUTATION_SENTINEL"'
+  } >"$mutation_source"
+  make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter"
+  mkdir -m 0700 "$mutation_bin"
+  printf '%s' unchanged >"$sentinel"
+  set +e
+  "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
+    PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
+    >"$parser_work/path-mutation.stdout" 2>"$parser_work/path-mutation.stderr"
+  mutation_status=$?
+  set -e
+
+  (( mutation_status != 0 )) || fail 'same-interpreter PATH mutation unexpectedly succeeded'
+  [[ ! -e "$resolution" ]] || fail 'PATH mutation resolved a host executable before rejection'
+  [[ "$(<"$sentinel")" == unchanged ]] || fail 'PATH mutation reached the outside sentinel after changing command lookup'
+}
+
 systemd_syntax_is_canonical() {
   local file="$1"
   local line
@@ -410,6 +478,10 @@ installer_root_guard='[[ "${EUID:-$(id -u)}" -eq 0 ]] || { echo "run as root" >&
 if [[ "$(grep -Fxc -- "$installer_root_guard" "$installer" || true)" != 1 ]]; then
   fail 'Systemd installer must retain one explicit root execution guard'
 fi
+if source_manipulates_path "$installer"; then
+  fail 'Systemd installer may not reference or mutate the harness-owned PATH'
+fi
+assert_path_mutation_defenses "$bash_bin"
 if tail -n +2 "$installer" | grep -Eq '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+'; then
   fail 'Systemd installer hard-codes an executable path and can bypass the isolated fake PATH'
 fi
@@ -431,16 +503,18 @@ fi
 if tail -n +2 "$installer" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
   fail 'Systemd installer contains an uninstrumented shell file read'
 fi
+sealed_installer_source="$parser_work/install-systemd.path-sealed.sh"
+make_path_sealed_copy "$installer" "$sealed_installer_source" "$bash_bin"
 while IFS= read -r installer_line || [[ -n "$installer_line" ]]; do
-  if [[ "$installer_line" == '#!/usr/bin/env bash' ]]; then
-    printf '#!%s\n' "$bash_bin"
-  elif [[ "$installer_line" == "$installer_root_guard" ]]; then
+  if [[ "$installer_line" == "$installer_root_guard" ]]; then
     printf '%s\n' ': # root guard verified above; behavior runs in a fake-only command root'
   else
     printf '%s\n' "$installer_line"
   fi
-done <"$installer" >"$installer_under_test"
+done <"$sealed_installer_source" >"$installer_under_test"
 chmod 0700 "$installer_under_test"
+[[ "$(sed -n '2p' "$installer_under_test")" == 'readonly PATH' ]] ||
+  fail 'Systemd installer test copy did not seal PATH before the SUT body'
 
 printf '#!%s\n' "$bash_bin" >"$installer_fake_bin/fake-installer-command"
 cat >>"$installer_fake_bin/fake-installer-command" <<'FAKE'

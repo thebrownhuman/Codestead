@@ -31,6 +31,79 @@ cleanup() {
 }
 trap cleanup EXIT
 
+fail() {
+  echo "FAIL: $*" >&2
+  exit 1
+}
+
+source_manipulates_path() {
+  local source="$1"
+  local line
+  local path_token_regex='(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)'
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    [[ "$line" =~ $path_token_regex ]] && return 0
+  done <"$source"
+  return 1
+}
+
+make_path_sealed_copy() {
+  local source="$1"
+  local destination="$2"
+  local interpreter="$3"
+
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' 'readonly PATH'
+    tail -n +2 "$source"
+  } >"$destination"
+  chmod 0700 "$destination"
+}
+
+assert_path_mutation_defenses() {
+  local interpreter="$1"
+  local mutation_source="$work/path-mutation-source.sh"
+  local sealed_mutation="$work/path-mutation-sealed.sh"
+  local mutation_bin="$work/path-mutation-bin"
+  local resolution="$work/path-mutation-resolution"
+  local sentinel="$work/path-mutation-sentinel"
+  local mutation
+  local mutation_status
+
+  for mutation in \
+    'PATH=/usr/bin:/bin' \
+    'export PATH=/usr/bin:/bin' \
+    'unset PATH' \
+    'readonly PATH=/usr/bin:/bin'; do
+    printf '#!%s\n%s\n' "$interpreter" "$mutation" >"$mutation_source"
+    source_manipulates_path "$mutation_source" || fail "PATH static guard missed: $mutation"
+  done
+
+  # command -v is a shell builtin; this mutation probe never executes cp.
+  {
+    printf '#!%s\n' "$interpreter"
+    printf '%s\n' \
+      'set -e' \
+      'PATH=/usr/bin:/bin' \
+      'command -v cp >"$PATH_MUTATION_RESOLUTION"' \
+      'printf compromised >"$PATH_MUTATION_SENTINEL"'
+  } >"$mutation_source"
+  make_path_sealed_copy "$mutation_source" "$sealed_mutation" "$interpreter"
+  mkdir -m 0700 "$mutation_bin"
+  printf '%s' unchanged >"$sentinel"
+  set +e
+  "$env_bin" -i PATH="$mutation_bin" PATH_MUTATION_RESOLUTION="$resolution" \
+    PATH_MUTATION_SENTINEL="$sentinel" "$interpreter" "$sealed_mutation" \
+    >"$work/path-mutation.stdout" 2>"$work/path-mutation.stderr"
+  mutation_status=$?
+  set -e
+
+  (( mutation_status != 0 )) || fail 'same-interpreter PATH mutation unexpectedly succeeded'
+  [[ ! -e "$resolution" ]] || fail 'PATH mutation resolved a host executable before rejection'
+  [[ "$(<"$sentinel")" == unchanged ]] || fail 'PATH mutation reached the outside sentinel after changing command lookup'
+}
+
 readonly secrets_gid=2000
 readonly secret_canary='RUNTIME_SECRET_CANARY_4f5de90a_DO_NOT_PRINT'
 readonly database_canary='RUNTIME_DATABASE_CANARY_8b172e3c_DO_NOT_PRINT'
@@ -45,6 +118,11 @@ readonly digest_2='2222222222222222222222222222222222222222222222222222222222222
 readonly digest_3='3333333333333333333333333333333333333333333333333333333333333333'
 readonly pilot_clamav='clamav/clamav:pilot-disabled'
 readonly postgres_probe_sql="SELECT name, setting FROM pg_settings WHERE name IN ('fsync', 'synchronous_commit', 'full_page_writes');"
+
+if source_manipulates_path "$validator"; then
+  fail 'runtime validator may not reference or mutate the harness-owned PATH'
+fi
+assert_path_mutation_defenses "$bash_bin"
 
 trusted_stat_assignment_count="$(grep -Fxc 'readonly trusted_stat_bin="/usr/bin/stat"' "$validator" || true)"
 trusted_realpath_assignment_count="$(grep -Fxc 'readonly trusted_realpath_bin="/usr/bin/realpath"' "$validator" || true)"
@@ -406,11 +484,17 @@ EOF
     cp "$case_dir/bin/fake-safe-command" "$case_dir/bin/$command_name"
   done
 
+  sealed_validator_source="$case_dir/validate-runtime.path-sealed.sh"
+  make_path_sealed_copy "$validator" "$sealed_validator_source" "$bash_bin"
   /usr/bin/sed \
     -e "s#readonly trusted_stat_bin=\"/usr/bin/stat\"#readonly trusted_stat_bin=\"$case_dir/bin/trusted-stat\"#" \
     -e "s#readonly trusted_realpath_bin=\"/usr/bin/realpath\"#readonly trusted_realpath_bin=\"$case_dir/bin/trusted-realpath\"#" \
-    "$validator" >"$validator_under_test"
+    "$sealed_validator_source" >"$validator_under_test"
   chmod 0600 "$validator_under_test"
+  [[ "$(sed -n '2p' "$validator_under_test")" == 'readonly PATH' ]] || {
+    echo 'FAIL: runtime validator test copy did not seal PATH before the SUT body' >&2
+    exit 1
+  }
   grep -Fq "readonly trusted_stat_bin=\"$case_dir/bin/trusted-stat\"" "$validator_under_test" || {
     echo 'FAIL: runtime test did not instrument trusted stat' >&2
     exit 1
@@ -497,6 +581,10 @@ run_validator() {
   local validation_mode="${1:-pilot}"
   local validator_status
   shift || true
+  if source_manipulates_path "$config"; then
+    echo 'FAIL: Compose environment may not reference or mutate the harness-owned PATH' >&2
+    return 98
+  fi
   "$env_bin" -i \
     HOME="$case_dir" \
     PATH="$case_dir/bin" \
@@ -689,6 +777,29 @@ rm -- "$outside_sentinel_link"
   echo 'FAIL: outside-fixture runtime sentinel was modified' >&2
   exit 1
 }
+
+for path_mutation_case in \
+  'assignment|PATH=/usr/bin:/bin' \
+  'export|export PATH=/usr/bin:/bin' \
+  'unset|unset PATH' \
+  'readonly|readonly PATH=/usr/bin:/bin'; do
+  path_mutation_label="${path_mutation_case%%|*}"
+  path_mutation_line="${path_mutation_case#*|}"
+  make_fixture "sourced-path-$path_mutation_label"
+  printf '%s\n' "$path_mutation_line" >>"$config"
+  set +e
+  path_mutation_output="$(run_validator pilot 2>&1)"
+  path_mutation_status=$?
+  set -e
+  [[ "$path_mutation_status" == 98 ]] ||
+    fail "sourced PATH $path_mutation_label mutation was not rejected before the SUT"
+  [[ "$path_mutation_output" == 'FAIL: Compose environment may not reference or mutate the harness-owned PATH' ]] ||
+    fail "sourced PATH $path_mutation_label mutation produced an unexpected diagnostic"
+  [[ ! -s "$fake_docker_log" ]] ||
+    fail "sourced PATH $path_mutation_label mutation reached a fake runtime command"
+  [[ "$(<"$outside_sentinel")" == 'outside-fixture-sentinel-unchanged' ]] ||
+    fail "sourced PATH $path_mutation_label mutation changed the outside sentinel"
+done
 
 make_fixture valid-pilot
 expect_success 'valid pilot fixture'
