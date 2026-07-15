@@ -21,22 +21,25 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { writeEmergencyExamEvent } from "@/lib/browser-durability/emergency-events";
+import {
+  openBrowserOutbox,
+  type BrowserOutboxRepository,
+} from "@/lib/browser-durability/indexed-db";
+import { useDraftCacheNamespace } from "@/lib/drafts/browser-cache-context";
 import type {
   ClientExamEventType,
-  ExamAnswer,
   ExamRunnerResult,
   ExamSessionView,
-  PublicExamItem,
 } from "@/lib/exams/contracts";
+import {
+  createExamEventOutboxRecord,
+  useDurableExamOutbox,
+  type ExamAnswerSaveState,
+} from "@/lib/exams/use-durable-exam-outbox";
 import { remainingExamSeconds, serverClockOffsetMs } from "@/app/api/exams/_lib/policy";
 
 import styles from "./exams.module.css";
-
-interface PendingEvent {
-  readonly clientEventId: string;
-  readonly type: ClientExamEventType;
-  readonly metadata: Readonly<Record<string, unknown>>;
-}
 
 function timerLabel(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -44,17 +47,23 @@ function timerLabel(seconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
-function initialAnswers(exam: ExamSessionView): Record<string, ExamAnswer> {
-  const values: Record<string, ExamAnswer> = {};
-  for (const item of exam.form.items) {
-    values[item.id] = exam.answers[item.id]?.answer ?? (
-      item.kind === "code"
-        ? { sourceCode: item.starterCode ?? "", language: item.language }
-        : { text: "" }
-    );
-  }
-  return values;
-}
+const SAVE_STATE_COPY: Record<ExamAnswerSaveState, string> = {
+  "saving-local": "Saving on this browser...",
+  "saved-local": "Saved locally on this browser.",
+  syncing: "Syncing to Codestead...",
+  "offline-saved-local": "Saved locally; Codestead will retry.",
+  "server-saved": "Saved to Codestead.",
+  "local-save-error": "Could not save on this browser. Copy your answer before leaving.",
+  conflict: "Needs attention: choose which answer to keep.",
+};
+
+const TERMINAL_RECOVERY_STATUSES = new Set<ExamSessionView["status"]>([
+  "submitted",
+  "expired",
+  "graded",
+  "under_review",
+  "invalidated",
+]);
 
 function sourceOutput(result: ExamRunnerResult): string {
   const stdout = result.run?.stdout ?? result.compile.stdout;
@@ -235,151 +244,103 @@ function ExamResultPanel({ exam, onRefresh }: { exam: ExamSessionView; onRefresh
   );
 }
 
-function ActiveExam({ initialExam, onRefresh }: { initialExam: ExamSessionView; onRefresh: () => Promise<void> }) {
-  const [exam, setExam] = useState(initialExam);
+type DurableOutbox = ReturnType<typeof useDurableExamOutbox>;
+
+function ActiveExam({
+  exam,
+  namespace,
+  outbox,
+  onRefresh,
+  onSession,
+}: {
+  exam: ExamSessionView;
+  namespace: string;
+  outbox: DurableOutbox;
+  onRefresh: () => Promise<void>;
+  onSession: (exam: ExamSessionView) => void;
+}) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, ExamAnswer>>(() => initialAnswers(initialExam));
   const [remaining, setRemaining] = useState(() => remainingExamSeconds(
-    initialExam.serverDeadlineAt,
+    exam.serverDeadlineAt,
     Date.now(),
-    serverClockOffsetMs(initialExam.serverNow, Date.now()),
+    serverClockOffsetMs(exam.serverNow, Date.now()),
   ));
-  const [saveState, setSaveState] = useState<"saved" | "saving" | "unsaved" | "offline">("saved");
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [runState, setRunState] = useState<Record<string, { busy: boolean; label?: string; output?: string }>>({});
   const [stdin, setStdin] = useState<Record<string, string>>({});
-  const answersRef = useRef(answers);
-  const revisionsRef = useRef<Record<string, number>>(
-    Object.fromEntries(Object.entries(initialExam.answers).map(([key, value]) => [key, value.revision])),
-  );
-  const dirtyRef = useRef(new Set<string>());
-  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const chainsRef = useRef(new Map<string, Promise<void>>());
-  const clockOffsetRef = useRef(serverClockOffsetMs(initialExam.serverNow, Date.now()));
-  const queuedEventsRef = useRef<PendingEvent[]>([]);
+  const clockOffsetRef = useRef(serverClockOffsetMs(exam.serverNow, Date.now()));
   const expiryStartedRef = useRef(false);
   const activeItem = exam.form.items[activeIndex]!;
-  const active = exam.status === "active";
+  const conflict = outbox.conflicts[activeItem.id];
+  const controlsClosed = submitting || remaining === 0;
+  const recordOutboxEvent = outbox.recordEvent;
+  const updateOutboxAnswer = outbox.updateAnswer;
+  const flushOutbox = outbox.flush;
+  const purgeOutbox = outbox.purge;
 
-  const postEvent = useCallback(async (event: PendingEvent) => {
-    try {
-      const response = await fetch(`/api/exams/${initialExam.sessionId}/events`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(event),
-        keepalive: true,
-      });
-      if (!response.ok) throw new Error("event rejected");
-    } catch {
-      if (!queuedEventsRef.current.some((queued) => queued.clientEventId === event.clientEventId)) {
-        queuedEventsRef.current.push(event);
-      }
-    }
-  }, [initialExam.sessionId]);
+  const logEvent = useCallback((
+    type: ClientExamEventType,
+    metadata: Record<string, unknown> = {},
+  ) => {
+    void recordOutboxEvent(type, metadata).catch(() => undefined);
+  }, [recordOutboxEvent]);
 
-  const logEvent = useCallback((type: ClientExamEventType, metadata: Readonly<Record<string, unknown>> = {}) => {
-    const event: PendingEvent = { clientEventId: crypto.randomUUID(), type, metadata };
-    if (!navigator.onLine) queuedEventsRef.current.push(event);
-    else void postEvent(event);
-  }, [postEvent]);
-
-  const performSave = useCallback(async (itemId: string) => {
-    if (!dirtyRef.current.has(itemId)) return;
-    setSaveState("saving");
-    const sent = answersRef.current[itemId] ?? {};
-    let baseRevision = revisionsRef.current[itemId] ?? 0;
-    for (let attemptNumber = 0; attemptNumber < 2; attemptNumber += 1) {
-      try {
-        const response = await fetch(`/api/exams/${initialExam.sessionId}/autosave`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ itemId, baseRevision, answer: sent }),
-        });
-        const body = await response.json() as {
-          saved?: { revision: number };
-          code?: string;
-          currentRevision?: number;
-          error?: string;
-        };
-        if (response.status === 409 && body.code === "AUTOSAVE_REVISION_CONFLICT" && typeof body.currentRevision === "number") {
-          baseRevision = body.currentRevision;
-          revisionsRef.current[itemId] = baseRevision;
-          continue;
-        }
-        if (!response.ok || !body.saved) throw new Error(body.error ?? "Autosave failed.");
-        revisionsRef.current[itemId] = body.saved.revision;
-        if (JSON.stringify(answersRef.current[itemId] ?? {}) === JSON.stringify(sent)) {
-          dirtyRef.current.delete(itemId);
-        }
-        setSaveState(dirtyRef.current.size === 0 ? "saved" : "unsaved");
-        return;
-      } catch {
-        setSaveState(navigator.onLine ? "unsaved" : "offline");
-        return;
-      }
-    }
-    setSaveState("unsaved");
-  }, [initialExam.sessionId]);
-
-  const queueSave = useCallback((itemId: string): Promise<void> => {
-    const prior = chainsRef.current.get(itemId) ?? Promise.resolve();
-    const next = prior.catch(() => undefined).then(() => performSave(itemId));
-    chainsRef.current.set(itemId, next);
-    return next;
-  }, [performSave]);
-
-  const flushAll = useCallback(async () => {
-    for (const timer of timersRef.current.values()) clearTimeout(timer);
-    timersRef.current.clear();
-    await Promise.all([...dirtyRef.current].map((itemId) => queueSave(itemId)));
-  }, [queueSave]);
-
-  function updateAnswer(item: PublicExamItem, value: string) {
-    const next: ExamAnswer = item.kind === "code"
-      ? { sourceCode: value, language: item.language }
-      : { text: value };
-    const updated = { ...answersRef.current, [item.id]: next };
-    answersRef.current = updated;
-    setAnswers(updated);
-    dirtyRef.current.add(item.id);
-    setSaveState("unsaved");
-    const existingTimer = timersRef.current.get(item.id);
-    if (existingTimer) clearTimeout(existingTimer);
-    timersRef.current.set(item.id, setTimeout(() => {
-      timersRef.current.delete(item.id);
-      void queueSave(item.id);
-    }, 1_000));
-  }
+  const updateAnswer = useCallback((itemId: string, value: string) => {
+    void updateOutboxAnswer(itemId, value).catch((error) => {
+      setNotice(error instanceof Error ? error.message : "The answer could not be saved on this browser.");
+    });
+  }, [updateOutboxAnswer]);
 
   const submit = useCallback(async (deadline: boolean) => {
-    if (submitting || (!deadline && !window.confirm("Submit this exam? You cannot change answers afterward."))) return;
+    if (
+      submitting
+      || (!deadline && !window.confirm("Submit this exam? You cannot change answers afterward."))
+    ) return;
     setSubmitting(true);
-    setNotice(deadline ? "The server deadline has arrived. Finalizing the latest successful autosaves…" : "Saving and finalizing…");
-    await flushAll();
+    setNotice(deadline
+      ? "The server deadline has arrived. Finalizing the latest successful autosaves..."
+      : "Saving and finalizing...");
+    if (!deadline) {
+      try {
+        await flushOutbox();
+      } catch {
+        setNotice("Submission was not confirmed. Your answer remains saved locally when browser recovery succeeded; Codestead must acknowledge it before submission.");
+        setSubmitting(false);
+        return;
+      }
+    }
     try {
-      const response = await fetch(`/api/exams/${initialExam.sessionId}/submit`, { method: "POST" });
+      const response = await fetch(`/api/exams/${exam.sessionId}/submit`, { method: "POST" });
       const body = await response.json() as { exam?: ExamSessionView; error?: string };
-      if (!response.ok || !body.exam) throw new Error(body.error ?? "Finalization is still pending.");
-      setExam(body.exam);
+      if (
+        !response.ok
+        || !body.exam
+        || body.exam.sessionId !== exam.sessionId
+        || !TERMINAL_RECOVERY_STATUSES.has(body.exam.status)
+      ) throw new Error(body.error ?? "Finalization is still pending.");
+      await purgeOutbox();
       setNotice(null);
-      await onRefresh();
+      onSession(body.exam);
+      void onRefresh();
     } catch (error) {
-      setNotice(
-        deadline
-          ? "You appear offline. The server deadline still applies and will finalize the latest autosave when contact resumes."
-          : error instanceof Error ? error.message : "Submission could not be confirmed.",
-      );
+      setNotice(deadline
+        ? "You appear offline. The server deadline still applies and will finalize the latest autosave when contact resumes."
+        : error instanceof Error ? error.message : "Submission could not be confirmed.");
+      await onRefresh().catch(() => undefined);
     } finally {
       setSubmitting(false);
     }
-  }, [flushAll, initialExam.sessionId, onRefresh, submitting]);
+  }, [exam.sessionId, flushOutbox, onRefresh, onSession, purgeOutbox, submitting]);
 
   useEffect(() => {
-    if (!active) return;
     const interval = setInterval(() => {
-      const seconds = remainingExamSeconds(exam.serverDeadlineAt, Date.now(), clockOffsetRef.current);
+      const seconds = remainingExamSeconds(
+        exam.serverDeadlineAt,
+        Date.now(),
+        clockOffsetRef.current,
+      );
       setRemaining(seconds);
       if (seconds === 0 && !expiryStartedRef.current) {
         expiryStartedRef.current = true;
@@ -387,36 +348,36 @@ function ActiveExam({ initialExam, onRefresh }: { initialExam: ExamSessionView; 
       }
     }, 500);
     return () => clearInterval(interval);
-  }, [active, exam.serverDeadlineAt, submit]);
+  }, [exam.serverDeadlineAt, submit]);
 
   useEffect(() => {
-    if (!active) return;
     const interval = setInterval(() => {
-      void fetch(`/api/exams/${initialExam.sessionId}/heartbeat`, { method: "POST" })
+      void fetch(`/api/exams/${exam.sessionId}/heartbeat`, { method: "POST" })
         .then(async (response) => {
           const body = await response.json() as {
             status?: ExamSessionView["status"];
             serverNow?: string;
-            serverDeadlineAt?: string;
           };
           if (!response.ok) throw new Error("heartbeat rejected");
+          setOnline(true);
           if (body.serverNow) clockOffsetRef.current = serverClockOffsetMs(body.serverNow, Date.now());
           if (body.status && body.status !== "active") await onRefresh();
         })
         .catch(() => setOnline(false));
     }, 15_000);
     return () => clearInterval(interval);
-  }, [active, initialExam.sessionId, onRefresh]);
+  }, [exam.sessionId, onRefresh]);
 
   useEffect(() => {
-    const flushQueued = () => {
+    if (outbox.issue?.kind === "server-closure") void onRefresh();
+  }, [onRefresh, outbox.issue]);
+
+  useEffect(() => {
+    const restored = () => {
       setOnline(true);
-      const queued = queuedEventsRef.current.splice(0);
-      queued.forEach((event) => void postEvent(event));
       logEvent("connection_restored", { online: true });
-      void flushAll();
     };
-    const offline = () => {
+    const lost = () => {
       setOnline(false);
       logEvent("connection_lost", { online: false });
     };
@@ -431,54 +392,76 @@ function ActiveExam({ initialExam, onRefresh }: { initialExam: ExamSessionView; 
       { fullscreen: Boolean(document.fullscreenElement) },
     );
     const beforeUnload = () => {
-      const event: PendingEvent = {
-        clientEventId: crypto.randomUUID(),
-        type: "navigation_attempt",
-        metadata: { reason: "beforeunload" },
-      };
-      navigator.sendBeacon(
-        `/api/exams/${initialExam.sessionId}/events`,
-        new Blob([JSON.stringify(event)], { type: "application/json" }),
-      );
+      let record;
+      try {
+        record = createExamEventOutboxRecord({
+          namespace,
+          sessionId: exam.sessionId,
+          eventType: "navigation_attempt",
+          metadata: { reason: "beforeunload" },
+        });
+      } catch {
+        return;
+      }
+      try {
+        writeEmergencyExamEvent(window.localStorage, record);
+      } catch {
+        // The beacon attempt remains independent from emergency storage.
+      }
+      try {
+        navigator.sendBeacon(
+          `/api/exams/${exam.sessionId}/events`,
+          new Blob([JSON.stringify({
+            clientEventId: record.clientEventId,
+            type: record.payload.eventType,
+            metadata: record.payload.metadata,
+          })], { type: "application/json" }),
+        );
+      } catch {
+        // The emergency copy remains available for the next safe repository open.
+      }
     };
-    window.addEventListener("online", flushQueued);
-    window.addEventListener("offline", offline);
+    window.addEventListener("online", restored);
+    window.addEventListener("offline", lost);
     window.addEventListener("blur", blur);
     window.addEventListener("focus", focus);
     window.addEventListener("beforeunload", beforeUnload);
     document.addEventListener("visibilitychange", visibility);
     document.addEventListener("fullscreenchange", fullscreen);
     return () => {
-      window.removeEventListener("online", flushQueued);
-      window.removeEventListener("offline", offline);
+      window.removeEventListener("online", restored);
+      window.removeEventListener("offline", lost);
       window.removeEventListener("blur", blur);
       window.removeEventListener("focus", focus);
       window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("visibilitychange", visibility);
       document.removeEventListener("fullscreenchange", fullscreen);
     };
-  }, [flushAll, initialExam.sessionId, logEvent, postEvent]);
-
-  useEffect(() => {
-    const timers = timersRef.current;
-    const interval = setInterval(() => void flushAll(), 10_000);
-    return () => {
-      clearInterval(interval);
-      for (const timer of timers.values()) clearTimeout(timer);
-    };
-  }, [flushAll]);
+  }, [exam.sessionId, logEvent, namespace]);
 
   async function execute(mode: "COMPILE" | "RUN") {
-    if (activeItem.kind !== "code") return;
+    if (activeItem.kind !== "code" || controlsClosed) return;
     setRunState((current) => ({ ...current, [activeItem.id]: { busy: true, label: mode } }));
-    await queueSave(activeItem.id);
+    try {
+      await outbox.flush();
+    } catch {
+      setRunState((current) => ({
+        ...current,
+        [activeItem.id]: {
+          busy: false,
+          label: "NOT_SYNCHRONIZED",
+          output: "Codestead could not synchronize the answer. Retry before running or compiling.",
+        },
+      }));
+      return;
+    }
     try {
       const response = await fetch(`/api/exams/${exam.sessionId}/run`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           itemId: activeItem.id,
-          sourceCode: answersRef.current[activeItem.id]?.sourceCode ?? "",
+          sourceCode: outbox.answers[activeItem.id] ?? "",
           stdin: stdin[activeItem.id] ?? "",
           mode,
           clientRequestId: crypto.randomUUID(),
@@ -488,21 +471,45 @@ function ActiveExam({ initialExam, onRefresh }: { initialExam: ExamSessionView; 
       if (!response.ok || !body.result) throw new Error(body.error ?? "Runner did not return a result.");
       setRunState((current) => ({
         ...current,
-        [activeItem.id]: { busy: false, label: body.result!.status, output: sourceOutput(body.result!) },
+        [activeItem.id]: {
+          busy: false,
+          label: body.result!.status,
+          output: sourceOutput(body.result!),
+        },
       }));
     } catch (error) {
       setRunState((current) => ({
         ...current,
-        [activeItem.id]: { busy: false, label: "INFRASTRUCTURE_ERROR", output: error instanceof Error ? error.message : "Runner unavailable." },
+        [activeItem.id]: {
+          busy: false,
+          label: "INFRASTRUCTURE_ERROR",
+          output: error instanceof Error ? error.message : "Runner unavailable.",
+        },
       }));
     }
   }
 
-  if (exam.status !== "active") return <ExamResultPanel exam={exam} onRefresh={onRefresh} />;
-  const answeredCount = exam.form.items.filter((item) => {
-    const answer = answers[item.id];
-    return item.kind === "code" ? Boolean(answer?.sourceCode?.trim()) : Boolean(answer?.text?.trim());
-  }).length;
+  async function retryAnswers() {
+    setNotice(null);
+    try {
+      await outbox.flush();
+    } catch {
+      setNotice("Codestead still could not acknowledge every locally saved answer.");
+    }
+  }
+
+  async function chooseConflict(choice: "keep-local" | "use-server") {
+    setNotice(null);
+    try {
+      await outbox.resolveConflict(activeItem.id, choice);
+    } catch {
+      setNotice("The recovered answer changed or could not be updated safely. Review both copies again.");
+    }
+  }
+
+  const answeredCount = exam.form.items.filter((item) =>
+    Boolean(outbox.answers[item.id]?.trim())
+  ).length;
   const output = runState[activeItem.id];
   return (
     <div className={styles.examWorkspace}>
@@ -511,16 +518,27 @@ function ActiveExam({ initialExam, onRefresh }: { initialExam: ExamSessionView; 
         <div className={styles.examIdentity}><span>{exam.form.purpose === "mastery-recheck" ? "Targeted mastery recheck" : exam.form.courseTitle}</span><strong>{exam.form.moduleTitle}</strong></div>
         <div className={`${styles.timer} ${remaining <= 60 ? styles.timerUrgent : ""}`} aria-live="polite"><Clock3 size={18} /><span><small>Server time left</small><strong>{timerLabel(remaining)}</strong></span></div>
         <div className={styles.connection}>{online ? <Wifi size={16} /> : <WifiOff size={16} />}<span>{online ? "Connected" : "Offline"}</span></div>
-        <div className={styles.saveState} data-state={saveState}><Save size={15} /> {saveState}</div>
+        <div className={styles.saveState} data-state={outbox.saveState}><Save size={15} /> {SAVE_STATE_COPY[outbox.saveState]}</div>
       </header>
       <div className={styles.examBody}>
         <aside className={styles.questionNav}>
           <span>QUESTIONS</span>
           <div className={styles.questionProgress}><strong>{answeredCount}/{exam.form.items.length}</strong><small>answered locally</small><i><b style={{ width: `${(answeredCount / exam.form.items.length) * 100}%` }} /></i></div>
           {exam.form.items.map((item, index) => {
-            const answer = answers[item.id];
-            const answered = item.kind === "code" ? Boolean(answer?.sourceCode?.trim()) : Boolean(answer?.text?.trim());
-            return <button className={index === activeIndex ? styles.activeQuestion : ""} key={item.id} onClick={() => setActiveIndex(index)}><b>{answered ? <CheckCircle2 size={14} /> : index + 1}</b><span><strong>{item.title}</strong><small>{item.kind === "code" ? item.language?.toUpperCase() : "Written response"}</small></span></button>;
+            const answered = Boolean(outbox.answers[item.id]?.trim());
+            const itemConflict = outbox.conflicts[item.id];
+            return (
+              <button
+                aria-label={`${item.title}${itemConflict ? " (answer conflict)" : ""}`}
+                className={index === activeIndex ? styles.activeQuestion : ""}
+                disabled={controlsClosed}
+                key={item.id}
+                onClick={() => setActiveIndex(index)}
+              >
+                <b>{answered ? <CheckCircle2 size={14} /> : index + 1}</b>
+                <span><strong>{item.title}</strong><small>{itemConflict ? "Answer conflict" : item.kind === "code" ? item.language?.toUpperCase() : "Written response"}</small></span>
+              </button>
+            );
           })}
           <div className={styles.noAssistance}><ShieldCheck size={16} /><span><strong>Independent mode</strong><small>Tutor and notes are unavailable.</small></span></div>
         </aside>
@@ -528,38 +546,63 @@ function ActiveExam({ initialExam, onRefresh }: { initialExam: ExamSessionView; 
           <div className={styles.questionTopline}><span>Question {activeIndex + 1} of {exam.form.items.length}</span><i>{activeItem.points} points</i><i>{activeItem.verificationAvailable ? "Deterministic evidence" : "Review required"}</i></div>
           <h1>{activeItem.title}</h1>
           <p className={styles.questionPrompt}>{activeItem.prompt}</p>
-          {activeItem.kind === "short-answer" ? (
+          {conflict ? (
+            <div className={styles.appealForm}>
+              <label><span>Recovered answer</span><textarea readOnly value={conflict.localAnswer} /></label>
+              <label><span>Codestead answer</span><textarea readOnly value={conflict.serverAnswer} /></label>
+              <div>
+                <button className="button button-primary" disabled={controlsClosed} type="button" onClick={() => void chooseConflict("keep-local")}>Keep recovered answer</button>
+                <button className="button button-secondary" disabled={controlsClosed} type="button" onClick={() => void chooseConflict("use-server")}>Use server answer</button>
+              </div>
+            </div>
+          ) : activeItem.kind === "short-answer" ? (
             <label className={styles.answerField}>
               <span>Your response</span>
               <textarea
-                value={answers[activeItem.id]?.text ?? ""}
-                onChange={(event) => updateAnswer(activeItem, event.target.value)}
-                onPaste={(event) => logEvent("paste", { itemId: activeItem.id, pastedCharacters: event.clipboardData.getData("text").length })}
-                placeholder="Explain the outcome, then include an example and a boundary case…"
                 autoFocus
+                disabled={controlsClosed}
+                maxLength={32_000}
+                value={outbox.answers[activeItem.id] ?? ""}
+                onChange={(event) => updateAnswer(activeItem.id, event.target.value)}
+                onPaste={(event) => logEvent("paste", { itemId: activeItem.id, pastedCharacters: event.clipboardData.getData("text").length })}
+                placeholder="Explain the outcome, then include an example and a boundary case..."
               />
             </label>
           ) : (
             <div className={styles.codeQuestion}>
-              <div className={styles.codeToolbar}><span><Code2 size={15} /> {activeItem.language?.toUpperCase()}</span><div><button onClick={() => updateAnswer(activeItem, activeItem.starterCode ?? "")}><RotateCcw size={14} /> Reset</button><button onClick={() => void document.documentElement.requestFullscreen()}><Expand size={14} /> Fullscreen</button><button disabled={output?.busy} onClick={() => void execute("COMPILE")}><TerminalSquare size={14} /> Compile</button><button className={styles.runButton} disabled={output?.busy} onClick={() => void execute("RUN")}><Play size={14} /> Run</button></div></div>
+              <div className={styles.codeToolbar}>
+                <span><Code2 size={15} /> {activeItem.language?.toUpperCase()}</span>
+                <div>
+                  <button disabled={controlsClosed} onClick={() => updateAnswer(activeItem.id, activeItem.starterCode ?? "")}><RotateCcw size={14} /> Reset</button>
+                  <button onClick={() => void document.documentElement.requestFullscreen()}><Expand size={14} /> Fullscreen</button>
+                  <button disabled={controlsClosed || output?.busy} onClick={() => void execute("COMPILE")}><TerminalSquare size={14} /> Compile</button>
+                  <button className={styles.runButton} disabled={controlsClosed || output?.busy} onClick={() => void execute("RUN")}><Play size={14} /> Run</button>
+                </div>
+              </div>
               <textarea
-                className={styles.codeEditor}
                 aria-label="Source code"
+                className={styles.codeEditor}
+                disabled={controlsClosed}
+                maxLength={131_072}
                 spellCheck={false}
-                value={answers[activeItem.id]?.sourceCode ?? ""}
-                onChange={(event) => updateAnswer(activeItem, event.target.value)}
+                value={outbox.answers[activeItem.id] ?? ""}
+                onChange={(event) => updateAnswer(activeItem.id, event.target.value)}
                 onPaste={(event) => logEvent("paste", { itemId: activeItem.id, pastedCharacters: event.clipboardData.getData("text").length })}
               />
-              <label className={styles.stdinField}><span>Standard input (optional)</span><textarea value={stdin[activeItem.id] ?? ""} onChange={(event) => setStdin((current) => ({ ...current, [activeItem.id]: event.target.value }))} /></label>
-              <div className={styles.runnerOutput}><span><TerminalSquare size={14} /> Raw runner output {output?.label && <i>{output.label}</i>}</span><pre>{output?.busy ? "Running in the isolated container…" : output?.output ?? "Compile or run to inspect unassisted output."}</pre></div>
+              <label className={styles.stdinField}><span>Standard input (optional)</span><textarea disabled={controlsClosed} value={stdin[activeItem.id] ?? ""} onChange={(event) => setStdin((current) => ({ ...current, [activeItem.id]: event.target.value }))} /></label>
+              <div className={styles.runnerOutput}><span><TerminalSquare size={14} /> Raw runner output {output?.label && <i>{output.label}</i>}</span><pre>{output?.busy ? "Running in the isolated container..." : output?.output ?? "Compile or run to inspect unassisted output."}</pre></div>
             </div>
           )}
+          {outbox.issue && <div className={styles.workspaceNotice} role="alert"><AlertCircle size={17} /> {outbox.issue.message}</div>}
           {notice && <div className={styles.workspaceNotice} role="status"><AlertCircle size={17} /> {notice}</div>}
+          {(outbox.saveState === "local-save-error" || outbox.saveState === "offline-saved-local") && (
+            <button className="button button-secondary" type="button" disabled={controlsClosed} onClick={() => void retryAnswers()}>Retry now</button>
+          )}
           <footer className={styles.questionActions}>
-            <button className="button button-secondary" disabled={activeIndex === 0} onClick={() => setActiveIndex((value) => Math.max(0, value - 1))}>Previous</button>
+            <button className="button button-secondary" disabled={controlsClosed || activeIndex === 0} onClick={() => setActiveIndex((value) => Math.max(0, value - 1))}>Previous</button>
             {activeIndex < exam.form.items.length - 1
-              ? <button className="button button-primary" onClick={() => setActiveIndex((value) => value + 1)}>Save & next</button>
-              : <button className="button button-primary" disabled={submitting} onClick={() => void submit(false)}>{submitting ? <LoaderCircle className={styles.spin} size={16} /> : <Send size={16} />} Submit final</button>}
+              ? <button className="button button-primary" disabled={controlsClosed} onClick={() => setActiveIndex((value) => value + 1)}>Save & next</button>
+              : <button className="button button-primary" disabled={controlsClosed} onClick={() => void submit(false)}>{submitting ? <LoaderCircle className={styles.spin} size={16} /> : <Send size={16} />} Submit final</button>}
           </footer>
         </main>
       </div>
@@ -567,7 +610,151 @@ function ActiveExam({ initialExam, onRefresh }: { initialExam: ExamSessionView; 
   );
 }
 
+function DurableExam({
+  exam,
+  namespace,
+  repository,
+  onRefresh,
+  onSession,
+}: {
+  exam: ExamSessionView;
+  namespace: string;
+  repository: BrowserOutboxRepository;
+  onRefresh: () => Promise<void>;
+  onSession: (exam: ExamSessionView) => void;
+}) {
+  const outbox = useDurableExamOutbox({ namespace, session: exam, repository });
+  const terminal = TERMINAL_RECOVERY_STATUSES.has(exam.status);
+  const [cleanupComplete, setCleanupComplete] = useState(false);
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
+  const purgeOutbox = outbox.purge;
+
+  const cleanup = useCallback(async () => {
+    setCleanupError(null);
+    try {
+      await purgeOutbox();
+      setCleanupComplete(true);
+    } catch {
+      setCleanupError("Codestead could not finish clearing this exam's browser recovery. Retry cleanup before viewing the result.");
+    }
+  }, [purgeOutbox]);
+
+  useEffect(() => {
+    if (!terminal || !outbox.hydrated || cleanupComplete || cleanupError !== null) return;
+    const timeout = setTimeout(() => void cleanup(), 0);
+    return () => clearTimeout(timeout);
+  }, [cleanup, cleanupComplete, cleanupError, outbox.hydrated, terminal]);
+
+  if (terminal) {
+    if (!cleanupComplete) {
+      return (
+        <div className={styles.loading}>
+          <LoaderCircle className={styles.spin} /> Finalizing browser recovery before showing the result...
+          {cleanupError && <><span role="alert">{cleanupError}</span><button className="button button-secondary" type="button" onClick={() => void cleanup()}>Retry cleanup</button></>}
+        </div>
+      );
+    }
+    return <ExamResultPanel exam={exam} onRefresh={onRefresh} />;
+  }
+  if (exam.status !== "active") {
+    return (
+      <div className={styles.resultPage}>
+        <LoaderCircle className={styles.spin} />
+        <h1>Exam is not active</h1>
+        <p>This exam is paused or scheduled. Browser recovery remains untouched until it is active again.</p>
+        <button className="button button-secondary" type="button" onClick={() => void onRefresh()}>Refresh status</button>
+      </div>
+    );
+  }
+  if (!outbox.hydrated) {
+    return <div className={styles.loading}><LoaderCircle className={styles.spin} /> Restoring answers saved on this browser...</div>;
+  }
+  if (
+    outbox.issue?.kind === "event-recovery"
+    && outbox.issue.message.startsWith("Could not restore browser recovery")
+  ) {
+    return (
+      <div className={styles.loadError}>
+        <AlertCircle size={24} />
+        <h1>Exam recovery unavailable</h1>
+        <p>{outbox.issue.message} Copy your answer from another safe source before leaving.</p>
+      </div>
+    );
+  }
+  return (
+    <ActiveExam
+      exam={exam}
+      namespace={namespace}
+      onRefresh={onRefresh}
+      onSession={onSession}
+      outbox={outbox}
+    />
+  );
+}
+
+function ExamRepositoryBoundary({
+  exam,
+  namespace,
+  onRefresh,
+  onSession,
+}: {
+  exam: ExamSessionView;
+  namespace: string;
+  onRefresh: () => Promise<void>;
+  onSession: (exam: ExamSessionView) => void;
+}) {
+  const [repository, setRepository] = useState<BrowserOutboxRepository | null>(null);
+  const [repositoryError, setRepositoryError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let opened: BrowserOutboxRepository | null = null;
+    void openBrowserOutbox().then((next) => {
+      if (cancelled) {
+        next.close();
+        return;
+      }
+      opened = next;
+      setRepository(next);
+    }).catch(() => {
+      if (!cancelled) setRepositoryError(true);
+    });
+    return () => {
+      cancelled = true;
+      opened?.close();
+    };
+  }, [exam.sessionId, namespace]);
+
+  if (repositoryError) {
+    return (
+      <div className={styles.loadError}>
+        <AlertCircle size={24} />
+        <h1>Exam recovery unavailable</h1>
+        <p>Codestead could not open private browser recovery for this exam. Editable controls remain disabled.</p>
+      </div>
+    );
+  }
+  if (!repository) {
+    return (
+      <div className={styles.loading}>
+        <LoaderCircle className={styles.spin} /> {TERMINAL_RECOVERY_STATUSES.has(exam.status)
+          ? "Finalizing browser recovery before showing the result..."
+          : "Restoring answers saved on this browser..."}
+      </div>
+    );
+  }
+  return (
+    <DurableExam
+      exam={exam}
+      namespace={namespace}
+      onRefresh={onRefresh}
+      onSession={onSession}
+      repository={repository}
+    />
+  );
+}
 export function TimedExamClient({ sessionId }: { sessionId: string }) {
+  const namespace = useDraftCacheNamespace();
   const [exam, setExam] = useState<ExamSessionView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -595,5 +782,26 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
     : "loading", [exam]);
   if (loading) return <div className={styles.loading}><LoaderCircle className={styles.spin} /> Restoring immutable exam form…</div>;
   if (error || !exam) return <div className={styles.loadError}><AlertCircle size={24} /><h1>Exam unavailable</h1><p>{error}</p><Link className="button button-secondary" href="/exams">Return to exams</Link></div>;
-  return <ActiveExam key={stableKey} initialExam={exam} onRefresh={load} />;
+  if (namespace === null) {
+    if (TERMINAL_RECOVERY_STATUSES.has(exam.status)) {
+      return <ExamResultPanel exam={exam} onRefresh={load} />;
+    }
+    return (
+      <div className={styles.loadError}>
+        <AlertCircle size={24} />
+        <h1>Exam recovery unavailable</h1>
+        <p>Private browser recovery is not available for this authenticated exam. Editable controls remain disabled.</p>
+        <Link className="button button-secondary" href="/exams">Return to exams</Link>
+      </div>
+    );
+  }
+  return (
+    <ExamRepositoryBoundary
+      exam={exam}
+      key={stableKey}
+      namespace={namespace}
+      onRefresh={load}
+      onSession={setExam}
+    />
+  );
 }
