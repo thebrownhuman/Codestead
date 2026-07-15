@@ -108,38 +108,57 @@ write_success_marker() {
 }
 
 read_success_marker() {
-  local path="${1:-}" line_archive line_completed line_sha extra
-  local archive completed_utc sha256 marker_fd
+  local path="${1:-}" line_archive="" line_completed="" line_sha="" extra=""
+  local archive="" completed_utc="" sha256="" marker_fd snapshot_fd
+  local snapshot_dir="" snapshot="" parse_ok=0 cleanup_ok=1
 
   SUCCESS_ARCHIVE=""
   SUCCESS_COMPLETED_UTC=""
   SUCCESS_SHA256=""
 
   require_secure_regular_file "$path" 600 "$(id -u)" || return 1
-  exec {marker_fd}<"$path" || return 1
-  if ! IFS= read -r line_archive <&"$marker_fd" \
-    || ! IFS= read -r line_completed <&"$marker_fd" \
-    || ! IFS= read -r line_sha <&"$marker_fd"; then
-    exec {marker_fd}<&-
+  if ! { exec {marker_fd}<"$path"; } 2>/dev/null; then
     return 1
   fi
-  if IFS= read -r extra <&"$marker_fd"; then
+  snapshot_dir="$(mktemp -d -- "${TMPDIR:-/tmp}/.learncoding-marker-read.XXXXXX" 2>/dev/null)" || {
     exec {marker_fd}<&-
     return 1
+  }
+  snapshot="$snapshot_dir/marker"
+  chmod 0700 -- "$snapshot_dir" 2>/dev/null || cleanup_ok=0
+  if ((cleanup_ok)) \
+    && cat <&"$marker_fd" >"$snapshot" 2>/dev/null \
+    && chmod 0600 -- "$snapshot" 2>/dev/null; then
+    if ! { exec {snapshot_fd}<"$snapshot"; } 2>/dev/null; then
+      cleanup_ok=0
+    fi
+    if ((cleanup_ok)) \
+      && IFS= read -r line_archive <&"$snapshot_fd" \
+      && IFS= read -r line_completed <&"$snapshot_fd" \
+      && IFS= read -r line_sha <&"$snapshot_fd" \
+      && ! IFS= read -r extra <&"$snapshot_fd" \
+      && [[ "$line_archive" == SUCCESS_ARCHIVE=* ]] \
+      && [[ "$line_completed" == SUCCESS_COMPLETED_UTC=* ]] \
+      && [[ "$line_sha" == SUCCESS_SHA256=* ]]; then
+      archive="${line_archive#SUCCESS_ARCHIVE=}"
+      completed_utc="${line_completed#SUCCESS_COMPLETED_UTC=}"
+      sha256="${line_sha#SUCCESS_SHA256=}"
+      if _valid_success_marker_values "$archive" "$completed_utc" "$sha256" \
+        && cmp -s -- "$snapshot" <(printf '%s\n%s\n%s\n' \
+          "SUCCESS_ARCHIVE=$archive" \
+          "SUCCESS_COMPLETED_UTC=$completed_utc" \
+          "SUCCESS_SHA256=$sha256"); then
+        parse_ok=1
+      fi
+    fi
+    if ((cleanup_ok)); then
+      exec {snapshot_fd}<&-
+    fi
   fi
   exec {marker_fd}<&-
-
-  [[ "$line_archive" == SUCCESS_ARCHIVE=* ]] || return 1
-  [[ "$line_completed" == SUCCESS_COMPLETED_UTC=* ]] || return 1
-  [[ "$line_sha" == SUCCESS_SHA256=* ]] || return 1
-  archive="${line_archive#SUCCESS_ARCHIVE=}"
-  completed_utc="${line_completed#SUCCESS_COMPLETED_UTC=}"
-  sha256="${line_sha#SUCCESS_SHA256=}"
-  _valid_success_marker_values "$archive" "$completed_utc" "$sha256" || return 1
-  cmp -s -- "$path" <(printf '%s\n%s\n%s\n' \
-    "SUCCESS_ARCHIVE=$archive" \
-    "SUCCESS_COMPLETED_UTC=$completed_utc" \
-    "SUCCESS_SHA256=$sha256") || return 1
+  rm -f -- "$snapshot" 2>/dev/null || cleanup_ok=0
+  rmdir -- "$snapshot_dir" 2>/dev/null || cleanup_ok=0
+  ((parse_ok && cleanup_ok)) || return 1
 
   SUCCESS_ARCHIVE="$archive"
   SUCCESS_COMPLETED_UTC="$completed_utc"

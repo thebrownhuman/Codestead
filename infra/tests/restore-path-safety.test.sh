@@ -99,6 +99,13 @@ read_success_marker "$marker" || fail "valid success marker could not be read"
 [[ "$SUCCESS_ARCHIVE" == "$archive" ]] || fail "success marker archive did not round-trip"
 [[ "$SUCCESS_COMPLETED_UTC" == "$completed" ]] || fail "success marker completion did not round-trip"
 [[ "$SUCCESS_SHA256" == "$hash" ]] || fail "success marker hash did not round-trip"
+reader_stderr="$({
+  bash -Eeuo pipefail -c \
+    'source "$1"; read_success_marker "$2"; printf "marker-reader-stderr-ok\n" >&2' \
+    _ "$common" "$marker"
+} 2>&1 >/dev/null)"
+[[ "$reader_stderr" == "marker-reader-stderr-ok" ]] \
+  || fail "success-marker reader permanently redirected caller stderr"
 
 missing_parent_marker="$work/missing-parent/success.marker"
 if write_success_marker "$missing_parent_marker" "$archive" "$completed" "$hash"; then
@@ -203,8 +210,10 @@ expect_marker_read_failure "$work/crlf.marker" \
   "$valid_line_1"$'\r\n'"$valid_line_2"$'\r\n'"$valid_line_3"$'\r\n'
 expect_marker_read_failure "$work/no-final-newline.marker" \
   "$valid_line_1"$'\n'"$valid_line_2"$'\n'"$valid_line_3"
+injection_sentinel="$work/marker-injection-executed"
 expect_marker_read_failure "$work/injection.marker" \
-  'SUCCESS_ARCHIVE=$(touch /tmp/marker-injection)'$'\n'"$valid_line_2"$'\n'"$valid_line_3"$'\n'
+  "SUCCESS_ARCHIVE=\$(touch -- $injection_sentinel)"$'\n'"$valid_line_2"$'\n'"$valid_line_3"$'\n'
+[[ ! -e "$injection_sentinel" ]] || fail "success-marker parser executed injected shell content"
 printf '%s\0%s\n%s\n%s\n' \
   'SUCCESS_ARCHIVE=learncoding' '-full-20260714T010203Z.tar.gz.age' \
   "$valid_line_2" "$valid_line_3" \
@@ -228,13 +237,30 @@ fi
 replacement_archive="learncoding-full-20260714T020304Z.tar.gz.age"
 replacement_completed="20260714T020305Z"
 replacement_hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-write_success_marker "$marker" "$replacement_archive" "$replacement_completed" "$replacement_hash" \
-  || fail "existing success marker could not be atomically replaced"
-read_success_marker "$marker" || fail "replacement success marker could not be read"
-[[ "$SUCCESS_ARCHIVE" == "$replacement_archive" \
-  && "$SUCCESS_COMPLETED_UTC" == "$replacement_completed" \
-  && "$SUCCESS_SHA256" == "$replacement_hash" ]] \
-  || fail "success-marker replacement exposed an invalid state"
+replacement_marker="$work/replacement.marker"
+write_success_marker "$replacement_marker" "$replacement_archive" "$replacement_completed" "$replacement_hash" \
+  || fail "replacement success marker could not be prepared"
+replacement_triggered=0
+cmp() {
+  if ((replacement_triggered == 0)); then
+    replacement_triggered=1
+    mv -fT -- "$replacement_marker" "$marker"
+  fi
+  command cmp "$@"
+}
+if ! read_success_marker "$marker"; then
+  fail "valid atomic marker replacement caused a false read failure"
+fi
+unset -f cmp
+((replacement_triggered == 1)) || fail "atomic marker replacement regression did not trigger"
+observed_marker="$SUCCESS_ARCHIVE|$SUCCESS_COMPLETED_UTC|$SUCCESS_SHA256"
+old_marker="$archive|$completed|$hash"
+new_marker="$replacement_archive|$replacement_completed|$replacement_hash"
+[[ "$observed_marker" == "$old_marker" || "$observed_marker" == "$new_marker" ]] \
+  || fail "concurrent marker read observed a mixed or incomplete state"
+read_success_marker "$marker" || fail "atomically replaced success marker could not be read"
+[[ "$SUCCESS_ARCHIVE|$SUCCESS_COMPLETED_UTC|$SUCCESS_SHA256" == "$new_marker" ]] \
+  || fail "post-replacement success-marker read did not observe the complete new state"
 
 before_failure_hash="$(sha256sum "$marker" | awk '{print $1}')"
 fake_bin="$work/fake-bin"
