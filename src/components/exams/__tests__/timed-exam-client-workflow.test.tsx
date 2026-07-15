@@ -1,5 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { IDBFactory as FakeIDBFactory } from "fake-indexeddb";
+import {
+  IDBFactory as FakeIDBFactory,
+  IDBObjectStore as FakeIDBObjectStore,
+} from "fake-indexeddb";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -414,6 +417,295 @@ describe("timed exam client workflows", () => {
     expect(calls.some((url) => url.endsWith("/submit"))).toBe(true);
   });
 
+  it.each(["response headers", "response body"] as const)(
+    "bounds stalled final-submit %s and recovers authoritative status without resubmitting",
+    async (stalledPart) => {
+      vi.stubGlobal("indexedDB", new FakeIDBFactory());
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      let getCalls = 0;
+      let submitCalls = 0;
+      let submitSignal: AbortSignal | undefined;
+      vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === `/api/exams/${sessionId}`) {
+          getCalls += 1;
+          return Promise.resolve(json({ exam: activeExam() }));
+        }
+        if (url.endsWith("/events")) {
+          return Promise.resolve(json({ accepted: true, duplicate: false }));
+        }
+        if (url.endsWith("/submit")) {
+          submitCalls += 1;
+          submitSignal = init?.signal ?? undefined;
+          if (stalledPart === "response headers") return new Promise<Response>(() => undefined);
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => new Promise<unknown>(() => undefined),
+          } as Response);
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      }));
+      const user = userEvent.setup();
+      renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+      await screen.findByLabelText("Your response");
+      await user.click(screen.getByRole("button", { name: "Save & next" }));
+
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      expect(submitCalls).toBe(1);
+      expect(getCalls).toBe(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(9_999); });
+      expect(getCalls).toBe(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(submitSignal?.aborted).toBe(true);
+      expect(submitCalls).toBe(1);
+      expect(getCalls).toBe(2);
+      expect(screen.queryByRole("heading", { name: "mastered" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Submit final" })).toBeEnabled();
+    },
+  );
+
+  it("releases editing but fences resubmission while authoritative recovery GET stalls", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    let getCalls = 0;
+    let submitCalls = 0;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) {
+        getCalls += 1;
+        if (getCalls === 1) return Promise.resolve(json({ exam: activeExam() }));
+        return new Promise<Response>(() => undefined);
+      }
+      if (url.endsWith("/events")) return Promise.resolve(json({ accepted: true, duplicate: false }));
+      if (url.endsWith("/submit")) {
+        submitCalls += 1;
+        return new Promise<Response>(() => undefined);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await user.click(screen.getByRole("button", { name: "Save & next" }));
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getCalls).toBe(2);
+    expect(submitCalls).toBe(1);
+    expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
+    expect(screen.getByLabelText("Source code")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Submit final" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    expect(submitCalls).toBe(1);
+  });
+
+  it("keeps resubmission fenced when authoritative recovery GET fails", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    let getCalls = 0;
+    let submitCalls = 0;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) {
+        getCalls += 1;
+        return Promise.resolve(getCalls === 1
+          ? json({ exam: activeExam() })
+          : json({ error: "Authoritative status is unavailable." }, { status: 503 }));
+      }
+      if (url.endsWith("/events")) return Promise.resolve(json({ accepted: true, duplicate: false }));
+      if (url.endsWith("/submit")) {
+        submitCalls += 1;
+        return new Promise<Response>(() => undefined);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await user.click(screen.getByRole("button", { name: "Save & next" }));
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getCalls).toBe(2);
+    expect(submitCalls).toBe(1);
+    expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
+    expect(screen.getByLabelText("Source code")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Submit final" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    expect(submitCalls).toBe(1);
+  });
+
+  it("aborts owned final-submit work when the active exam unmounts", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    let submitSignal: AbortSignal | undefined;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return Promise.resolve(json({ exam: activeExam() }));
+      if (url.endsWith("/events")) return Promise.resolve(json({ accepted: true, duplicate: false }));
+      if (url.endsWith("/submit")) {
+        submitSignal = init?.signal ?? undefined;
+        return new Promise<Response>(() => undefined);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    const rendered = renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await user.click(screen.getByRole("button", { name: "Save & next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    expect(submitSignal?.aborted).toBe(false);
+    rendered.unmount();
+    expect(submitSignal?.aborted).toBe(true);
+  });
+
+  it("does not start final-submit work after unmount wins the flush continuation", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    let submitCalls = 0;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return Promise.resolve(json({ exam: activeExam() }));
+      if (url.endsWith("/events")) return Promise.resolve(json({ accepted: true, duplicate: false }));
+      if (url.endsWith("/submit")) {
+        submitCalls += 1;
+        return new Promise<Response>(() => undefined);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    const rendered = renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    fireEvent.click(screen.getByRole("button", { name: "Save & next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    rendered.unmount();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(submitCalls).toBe(0);
+  });
+
+  it.each([768, 1_100])("keeps durability copy in a live body status at the supported %ipx viewport", async (width) => {
+    vi.stubGlobal("innerWidth", width);
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveAttribute("aria-atomic", "true");
+    expect(status).toHaveTextContent("Saved to Codestead.");
+    expect(status.closest("main")).not.toBeNull();
+  });
+
+  it("contains and clears only its owned local-persistence failure notice after a replacement commits", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const originalPut = FakeIDBObjectStore.prototype.put;
+    let rejectedAnswerPut = false;
+    vi.spyOn(FakeIDBObjectStore.prototype, "put").mockImplementation(function put(
+      this: IDBObjectStore,
+      value,
+      key,
+    ) {
+      if (!rejectedAnswerPut && (value as { kind?: string }).kind === "exam-answer") {
+        rejectedAnswerPut = true;
+        throw new Error("private-indexeddb-detail: exam answer transaction aborted");
+      }
+      return Reflect.apply(originalPut, this, key === undefined ? [value] : [value, key]);
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      if (url.endsWith("/autosave")) {
+        return autosaveAck(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    const written = await screen.findByLabelText("Your response");
+    fireEvent.change(written, { target: { value: "first local attempt" } });
+    expect(await screen.findByText("This edit did not reach browser recovery. Try again or copy it before leaving.")).toBeInTheDocument();
+    expect(screen.queryByText(/private-indexeddb-detail/i)).not.toBeInTheDocument();
+
+    fireEvent.change(written, { target: { value: "replacement crossed local storage" } });
+    expect(await screen.findByText("Saved locally on this browser.")).toBeInTheDocument();
+    expect(screen.queryByText(/This edit did not reach browser recovery/i)).not.toBeInTheDocument();
+  });
+
+  it("clears its owned local-persistence notice after Retry now commits and synchronizes", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const originalPut = FakeIDBObjectStore.prototype.put;
+    let rejectedAnswerPut = false;
+    vi.spyOn(FakeIDBObjectStore.prototype, "put").mockImplementation(function put(
+      this: IDBObjectStore,
+      value,
+      key,
+    ) {
+      if (!rejectedAnswerPut && (value as { kind?: string }).kind === "exam-answer") {
+        rejectedAnswerPut = true;
+        throw new Error("private-indexeddb-detail: exam answer transaction aborted");
+      }
+      return Reflect.apply(originalPut, this, key === undefined ? [value] : [value, key]);
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      if (url.endsWith("/autosave")) {
+        return autosaveAck(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    const written = await screen.findByLabelText("Your response");
+    fireEvent.change(written, { target: { value: "retry this local write" } });
+    expect(await screen.findByText("This edit did not reach browser recovery. Try again or copy it before leaving.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry now" }));
+    expect(await screen.findByText("Saved to Codestead.")).toBeInTheDocument();
+    expect(screen.queryByText(/This edit did not reach browser recovery/i)).not.toBeInTheDocument();
+  });
+
   it.each([
     ["accepted beacon", true],
     ["declined beacon", false],
@@ -703,6 +995,118 @@ describe("timed exam client workflows", () => {
     expect(calls.some((url) => url.endsWith("/run"))).toBe(false);
   });
 
+  it("runs only the source snapshot covered by the completed synchronization barrier", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    const firstAutosave = deferred<Response>();
+    const autosaves: Array<Record<string, unknown>> = [];
+    const runs: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      if (url.endsWith("/autosave")) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        autosaves.push(body);
+        if (autosaves.length === 1) return firstAutosave.promise;
+        return autosaveAck(body);
+      }
+      if (url.endsWith("/run")) {
+        runs.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return json({ result: runnerResult() });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await user.click(screen.getByRole("button", { name: /Code challenge/i }));
+    const source = screen.getByLabelText("Source code");
+    fireEvent.change(source, { target: { value: "print('synchronized A')" } });
+    fireEvent.click(screen.getByRole("button", { name: "Compile" }));
+    await waitFor(() => expect(autosaves).toHaveLength(1));
+
+    expect.soft(source).toBeDisabled();
+    expect.soft(screen.getByRole("button", { name: "Reset" })).toBeDisabled();
+    expect.soft(screen.getByLabelText("Standard input (optional)")).toBeDisabled();
+    expect.soft(screen.getByRole("button", { name: /Explain the trace/i })).toBeDisabled();
+    await user.type(source, "print('unsynchronized B')");
+    expect.soft(source).toHaveValue("print('synchronized A')");
+
+    await act(async () => {
+      firstAutosave.resolve(autosaveAck(autosaves[0]!));
+    });
+    await waitFor(() => expect(runs).toHaveLength(1));
+    const synchronizedSource = (autosaves.at(-1)?.answer as { sourceCode?: string }).sourceCode;
+    expect(runs[0]?.sourceCode).toBe(synchronizedSource);
+  });
+
+  it("reopens exam controls after synchronization while runner response headers are stalled", async () => {
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    let runCalls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return json({ exam: activeExam() });
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      if (url.endsWith("/run")) {
+        runCalls += 1;
+        return new Promise<Response>(() => undefined);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await user.click(screen.getByRole("button", { name: /Code challenge/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Compile" }));
+    await waitFor(() => expect(runCalls).toBe(1));
+
+    expect(screen.getByLabelText("Source code")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reset" })).toBeEnabled();
+    expect(screen.getByLabelText("Standard input (optional)")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Submit final" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Compile" })).toBeDisabled();
+  });
+
+  it("does not start a runner request when the deadline wins the post-sync continuation", async () => {
+    const now = new Date("2026-07-15T10:00:00.000Z");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now);
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    let runCalls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) {
+        return json({
+          exam: activeExam({
+            serverNow: now.toISOString(),
+            serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+          }),
+        });
+      }
+      if (url.endsWith("/events")) return json({ accepted: true, duplicate: false });
+      if (url.endsWith("/run")) {
+        runCalls += 1;
+        return json({ result: runnerResult() });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    await screen.findByLabelText("Your response");
+    await user.click(screen.getByRole("button", { name: /Code challenge/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Compile" }));
+    vi.setSystemTime(new Date(now.getTime() + 1_000));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(runCalls).toBe(0);
+  });
+
   it("purges only exact terminal recovery before rendering the result", async () => {
     const factory = new FakeIDBFactory();
     vi.stubGlobal("indexedDB", factory);
@@ -888,6 +1292,54 @@ describe("timed exam client workflows", () => {
     renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
     expect(await screen.findByText("00:00")).toBeInTheDocument();
     expect(await screen.findByText(/server deadline still applies/i, {}, { timeout: 2_000 })).toBeInTheDocument();
+  });
+
+  it("retries deadline finalization after a pending manual flush loses the deadline race", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    const now = new Date("2026-07-15T10:00:00.000Z");
+    vi.setSystemTime(now);
+    vi.stubGlobal("indexedDB", new FakeIDBFactory());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const autosave = deferred<Response>();
+    let autosaveCalls = 0;
+    let submitCalls = 0;
+    const expiring = activeExam({
+      serverNow: now.toISOString(),
+      serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+    });
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `/api/exams/${sessionId}`) return Promise.resolve(json({ exam: expiring }));
+      if (url.endsWith("/events")) return Promise.resolve(json({ accepted: true, duplicate: false }));
+      if (url.endsWith("/autosave")) {
+        autosaveCalls += 1;
+        return autosave.promise;
+      }
+      if (url.endsWith("/submit")) {
+        submitCalls += 1;
+        return new Promise<Response>(() => undefined);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    renderWithNamespace(<TimedExamClient sessionId={sessionId} />);
+    fireEvent.change(await screen.findByLabelText("Your response"), {
+      target: { value: "manual flush still pending" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save & next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    await waitFor(() => expect(autosaveCalls).toBe(1));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await act(async () => {
+      autosave.resolve(json({ error: "deadline" }, { status: 503 }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(submitCalls).toBe(0);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(submitCalls).toBe(1);
   });
 
   it("shows pending deterministic review details and submits an appeal", async () => {

@@ -64,6 +64,40 @@ const TERMINAL_RECOVERY_STATUSES = new Set<ExamSessionView["status"]>([
   "invalidated",
 ]);
 
+const FINAL_SUBMIT_TIMEOUT_MS = 10_000;
+
+function abortableSubmitStep<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new Error("Submission could not be confirmed."));
+  return new Promise<T>((resolve, reject) => {
+    const aborted = () => reject(new Error("Submission could not be confirmed."));
+    signal.addEventListener("abort", aborted, { once: true });
+    operation.then(
+      (value) => {
+        signal.removeEventListener("abort", aborted);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", aborted);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function boundedFinalSubmit(sessionId: string, controller: AbortController) {
+  const timeout = setTimeout(() => controller.abort(), FINAL_SUBMIT_TIMEOUT_MS);
+  try {
+    const response = await abortableSubmitStep(fetch(`/api/exams/${sessionId}/submit`, {
+      method: "POST",
+      signal: controller.signal,
+    }), controller.signal);
+    const body = await abortableSubmitStep(response.json() as Promise<unknown>, controller.signal);
+    return { response, body };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function responseField(body: unknown, field: "exam" | "error"): unknown {
   return typeof body === "object" && body !== null && !Array.isArray(body)
     ? (body as Record<string, unknown>)[field]
@@ -89,7 +123,7 @@ function appealStatusCopy(appeal: NonNullable<ExamSessionView["appeal"]>): strin
   return "Appeal pending human review";
 }
 
-function ExamResultPanel({ exam, onRefresh }: { exam: ExamSessionView; onRefresh: () => Promise<void> }) {
+function ExamResultPanel({ exam, onRefresh }: { exam: ExamSessionView; onRefresh: () => Promise<boolean> }) {
   const result = exam.result;
   const [appealOpen, setAppealOpen] = useState(false);
   const [category, setCategory] = useState<"scoring" | "technical" | "integrity" | "accessibility">("scoring");
@@ -264,7 +298,7 @@ function ActiveExam({
 }: {
   exam: ExamSessionView;
   outbox: DurableOutbox;
-  onRefresh: () => Promise<void>;
+  onRefresh: () => Promise<boolean>;
   onSession: (exam: ExamSessionView) => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -275,15 +309,25 @@ function ActiveExam({
   ));
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
+  const [submitRecoveryPending, setSubmitRecoveryPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [localPersistenceNotice, setLocalPersistenceNotice] = useState<{
+    itemId: string;
+    sequence: number;
+    message: string;
+  } | null>(null);
   const [runState, setRunState] = useState<Record<string, { busy: boolean; label?: string; output?: string }>>({});
+  const [runSyncInProgress, setRunSyncInProgress] = useState(false);
   const [stdin, setStdin] = useState<Record<string, string>>({});
   const clockOffsetRef = useRef(serverClockOffsetMs(exam.serverNow, Date.now()));
   const expiryStartedRef = useRef(false);
+  const answerWriteSequenceRef = useRef(new Map<string, number>());
+  const submitAbortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
   const activeItem = exam.form.items[activeIndex]!;
   const conflict = outbox.conflicts[activeItem.id];
   const resolvingConflict = outbox.resolvingConflicts[activeItem.id] === true;
-  const controlsClosed = submitting || remaining === 0;
+  const controlsClosed = submitting || runSyncInProgress || remaining === 0;
   const recordOutboxEvent = outbox.recordEvent;
   const updateOutboxAnswer = outbox.updateAnswer;
   const flushOutbox = outbox.flush;
@@ -298,14 +342,36 @@ function ActiveExam({
   }, [recordOutboxEvent]);
 
   const updateAnswer = useCallback((itemId: string, value: string) => {
-    void updateOutboxAnswer(itemId, value).catch((error) => {
-      setNotice(error instanceof Error ? error.message : "The answer could not be saved on this browser.");
+    const sequence = (answerWriteSequenceRef.current.get(itemId) ?? 0) + 1;
+    answerWriteSequenceRef.current.set(itemId, sequence);
+    void updateOutboxAnswer(itemId, value).then(() => {
+      if (!mountedRef.current || answerWriteSequenceRef.current.get(itemId) !== sequence) return;
+      setLocalPersistenceNotice((current) => current?.itemId === itemId
+        && current.sequence < sequence
+        ? null
+        : current);
+    }).catch(() => {
+      if (!mountedRef.current || answerWriteSequenceRef.current.get(itemId) !== sequence) return;
+      setLocalPersistenceNotice({
+        itemId,
+        sequence,
+        message: "This edit did not reach browser recovery. Try again or copy it before leaving.",
+      });
     });
   }, [updateOutboxAnswer]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      submitAbortControllerRef.current?.abort();
+    };
+  }, []);
 
   const submit = useCallback(async (deadline: boolean) => {
     if (
       submitting
+      || submitRecoveryPending
       || (!deadline && !window.confirm("Submit this exam? You cannot change answers afterward."))
     ) return;
     setSubmitting(true);
@@ -316,14 +382,17 @@ function ActiveExam({
       try {
         await flushOutbox();
       } catch {
+        if (!mountedRef.current) return;
         setNotice("Submission was not confirmed. Your answer remains saved locally when browser recovery succeeded; Codestead must acknowledge it before submission.");
         setSubmitting(false);
         return;
       }
     }
+    if (!mountedRef.current) return;
+    const submitController = new AbortController();
+    submitAbortControllerRef.current = submitController;
     try {
-      const response = await fetch(`/api/exams/${exam.sessionId}/submit`, { method: "POST" });
-      const body: unknown = await response.json();
+      const { response, body } = await boundedFinalSubmit(exam.sessionId, submitController);
       const submittedExam = responseField(body, "exam");
       if (
         !response.ok
@@ -335,14 +404,21 @@ function ActiveExam({
       onSession(submittedExam);
       void onRefresh();
     } catch (error) {
+      if (!mountedRef.current) return;
       setNotice(deadline
         ? "You appear offline. The server deadline still applies and will finalize the latest autosave when contact resumes."
         : error instanceof Error ? error.message : "Submission could not be confirmed.");
-      await onRefresh().catch(() => undefined);
+      setSubmitRecoveryPending(true);
+      void onRefresh().then((active) => {
+        if (mountedRef.current && active) setSubmitRecoveryPending(false);
+      }).catch(() => undefined);
     } finally {
-      setSubmitting(false);
+      if (submitAbortControllerRef.current === submitController) {
+        submitAbortControllerRef.current = null;
+      }
+      if (mountedRef.current) setSubmitting(false);
     }
-  }, [exam.sessionId, flushOutbox, onRefresh, onSession, purgeOutbox, submitting]);
+  }, [exam.sessionId, flushOutbox, onRefresh, onSession, purgeOutbox, submitRecoveryPending, submitting]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -352,13 +428,18 @@ function ActiveExam({
         clockOffsetRef.current,
       );
       setRemaining(seconds);
-      if (seconds === 0 && !expiryStartedRef.current) {
+      if (
+        seconds === 0
+        && !expiryStartedRef.current
+        && !submitting
+        && !submitRecoveryPending
+      ) {
         expiryStartedRef.current = true;
         void submit(true);
       }
     }, 500);
     return () => clearInterval(interval);
-  }, [exam.serverDeadlineAt, submit]);
+  }, [exam.serverDeadlineAt, submit, submitRecoveryPending, submitting]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -436,17 +517,40 @@ function ActiveExam({
   }, [exam.sessionId, logEvent, prepareUnloadEvent]);
 
   async function execute(mode: "COMPILE" | "RUN") {
-    if (activeItem.kind !== "code" || controlsClosed) return;
-    setRunState((current) => ({ ...current, [activeItem.id]: { busy: true, label: mode } }));
+    if (activeItem.kind !== "code" || controlsClosed || runState[activeItem.id]?.busy) return;
+    const itemId = activeItem.id;
+    const sourceCode = outbox.answers[itemId] ?? "";
+    const standardInput = stdin[itemId] ?? "";
+    setRunState((current) => ({ ...current, [itemId]: { busy: true, label: mode } }));
+    setRunSyncInProgress(true);
     try {
       await outbox.flush();
     } catch {
+      if (!mountedRef.current) return;
       setRunState((current) => ({
         ...current,
-        [activeItem.id]: {
+        [itemId]: {
           busy: false,
           label: "NOT_SYNCHRONIZED",
           output: "Codestead could not synchronize the answer. Retry before running or compiling.",
+        },
+      }));
+      return;
+    } finally {
+      if (mountedRef.current) setRunSyncInProgress(false);
+    }
+    if (!mountedRef.current) return;
+    if (remainingExamSeconds(
+      exam.serverDeadlineAt,
+      Date.now(),
+      clockOffsetRef.current,
+    ) === 0) {
+      setRunState((current) => ({
+        ...current,
+        [itemId]: {
+          busy: false,
+          label: "DEADLINE_CLOSED",
+          output: "The server deadline closed runner admission after synchronization.",
         },
       }));
       return;
@@ -456,27 +560,29 @@ function ActiveExam({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          itemId: activeItem.id,
-          sourceCode: outbox.answers[activeItem.id] ?? "",
-          stdin: stdin[activeItem.id] ?? "",
+          itemId,
+          sourceCode,
+          stdin: standardInput,
           mode,
           clientRequestId: crypto.randomUUID(),
         }),
       });
       const body = await response.json() as { result?: ExamRunnerResult; error?: string };
       if (!response.ok || !body.result) throw new Error(body.error ?? "Runner did not return a result.");
+      if (!mountedRef.current) return;
       setRunState((current) => ({
         ...current,
-        [activeItem.id]: {
+        [itemId]: {
           busy: false,
           label: body.result!.status,
           output: sourceOutput(body.result!),
         },
       }));
     } catch (error) {
+      if (!mountedRef.current) return;
       setRunState((current) => ({
         ...current,
-        [activeItem.id]: {
+        [itemId]: {
           busy: false,
           label: "INFRASTRUCTURE_ERROR",
           output: error instanceof Error ? error.message : "Runner unavailable.",
@@ -487,9 +593,17 @@ function ActiveExam({
 
   async function retryAnswers() {
     setNotice(null);
+    const ownedNotice = localPersistenceNotice;
     try {
       await outbox.flush();
+      if (!mountedRef.current) return;
+      setLocalPersistenceNotice((current) => ownedNotice !== null
+        && current?.itemId === ownedNotice.itemId
+        && current.sequence === ownedNotice.sequence
+        ? null
+        : current);
     } catch {
+      if (!mountedRef.current) return;
       setNotice("Codestead still could not acknowledge every locally saved answer.");
     }
   }
@@ -514,7 +628,6 @@ function ActiveExam({
         <div className={styles.examIdentity}><span>{exam.form.purpose === "mastery-recheck" ? "Targeted mastery recheck" : exam.form.courseTitle}</span><strong>{exam.form.moduleTitle}</strong></div>
         <div className={`${styles.timer} ${remaining <= 60 ? styles.timerUrgent : ""}`} aria-live="polite"><Clock3 size={18} /><span><small>Server time left</small><strong>{timerLabel(remaining)}</strong></span></div>
         <div className={styles.connection}>{online ? <Wifi size={16} /> : <WifiOff size={16} />}<span>{online ? "Connected" : "Offline"}</span></div>
-        <div className={styles.saveState} data-state={outbox.saveState}><Save size={15} /> {SAVE_STATE_COPY[outbox.saveState]}</div>
       </header>
       <div className={styles.examBody}>
         <aside className={styles.questionNav}>
@@ -539,6 +652,16 @@ function ActiveExam({
           <div className={styles.noAssistance}><ShieldCheck size={16} /><span><strong>Independent mode</strong><small>Tutor and notes are unavailable.</small></span></div>
         </aside>
         <main className={styles.questionArea}>
+          <div
+            aria-atomic="true"
+            aria-live="polite"
+            className={styles.questionTopline}
+            data-durability-status="true"
+            data-state={outbox.saveState}
+            role="status"
+          >
+            <Save size={15} /> <span>{SAVE_STATE_COPY[outbox.saveState]}</span>
+          </div>
           <div className={styles.questionTopline}><span>Question {activeIndex + 1} of {exam.form.items.length}</span><i>{activeItem.points} points</i><i>{activeItem.verificationAvailable ? "Deterministic evidence" : "Review required"}</i></div>
           <h1>{activeItem.title}</h1>
           <p className={styles.questionPrompt}>{activeItem.prompt}</p>
@@ -590,6 +713,7 @@ function ActiveExam({
             </div>
           )}
           {outbox.issue && <div className={styles.workspaceNotice} role="alert"><AlertCircle size={17} /> {outbox.issue.message}</div>}
+          {localPersistenceNotice && <div className={styles.workspaceNotice} role="status"><AlertCircle size={17} /> {localPersistenceNotice.message}</div>}
           {notice && <div className={styles.workspaceNotice} role="status"><AlertCircle size={17} /> {notice}</div>}
           {(outbox.saveState === "local-save-error" || outbox.saveState === "offline-saved-local") && (
             <button className="button button-secondary" type="button" disabled={controlsClosed} onClick={() => void retryAnswers()}>Retry now</button>
@@ -598,7 +722,7 @@ function ActiveExam({
             <button className="button button-secondary" disabled={controlsClosed || activeIndex === 0} onClick={() => setActiveIndex((value) => Math.max(0, value - 1))}>Previous</button>
             {activeIndex < exam.form.items.length - 1
               ? <button className="button button-primary" disabled={controlsClosed} onClick={() => setActiveIndex((value) => value + 1)}>Save & next</button>
-              : <button className="button button-primary" disabled={controlsClosed} onClick={() => void submit(false)}>{submitting ? <LoaderCircle className={styles.spin} size={16} /> : <Send size={16} />} Submit final</button>}
+              : <button className="button button-primary" disabled={controlsClosed || submitRecoveryPending} onClick={() => void submit(false)}>{submitting ? <LoaderCircle className={styles.spin} size={16} /> : <Send size={16} />} Submit final</button>}
           </footer>
         </main>
       </div>
@@ -616,7 +740,7 @@ function DurableExam({
   exam: ExamSessionView;
   namespace: string;
   repository: BrowserOutboxRepository;
-  onRefresh: () => Promise<void>;
+  onRefresh: () => Promise<boolean>;
   onSession: (exam: ExamSessionView) => void;
 }) {
   const outbox = useDurableExamOutbox({ namespace, session: exam, repository });
@@ -695,7 +819,7 @@ function ExamRepositoryBoundary({
 }: {
   exam: ExamSessionView;
   namespace: string;
-  onRefresh: () => Promise<void>;
+  onRefresh: () => Promise<boolean>;
   onSession: (exam: ExamSessionView) => void;
 }) {
   const [repository, setRepository] = useState<BrowserOutboxRepository | null>(null);
@@ -753,6 +877,12 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
   const [exam, setExam] = useState<ExamSessionView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedExamRef = useRef<ExamSessionView | null>(null);
+
+  const acceptExam = useCallback((nextExam: ExamSessionView) => {
+    loadedExamRef.current = nextExam;
+    setExam(nextExam);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -762,14 +892,18 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
       if (!response.ok || !isExamSessionView(loadedExam, sessionId)) {
         throw new Error(responseError(body, "Exam session could not be loaded."));
       }
-      setExam(loadedExam);
+      acceptExam(loadedExam);
       setError(null);
+      return loadedExam.status === "active";
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Exam session could not be loaded.");
+      if (loadedExamRef.current === null) {
+        setError(loadError instanceof Error ? loadError.message : "Exam session could not be loaded.");
+      }
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [acceptExam, sessionId]);
 
   useEffect(() => {
     const timeout = setTimeout(() => void load(), 0);
@@ -799,7 +933,7 @@ export function TimedExamClient({ sessionId }: { sessionId: string }) {
       key={stableKey}
       namespace={namespace}
       onRefresh={load}
-      onSession={setExam}
+      onSession={acceptExam}
     />
   );
 }

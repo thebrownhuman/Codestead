@@ -391,6 +391,41 @@ describe("useDurableExamOutbox", () => {
     expect(result.current.saveState).not.toBe("server-saved");
   });
 
+  it("stops advertising retry after a retryable response becomes a hard protocol outcome", async () => {
+    vi.useFakeTimers();
+    let requests = 0;
+    const fetchMock = vi.fn(async () => {
+      requests += 1;
+      if (requests === 1) return json({ code: "TEMPORARY_FAILURE" }, { status: 503 });
+      return new Response("{not-json", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(() => result.current.updateAnswer("written-1", "retry then stop"));
+
+    await act(async () => {
+      await result.current.flush().catch(() => undefined);
+    });
+    expect(result.current.saveState).toBe("offline-saved-local");
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.issue).toMatchObject({ kind: "protocol", itemId: "written-1" });
+    expect(result.current.saveState).toBe("saved-local");
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps a hard answer issue prominent when an independent event write fails", async () => {
     const fetchMock = vi.fn(async () => new Response("{not-json", {
       status: 200,
@@ -503,6 +538,301 @@ describe("useDurableExamOutbox", () => {
     expect(harness.answers.size).toBe(0);
   });
 
+  it("does not let A's delayed B rebase replace durable C", async () => {
+    const firstResponse = deferred<Response>();
+    const secondResponse = deferred<Response>();
+    const staleReread = deferred<void>();
+    const staleRereadStarted = deferred<void>();
+    let delayReread = false;
+    const sent: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      sent.push(body);
+      return sent.length === 1 ? firstResponse.promise : secondResponse.promise;
+    }));
+    const harness = repositoryHarness();
+    const repository = {
+      ...harness.repository,
+      async listExamAnswers(recordNamespace: string, recordSessionId: string) {
+        const snapshot = await harness.repository.listExamAnswers(recordNamespace, recordSessionId);
+        if (delayReread) {
+          staleRereadStarted.resolve(undefined);
+          await staleReread.promise;
+        }
+        return snapshot;
+      },
+    } satisfies BrowserOutboxRepository;
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush(); });
+    await waitFor(() => expect(sent).toHaveLength(1));
+    await act(() => result.current.updateAnswer("written-1", "B"));
+
+    delayReread = true;
+    await act(async () => {
+      firstResponse.resolve(autosaveAcknowledgement(sent[0]!));
+      await staleRereadStarted.promise;
+    });
+    await act(() => result.current.updateAnswer("written-1", "C"));
+    const durableC = [...harness.answers.values()][0]!;
+    expect(durableC.payload.answer).toBe("C");
+
+    await act(async () => {
+      delayReread = false;
+      staleReread.resolve(undefined);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toMatchObject({
+      clientMutationId: durableC.clientMutationId,
+      answer: { text: "C" },
+    });
+    expect(harness.answers.get(durableC.storageKey)).toEqual(durableC);
+
+    await act(async () => {
+      secondResponse.resolve(autosaveAcknowledgement(sent[1]!));
+      await flush;
+    });
+    expect(sent).toHaveLength(2);
+    expect(harness.answers.size).toBe(0);
+  });
+
+  it("presents durable B when A returns a conflict after B commits", async () => {
+    const firstResponse = deferred<Response>();
+    const sent: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      sent.push(body);
+      if (sent.length === 1) return firstResponse.promise;
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush(); });
+    await waitFor(() => expect(sent).toHaveLength(1));
+    await act(() => result.current.updateAnswer("written-1", "B"));
+    const durableB = [...harness.answers.values()][0]!;
+
+    await act(async () => {
+      firstResponse.resolve(json({
+        code: "AUTOSAVE_REVISION_CONFLICT",
+        currentRevision: 5,
+        currentAnswer: { text: "authoritative server value" },
+        currentSavedAt: new Date().toISOString(),
+      }, { status: 409 }));
+      await flush.catch(() => undefined);
+    });
+
+    expect(result.current.conflicts["written-1"]).toMatchObject({
+      clientMutationId: durableB.clientMutationId,
+      localAnswer: "B",
+      serverAnswer: "authoritative server value",
+      serverRevision: 5,
+    });
+    expect(result.current.conflicts["written-1"]?.clientMutationId).not.toBe(sent[0]?.clientMutationId);
+    expect(harness.answers.get(durableB.storageKey)).toEqual(durableB);
+    expect(sent).toHaveLength(1);
+  });
+
+  it("reconciles an A conflict when pending B becomes durable after the response", async () => {
+    const firstResponse = deferred<Response>();
+    const bPut = deferred<void>();
+    const bPutStarted = deferred<void>();
+    const sent: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      sent.push(body);
+      if (sent.length === 1) return firstResponse.promise;
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    const repository = {
+      ...harness.repository,
+      async putExamAnswer(record: ExamAnswerOutboxRecord) {
+        if (record.payload.answer === "B") {
+          bPutStarted.resolve(undefined);
+          await bPut.promise;
+        }
+        await harness.repository.putExamAnswer(record);
+      },
+    } satisfies BrowserOutboxRepository;
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush(); });
+    await waitFor(() => expect(sent).toHaveLength(1));
+    let updateB!: Promise<void>;
+    act(() => { updateB = result.current.updateAnswer("written-1", "B"); });
+    await bPutStarted.promise;
+
+    await act(async () => {
+      firstResponse.resolve(json({
+        code: "AUTOSAVE_REVISION_CONFLICT",
+        currentRevision: 5,
+        currentAnswer: { text: "authoritative server value" },
+        currentSavedAt: new Date().toISOString(),
+      }, { status: 409 }));
+      await flush.catch(() => undefined);
+    });
+    expect(result.current.conflicts["written-1"]).toMatchObject({
+      localAnswer: "A",
+    });
+
+    await act(async () => {
+      bPut.resolve(undefined);
+      await updateB;
+    });
+    const durableB = [...harness.answers.values()][0]!;
+    expect(result.current.conflicts["written-1"]).toMatchObject({
+      clientMutationId: durableB.clientMutationId,
+      localAnswer: "B",
+      serverAnswer: "authoritative server value",
+      serverRevision: 5,
+    });
+    expect(sent).toHaveLength(1);
+  });
+
+  it("does not retain A's stale hard issue after durable B is acknowledged", async () => {
+    const firstResponse = deferred<Response>();
+    const secondResponse = deferred<Response>();
+    const sent: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      sent.push(body);
+      if (sent.length === 1) return firstResponse.promise;
+      return secondResponse.promise;
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush(); });
+    await waitFor(() => expect(sent).toHaveLength(1));
+    await act(() => result.current.updateAnswer("written-1", "B"));
+
+    act(() => {
+      firstResponse.resolve(new Response("{not-json", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }));
+    });
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(result.current.issue).toBeNull();
+    await act(async () => {
+      secondResponse.resolve(autosaveAcknowledgement(sent[1]!));
+      await flush;
+    });
+
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toMatchObject({ answer: { text: "B" } });
+    expect(harness.answers.size).toBe(0);
+    expect(result.current.saveState).toBe("server-saved");
+    expect(result.current.issue).toBeNull();
+  });
+
+  it("retires an immutable answer body only after acknowledgement cleanup completes", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(firstMutationId);
+    const bodies: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+      return autosaveAcknowledgement(JSON.parse(bodies.at(-1)!) as Record<string, unknown>);
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.updateAnswer("written-1", "first acknowledged value"));
+    await act(() => result.current.flush());
+    await act(() => result.current.updateAnswer("written-1", "second acknowledged value"));
+    await act(() => result.current.flush());
+
+    expect(bodies).toHaveLength(2);
+    expect(JSON.parse(bodies[0]!) as Record<string, unknown>).toMatchObject({
+      clientMutationId: firstMutationId,
+      answer: { text: "first acknowledged value" },
+    });
+    expect(JSON.parse(bodies[1]!) as Record<string, unknown>).toMatchObject({
+      clientMutationId: firstMutationId,
+      answer: { text: "second acknowledged value" },
+    });
+    expect(result.current.issue).toBeNull();
+    expect(result.current.saveState).toBe("server-saved");
+  });
+
+  it("retires a hard mutation body only after its durable replacement commits", async () => {
+    const secondMutationId = "30000000-0000-4000-8000-000000000002";
+    vi.spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValueOnce(secondMutationId)
+      .mockReturnValue(firstMutationId);
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      bodies.push(body);
+      if (bodies.length === 1) {
+        return new Response("{not-json", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.updateAnswer("written-1", "hard A"));
+    await act(async () => { await result.current.flush().catch(() => undefined); });
+    expect(result.current.issue?.kind).toBe("protocol");
+    await act(() => result.current.updateAnswer("written-1", "durable B"));
+    await act(() => result.current.flush());
+    await act(() => result.current.updateAnswer("written-1", "fresh C reusing A's id"));
+    await act(() => result.current.flush());
+
+    expect(bodies).toHaveLength(3);
+    expect(bodies[2]).toMatchObject({
+      clientMutationId: firstMutationId,
+      answer: { text: "fresh C reusing A's id" },
+    });
+    expect(result.current.saveState).toBe("server-saved");
+    expect(result.current.issue).toBeNull();
+  });
+
   it("reports lost local durability without blind replay when compare-delete is false and reread is null", async () => {
     vi.useFakeTimers();
     let missingAfterCompare = false;
@@ -585,6 +915,200 @@ describe("useDurableExamOutbox", () => {
     expect(bodies[1]).toBe(bodies[0]);
   });
 
+  it("retries acknowledged A cleanup and rebase before sending durable B", async () => {
+    vi.useFakeTimers();
+    const firstResponse = deferred<Response>();
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      bodies.push(body);
+      if (bodies.length === 1) return firstResponse.promise;
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    let rejectedFirstRebase = false;
+    const repository = {
+      ...harness.repository,
+      async putExamAnswer(record: ExamAnswerOutboxRecord) {
+        if (
+          !rejectedFirstRebase
+          && record.payload.answer === "B"
+          && record.payload.baseRevision === 3
+        ) {
+          rejectedFirstRebase = true;
+          throw new Error("rebase transaction aborted");
+        }
+        await harness.repository.putExamAnswer(record);
+      },
+    } satisfies BrowserOutboxRepository;
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository,
+    }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush(); });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(bodies).toHaveLength(1);
+    await act(() => result.current.updateAnswer("written-1", "B"));
+    const durableB = [...harness.answers.values()][0]!;
+    expect(durableB.payload.baseRevision).toBe(2);
+
+    await act(async () => {
+      firstResponse.resolve(autosaveAcknowledgement(bodies[0]!));
+      await flush.catch(() => undefined);
+    });
+    expect(rejectedFirstRebase).toBe(true);
+    expect(bodies).toHaveLength(1);
+    expect(result.current.saveState).toBe("offline-saved-local");
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toMatchObject({
+      clientMutationId: durableB.clientMutationId,
+      baseRevision: 3,
+      answer: { text: "B" },
+    });
+    expect(harness.putAnswers.at(-1)).toMatchObject({
+      clientMutationId: durableB.clientMutationId,
+      payload: { answer: "B", baseRevision: 3 },
+    });
+    expect(result.current.saveState).toBe("server-saved");
+  });
+
+  it("keeps B locally durable and retries its local rebase when the second put rejects", async () => {
+    vi.useFakeTimers();
+    const firstResponse = deferred<Response>();
+    const firstBPut = deferred<void>();
+    const firstBPutStarted = deferred<void>();
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      bodies.push(body);
+      if (bodies.length === 1) return firstResponse.promise;
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    let rejectSecondBPut = true;
+    const repository = {
+      ...harness.repository,
+      async putExamAnswer(record: ExamAnswerOutboxRecord) {
+        if (record.payload.answer === "B" && record.payload.baseRevision === 2) {
+          firstBPutStarted.resolve(undefined);
+          await firstBPut.promise;
+        }
+        if (
+          record.payload.answer === "B"
+          && record.payload.baseRevision === 3
+          && rejectSecondBPut
+        ) {
+          rejectSecondBPut = false;
+          throw new Error("second rebase put aborted");
+        }
+        await harness.repository.putExamAnswer(record);
+      },
+    } satisfies BrowserOutboxRepository;
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository,
+    }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush().catch(() => undefined); });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(bodies).toHaveLength(1);
+    let updateB!: Promise<void>;
+    act(() => { updateB = result.current.updateAnswer("written-1", "B"); });
+    await firstBPutStarted.promise;
+    await act(async () => {
+      firstResponse.resolve(autosaveAcknowledgement(bodies[0]!));
+      await flush;
+    });
+
+    let updateError: unknown;
+    await act(async () => {
+      firstBPut.resolve(undefined);
+      await updateB.catch((error: unknown) => { updateError = error; });
+    });
+    expect(updateError).toBeUndefined();
+    expect([...harness.answers.values()][0]).toMatchObject({
+      payload: { answer: "B", baseRevision: 2 },
+    });
+    expect(result.current.saveState).toBe("offline-saved-local");
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toMatchObject({ baseRevision: 3, answer: { text: "B" } });
+    expect(result.current.saveState).toBe("server-saved");
+  });
+
+  it("keeps the first B put truthful when the deadline closes its required second rebase put", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-07-15T10:00:00.000Z");
+    vi.setSystemTime(now);
+    const firstResponse = deferred<Response>();
+    const firstBPut = deferred<void>();
+    const firstBPutStarted = deferred<void>();
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      bodies.push(body);
+      return firstResponse.promise;
+    }));
+    const harness = repositoryHarness();
+    const repository = {
+      ...harness.repository,
+      async putExamAnswer(record: ExamAnswerOutboxRecord) {
+        if (record.payload.answer === "B" && record.payload.baseRevision === 2) {
+          firstBPutStarted.resolve(undefined);
+          await firstBPut.promise;
+        }
+        await harness.repository.putExamAnswer(record);
+      },
+    } satisfies BrowserOutboxRepository;
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession({
+        serverNow: now.toISOString(),
+        serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+      }),
+      repository,
+    }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush().catch(() => undefined); });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(bodies).toHaveLength(1);
+    let updateB!: Promise<void>;
+    act(() => { updateB = result.current.updateAnswer("written-1", "B"); });
+    await firstBPutStarted.promise;
+    await act(async () => {
+      firstResponse.resolve(autosaveAcknowledgement(bodies[0]!));
+      await flush;
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+
+    let updateError: unknown;
+    await act(async () => {
+      firstBPut.resolve(undefined);
+      await updateB.catch((error: unknown) => { updateError = error; });
+    });
+    expect(updateError).toBeUndefined();
+    expect([...harness.answers.values()][0]).toMatchObject({
+      payload: { answer: "B", baseRevision: 2 },
+    });
+    expect(result.current.saveState).toBe("saved-local");
+    expect(bodies).toHaveLength(1);
+  });
+
   it("exposes a validated conflict and keeps the recovered value under a new persisted identity", async () => {
     const sent: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -654,6 +1178,322 @@ describe("useDurableExamOutbox", () => {
     await act(() => result.current.resolveConflict("written-1", "use-server"));
     expect(result.current.answers["written-1"]).toBe("server selected");
     expect(result.current.conflicts["written-1"]).toBeUndefined();
+    expect(result.current.saveState).toBe("server-saved");
+  });
+
+  it.each(["keep-local", "use-server"] as const)(
+    "finishes an admitted %s conflict choice when its storage mutation crosses the deadline",
+    async (choice) => {
+      vi.useFakeTimers();
+      const now = new Date("2026-07-15T10:00:00.000Z");
+      vi.setSystemTime(now);
+      const mutation = deferred<void>();
+      const mutationStarted = deferred<void>();
+      const bodies: Array<Record<string, unknown>> = [];
+      vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        bodies.push(body);
+        return json({
+          code: "AUTOSAVE_REVISION_CONFLICT",
+          currentRevision: 7,
+          currentAnswer: { text: "server deadline winner" },
+          currentSavedAt: null,
+        }, { status: 409 });
+      }));
+      const harness = repositoryHarness();
+      const repository = {
+        ...harness.repository,
+        async putExamAnswer(record: ExamAnswerOutboxRecord) {
+          if (choice === "keep-local" && record.payload.baseRevision === 7) {
+            mutationStarted.resolve(undefined);
+            await mutation.promise;
+          }
+          await harness.repository.putExamAnswer(record);
+        },
+        async deleteExamAnswerIfMutation(
+          recordNamespace: string,
+          recordSessionId: string,
+          itemId: string,
+          mutationId: string,
+        ) {
+          if (choice === "use-server") {
+            mutationStarted.resolve(undefined);
+            await mutation.promise;
+          }
+          return harness.repository.deleteExamAnswerIfMutation(
+            recordNamespace,
+            recordSessionId,
+            itemId,
+            mutationId,
+          );
+        },
+      } satisfies BrowserOutboxRepository;
+      const { result } = renderHook(() => useDurableExamOutbox({
+        namespace,
+        session: activeSession({
+          serverNow: now.toISOString(),
+          serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+        }),
+        repository,
+      }));
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      await act(() => result.current.updateAnswer("written-1", "local deadline winner"));
+      await act(async () => { await result.current.flush().catch(() => undefined); });
+      expect(result.current.saveState).toBe("conflict");
+
+      let resolution!: Promise<void>;
+      act(() => { resolution = result.current.resolveConflict("written-1", choice); });
+      await act(async () => { await mutationStarted.promise; });
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+      let resolutionError: unknown;
+      await act(async () => {
+        mutation.resolve(undefined);
+        await resolution.catch((error: unknown) => { resolutionError = error; });
+      });
+
+      expect(resolutionError).toBeUndefined();
+      expect(result.current.conflicts["written-1"]).toBeUndefined();
+      expect(result.current.answers["written-1"]).toBe(choice === "keep-local"
+        ? "local deadline winner"
+        : "server deadline winner");
+      expect(result.current.saveState).toBe(choice === "keep-local" ? "saved-local" : "server-saved");
+      expect([...harness.answers.values()]).toHaveLength(choice === "keep-local" ? 1 : 0);
+      expect(bodies).toHaveLength(1);
+    },
+  );
+
+  it.each(["keep-local", "use-server"] as const)(
+    "rehomes durable B when an admitted %s conflict check discovers it across the deadline",
+    async (choice) => {
+      vi.useFakeTimers();
+      const now = new Date("2026-07-15T10:00:00.000Z");
+      vi.setSystemTime(now);
+      const firstResponse = deferred<Response>();
+      const bPut = deferred<void>();
+      const bPutStarted = deferred<void>();
+      const conflictCheck = deferred<void>();
+      const conflictCheckStarted = deferred<void>();
+      const bodies: Array<Record<string, unknown>> = [];
+      vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        bodies.push(body);
+        return firstResponse.promise;
+      }));
+      const harness = repositoryHarness();
+      let delayConflictRead = false;
+      const repository = {
+        ...harness.repository,
+        async putExamAnswer(record: ExamAnswerOutboxRecord) {
+          if (record.payload.answer === "B") {
+            bPutStarted.resolve(undefined);
+            await bPut.promise;
+          }
+          await harness.repository.putExamAnswer(record);
+        },
+        async listExamAnswers(recordNamespace: string, recordSessionId: string) {
+          if (choice === "keep-local" && delayConflictRead) {
+            conflictCheckStarted.resolve(undefined);
+            await conflictCheck.promise;
+          }
+          return harness.repository.listExamAnswers(recordNamespace, recordSessionId);
+        },
+        async deleteExamAnswerIfMutation(
+          recordNamespace: string,
+          recordSessionId: string,
+          itemId: string,
+          mutationId: string,
+        ) {
+          if (choice === "use-server") {
+            conflictCheckStarted.resolve(undefined);
+            await conflictCheck.promise;
+          }
+          return harness.repository.deleteExamAnswerIfMutation(
+            recordNamespace,
+            recordSessionId,
+            itemId,
+            mutationId,
+          );
+        },
+      } satisfies BrowserOutboxRepository;
+      const { result } = renderHook(() => useDurableExamOutbox({
+        namespace,
+        session: activeSession({
+          serverNow: now.toISOString(),
+          serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+        }),
+        repository,
+      }));
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      await act(() => result.current.updateAnswer("written-1", "A"));
+      let flush!: Promise<void>;
+      act(() => { flush = result.current.flush().catch(() => undefined); });
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      let updateB!: Promise<void>;
+      act(() => { updateB = result.current.updateAnswer("written-1", "B"); });
+      await bPutStarted.promise;
+      await act(async () => {
+        firstResponse.resolve(json({
+          code: "AUTOSAVE_REVISION_CONFLICT",
+          currentRevision: 7,
+          currentAnswer: { text: "server winner" },
+          currentSavedAt: null,
+        }, { status: 409 }));
+        await flush;
+      });
+      const conflictedMutationId = result.current.conflicts["written-1"]!.clientMutationId;
+
+      delayConflictRead = true;
+      let resolution!: Promise<void>;
+      act(() => { resolution = result.current.resolveConflict("written-1", choice); });
+      await act(async () => { await conflictCheckStarted.promise; });
+      await act(async () => {
+        bPut.resolve(undefined);
+        await updateB;
+      });
+      const durableB = [...harness.answers.values()][0]!;
+      expect(durableB.clientMutationId).not.toBe(conflictedMutationId);
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+
+      let resolutionError: unknown;
+      await act(async () => {
+        conflictCheck.resolve(undefined);
+        await resolution.catch((error: unknown) => { resolutionError = error; });
+      });
+
+      expect(resolutionError).toBeInstanceOf(Error);
+      expect(result.current.answers["written-1"]).toBe("B");
+      expect(result.current.conflicts["written-1"]).toMatchObject({
+        clientMutationId: durableB.clientMutationId,
+        localAnswer: "B",
+      });
+      expect(result.current.resolvingConflicts["written-1"]).toBeUndefined();
+      expect(harness.answers.get(durableB.storageKey)).toEqual(durableB);
+      expect(bodies).toHaveLength(1);
+    },
+  );
+
+  it("retires the conflicted immutable body after keep-local replacement commits", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(firstMutationId);
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      bodies.push(body);
+      if (bodies.length === 1) {
+        return json({
+          code: "AUTOSAVE_REVISION_CONFLICT",
+          currentRevision: 7,
+          currentAnswer: { text: "server winner" },
+          currentSavedAt: null,
+        }, { status: 409 });
+      }
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+    await act(() => result.current.updateAnswer("written-1", "keep this value"));
+    await act(async () => { await result.current.flush().catch(() => undefined); });
+
+    await act(() => result.current.resolveConflict("written-1", "keep-local"));
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toMatchObject({
+      clientMutationId: firstMutationId,
+      baseRevision: 7,
+      answer: { text: "keep this value" },
+    });
+    expect(result.current.saveState).toBe("server-saved");
+    expect(result.current.issue).toBeNull();
+  });
+
+  it("retires the conflicted immutable body after use-server cleanup commits", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(firstMutationId);
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      bodies.push(body);
+      if (bodies.length === 1) {
+        return json({
+          code: "AUTOSAVE_REVISION_CONFLICT",
+          currentRevision: 9,
+          currentAnswer: { text: "server selected" },
+          currentSavedAt: null,
+        }, { status: 409 });
+      }
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+    await act(() => result.current.updateAnswer("written-1", "discard this value"));
+    await act(async () => { await result.current.flush().catch(() => undefined); });
+
+    await act(() => result.current.resolveConflict("written-1", "use-server"));
+    await act(() => result.current.updateAnswer("written-1", "new value after server choice"));
+    await act(() => result.current.flush());
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toMatchObject({
+      clientMutationId: firstMutationId,
+      baseRevision: 9,
+      answer: { text: "new value after server choice" },
+    });
+    expect(result.current.saveState).toBe("server-saved");
+    expect(result.current.issue).toBeNull();
+  });
+
+  it("retires A's immutable body when its conflict is rehomed to durable B", async () => {
+    const secondMutationId = "30000000-0000-4000-8000-000000000002";
+    vi.spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValueOnce(secondMutationId)
+      .mockReturnValue(firstMutationId);
+    const firstResponse = deferred<Response>();
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      bodies.push(body);
+      if (bodies.length === 1) return firstResponse.promise;
+      return autosaveAcknowledgement(body);
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.updateAnswer("written-1", "A"));
+    let flush!: Promise<void>;
+    act(() => { flush = result.current.flush(); });
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    await act(() => result.current.updateAnswer("written-1", "B"));
+    await act(async () => {
+      firstResponse.resolve(json({
+        code: "AUTOSAVE_REVISION_CONFLICT",
+        currentRevision: 5,
+        currentAnswer: { text: "server winner" },
+        currentSavedAt: null,
+      }, { status: 409 }));
+      await flush.catch(() => undefined);
+    });
+    expect(result.current.conflicts["written-1"]?.clientMutationId).toBe(secondMutationId);
+
+    await act(() => result.current.resolveConflict("written-1", "keep-local"));
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toMatchObject({
+      clientMutationId: firstMutationId,
+      baseRevision: 5,
+      answer: { text: "B" },
+    });
     expect(result.current.saveState).toBe("server-saved");
   });
 
@@ -1012,6 +1852,34 @@ describe("useDurableExamOutbox", () => {
     await waitFor(() => expect(base.deletedEvents).toEqual([base.putEvents[0]?.clientEventId]));
   });
 
+  it("retires an immutable event body only after acknowledged event cleanup completes", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(eventId);
+    const posted: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).endsWith("/events")) throw new Error("unexpected request");
+      posted.push(String(init?.body));
+      return json({ accepted: true, duplicate: false });
+    }));
+    const harness = repositoryHarness();
+    const { result } = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession(),
+      repository: harness.repository,
+    }));
+    await waitForHydration(result);
+
+    await act(() => result.current.recordEvent("window_blur", { sequence: 1 }));
+    await waitFor(() => expect(harness.deletedEvents).toEqual([eventId]));
+    await act(() => result.current.recordEvent("window_focus", { sequence: 2 }));
+    await waitFor(() => expect(harness.deletedEvents).toEqual([eventId, eventId]));
+
+    expect(posted.map((body) => JSON.parse(body))).toEqual([
+      { clientEventId: eventId, type: "window_blur", metadata: { sequence: 1 } },
+      { clientEventId: eventId, type: "window_focus", metadata: { sequence: 2 } },
+    ]);
+    expect(result.current.issue).toBeNull();
+  });
+
   it("retries the identical event when acknowledged cleanup cannot commit", async () => {
     vi.useFakeTimers();
     const posted: string[] = [];
@@ -1328,6 +2196,103 @@ describe("useDurableExamOutbox", () => {
     await act(async () => { await Promise.resolve(); });
   });
 
+  it("does not advertise retry when the deadline aborts response-body consumption", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-07-15T10:00:00.000Z");
+    vi.setSystemTime(now);
+    let bodyStarted = false;
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => new Promise<unknown>((_resolve, reject) => {
+        bodyStarted = true;
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("deadline aborted body", "AbortError"));
+        }, { once: true });
+      }),
+    } as Response));
+    vi.stubGlobal("fetch", fetchMock);
+    const harness = repositoryHarness();
+    const view = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession({
+        serverNow: now.toISOString(),
+        serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+      }),
+      repository: harness.repository,
+    }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(() => view.result.current.updateAnswer("written-1", "deadline body"));
+    let flush!: Promise<void>;
+    act(() => { flush = view.result.current.flush().catch(() => undefined); });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(bodyStarted).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+      await flush;
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(view.result.current.saveState).toBe("saved-local");
+    expect(view.result.current.issue).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("finishes acknowledged local cleanup when its admitted delete crosses the deadline", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-07-15T10:00:00.000Z");
+    vi.setSystemTime(now);
+    const cleanup = deferred<void>();
+    const cleanupStarted = deferred<void>();
+    const harness = repositoryHarness();
+    const repository = {
+      ...harness.repository,
+      async deleteExamAnswerIfMutation(
+        recordNamespace: string,
+        recordSessionId: string,
+        itemId: string,
+        mutationId: string,
+      ) {
+        cleanupStarted.resolve(undefined);
+        await cleanup.promise;
+        return harness.repository.deleteExamAnswerIfMutation(
+          recordNamespace,
+          recordSessionId,
+          itemId,
+          mutationId,
+        );
+      },
+    } satisfies BrowserOutboxRepository;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      autosaveAcknowledgement(JSON.parse(String(init?.body)) as Record<string, unknown>));
+    vi.stubGlobal("fetch", fetchMock);
+    const view = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession({
+        serverNow: now.toISOString(),
+        serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+      }),
+      repository,
+    }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(() => view.result.current.updateAnswer("written-1", "acknowledged at deadline"));
+    let flush!: Promise<void>;
+    act(() => { flush = view.result.current.flush(); });
+    await cleanupStarted.promise;
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await act(async () => {
+      cleanup.resolve(undefined);
+      await flush.catch(() => undefined);
+    });
+
+    expect(harness.answers.size).toBe(0);
+    expect(view.result.current.saveState).toBe("server-saved");
+    expect(view.result.current.issue).toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("fails closed when local storage initialization or the latest put fails", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -1363,6 +2328,48 @@ describe("useDurableExamOutbox", () => {
     expect(putError).toBeInstanceOf(Error);
     expect(second.result.current.answers["written-1"]).toBe("copy-safe");
     expect(second.result.current.saveState).toBe("local-save-error");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("publishes a pre-deadline admitted answer as locally durable when its put commits at the fence", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-07-15T10:00:00.000Z");
+    vi.setSystemTime(now);
+    const put = deferred<void>();
+    const putStarted = deferred<void>();
+    const harness = repositoryHarness();
+    const repository = {
+      ...harness.repository,
+      async putExamAnswer(record: ExamAnswerOutboxRecord) {
+        putStarted.resolve(undefined);
+        await put.promise;
+        await harness.repository.putExamAnswer(record);
+      },
+    } satisfies BrowserOutboxRepository;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const view = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession({
+        serverNow: now.toISOString(),
+        serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
+      }),
+      repository,
+    }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    let update!: Promise<void>;
+    act(() => { update = view.result.current.updateAnswer("written-1", "durable at deadline"); });
+    await putStarted.promise;
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await act(async () => {
+      put.resolve(undefined);
+      await update;
+    });
+
+    expect(view.result.current.saveState).toBe("saved-local");
+    expect([...harness.answers.values()]).toHaveLength(1);
+    expect([...harness.answers.values()][0]?.payload.answer).toBe("durable at deadline");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
