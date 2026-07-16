@@ -117,7 +117,7 @@
     "fake-indexeddb": "6.2.5",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.10",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "overrides": {
