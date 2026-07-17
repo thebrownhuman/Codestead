@@ -86,7 +86,10 @@ export function InterfaceThemeMenu() {
     if (event.key === "Tab") {
       // Let the browser choose the normal forward/backward Tab destination,
       // then collapse the popup without pulling focus back to its trigger.
-      window.requestAnimationFrame(() => setOpen(false));
+      const menuAtKeydown = event.currentTarget;
+      window.requestAnimationFrame(() => {
+        if (menuRef.current === menuAtKeydown) setOpen(false);
+      });
     } else if (event.key === "Escape") {
       event.preventDefault();
       closeAndRestoreFocus();

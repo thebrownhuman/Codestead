@@ -273,7 +273,10 @@ export function AppShell({
 
     if (event.key === "Tab") {
       // Preserve the browser's native Tab destination in either direction.
-      window.requestAnimationFrame(() => setProfileOpen(false));
+      const menuAtKeydown = event.currentTarget;
+      window.requestAnimationFrame(() => {
+        if (profileMenuRef.current?.contains(menuAtKeydown)) setProfileOpen(false);
+      });
     } else if (event.key === "Escape") {
       event.preventDefault();
       closeProfileMenu();

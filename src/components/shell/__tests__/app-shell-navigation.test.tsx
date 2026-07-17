@@ -64,6 +64,33 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function installAnimationFrameQueue() {
+  let nextFrameId = 0;
+  const frames = new Map<number, FrameRequestCallback>();
+  const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    const frameId = ++nextFrameId;
+    frames.set(frameId, callback);
+    return frameId;
+  });
+  const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((frameId) => {
+    frames.delete(frameId);
+  });
+
+  return {
+    flushNext() {
+      const next = frames.entries().next().value as [number, FrameRequestCallback] | undefined;
+      if (!next) throw new Error("Expected a queued animation frame.");
+      const [frameId, callback] = next;
+      frames.delete(frameId);
+      act(() => callback(0));
+    },
+    restore() {
+      requestFrame.mockRestore();
+      cancelFrame.mockRestore();
+    },
+  };
+}
+
 function seedValidGlobalCompaction(origin: string) {
   const nonce = "current-app-shell-race-nonce-0001";
   localStorage.setItem("codestead:browser-recovery-boundary:v1:all", JSON.stringify({
@@ -443,6 +470,32 @@ describe("AppShell compact navigation", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("does not let a stale profile-menu Tab callback close a newly opened menu", async () => {
+    const frames = installAnimationFrameQueue();
+    try {
+      const user = userEvent.setup();
+      render(<AppShell><button type="button">Learning action</button></AppShell>);
+
+      const trigger = screen.getByRole("button", { name: /Aarav Rao/i });
+      await user.click(trigger);
+      frames.flushNext();
+      expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus();
+
+      await user.tab();
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+      expect(screen.getByRole("button", { name: "Learning action" })).toHaveFocus();
+
+      await user.click(trigger);
+      expect(screen.getByRole("menu", { name: "Account menu" })).toBeInTheDocument();
+      frames.flushNext();
+      expect(screen.getByRole("menu", { name: "Account menu" })).toBeInTheDocument();
+      frames.flushNext();
+      expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus();
+    } finally {
+      frames.restore();
+    }
+  });
+
   it("lets keyboard users choose an exact interface theme and restores trigger focus", async () => {
     const user = userEvent.setup();
     render(<AppShell><p>Learning content</p></AppShell>);
@@ -486,6 +539,33 @@ describe("AppShell compact navigation", () => {
     await waitFor(() => expect(themeTrigger).toHaveAttribute("aria-expanded", "false"));
     expect(screen.queryByRole("menu", { name: "Choose interface theme" })).not.toBeInTheDocument();
     expect(themeTrigger).toHaveFocus();
+  });
+
+  it("does not let a stale theme-menu Tab callback close a newly opened menu", async () => {
+    const frames = installAnimationFrameQueue();
+    try {
+      const user = userEvent.setup();
+      render(<AppShell><p>Learning content</p></AppShell>);
+
+      const themeTrigger = screen.getByRole("button", { name: "Interface theme: System" });
+      const notificationTrigger = screen.getByRole("button", { name: "Notifications" });
+      await user.click(themeTrigger);
+      frames.flushNext();
+      expect(screen.getByRole("menuitemradio", { name: /System/i })).toHaveFocus();
+
+      await user.tab();
+      expect(themeTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(notificationTrigger).toHaveFocus();
+
+      await user.click(themeTrigger);
+      expect(screen.getByRole("menu", { name: "Choose interface theme" })).toBeInTheDocument();
+      frames.flushNext();
+      expect(screen.getByRole("menu", { name: "Choose interface theme" })).toBeInTheDocument();
+      frames.flushNext();
+      expect(screen.getByRole("menuitemradio", { name: /System/i })).toHaveFocus();
+    } finally {
+      frames.restore();
+    }
   });
 
   it("keeps keyboard focus inside an open compact navigation drawer", async () => {
