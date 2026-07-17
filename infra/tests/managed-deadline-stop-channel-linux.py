@@ -788,12 +788,18 @@ def run_wrong_uid_case(root: Path) -> None:
         root, label, "ignore"
     )
     connector = (
-        "import os,socket,sys;"
-        "s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);"
-        "s.settimeout(2);s.connect(sys.argv[1]);"
-        "s.sendall(sys.argv[2].encode('ascii'));"
-        "data=s.recv(512);"
-        "sys.stdout.write('NOACK\\n' if data == b'' else data.hex()+'\\n')"
+        "import socket,sys\n"
+        "s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)\n"
+        "s.settimeout(2)\n"
+        "try:\n"
+        " s.connect(sys.argv[1])\n"
+        " s.sendall(sys.argv[2].encode('ascii'))\n"
+        " data=s.recv(512)\n"
+        "except (ConnectionResetError,BrokenPipeError):\n"
+        " data=b''\n"
+        "finally:\n"
+        " s.close()\n"
+        "sys.stdout.write('NOACK\\n' if data == b'' else data.hex()+'\\n')\n"
     )
     root.chmod(0o711)
     os.chmod(details[4], 0o666)
