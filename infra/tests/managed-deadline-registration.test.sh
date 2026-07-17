@@ -46,6 +46,105 @@ for required_case in guardian-readiness-timeout guardian-invalid-readiness \
 done
 grep -Fq 'for nonfinite_case in duration grace' "$linux_gate" \
   || fail "managed-deadline Linux gate omits non-finite duration/grace cases"
+node - "$linux_gate" <<'JS' \
+  || fail "managed-deadline Linux gate has nounset-unsafe local initialization"
+const fs = require('node:fs');
+
+const linuxGate = fs.readFileSync(process.argv[2], 'utf8');
+const targetFunctions = ['run_timeout_case', 'run_hostile_case'];
+
+function functionBody(document, functionName) {
+  const lines = document.split(/\r?\n/);
+  const start = lines.indexOf(`${functionName}() {`);
+  if (start < 0) {
+    throw new Error(`could not find ${functionName}`);
+  }
+  const relativeEnd = lines.slice(start + 1).findIndex((line) => line === '}');
+  if (relativeEnd < 0) {
+    throw new Error(`could not find the end of ${functionName}`);
+  }
+  return { lines: lines.slice(start + 1, start + 1 + relativeEnd), start };
+}
+
+function dependentLocalInitializers(document, functionName) {
+  const body = functionBody(document, functionName);
+  const diagnostics = [];
+  for (const [offset, line] of body.lines.entries()) {
+    if (!/^\s*local(?:\s|$)/.test(line)) {
+      continue;
+    }
+    const initialized = new Set();
+    const assignments = line.matchAll(
+      /\b([A-Za-z_][A-Za-z0-9_]*)=("[^"]*"|'[^']*'|[^\s]+)/g,
+    );
+    for (const assignment of assignments) {
+      const [, variable, rawValue] = assignment;
+      const expandableValue = rawValue.replace(/'[^']*'/g, '');
+      const references = Array.from(
+        expandableValue.matchAll(
+          /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)|([A-Za-z_][A-Za-z0-9_]*))/g,
+        ),
+        (match) => match[1] || match[2],
+      );
+      for (const reference of references) {
+        if (initialized.has(reference)) {
+          diagnostics.push({
+            functionName,
+            line: body.start + offset + 2,
+            variable,
+            reference,
+          });
+        }
+      }
+      initialized.add(variable);
+    }
+  }
+  return diagnostics;
+}
+
+const actualDiagnostics = targetFunctions.flatMap((functionName) =>
+  dependentLocalInitializers(linuxGate, functionName),
+);
+if (actualDiagnostics.length > 0) {
+  for (const diagnostic of actualDiagnostics) {
+    console.error(
+      `${diagnostic.functionName}:${diagnostic.line}: local ${diagnostic.variable} `
+        + `references earlier ${diagnostic.reference} in the same declaration`,
+    );
+  }
+  process.exit(1);
+}
+
+function replaceExactly(document, needle, replacement, label) {
+  const pieces = document.split(needle);
+  if (pieces.length !== 2) {
+    throw new Error(`mutation fixture expected exactly one ${label}`);
+  }
+  return `${pieces[0]}${replacement}${pieces[1]}`;
+}
+
+for (const functionName of targetFunctions) {
+  const safePrefix = `${functionName}() {\n`
+    + '  local label="$1" mode="$2"\n'
+    + '  local record="$work/$label.identity"';
+  const unsafePrefix = `${functionName}() {\n`
+    + '  local label="$1" mode="$2" record="$work/$label.identity"';
+  const mutated = replaceExactly(
+    linuxGate,
+    safePrefix,
+    unsafePrefix,
+    `${functionName} split declaration`,
+  );
+  const mutationDiagnostics = dependentLocalInitializers(mutated, functionName);
+  if (mutationDiagnostics.length !== 1
+      || mutationDiagnostics[0].variable !== 'record'
+      || mutationDiagnostics[0].reference !== 'label') {
+    throw new Error(
+      `${functionName} mutation fixture did not restore and reject the bad declaration`,
+    );
+  }
+}
+JS
 grep -Fq 'TEST_RESUME_ABSENT_IDENTITY' "$publication_test" \
   || fail "controller fixtures do not assert group absence at fake resume"
 grep -Fq 'TEST_MARKER_DESCENDANT_READY' "$publication_test" \

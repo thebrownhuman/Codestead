@@ -244,7 +244,8 @@ EOF
 chmod 0755 "$work/stubborn.sh"
 
 run_timeout_case() {
-  local label="$1" mode="$2" record="$work/$label.identity"
+  local label="$1" mode="$2"
+  local record="$work/$label.identity"
   local ready="$work/$label.ready" release="$work/$label.release"
   local late_effect="$work/$label.late" status=0
   if [[ "$mode" == descendant ]]; then
@@ -556,7 +557,8 @@ sleep 0.5
 [[ ! -e "$post_late" ]] || fail "post-launch OSError allowed a late effect"
 
 run_hostile_case() {
-  local label="$1" mode="$2" record="$work/$label.identity"
+  local label="$1" mode="$2"
+  local record="$work/$label.identity"
   local ready="$work/$label.ready" release="$work/$label.release"
   local late="$work/$label.late" status=0
   python3 - "$helper" "$BASHPID" "$mode" "$work/stubborn.sh" \
