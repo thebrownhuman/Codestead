@@ -118,8 +118,544 @@ fi
   || fail "managed-deadline helper is missing or unsafe"
 command -v python3 >/dev/null || fail "python3 is unavailable"
 
+umask 077
 work="$(mktemp -d)"
+chmod 0700 "$work"
 trap 'rm -rf -- "$work"' EXIT
+
+readonly STOP_CHANNEL_DIAGNOSTIC_BYTES=512
+readonly STOP_CHANNEL_CAPTURE_BYTES=65536
+readonly STOP_CHANNEL_DIAGNOSTIC_FALLBACK='no bounded native diagnostic available'
+STOP_CHANNEL_STATUS=0
+STOP_CHANNEL_OUTPUT_IDENTITY=''
+STOP_CHANNEL_ERROR_IDENTITY=''
+STOP_CHANNEL_STDOUT_EVIDENCE="$STOP_CHANNEL_DIAGNOSTIC_FALLBACK"
+STOP_CHANNEL_DIAGNOSTIC="$STOP_CHANNEL_DIAGNOSTIC_FALLBACK"
+
+create_stop_channel_capture() {
+  local path="$1"
+  python3 - "$path" <<'PY'
+import os
+import stat
+import sys
+
+path = sys.argv[1]
+flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+if hasattr(os, "O_CLOEXEC"):
+    flags |= os.O_CLOEXEC
+descriptor = os.open(path, flags, 0o600)
+try:
+    os.fchmod(descriptor, 0o600)
+    metadata = os.fstat(descriptor)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.getuid()
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+        or metadata.st_nlink != 1
+    ):
+        raise SystemExit(91)
+    print(f"{metadata.st_dev}:{metadata.st_ino}")
+finally:
+    os.close(descriptor)
+PY
+}
+
+secure_read_stop_channel_capture() {
+  local path="$1" retained_identity="$2" read_mode="$3"
+  python3 - "$path" "$retained_identity" "$read_mode" "$work" \
+    "$STOP_CHANNEL_DIAGNOSTIC_BYTES" "$STOP_CHANNEL_CAPTURE_BYTES" <<'PY'
+import os
+import re
+import stat
+import sys
+
+path, identity_text, read_mode, work = sys.argv[1:5]
+diagnostic_limit = int(sys.argv[5])
+capture_limit = int(sys.argv[6])
+device_text, inode_text = identity_text.split(":", 1)
+expected_identity = (int(device_text), int(inode_text))
+flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+if hasattr(os, "O_CLOEXEC"):
+    flags |= os.O_CLOEXEC
+
+
+def safe_metadata(metadata):
+    return not (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.getuid()
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+        or metadata.st_nlink != 1
+        or (metadata.st_dev, metadata.st_ino) != expected_identity
+    )
+
+
+def path_metadata_is_safe(metadata):
+    return safe_metadata(metadata)
+
+
+def read_bounded(descriptor, size):
+    chunks = []
+    remaining = size
+    while remaining:
+        chunk = os.read(descriptor, min(remaining, 8192))
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    payload = b"".join(chunks)
+    if len(payload) != size:
+        raise SystemExit(92)
+    return payload
+
+
+def sanitize(text):
+    text = text.replace(work, "<work>")
+    text = re.sub(
+        r"(?<![0-9a-f])(?:[0-9a-f]{64}|[0-9a-f]{32})(?![0-9a-f])",
+        "<capability>",
+        text,
+    )
+    text = text.replace("::", "\\x3a\\x3a")
+    escaped = []
+    for character in text:
+        codepoint = ord(character)
+        if character == "\r":
+            escaped.append("\\r")
+        elif character == "\n":
+            escaped.append("\\n")
+        elif character == "\0":
+            escaped.append("\\0")
+        elif character == "%":
+            escaped.append("\\x25")
+        elif codepoint < 0x20 or 0x7F <= codepoint <= 0x9F:
+            escaped.append(f"\\x{codepoint:02x}")
+        elif 0xD800 <= codepoint <= 0xDFFF:
+            escaped.append(f"\\u{codepoint:04x}")
+        else:
+            escaped.append(character)
+    return "".join(escaped)
+
+
+def bounded(text):
+    encoded = text.encode("utf-8", errors="backslashreplace")
+    if len(encoded) <= diagnostic_limit:
+        return encoded.decode("utf-8")
+    marker = b"...[truncated]"
+    prefix = encoded[: diagnostic_limit - len(marker)]
+    while True:
+        try:
+            return prefix.decode("utf-8") + marker.decode("ascii")
+        except UnicodeDecodeError as error:
+            prefix = prefix[: error.start]
+
+
+def validated_manifest(payload):
+    if not payload.endswith(b"\n"):
+        raise SystemExit(100)
+    lines = payload[:-1].split(b"\n")
+    if len(lines) != 34:
+        raise SystemExit(101)
+    case_prefix = b"managed-deadline-stop-channel-case-ok:"
+    cases = lines[:33]
+    if (
+        any(not line.startswith(case_prefix) or len(line) == len(case_prefix) for line in cases)
+        or len(set(cases)) != 33
+        or lines[33] != b"managed-deadline-stop-channel-linux-tests-ok"
+    ):
+        raise SystemExit(102)
+    return payload
+
+
+descriptor = os.open(path, flags)
+try:
+    metadata = os.fstat(descriptor)
+    try:
+        path_metadata = os.lstat(path)
+    except FileNotFoundError:
+        raise SystemExit(93)
+    if not safe_metadata(metadata) or not path_metadata_is_safe(path_metadata):
+        raise SystemExit(94)
+    if metadata.st_size > capture_limit:
+        raise SystemExit(95)
+    if read_mode == "verify":
+        payload = b""
+    else:
+        payload = read_bounded(descriptor, metadata.st_size)
+    after_metadata = os.fstat(descriptor)
+    try:
+        path_after = os.lstat(path)
+    except FileNotFoundError:
+        raise SystemExit(96)
+    if (
+        not safe_metadata(after_metadata)
+        or not path_metadata_is_safe(path_after)
+        or after_metadata.st_size != metadata.st_size
+    ):
+        raise SystemExit(97)
+finally:
+    os.close(descriptor)
+
+if read_mode == "verify":
+    raise SystemExit(0)
+if read_mode == "raw":
+    sys.stdout.buffer.write(payload)
+    raise SystemExit(0)
+if read_mode == "manifest":
+    sys.stdout.buffer.write(validated_manifest(payload))
+    raise SystemExit(0)
+if read_mode != "line":
+    raise SystemExit(98)
+lines = payload.split(b"\n")
+candidate = next((line for line in reversed(lines) if line.strip()), None)
+if candidate is None:
+    raise SystemExit(99)
+text = candidate.decode("utf-8", errors="backslashreplace")
+sys.stdout.write(bounded(sanitize(text)))
+PY
+}
+
+run_stop_channel_gate() {
+  local gate="$1" gate_helper="$2"
+  local stop_channel_output="$3" stop_channel_error="$4"
+  local stop_channel_status=0 capture_safe=1
+  STOP_CHANNEL_OUTPUT_IDENTITY=''
+  STOP_CHANNEL_ERROR_IDENTITY=''
+  STOP_CHANNEL_STDOUT_EVIDENCE="$STOP_CHANNEL_DIAGNOSTIC_FALLBACK"
+  STOP_CHANNEL_DIAGNOSTIC="$STOP_CHANNEL_DIAGNOSTIC_FALLBACK"
+  if ! STOP_CHANNEL_OUTPUT_IDENTITY="$(create_stop_channel_capture \
+    "$stop_channel_output")"; then
+    STOP_CHANNEL_STATUS=125
+    return 125
+  fi
+  if ! STOP_CHANNEL_ERROR_IDENTITY="$(create_stop_channel_capture \
+    "$stop_channel_error")"; then
+    STOP_CHANNEL_STATUS=125
+    return 125
+  fi
+  if python3 "$gate" "$gate_helper" >"$stop_channel_output" \
+    2>"$stop_channel_error"; then
+    stop_channel_status=0
+  else
+    stop_channel_status=$?
+  fi
+  STOP_CHANNEL_STATUS="$stop_channel_status"
+  secure_read_stop_channel_capture "$stop_channel_output" \
+    "$STOP_CHANNEL_OUTPUT_IDENTITY" verify >/dev/null 2>&1 || capture_safe=0
+  secure_read_stop_channel_capture "$stop_channel_error" \
+    "$STOP_CHANNEL_ERROR_IDENTITY" verify >/dev/null 2>&1 || capture_safe=0
+  if [[ "$capture_safe" == 1 ]]; then
+    if ! STOP_CHANNEL_STDOUT_EVIDENCE="$(secure_read_stop_channel_capture \
+      "$stop_channel_output" "$STOP_CHANNEL_OUTPUT_IDENTITY" line)"; then
+      STOP_CHANNEL_STDOUT_EVIDENCE="$STOP_CHANNEL_DIAGNOSTIC_FALLBACK"
+    fi
+    if ! STOP_CHANNEL_DIAGNOSTIC="$(secure_read_stop_channel_capture \
+      "$stop_channel_error" "$STOP_CHANNEL_ERROR_IDENTITY" line)"; then
+      STOP_CHANNEL_DIAGNOSTIC="$STOP_CHANNEL_DIAGNOSTIC_FALLBACK"
+    fi
+  elif [[ "$stop_channel_status" == 0 ]]; then
+    STOP_CHANNEL_STATUS=125
+  fi
+  return "$STOP_CHANNEL_STATUS"
+}
+
+run_stop_channel_capture_regressions() {
+  local fake_gate="$work/fake-stop-channel-capture-gate.py"
+  local fake_helper="$work/fake-managed-deadline-helper.py"
+  local fixture_mode fixture_status fixture_output fixture_error
+  local diagnostic_bytes expected_output actual_output actual_error
+  cat >"$fake_gate" <<'PY'
+#!/usr/bin/env python3
+import os
+import pathlib
+import socket
+import sys
+
+mode = sys.argv[1]
+stderr_path = pathlib.Path(os.readlink("/proc/self/fd/2"))
+work = stderr_path.parent
+if mode == "failure":
+    os.write(1, b"ignored stdout\nfinal bounded stdout\n")
+    record = (
+        "managed-deadline-stop-channel-case-failed:stop-channel-normal:"
+        "RuntimeError:"
+        f"{work}\r\0%0A::error title=forged::"
+        f"{'a' * 32}:{'b' * 64}:" + "\u754c" * 400 + "\n"
+    )
+    os.write(2, b"ignored stderr\n" + record.encode("utf-8"))
+    raise SystemExit(42)
+if mode == "empty":
+    raise SystemExit(42)
+if mode in {
+    "symlink",
+    "hardlink",
+    "wrong-mode",
+    "wrong-inode",
+    "fifo",
+    "unix-socket",
+}:
+    os.write(2, b"metadata-secret-must-not-be-read\n")
+    if mode == "symlink":
+        target = stderr_path.with_suffix(".target")
+        target.write_text("symlink-secret\n", encoding="ascii")
+        os.chmod(target, 0o600)
+        stderr_path.unlink()
+        stderr_path.symlink_to(target)
+    elif mode == "hardlink":
+        os.link(stderr_path, stderr_path.with_suffix(".hardlink"))
+    elif mode == "wrong-mode":
+        os.chmod(stderr_path, 0o644)
+    elif mode == "wrong-inode":
+        stderr_path.unlink()
+        descriptor = os.open(
+            stderr_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+        )
+        with os.fdopen(descriptor, "wb") as replacement:
+            replacement.write(b"replacement-secret\n")
+    elif mode == "fifo":
+        stderr_path.unlink()
+        os.mkfifo(stderr_path, 0o600)
+    else:
+        stderr_path.unlink()
+        replacement = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            replacement.bind(os.fspath(stderr_path))
+            os.chmod(stderr_path, 0o600)
+        finally:
+            replacement.close()
+    raise SystemExit(42)
+if mode == "success":
+    for index in range(33):
+        print(f"managed-deadline-stop-channel-case-ok:fixture-{index:02d}")
+    print("managed-deadline-stop-channel-linux-tests-ok")
+    raise SystemExit(0)
+raise SystemExit(90)
+PY
+  chmod 0700 "$fake_gate"
+
+  fixture_output="$work/capture-failure.output"
+  fixture_error="$work/capture-failure.error"
+  fixture_status=0
+  if run_stop_channel_gate "$fake_gate" failure \
+    "$fixture_output" "$fixture_error"; then
+    fixture_status=0
+  else
+    fixture_status=$?
+  fi
+  [[ "$fixture_status" == 42 && "$STOP_CHANNEL_STATUS" == 42 ]] \
+    || fail "stop-channel wrapper did not retain native exit 42"
+  [[ "$STOP_CHANNEL_STDOUT_EVIDENCE" == 'final bounded stdout' \
+    && "$STOP_CHANNEL_STDOUT_EVIDENCE" != *ignored* ]] \
+    || fail "stop-channel wrapper did not select bounded final stdout evidence"
+  [[ "$STOP_CHANNEL_DIAGNOSTIC" == \
+      managed-deadline-stop-channel-case-failed:stop-channel-normal:RuntimeError:* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" != *ignored* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == *'<work>'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == *'<capability>'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == *'\r'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == *'\0'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == *'\x25'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == *'\x3a\x3aerror'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == *'...[truncated]' \
+    && "$STOP_CHANNEL_DIAGNOSTIC" != *'%'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" != *'::error'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" != *$'\r'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" != *$'\n'* ]] \
+    || fail "stop-channel wrapper did not bound and sanitize final stderr evidence"
+  diagnostic_bytes="$(printf '%s' "$STOP_CHANNEL_DIAGNOSTIC" | wc -c | tr -d ' ')"
+  [[ "$diagnostic_bytes" -le "$STOP_CHANNEL_DIAGNOSTIC_BYTES" ]] \
+    || fail "stop-channel wrapper diagnostic exceeded its UTF-8 byte cap"
+
+  fixture_output="$work/capture-empty.output"
+  fixture_error="$work/capture-empty.error"
+  fixture_status=0
+  if run_stop_channel_gate "$fake_gate" empty \
+    "$fixture_output" "$fixture_error"; then
+    fixture_status=0
+  else
+    fixture_status=$?
+  fi
+  [[ "$fixture_status" == 42 \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == "$STOP_CHANNEL_DIAGNOSTIC_FALLBACK" ]] \
+    || fail "stop-channel wrapper did not use its empty-stderr fallback"
+
+  for fixture_mode in symlink hardlink wrong-mode wrong-inode fifo unix-socket; do
+    fixture_output="$work/capture-$fixture_mode.output"
+    fixture_error="$work/capture-$fixture_mode.error"
+    fixture_status=0
+    if run_stop_channel_gate "$fake_gate" "$fixture_mode" \
+      "$fixture_output" "$fixture_error"; then
+      fixture_status=0
+    else
+      fixture_status=$?
+    fi
+    [[ "$fixture_status" == 42 \
+      && "$STOP_CHANNEL_DIAGNOSTIC" == "$STOP_CHANNEL_DIAGNOSTIC_FALLBACK" \
+      && "$STOP_CHANNEL_DIAGNOSTIC" != *secret* ]] \
+      || fail "stop-channel wrapper consumed unsafe $fixture_mode stderr"
+  done
+
+  local device_identity
+  device_identity="$(python3 - <<'PY'
+import os
+
+metadata = os.stat("/dev/null")
+print(f"{metadata.st_dev}:{metadata.st_ino}")
+PY
+)"
+  if secure_read_stop_channel_capture /dev/null "$device_identity" verify \
+    >/dev/null 2>&1; then
+    fail "stop-channel secure reader accepted a device node"
+  fi
+
+  expected_output="$work/capture-success.expected"
+  actual_output="$work/capture-success.actual"
+  actual_error="$work/capture-success.actual-error"
+  python3 "$fake_gate" success >"$expected_output"
+  fixture_output="$work/capture-success.output"
+  fixture_error="$work/capture-success.error"
+  fixture_status=0
+  if run_stop_channel_gate "$fake_gate" success \
+    "$fixture_output" "$fixture_error"; then
+    fixture_status=0
+  else
+    fixture_status=$?
+  fi
+  [[ "$fixture_status" == 0 && "$STOP_CHANNEL_STATUS" == 0 ]] \
+    || fail "stop-channel wrapper changed a successful native status"
+  secure_read_stop_channel_capture "$fixture_output" \
+    "$STOP_CHANNEL_OUTPUT_IDENTITY" manifest >"$actual_output" \
+    || fail "stop-channel wrapper could not stream verified success stdout"
+  secure_read_stop_channel_capture "$fixture_error" \
+    "$STOP_CHANNEL_ERROR_IDENTITY" raw >"$actual_error" \
+    || fail "stop-channel wrapper could not stream verified success stderr"
+  cmp -s -- "$expected_output" "$actual_output" \
+    || fail "stop-channel wrapper changed successful native stdout bytes"
+  [[ ! -s "$actual_error" \
+    && "$(grep -Fc 'managed-deadline-stop-channel-case-ok:' \
+      "$actual_output")" == 33 \
+    && "$(grep -Fxc 'managed-deadline-stop-channel-linux-tests-ok' \
+      "$actual_output")" == 1 \
+    && "$(tail -n 1 "$actual_output")" == \
+      managed-deadline-stop-channel-linux-tests-ok ]] \
+    || fail "stop-channel wrapper changed the successful 33-case manifest or sentinel"
+
+  local replacement_race_output="$work/capture-replacement-race.actual"
+  python3 - "$fixture_output" <<'PY'
+import os
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+path.replace(path.with_suffix(".retained"))
+descriptor = os.open(
+    path,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+    0o600,
+)
+with os.fdopen(descriptor, "wb") as output:
+    for index in range(33):
+        output.write(
+            f"managed-deadline-stop-channel-case-ok:replacement-{index:02d}\n".encode(
+                "ascii"
+            )
+        )
+    output.write(b"managed-deadline-stop-channel-linux-tests-ok\n")
+PY
+  if secure_read_stop_channel_capture "$fixture_output" \
+    "$STOP_CHANNEL_OUTPUT_IDENTITY" manifest >"$replacement_race_output" 2>/dev/null; then
+    fail "stop-channel manifest reader accepted a post-verification path replacement"
+  fi
+  [[ ! -s "$replacement_race_output" ]] \
+    || fail "stop-channel manifest reader emitted replacement-race bytes"
+
+  cat >"$fake_helper" <<'PY'
+#!/usr/bin/env python3
+import os
+
+os.write(
+    2,
+    b"fake helper failed\n%0A::error title=forged::" + b"c" * 800 + b"\n",
+)
+raise SystemExit(125)
+PY
+  chmod 0700 "$fake_helper"
+  fixture_output="$work/native-attribution.output"
+  fixture_error="$work/native-attribution.error"
+  fixture_status=0
+  if run_stop_channel_gate "$stop_channel_gate" "$fake_helper" \
+    "$fixture_output" "$fixture_error"; then
+    fixture_status=0
+  else
+    fixture_status=$?
+  fi
+  [[ "$fixture_status" != 0 \
+    && "$STOP_CHANNEL_DIAGNOSTIC" == \
+      managed-deadline-stop-channel-case-failed:stop-channel-normal:StopChannelFailure:* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" != *'%'* \
+    && "$STOP_CHANNEL_DIAGNOSTIC" != *'::error'* ]] \
+    || fail "real native gate omitted bounded stop-channel-normal attribution"
+  secure_read_stop_channel_capture "$fixture_error" \
+    "$STOP_CHANNEL_ERROR_IDENTITY" raw >"$work/native-attribution.inspected" \
+    || fail "real native gate diagnostic capture became unsafe"
+  [[ "$(grep -Fc 'managed-deadline-stop-channel-case-failed:' \
+      "$work/native-attribution.inspected")" == 1 \
+    && "$(grep -Fc 'managed-deadline-stop-channel-case-ok:' \
+      "$fixture_output")" == 0 \
+    && "$(grep -Fc 'managed-deadline-stop-channel-linux-tests-ok' \
+      "$fixture_output")" == 0 ]] \
+    || fail "failed real native gate emitted duplicate attribution or success evidence"
+
+  local diagnostic_launcher="$work/native-diagnostic-launcher.py"
+  local expected_status expected_type expected_message diagnostic_prefix
+  cat >"$diagnostic_launcher" <<'PY'
+#!/usr/bin/env python3
+import os
+import sys
+
+native_gate, mode = sys.argv[1].rsplit("|", 1)
+os.execv(
+    sys.executable,
+    [sys.executable, native_gate, "--diagnostic-subprocess", mode],
+)
+PY
+  chmod 0700 "$diagnostic_launcher"
+  while IFS='|' read -r fixture_mode expected_status expected_type expected_message; do
+    fixture_output="$work/native-diagnostic-$fixture_mode.output"
+    fixture_error="$work/native-diagnostic-$fixture_mode.error"
+    fixture_status=0
+    if run_stop_channel_gate "$diagnostic_launcher" \
+      "$stop_channel_gate|$fixture_mode" "$fixture_output" "$fixture_error"; then
+      fixture_status=0
+    else
+      fixture_status=$?
+    fi
+    diagnostic_prefix="managed-deadline-stop-channel-case-failed:stop-channel-normal:$expected_type:"
+    [[ "$fixture_status" == "$expected_status" \
+      && "$STOP_CHANNEL_STATUS" == "$expected_status" \
+      && ! -s "$fixture_output" \
+      && "$STOP_CHANNEL_DIAGNOSTIC" == "$diagnostic_prefix$expected_message" \
+      && "$STOP_CHANNEL_DIAGNOSTIC" != *Traceback* \
+      && "$STOP_CHANNEL_DIAGNOSTIC" != *'%'* \
+      && "$STOP_CHANNEL_DIAGNOSTIC" != *'::error'* ]] \
+      || fail "native wrapper displaced the $fixture_mode status or diagnostic"
+    secure_read_stop_channel_capture "$fixture_error" \
+      "$STOP_CHANNEL_ERROR_IDENTITY" raw >"$work/native-diagnostic-$fixture_mode.inspected" \
+      || fail "native wrapper $fixture_mode diagnostic capture became unsafe"
+    [[ "$(grep -Fc 'managed-deadline-stop-channel-case-failed:' \
+        "$work/native-diagnostic-$fixture_mode.inspected")" == 1 \
+      && "$(wc -l <"$work/native-diagnostic-$fixture_mode.inspected" | tr -d ' ')" == 1 ]] \
+      || fail "native wrapper emitted duplicate $fixture_mode diagnostics"
+  done <<'EOF'
+runtime-error|1|RuntimeError|runtime failure\n\x250A\x3a\x3aerror title=forged\x3a\x3a
+string-system-exit|1|SystemExit|string exit\n\x250A\x3a\x3aerror title=forged\x3a\x3a
+keyboard-interrupt|130|KeyboardInterrupt|keyboard interrupt\n\x3a\x3awarning\x3a\x3aforged
+numeric-system-exit|73|SystemExit|73
+EOF
+}
+
+run_stop_channel_capture_regressions
 
 assert_mode_0600() {
   local path="$1" label="$2"
@@ -730,23 +1266,25 @@ sleep 0.5
 [[ ! -e "$monitor_late" ]] || fail "managed monitor command produced a late effect"
 
 stop_channel_output="$work/stop-channel.output"
-if ! python3 "$stop_channel_gate" "$helper" >"$stop_channel_output"; then
-  cat -- "$stop_channel_output" >&2
-  fail "native stop-channel acceptance failed"
+stop_channel_error="$work/stop-channel.error"
+stop_channel_status=0
+if run_stop_channel_gate "$stop_channel_gate" "$helper" \
+  "$stop_channel_output" "$stop_channel_error"; then
+  stop_channel_status=0
+else
+  stop_channel_status=$?
 fi
-cat -- "$stop_channel_output"
-stop_channel_sentinel='managed-deadline-stop-channel-linux-tests-ok'
-[[ "$(grep -Fxc "$stop_channel_sentinel" "$stop_channel_output")" == 1 \
-  && "$(tail -n 1 "$stop_channel_output")" == "$stop_channel_sentinel" ]] \
-  || fail "native stop-channel acceptance omitted its unique terminal sentinel"
-stop_channel_case_prefix='managed-deadline-stop-channel-case-ok:'
-stop_channel_case_count="$(grep -Fc "$stop_channel_case_prefix" \
-  "$stop_channel_output")"
-stop_channel_unique_count="$(grep -F "$stop_channel_case_prefix" \
-  "$stop_channel_output" | sort -u | wc -l | tr -d ' ')"
-[[ "$stop_channel_case_count" == 33 \
-  && "$stop_channel_unique_count" == "$stop_channel_case_count" ]] \
-  || fail "native stop-channel executed-case manifest is incomplete or duplicated"
+if [[ "$stop_channel_status" != 0 ]]; then
+  printf 'native stop-channel bounded stdout evidence: %s\n' \
+    "$STOP_CHANNEL_STDOUT_EVIDENCE" >&2
+  fail "native stop-channel acceptance failed (status=$stop_channel_status): $STOP_CHANNEL_DIAGNOSTIC"
+fi
+secure_read_stop_channel_capture "$stop_channel_output" \
+  "$STOP_CHANNEL_OUTPUT_IDENTITY" manifest \
+  || fail "native stop-channel stdout capture became unsafe"
+secure_read_stop_channel_capture "$stop_channel_error" \
+  "$STOP_CHANNEL_ERROR_IDENTITY" raw >&2 \
+  || fail "native stop-channel stderr capture became unsafe"
 
 real_controller_stop_reached="$work/real-controller-stop.reached"
 TEST_USE_REAL_MANAGED_DEADLINE=1 \

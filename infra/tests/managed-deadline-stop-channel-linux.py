@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import re
 import secrets
 import shutil
 import signal
@@ -16,14 +17,192 @@ import time
 from pathlib import Path
 
 
-if len(sys.argv) != 2:
+_PROCESS_BOUNDARY_ENV = "MANAGED_DEADLINE_STOP_CHANNEL_INNER"
+_PROCESS_STDERR_LIMIT = 65536
+_FAILURE_RECORD_PREFIX = b"managed-deadline-stop-channel-case-failed:"
+_PROCESS_BOUNDARY_NONCE_BYTES = 32
+
+
+def _write_all(descriptor: int, payload: bytes) -> None:
+    pending = memoryview(payload)
+    while pending:
+        written = os.write(descriptor, pending)
+        if written <= 0:
+            raise OSError("short diagnostic boundary write")
+        pending = pending[written:]
+
+
+def _valid_failure_record(record: bytes) -> bool:
+    if (
+        len(record) > 512
+        or not record.startswith(_FAILURE_RECORD_PREFIX)
+        or b"%" in record
+        or b"::" in record
+        or any(byte < 0x20 or byte == 0x7F for byte in record)
+    ):
+        return False
+    try:
+        text = record.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return re.fullmatch(
+        r"managed-deadline-stop-channel-case-failed:"
+        r"stop-channel-[a-z0-9-]+:[A-Za-z_][A-Za-z0-9_]*:.*",
+        text,
+    ) is not None
+
+
+def _consume_process_boundary_capability() -> bool:
+    marker = os.environ.pop(_PROCESS_BOUNDARY_ENV, "")
+    try:
+        descriptor_text, parent_text, expected_hex = marker.split(":", 2)
+        descriptor = int(descriptor_text)
+        expected_parent = int(parent_text)
+        expected = bytes.fromhex(expected_hex)
+    except (TypeError, ValueError):
+        return False
+    if (
+        descriptor <= 2
+        or expected_parent != os.getppid()
+        or len(expected) != _PROCESS_BOUNDARY_NONCE_BYTES
+    ):
+        return False
+    channel = None
+    try:
+        channel = socket.socket(fileno=descriptor)
+        channel.settimeout(2.0)
+        if channel.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE) != socket.SOCK_STREAM:
+            return False
+        payload = bytearray()
+        while len(payload) < _PROCESS_BOUNDARY_NONCE_BYTES:
+            chunk = channel.recv(_PROCESS_BOUNDARY_NONCE_BYTES - len(payload))
+            if not chunk:
+                break
+            payload.extend(chunk)
+        extra = channel.recv(1)
+        return (
+            not extra
+            and len(payload) == _PROCESS_BOUNDARY_NONCE_BYTES
+            and secrets.compare_digest(bytes(payload), expected)
+        )
+    except (OSError, ValueError):
+        return False
+    finally:
+        if channel is not None:
+            channel.close()
+
+
+def _run_process_boundary() -> "NoReturn":
+    boundary_parent, boundary_child = socket.socketpair()
+    nonce = secrets.token_bytes(_PROCESS_BOUNDARY_NONCE_BYTES)
+    boundary_child.set_inheritable(True)
+    environment = os.environ.copy()
+    environment[_PROCESS_BOUNDARY_ENV] = (
+        f"{boundary_child.fileno()}:{os.getpid()}:{nonce.hex()}"
+    )
+    inheritance = (
+        {"close_fds": False}
+        if os.name == "nt"
+        else {"pass_fds": (boundary_child.fileno(),)}
+    )
+    try:
+        boundary_parent.sendall(nonce)
+        boundary_parent.shutdown(socket.SHUT_WR)
+        process = subprocess.Popen(
+            [sys.executable, *sys.argv],
+            stdin=None,
+            stdout=None,
+            stderr=subprocess.PIPE,
+            env=environment,
+            **inheritance,
+        )
+    finally:
+        boundary_parent.close()
+        boundary_child.close()
+    if process.stderr is None:
+        process.kill()
+        process.wait()
+        raise SystemExit(125)
+    captured = bytearray()
+    capture_overflow = False
+    line = bytearray()
+    line_overflow = False
+    failure_records: list[bytes] = []
+
+    def consume_line() -> None:
+        nonlocal line_overflow
+        if not line_overflow:
+            record = bytes(line)
+            if record.endswith(b"\r"):
+                record = record[:-1]
+            if _valid_failure_record(record) and len(failure_records) < 2:
+                failure_records.append(record)
+        line.clear()
+        line_overflow = False
+
+    while True:
+        chunk = process.stderr.read(8192)
+        if not chunk:
+            break
+        available = _PROCESS_STDERR_LIMIT - len(captured)
+        if available > 0:
+            captured.extend(chunk[:available])
+        if len(chunk) > max(available, 0):
+            capture_overflow = True
+        for byte in chunk:
+            if byte == 0x0A:
+                consume_line()
+            elif not line_overflow:
+                if len(line) < 512:
+                    line.append(byte)
+                else:
+                    line.clear()
+                    line_overflow = True
+    if line or line_overflow:
+        consume_line()
+    returncode = process.wait()
+    if len(failure_records) == 1 and b":KeyboardInterrupt:" in failure_records[0]:
+        status = 130
+    elif returncode < 0:
+        status = 128 - returncode
+    else:
+        status = returncode
+    try:
+        if len(failure_records) == 1:
+            diagnostic = failure_records[0]
+            _write_all(2, diagnostic + b"\n")
+        elif capture_overflow:
+            _write_all(2, b"managed-deadline diagnostic stderr exceeded 65536 bytes\n")
+        else:
+            _write_all(2, bytes(captured))
+    except BaseException:
+        pass
+    raise SystemExit(status)
+
+
+if not _consume_process_boundary_capability():
+    _run_process_boundary()
+
+
+DIAGNOSTIC_SUBPROCESS_MODE = None
+if len(sys.argv) == 3 and sys.argv[1] == "--diagnostic-subprocess":
+    DIAGNOSTIC_SUBPROCESS_MODE = sys.argv[2]
+elif len(sys.argv) != 2:
     raise SystemExit("usage: managed-deadline-stop-channel-linux.py HELPER")
-if not sys.platform.startswith("linux") or not Path("/proc/self/stat").is_file():
+if DIAGNOSTIC_SUBPROCESS_MODE is None and (
+    not sys.platform.startswith("linux") or not Path("/proc/self/stat").is_file()
+):
     raise SystemExit("native stop-channel tests require Linux /proc")
 
-HELPER = Path(sys.argv[1]).resolve()
+HELPER = (
+    Path(sys.argv[1]).resolve()
+    if DIAGNOSTIC_SUBPROCESS_MODE is None
+    else Path(sys.argv[0]).resolve()
+)
 PYTHON = sys.executable
 WAIT_SECONDS = 15.0
+DIAGNOSTIC_LIMIT_BYTES = 512
+DIAGNOSTIC_TRUNCATION_MARKER = "...[truncated]"
 EXPECTED_STOP_CASES = (
     "stop-channel-normal",
     "stop-channel-term-ignoring",
@@ -60,15 +239,126 @@ EXPECTED_STOP_CASES = (
     "stop-channel-overlong-path",
 )
 EXECUTED_STOP_CASES: list[str] = []
+PRIVATE_WORK_ROOT: Path | None = None
+ACTIVE_STOP_CASE_LABEL: str | None = None
+
+
+class StopChannelFailure(SystemExit):
+    """Exit with status 1 without duplicating the case-labelled diagnostic."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(1)
+        self.message = message
+
+    def __str__(self) -> str:
+        return self.message
 
 
 def fail(message: str) -> "NoReturn":
+    if ACTIVE_STOP_CASE_LABEL is not None:
+        raise StopChannelFailure(message)
     raise SystemExit(message)
 
 
+def _bounded_diagnostic(text: str) -> str:
+    encoded = text.encode("utf-8", errors="backslashreplace")
+    if len(encoded) <= DIAGNOSTIC_LIMIT_BYTES:
+        return encoded.decode("utf-8")
+    marker = DIAGNOSTIC_TRUNCATION_MARKER.encode("ascii")
+    prefix = encoded[: DIAGNOSTIC_LIMIT_BYTES - len(marker)]
+    while True:
+        try:
+            bounded = prefix.decode("utf-8")
+            break
+        except UnicodeDecodeError as error:
+            prefix = prefix[: error.start]
+    return bounded + DIAGNOSTIC_TRUNCATION_MARKER
+
+
+def _sanitize_diagnostic(text: str) -> str:
+    if PRIVATE_WORK_ROOT is not None:
+        text = text.replace(os.fspath(PRIVATE_WORK_ROOT), "<work>")
+    text = re.sub(
+        r"(?<![0-9a-f])(?:[0-9a-f]{64}|[0-9a-f]{32})(?![0-9a-f])",
+        "<capability>",
+        text,
+    )
+    text = text.replace("::", "\\x3a\\x3a")
+    escaped: list[str] = []
+    for character in text:
+        codepoint = ord(character)
+        if character == "\r":
+            escaped.append("\\r")
+        elif character == "\n":
+            escaped.append("\\n")
+        elif character == "\0":
+            escaped.append("\\0")
+        elif character == "%":
+            escaped.append("\\x25")
+        elif codepoint < 0x20 or 0x7F <= codepoint <= 0x9F:
+            escaped.append(f"\\x{codepoint:02x}")
+        elif 0xD800 <= codepoint <= 0xDFFF:
+            escaped.append(f"\\u{codepoint:04x}")
+        else:
+            escaped.append(character)
+    return "".join(escaped)
+
+
+def _stop_case_failure_record(label: str, error: BaseException) -> str:
+    error_type = type(error).__name__
+    if not error_type.isidentifier():
+        error_type = "BaseException"
+    try:
+        message = str(error)
+    except BaseException:
+        message = "<unprintable exception>"
+    record = (
+        f"managed-deadline-stop-channel-case-failed:{label}:"
+        f"{error_type}:{_sanitize_diagnostic(message)}"
+    )
+    return _bounded_diagnostic(record)
+
+
 def run_case(label: str, operation, *arguments) -> None:
-    operation(*arguments)
+    global ACTIVE_STOP_CASE_LABEL
+    if label not in EXPECTED_STOP_CASES:
+        raise ValueError(f"unknown managed-deadline stop case: {label!r}")
+    previous_label = ACTIVE_STOP_CASE_LABEL
+    ACTIVE_STOP_CASE_LABEL = label
+    try:
+        try:
+            operation(*arguments)
+        except BaseException as error:
+            record = _stop_case_failure_record(label, error)
+            try:
+                sys.stderr.write(record + "\n")
+                sys.stderr.flush()
+            except BaseException:
+                pass
+            raise
+    finally:
+        ACTIVE_STOP_CASE_LABEL = previous_label
     EXECUTED_STOP_CASES.append(label)
+
+
+def _run_diagnostic_subprocess_case(mode: str) -> None:
+    def operation() -> None:
+        if mode == "runtime-error":
+            raise RuntimeError("runtime failure\n%0A::error title=forged::")
+        if mode == "string-system-exit":
+            raise SystemExit("string exit\n%0A::error title=forged::")
+        if mode == "keyboard-interrupt":
+            raise KeyboardInterrupt("keyboard interrupt\n::warning::forged")
+        if mode == "numeric-system-exit":
+            raise SystemExit(73)
+        raise ValueError(f"unknown diagnostic subprocess mode: {mode!r}")
+
+    run_case("stop-channel-normal", operation)
+
+
+if DIAGNOSTIC_SUBPROCESS_MODE is not None:
+    _run_diagnostic_subprocess_case(DIAGNOSTIC_SUBPROCESS_MODE)
+    raise SystemExit("diagnostic subprocess case unexpectedly returned")
 
 
 def proc_identity(pid: int) -> tuple[int, int, int]:
@@ -1261,6 +1551,7 @@ def run_overlong_path_case(root: Path) -> None:
 
 with tempfile.TemporaryDirectory(prefix="managed-deadline-stop-") as temporary:
     root = Path(temporary)
+    PRIVATE_WORK_ROOT = root
     (root / "managed-command.py").write_text(
         """#!/usr/bin/env python3
 import os
