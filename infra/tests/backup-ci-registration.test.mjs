@@ -549,7 +549,6 @@ const reviewedJobContracts = new Map([
   [
     "postgres-integration",
     [
-      "    needs: application",
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 20",
       "    steps:",
@@ -562,7 +561,6 @@ const reviewedJobContracts = new Map([
   [
     "curriculum-runtime",
     [
-      "    needs: application",
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 45",
       "    steps:",
@@ -589,7 +587,6 @@ const reviewedJobContracts = new Map([
   [
     "browser",
     [
-      "    needs: application",
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 25",
       "    steps:",
@@ -1099,6 +1096,28 @@ function runAdversarialSelfTests(document) {
     replaceExactly(document, "  contents: read\n", "  contents: write\n"),
   );
 
+  for (const jobName of [
+    "postgres-integration",
+    "curriculum-runtime",
+    "browser",
+  ]) {
+    for (const line of [
+      "    needs: application",
+      "    if: always()",
+      "    continue-on-error: true",
+    ]) {
+      expectRejectedWithMessage(
+        `${jobName} skip control ${line}`,
+        replaceExactly(
+          document,
+          `  ${jobName}:\n`,
+          `  ${jobName}:\n${line}\n`,
+        ),
+        `${jobName} executable contract changed`,
+      );
+    }
+  }
+
   for (const line of [
     "    needs: application",
     "    if: true",
@@ -1274,8 +1293,8 @@ function runAdversarialSelfTests(document) {
     "self-hosted postgres integration runner",
     replaceExactly(
       document,
-      "  postgres-integration:\n    needs: application\n    runs-on: ubuntu-24.04\n",
-      "  postgres-integration:\n    needs: application\n    runs-on: self-hosted\n",
+      "  postgres-integration:\n    runs-on: ubuntu-24.04\n",
+      "  postgres-integration:\n    runs-on: self-hosted\n",
     ),
     "postgres-integration executable contract changed",
   );

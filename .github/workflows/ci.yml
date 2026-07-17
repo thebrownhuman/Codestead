@@ -111,7 +111,6 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
 
   postgres-integration:
-    needs: application
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -124,7 +123,6 @@ jobs:
       - run: npm run test:integration
 
   curriculum-runtime:
-    needs: application
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -159,7 +157,6 @@ jobs:
       - run: npm run web:executable:verify
 
   browser:
-    needs: application
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
