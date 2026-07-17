@@ -300,6 +300,152 @@ for stop_case in stop-channel-normal stop-channel-term-ignoring \
     || fail "managed-deadline Linux gate omits $stop_case"
 done
 "$python_command" - "$stop_channel_gate" <<'PY' \
+  || fail "managed-deadline request-frame bytes validator contract failed"
+import ast
+import copy
+import pathlib
+import sys
+
+source_path = pathlib.Path(sys.argv[1])
+module = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+function = next(
+    node
+    for node in module.body
+    if isinstance(node, ast.FunctionDef) and node.name == "run_fake_peer_bound_case"
+)
+
+
+def request_frame_nodes(candidate_function):
+    parts_candidates = [
+        node
+        for node in ast.walk(candidate_function)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "parts"
+            for target in node.targets
+        )
+    ]
+    if len(parts_candidates) != 1:
+        raise SystemExit(
+            "request-frame AST selector expected exactly one parts assignment, "
+            f"found {len(parts_candidates)}"
+        )
+    frame_guard_candidates = [
+        node
+        for node in ast.walk(candidate_function)
+        if isinstance(node, ast.If)
+        and any(
+            isinstance(candidate, ast.Constant)
+            and candidate.value == ": requester did not send the exact authenticated frame"
+            for candidate in ast.walk(node)
+        )
+    ]
+    if len(frame_guard_candidates) != 1:
+        raise SystemExit(
+            "request-frame AST selector expected exactly one frame guard, "
+            f"found {len(frame_guard_candidates)}"
+        )
+    return parts_candidates[0], frame_guard_candidates[0]
+
+
+parts_assignment, frame_guard = request_frame_nodes(function)
+
+
+class RejectedFrame(Exception):
+    pass
+
+
+def fail(message):
+    raise RejectedFrame(message)
+
+
+validator = ast.FunctionDef(
+    name="accepts_request_frame",
+    args=ast.arguments(
+        posonlyargs=[],
+        args=[ast.arg(arg="request"), ast.arg(arg="fields")],
+        kwonlyargs=[],
+        kw_defaults=[],
+        defaults=[],
+    ),
+    body=[
+        ast.Assign(
+            targets=[ast.Name(id="label", ctx=ast.Store())],
+            value=ast.Constant(value="request-frame-fixture"),
+        ),
+        copy.deepcopy(parts_assignment),
+        copy.deepcopy(frame_guard),
+        ast.Return(value=ast.Constant(value=True)),
+    ],
+    decorator_list=[],
+)
+unit = ast.Module(body=[validator], type_ignores=[])
+ast.fix_missing_locations(unit)
+namespace = {"fail": fail}
+exec(compile(unit, str(source_path), "exec"), namespace)
+accepts_request_frame = namespace["accepts_request_frame"]
+
+nonce = "ab" * 32
+fields = ["v1", "1", "2", "3", "4", ".managed-stop.sock", nonce]
+valid = (
+    ("zero", f"STOP {nonce} 0\n".encode("ascii")),
+    ("leading-zero", f"STOP {nonce} 000123\n".encode("ascii")),
+    ("positive", f"STOP {nonce} 123456789\n".encode("ascii")),
+)
+for label, candidate in valid:
+    if accepts_request_frame(candidate, fields) is not True:
+        raise SystemExit(f"request-frame validator rejected valid {label} decimal")
+
+invalid = (
+    ("malformed-command", f"START {nonce} 123\n".encode("ascii")),
+    ("malformed-nonce", b"STOP " + b"cd" * 32 + b" 123\n"),
+    ("empty-frame", b""),
+    ("empty-deadline", f"STOP {nonce} \n".encode("ascii")),
+    ("positive-sign", f"STOP {nonce} +123\n".encode("ascii")),
+    ("negative-sign", f"STOP {nonce} -123\n".encode("ascii")),
+    ("alphabetic-deadline", f"STOP {nonce} abc\n".encode("ascii")),
+    ("mixed-alphanumeric-deadline", f"STOP {nonce} 12a3\n".encode("ascii")),
+    ("non-ascii", f"STOP {nonce} ".encode("ascii") + b"\xff\n"),
+    ("leading-whitespace", f" STOP {nonce} 123\n".encode("ascii")),
+    ("double-whitespace", f"STOP  {nonce} 123\n".encode("ascii")),
+    ("tab-whitespace", f"STOP\t{nonce} 123\n".encode("ascii")),
+    ("missing-newline", f"STOP {nonce} 123".encode("ascii")),
+    ("extra-field", f"STOP {nonce} 123 extra\n".encode("ascii")),
+)
+for label, candidate in invalid:
+    try:
+        accepts_request_frame(candidate, fields)
+    except RejectedFrame:
+        continue
+    raise SystemExit(f"request-frame validator accepted {label}: {candidate!r}")
+
+selection_mutations = (
+    (
+        "parts assignment",
+        parts_assignment,
+        "request-frame AST selector expected exactly one parts assignment, found 2",
+    ),
+    (
+        "frame guard",
+        frame_guard,
+        "request-frame AST selector expected exactly one frame guard, found 2",
+    ),
+)
+for label, duplicate, expected in selection_mutations:
+    mutated_function = copy.deepcopy(function)
+    mutated_function.body.append(copy.deepcopy(duplicate))
+    try:
+        request_frame_nodes(mutated_function)
+    except SystemExit as error:
+        if str(error) != expected:
+            raise SystemExit(
+                f"request-frame duplicate {label} produced the wrong structural error: "
+                f"{error}"
+            ) from error
+        continue
+    raise SystemExit(f"request-frame selector accepted duplicate {label}")
+PY
+"$python_command" - "$stop_channel_gate" <<'PY' \
   || fail "managed-deadline stop-channel case diagnostic contract failed"
 import ast
 import contextlib

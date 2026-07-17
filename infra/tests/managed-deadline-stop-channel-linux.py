@@ -1396,7 +1396,7 @@ def run_fake_peer_bound_case(root: Path, label: str, mode: str) -> None:
             or len(parts) != 3
             or parts[0] != b"STOP"
             or parts[1] != fields[6].encode("ascii")
-            or not parts[2].isdecimal()
+            or not parts[2].isdigit()
         ):
             fail(f"{label}: requester did not send the exact authenticated frame")
         if not control.is_file() or not endpoint.exists():
