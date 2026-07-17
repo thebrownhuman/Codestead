@@ -918,12 +918,16 @@ def run_external_term_no_ack_case(root: Path) -> None:
     peer.sendall(b"STOP ")
     os.kill(process.pid, signal.SIGTERM)
     response = bytearray()
-    while True:
-        chunk = peer.recv(128)
-        if not chunk:
-            break
-        response.extend(chunk)
-    peer.close()
+    try:
+        while True:
+            chunk = peer.recv(128)
+            if not chunk:
+                break
+            response.extend(chunk)
+    except ConnectionResetError:
+        pass
+    finally:
+        peer.close()
     if response:
         fail(f"{label}: external TERM produced a stop acknowledgement")
     status = wait_process(process, label)
