@@ -6,10 +6,37 @@ helper="$repo_root/scripts/backup/run-managed-deadline.py"
 backup_controller="$repo_root/scripts/backup/backup.sh"
 stop_channel_gate="$repo_root/infra/tests/managed-deadline-stop-channel-linux.py"
 
+github_escape() {
+  local value="$1"
+  value="${value//'%'/'%25'}"
+  value="${value//$'\r'/'%0D'}"
+  value="${value//$'\n'/'%0A'}"
+  printf '%s' "$value"
+}
+
+emit_github_error() {
+  local line="$1" message="$2"
+  [[ "${GITHUB_ACTIONS:-}" == true ]] || return 0
+  printf '::error file=infra/tests/managed-deadline-linux.test.sh,line=%s::%s\n' \
+    "$line" "$(github_escape "$message")" >&2
+}
+
 fail() {
-  printf '%s\n' "$1" >&2
+  local message="$1"
+  emit_github_error "${BASH_LINENO[0]:-1}" "$message"
+  printf '%s\n' "$message" >&2
   exit 1
 }
+
+report_unexpected_error() {
+  local status=$? line="${BASH_LINENO[0]:-1}"
+  trap - ERR
+  emit_github_error "$line" \
+    "managed-deadline Linux gate exited unexpectedly with status $status"
+  exit "$status"
+}
+
+trap report_unexpected_error ERR
 
 run_controller_stop_regression() (
   local mode="$1" fixture control drain_status=0 wait_calls=0 request_calls=0

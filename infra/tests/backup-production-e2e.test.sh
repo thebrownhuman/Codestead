@@ -15,8 +15,25 @@ readonly -a REQUIRED_NETWORKS=(
   frontend mail-egress runner-egress github-egress data scanner signature-egress
 )
 
+github_escape() {
+  local value="$1"
+  value="${value//'%'/'%25'}"
+  value="${value//$'\r'/'%0D'}"
+  value="${value//$'\n'/'%0A'}"
+  printf '%s' "$value"
+}
+
+emit_github_error() {
+  local line="$1" message="$2"
+  [[ "${GITHUB_ACTIONS:-}" == true ]] || return 0
+  printf '::error file=infra/tests/backup-production-e2e.test.sh,line=%s::%s\n' \
+    "$line" "$(github_escape "$message")" >&2
+}
+
 fail() {
-  printf 'backup production e2e: %s\n' "$*" >&2
+  local message="$*"
+  emit_github_error "${BASH_LINENO[0]:-1}" "backup production e2e: $message"
+  printf 'backup production e2e: %s\n' "$message" >&2
   exit 1
 }
 
@@ -551,6 +568,8 @@ cleanup_test() {
 
   if ((original_status != 0 || cleanup_failed != 0 \
     || ${inner_complete:-0} != 1)); then
+    emit_github_error "${BASH_LINENO[0]:-1}" \
+      'backup production e2e: test or exact cleanup failed'
     printf 'backup production e2e: test or exact cleanup failed\n' >&2
     exit 1
   fi
