@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T17:42:00+05:30",
-  "revalidatedAt": "2026-07-14T16:47:00+05:30",
+  "revalidatedAt": "2026-07-17T17:01:45+05:30",
   "requirements": [
     "SES-004",
     "DAT-003"
@@ -38,7 +38,7 @@
       "command": "npx vitest run src/lib/drafts/__tests__ src/app/api/drafts/__tests__/route.test.ts src/components/lesson/__tests__/code-lab-draft-sync.test.tsx src/components/lesson/__tests__/code-lab-runner.test.tsx",
       "result": "pass",
       "files": 7,
-      "passed": 73,
+      "passed": 120,
       "failed": 0
     },
     {
@@ -70,9 +70,9 @@
     {
       "command": "npm run test:auth-boundary && npm run security:api-surface",
       "result": "pass",
-      "authenticatedOperations": 60,
-      "administratorOperations": 45,
-      "matrixRows": 110,
+      "authenticatedOperations": 87,
+      "administratorOperations": 60,
+      "matrixRows": 154,
       "errors": 0
     },
     {
@@ -100,17 +100,17 @@
     },
     {
       "command": "npm run test:coverage",
-      "verifiedOn": "2026-07-14",
+      "verifiedOn": "2026-07-17",
       "result": "pass",
-      "files": 250,
-      "passed": 1572,
+      "files": 644,
+      "passed": 2686,
       "skipped": 1,
       "failed": 0,
       "coveragePercent": {
-        "statements": 83.16,
-        "branches": 75.06,
-        "functions": 81.07,
-        "lines": 86.66
+        "statements": 83.63,
+        "branches": 76.06,
+        "functions": 82.27,
+        "lines": 87.29
       },
       "notes": "Revalidated after the Patch mentor cockpit and responsive lesson-workspace interaction update; the dedicated lesson-workspace interaction suite passed 9 of 9 tests."
     }
@@ -141,11 +141,11 @@
     "drizzle/0024_fine_shadowcat.sql": "9bb044a47730b7a6c8f0df41f153f7ececc1b07e63c77ab1e6a90ecdae9d8e66",
     "drizzle/meta/0024_snapshot.json": "e09559779cc8c175280923edb59cc8208ec61969b7b4a5e2abd837cb94d5939e",
     "src/lib/drafts/repository.ts": "c2e32842c67d0688783d64b01eaec73645f1f4df1bb0a71ef3f1d9a364202013",
-    "src/lib/drafts/browser-cache.ts": "e804647fc84cf609dd28b558a00b7c4c8c3d27b95390d1c25051edbcc5e42c6f",
-    "src/lib/drafts/use-synced-draft.ts": "05637931e5849c95d01ef90141c171043ad493ecc2d18d05f83e480e34805df6",
-    "src/lib/drafts/logout.ts": "74e8cd1b70036d8d1c1c8c7ef1eaf7510d5ecb087c45392bc90f0414ec14764f",
+    "src/lib/drafts/browser-cache.ts": "3ddd748388f383cff5c47b8280755eedca98731e2c2560e1f28d2a4f572d1a8c",
+    "src/lib/drafts/use-synced-draft.ts": "6686152cc62f254b389d47b5c14308b12ac8f3e2bb743cbb2af40628a02b10d2",
+    "src/lib/drafts/logout.ts": "c7515692d430c9024dafaa2ba8784fcaa12d1cc8ee437ffb949eaf54135a208c",
     "src/app/api/drafts/route.ts": "f2624118a0ca8fe8d52da7241371a12a34b98bb68f82b6a8729cf0d11adc68ba",
-    "src/components/lesson/lesson-workspace.tsx": "be93f416bb6b02e2887913179ffa37f8e53d769e37049992a2d4bb5ff4e1006b",
+    "src/components/lesson/lesson-workspace.tsx": "70948b2e1dfddfb1a02b8919da0a7c7f12a9e8c66480332d57d1e137a0860469",
     "integration/learner-drafts.integration.test.ts": "ef15f3a605a8d02adb240a484be12ab8f259a6bca7b943acc147b9f71a9cc91f"
   },
   "supersededDigests": [
@@ -158,6 +158,26 @@
       "artifact": "src/components/lesson/lesson-workspace.tsx",
       "priorDigest": "1513850b1153012a60667da8252571a86d711df2e3228275ed0b816ff34e4da2",
       "replacedAt": "2026-07-14T16:47:00+05:30"
+    },
+    {
+      "artifact": "src/lib/drafts/browser-cache.ts",
+      "priorDigest": "e804647fc84cf609dd28b558a00b7c4c8c3d27b95390d1c25051edbcc5e42c6f",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "src/lib/drafts/use-synced-draft.ts",
+      "priorDigest": "05637931e5849c95d01ef90141c171043ad493ecc2d18d05f83e480e34805df6",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "src/lib/drafts/logout.ts",
+      "priorDigest": "74e8cd1b70036d8d1c1c8c7ef1eaf7510d5ecb087c45392bc90f0414ec14764f",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "src/components/lesson/lesson-workspace.tsx",
+      "priorDigest": "be93f416bb6b02e2887913179ffa37f8e53d769e37049992a2d4bb5ff4e1006b",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
     }
   ],
   "remainingLimitations": [

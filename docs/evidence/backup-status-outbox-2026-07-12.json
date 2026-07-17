@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "revalidatedAt": "2026-07-17T17:01:45+05:30",
   "scope": "Local deterministic validation of backup status reporting into the application email outbox; no external email was sent.",
   "status": "passed",
   "shellContract": {
@@ -46,15 +46,15 @@
   "sourceHashes": [
     {
       "path": "scripts/backup/common.sh",
-      "sha256": "f386c48ce03c8bc7eb184489392e3f864938dfd01a782b4ee08e383bbb56e064"
+      "sha256": "e4c6443eefc5f54f77507f63a6f7212e1d026b286162cba5c5211bafcb47e86d"
     },
     {
       "path": "scripts/backup/backup.sh",
-      "sha256": "40b12423a17c4c661906375467380754211af57ee3ede4b988de93f6fc42adf5"
+      "sha256": "aa91a2398068af0a07b2efea1479fca00f41888430f254e07a394d00095d4aa1"
     },
     {
       "path": "infra/tests/backup-config.test.sh",
-      "sha256": "db57ed0f6552fc2d6f7affaf2aa8ce459cfd92528d2054d8dbb76a4471377b7f"
+      "sha256": "b09f8e9c24928aa5ad606efc1d3d014992ea3a05c85a491a1eb23cb571df1156"
     },
     {
       "path": "docs/runbooks/backup-and-restore.md",
@@ -66,6 +66,21 @@
       "artifact": "docs/runbooks/backup-and-restore.md",
       "priorDigest": "bbb5cc3480556f5023f311e7c9c0509c3bfd034b19a2772f72f68db8968c201b",
       "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "scripts/backup/common.sh",
+      "priorDigest": "f386c48ce03c8bc7eb184489392e3f864938dfd01a782b4ee08e383bbb56e064",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "scripts/backup/backup.sh",
+      "priorDigest": "40b12423a17c4c661906375467380754211af57ee3ede4b988de93f6fc42adf5",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "infra/tests/backup-config.test.sh",
+      "priorDigest": "db57ed0f6552fc2d6f7affaf2aa8ce459cfd92528d2054d8dbb76a4471377b7f",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
     }
   ],
   "limitations": [

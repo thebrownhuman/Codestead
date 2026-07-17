@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "requirement": "RUN-008",
   "generatedAt": "2026-07-12T18:28:00.000Z",
-  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "revalidatedAt": "2026-07-17T17:01:45+05:30",
   "status": "locally-verified-partial",
   "scope": "Atomic one-active-official-job admission per learner for exam final tests and assessment correction regrades; practice execution remains outside the official slot.",
   "databaseContract": {
@@ -32,13 +32,13 @@
       "command": "npm run test:integration -- integration/runner-admission.integration.test.ts",
       "result": "passed",
       "migrations": "applied successfully twice in a fresh disposable PostgreSQL 17 container",
-      "tests": "3/3"
+      "tests": "8/8"
     },
     {
       "command": "npm run test:integration -- integration/assessment-correction.integration.test.ts",
       "result": "passed",
       "migrations": "applied successfully twice in a fresh disposable PostgreSQL 17 container",
-      "tests": "10/10"
+      "tests": "18/18"
     },
     {
       "command": "npm run typecheck",
@@ -47,22 +47,22 @@
     {
       "command": "npx vitest run src/lib/runner/__tests__/admission.test.ts src/lib/runner/__tests__/client.test.ts src/app/api/code/run/__tests__/route.test.ts --maxWorkers=1",
       "result": "passed",
-      "tests": "31/31"
+      "tests": "141/141"
     },
     {
       "command": "npx vitest run src/app/api/exams/_lib/finalization-worker-concurrency.test.ts src/lib/data-lifecycle/__tests__/export.test.ts src/lib/data-lifecycle/__tests__/deletion-runtime.test.ts --maxWorkers=1",
       "result": "passed",
-      "tests": "25/25"
+      "tests": "38/38"
     }
   ],
   "sha256": {
     "drizzle/0035_official_runner_fairness.sql": "5248e2c78a8152a4994f9e286d16c1577820ef8dda40db1b8df7058eff7abbe6",
     "drizzle/meta/0035_snapshot.json": "4d0e919e4cc302bc0390dc2552d27a15abe4eedd16e2d3e0107c696166e155d2",
-    "src/lib/db/schema.ts": "49410735fd4c22f76eaf7091f52106e8a0a05767a8cd2703bcf6b6a49486b10f",
+    "src/lib/db/schema.ts": "b1833d7c6e77cd1e4cb267552f46514eedcc911eecc25ed67ea6d914310ff25d",
     "src/lib/runner/admission.ts": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
     "src/lib/runner/client.ts": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
     "src/app/api/code/run/route.ts": "391f604e956cbb4429a53702edb60fff86cde8e5f36b8595677540c18d4b9356",
-    "src/app/api/exams/_lib/service.ts": "48949237a92277536e61488dc6bca1bede40c6214bebd45169433cd6f3c7cd62",
+    "src/app/api/exams/_lib/service.ts": "e11f966b69b96a65e62e5ab80eb9913986bbcd776b36e2171acd8caa5edc04a2",
     "src/app/api/exams/_lib/finalization-worker.ts": "5a56bce1b838855df3fd489e98de213bd5fa84eeae9b5736fa1a594d712c5c5a",
     "src/lib/assessment-corrections/worker.ts": "5e4c27115fd1c02d74eafd161c5dbf4ed067e90d53a75b5db0d2a53e60197c68",
     "integration/runner-admission.integration.test.ts": "7f09ed1d4ced3b10ddcdd7bf84c96300c84e66275101c3d6dbcc4fb1462e13f9",
@@ -94,6 +94,16 @@
       "artifact": "src/lib/data-lifecycle/export.ts",
       "priorDigest": "85a45ad34b79f36ea821880312f8f73e9cce9c0076a9dc6f25344fe9a9686301",
       "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/db/schema.ts",
+      "priorDigest": "49410735fd4c22f76eaf7091f52106e8a0a05767a8cd2703bcf6b6a49486b10f",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "src/app/api/exams/_lib/service.ts",
+      "priorDigest": "48949237a92277536e61488dc6bca1bede40c6214bebd45169433cd6f3c7cd62",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
     }
   ],
   "notProved": [

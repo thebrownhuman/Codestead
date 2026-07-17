@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.1.0",
   "generatedAt": "2026-07-12",
-  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "revalidatedAt": "2026-07-17T17:01:45+05:30",
   "status": "verified",
   "scope": "Deterministic offline provider outage, administrator-funded fallback authority, stuck-operation recovery, and deletion serialization",
   "productionModelQualityEvidence": false,
@@ -21,7 +21,7 @@
     },
     "focusedContracts": {
       "command": "npm.cmd test -- --run src/lib/ai/__tests__/fallback-grant-boundary.test.ts src/lib/ai/__tests__/fallback-budget.test.ts src/lib/ai/__tests__/router.test.ts src/lib/ai/__tests__/provider-operation-idempotency.test.ts src/lib/ai/__tests__/provider-operation-idempotency-store.test.ts src/lib/data-lifecycle/__tests__/deletion-runtime.test.ts src/app/api/privacy/consents/__tests__/route.test.ts src/app/api/onboarding/profile/__tests__/route.test.ts src/app/api/ai/tutor/__tests__/route-coverage.test.ts",
-      "result": "89 passed / 0 failed across 9 files"
+      "result": "98 passed / 0 failed across 9 files"
     },
     "typecheck": {
       "command": "npm.cmd run typecheck",
@@ -62,8 +62,8 @@
   "artifactSha256": {
     "drizzle/0032_short_green_goblin.sql": "ad353e63c2e45c5b46de0266b5f265f20e475771093cc8575aa49abe870b04e5",
     "drizzle/0034_fallback_authority_delete_guard.sql": "ca1ee5a9fe728c83f9d8af42b11ad3a9467d5a93af779a79420f57cdc31d6f73",
-    "drizzle/meta/_journal.json": "ae806ae07bcea0df177322cf0f85ec1f8cccf69670577caf10b21b2afe21740e",
-    "src/lib/db/schema.ts": "49410735fd4c22f76eaf7091f52106e8a0a05767a8cd2703bcf6b6a49486b10f",
+    "drizzle/meta/_journal.json": "7d731fd22c4c84ae24829747e2bc7dddd1ee5e9b80646ecc05aacca2331ef50a",
+    "src/lib/db/schema.ts": "b1833d7c6e77cd1e4cb267552f46514eedcc911eecc25ed67ea6d914310ff25d",
     "src/lib/security/user-authority-lock.ts": "408ab29c495e79667df65ca192a2053468e0d7bd9f6f27e674f524f5c9aa0061",
     "src/lib/ai/fallback-budget.ts": "e71ea062b326f044850e92d60951e00095609941bc24c7416abe8881782ec145",
     "src/lib/ai/fallback-grants.ts": "275668e91a8c0614762b721677e6b3551aaadb88df1f154e685e9d1104946a68",
@@ -81,7 +81,7 @@
     "src/components/admin/admin-fallback-grant-manager.tsx": "b93aa202456b49ce6011111140dbfcd2210948974e9f8952e214e511c4f0b6ca",
     "integration/provider-outage-fallback.integration.test.ts": "52e7f7bbf11b87243f9b34b5c37beae6e2429a2141470b81d2d60a4a9997c89c",
     "integration/provider-operation-idempotency.integration.test.ts": "a23336c6c944ee984aad1ca3c095a300311702377249bcb3263f51ff85727ade",
-    "integration/postgres.integration.test.ts": "9e8dfac96a071f2634c2eab50b1c7c7fd65a9c3d591c0c77a59f9e26ee760af8"
+    "integration/postgres.integration.test.ts": "73838e71fa5735c012712d433c0fd5e3d91748ae2be41e01f766a4dc45589efb"
   },
   "supersededDigests": [
     {
@@ -123,6 +123,21 @@
       "artifact": "integration/postgres.integration.test.ts",
       "priorDigest": "8341d18b9f501559339e829bce5b6e35b6582bfaa91a427db7dec196e2d4d541",
       "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "drizzle/meta/_journal.json",
+      "priorDigest": "ae806ae07bcea0df177322cf0f85ec1f8cccf69670577caf10b21b2afe21740e",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "src/lib/db/schema.ts",
+      "priorDigest": "49410735fd4c22f76eaf7091f52106e8a0a05767a8cd2703bcf6b6a49486b10f",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "integration/postgres.integration.test.ts",
+      "priorDigest": "9e8dfac96a071f2634c2eab50b1c7c7fd65a9c3d591c0c77a59f9e26ee760af8",
+      "replacedAt": "2026-07-17T17:01:45+05:30"
     }
   ]
 }
