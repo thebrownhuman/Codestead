@@ -72,6 +72,8 @@ async function main() {
   let masterKey: Buffer | undefined;
   let probeBytes: Buffer | undefined;
   let temporaryPath = "";
+  let primaryFailed = false;
+  let primaryError: unknown;
   try {
     const keyMetadata = await keyHandle.stat();
     if (!keyMetadata.isFile()) throw new Error("master key is not a regular file");
@@ -123,12 +125,49 @@ async function main() {
         await directoryHandle.close();
       }
     }
+  } catch (error) {
+    primaryFailed = true;
+    primaryError = error;
   } finally {
-    await keyHandle.close();
-    rawKey?.fill(0);
-    masterKey?.fill(0);
-    probeBytes?.fill(0);
-    if (temporaryPath) await rm(temporaryPath, { force: true });
+    let cleanupFailed = false;
+    let cleanupError: unknown;
+    const recordCleanupError = (error: unknown) => {
+      if (!cleanupFailed) {
+        cleanupFailed = true;
+        cleanupError = error;
+      }
+    };
+
+    try {
+      await keyHandle.close();
+    } catch (error) {
+      recordCleanupError(error);
+    }
+    try {
+      rawKey?.fill(0);
+    } catch (error) {
+      recordCleanupError(error);
+    }
+    try {
+      masterKey?.fill(0);
+    } catch (error) {
+      recordCleanupError(error);
+    }
+    try {
+      probeBytes?.fill(0);
+    } catch (error) {
+      recordCleanupError(error);
+    }
+    if (temporaryPath) {
+      try {
+        await rm(temporaryPath, { force: true });
+      } catch (error) {
+        recordCleanupError(error);
+      }
+    }
+
+    if (primaryFailed) throw primaryError;
+    if (cleanupFailed) throw cleanupError;
   }
 
   process.stdout.write("credential_probe_created=true\n");

@@ -8,16 +8,22 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 load_backup_config
 
-for command_name in age age-keygen docker find flock gzip realpath sha256sum sync tar; do
+readonly -a RECOVERY_ARCHIVE_PATHS=(
+  .dockerignore Dockerfile compose.yaml docs/deployment.md docs/runbooks
+  drizzle infra/env infra/systemd
+)
+
+for command_name in age age-keygen docker find flock git grep gzip realpath sha256sum stat sync tar; do
   require_command "$command_name"
 done
 
 : "${EMERGENCY_BACKUP_ROOT:?EMERGENCY_BACKUP_ROOT must name the mounted emergency drive}"
 : "${AGE_RECIPIENT_FILE:?AGE_RECIPIENT_FILE is required}"
+: "${CREDENTIAL_MASTER_KEY_FILE:=/etc/learncoding/secrets/credential_master_key}"
 : "${BACKUP_EPHEMERAL_ROOT:=/run}"
 for configured_path in "$EMERGENCY_BACKUP_ROOT" "$REPO_ROOT" "$LEARN_DATA_ROOT" \
   "$COMPOSE_ENV_FILE" "$AGE_RECIPIENT_FILE" "$BACKUP_STAGE_ROOT" \
-  "$BACKUP_EPHEMERAL_ROOT" "$BACKUP_LOCK_FILE"; do
+  "$BACKUP_EPHEMERAL_ROOT" "$BACKUP_LOCK_FILE" "$CREDENTIAL_MASTER_KEY_FILE"; do
   [[ "$configured_path" == /* ]] || die "backup configuration contains a non-absolute path"
 done
 [[ -z "${BACKUP_ROOT:-}" || "$BACKUP_ROOT" == /* ]] \
@@ -29,6 +35,50 @@ require_secure_regular_file "$AGE_RECIPIENT_FILE" 600 "$(id -u)" \
 [[ -s "$AGE_RECIPIENT_FILE" ]] || die "age recipient file is empty"
 if grep -Eq 'AGE-SECRET-KEY-|AGE-PLUGIN-.+-' "$AGE_RECIPIENT_FILE"; then
   die "age recipient file contains private identity material"
+fi
+
+repo_real="$(realpath -e -- "$REPO_ROOT")" \
+  || die "installed release path is invalid"
+[[ "$repo_real" == "$REPO_ROOT" ]] \
+  || die "installed release path is not canonical"
+git_top="$(git -C "$repo_real" rev-parse --show-toplevel 2>/dev/null)" \
+  || die "installed release Git metadata is unavailable"
+[[ "$git_top" == "$repo_real" \
+  && "$(realpath -e -- "$git_top")" == "$repo_real" ]] \
+  || die "installed release is not the exact Git worktree"
+pre_commit="$(git -C "$repo_real" rev-parse --verify HEAD 2>/dev/null)" \
+  || die "installed release commit is unavailable"
+[[ "$pre_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] \
+  || die "installed release commit is invalid"
+
+require_clean_release() {
+  local status_output ignored_output
+  status_output="$(git -C "$repo_real" status --porcelain=v1 \
+    --untracked-files=all --ignore-submodules=none)" || return 1
+  ignored_output="$(git -C "$repo_real" ls-files --others --ignored \
+    --exclude-standard -- "${RECOVERY_ARCHIVE_PATHS[@]}")" || return 1
+  [[ -z "$status_output" && -z "$ignored_output" ]]
+}
+require_clean_release || die "installed release worktree is not clean"
+
+credential_key_owner="$(id -u)"
+[[ "$CREDENTIAL_MASTER_KEY_FILE" != /etc/learncoding/secrets/credential_master_key ]] \
+  || credential_key_owner=0
+require_secure_regular_file "$CREDENTIAL_MASTER_KEY_FILE" 440 "$credential_key_owner" \
+  || die "credential master key is missing or unsafe"
+credential_key_real="$(realpath -e -- "$CREDENTIAL_MASTER_KEY_FILE")" \
+  || die "credential master key path is invalid"
+[[ "$credential_key_real" == "$CREDENTIAL_MASTER_KEY_FILE" ]] \
+  || die "credential master key path is not canonical"
+credential_key_links="$(stat -c '%h' -- "$CREDENTIAL_MASTER_KEY_FILE")" \
+  || die "credential master key link count is unavailable"
+[[ "$credential_key_links" == 1 ]] \
+  || die "credential master key must have exactly one filesystem link"
+credential_key_inode="$(stat -c '%d:%i' -- "$CREDENTIAL_MASTER_KEY_FILE")" \
+  || die "credential master key identity is unavailable"
+if path_is_within "$credential_key_real" "$repo_real" \
+  || path_is_within "$credential_key_real" "$LEARN_DATA_ROOT"; then
+  die "credential master key overlaps an emergency recovery source"
 fi
 
 secure_directory() {
@@ -68,7 +118,7 @@ secure_ephemeral_parent() {
 
 root="$(validated_root "$EMERGENCY_BACKUP_ROOT" "$EMERGENCY_BACKUP_MAGIC")"
 directory="$root/emergency"
-protected_roots=("$REPO_ROOT" "$LEARN_DATA_ROOT" "$root")
+protected_roots=("$repo_real" "$LEARN_DATA_ROOT" "$root")
 [[ -z "${BACKUP_ROOT:-}" ]] || protected_roots+=("$BACKUP_ROOT")
 for protected_root in "${protected_roots[@]}"; do
   if path_is_within "$BACKUP_STAGE_ROOT" "$protected_root" \
@@ -97,6 +147,31 @@ final_checksum="${final}.sha256"
   && ! -e "$final_checksum" && ! -L "$final_checksum" ]] \
   || die "emergency backup timestamp already exists"
 
+stage=""
+verify_dir=""
+ephemeral_dir=""
+bootstrap_cleanup() {
+  local original_status=$? cleanup_failed=0 target parent
+  trap - EXIT
+  for target in "$ephemeral_dir" "$verify_dir" "$stage"; do
+    [[ -n "$target" ]] || continue
+    if [[ "$target" == "$ephemeral_dir" ]]; then
+      parent="$BACKUP_EPHEMERAL_ROOT"
+    else
+      parent="$BACKUP_STAGE_ROOT"
+    fi
+    if [[ ! -d "$target" || -L "$target" || "$target" == "$parent" \
+      || "$(stat -c '%u' -- "$target" 2>/dev/null)" != "$(id -u)" ]] \
+      || ! path_is_within "$target" "$parent" \
+      || ! rmdir -- "$target" 2>/dev/null; then
+      cleanup_failed=1
+    fi
+  done
+  ((original_status != 0)) && exit "$original_status"
+  ((cleanup_failed == 0)) || exit 1
+  exit 0
+}
+trap bootstrap_cleanup EXIT
 stage="$(mktemp -d -- "$BACKUP_STAGE_ROOT/emergency.${timestamp}.XXXXXX")"
 verify_dir="$(mktemp -d -- "$BACKUP_STAGE_ROOT/emergency-verify.${timestamp}.XXXXXX")"
 ephemeral_dir="$(mktemp -d -- "$BACKUP_EPHEMERAL_ROOT/learncoding-emergency.${timestamp}.XXXXXX")"
@@ -148,9 +223,17 @@ cleanup() {
 trap cleanup EXIT
 
 assert_safe_source_tree() {
-  local source
+  local source source_inode inode_alias
   for source in "$@"; do
     [[ ! -L "$source" && ( -f "$source" || -d "$source" ) ]] || return 1
+    if [[ -f "$source" ]]; then
+      source_inode="$(stat -c '%d:%i' -- "$source")" || return 1
+      [[ "$source_inode" != "$credential_key_inode" ]] || return 1
+    else
+      inode_alias="$(find -P "$source" -type f \
+        -samefile "$CREDENTIAL_MASTER_KEY_FILE" -print -quit)" || return 1
+      [[ -z "$inode_alias" ]] || return 1
+    fi
     if [[ -d "$source" ]] \
       && find -P "$source" -mindepth 1 ! -type f ! -type d -print -quit | grep -q .; then
       return 1
@@ -176,12 +259,33 @@ compose_cmd exec -T postgres sh -ceu \
 [[ -s "$stage/database.dump" ]] || die "PostgreSQL dump is empty"
 
 recovery_sources=(
-  "$REPO_ROOT/compose.yaml" "$REPO_ROOT/Dockerfile" "$REPO_ROOT/.dockerignore"
-  "$REPO_ROOT/drizzle" "$REPO_ROOT/infra/env" "$REPO_ROOT/infra/systemd"
-  "$REPO_ROOT/docs/deployment.md" "$REPO_ROOT/docs/runbooks"
+  "$repo_real/compose.yaml" "$repo_real/Dockerfile" "$repo_real/.dockerignore"
+  "$repo_real/drizzle" "$repo_real/infra/env" "$repo_real/infra/systemd"
+  "$repo_real/docs/deployment.md" "$repo_real/docs/runbooks"
 )
 assert_safe_source_tree "${recovery_sources[@]}" \
   || die "emergency recovery configuration contains an unsafe entry"
+[[ "$(realpath -e -- "$CREDENTIAL_MASTER_KEY_FILE")" == "$credential_key_real" \
+  && "$(stat -c '%h' -- "$CREDENTIAL_MASTER_KEY_FILE")" == 1 \
+  && "$(stat -c '%d:%i' -- "$CREDENTIAL_MASTER_KEY_FILE")" == "$credential_key_inode" ]] \
+  || die "credential master key identity changed during emergency capture"
+
+recovery_snapshot="$stage/recovery-source"
+mkdir -m 0700 -- "$recovery_snapshot"
+if ! git -C "$repo_real" archive --format=tar "$pre_commit" -- \
+  "${RECOVERY_ARCHIVE_PATHS[@]}" \
+  | tar --extract --file=- --directory "$recovery_snapshot" \
+    --no-same-owner --no-same-permissions; then
+  die "reviewed emergency recovery source creation failed"
+fi
+snapshot_sources=(
+  "$recovery_snapshot/compose.yaml" "$recovery_snapshot/Dockerfile"
+  "$recovery_snapshot/.dockerignore" "$recovery_snapshot/drizzle"
+  "$recovery_snapshot/infra/env" "$recovery_snapshot/infra/systemd"
+  "$recovery_snapshot/docs/deployment.md" "$recovery_snapshot/docs/runbooks"
+)
+assert_safe_source_tree "${snapshot_sources[@]}" \
+  || die "reviewed emergency recovery source contains an unsafe entry"
 tar_mtime="${timestamp:0:4}-${timestamp:4:2}-${timestamp:6:2} ${timestamp:9:2}:${timestamp:11:2}:${timestamp:13:2} UTC"
 tar --sort=name --format=posix --pax-option=delete=atime,delete=ctime \
   --owner=0 --group=0 --numeric-owner --mode='a-s,a-t,u+rwX,go+rX,go-w' \
@@ -189,12 +293,26 @@ tar --sort=name --format=posix --pax-option=delete=atime,delete=ctime \
   --exclude='infra/secrets' --exclude='infra/cloudflare/config.yml' \
   --exclude='.env' --exclude='.env.*' --exclude='*.pem' --exclude='*.key' \
   --exclude='*credentials*.json' --create --file "$stage/recovery-config.tar.gz" \
-  --directory "$REPO_ROOT" .dockerignore Dockerfile compose.yaml docs/deployment.md \
+  --directory "$recovery_snapshot" .dockerignore Dockerfile compose.yaml docs/deployment.md \
   docs/runbooks drizzle infra/env infra/systemd >/dev/null 2>&1
+safe_remove_stage_tree "$recovery_snapshot" \
+  || die "reviewed emergency recovery source cleanup failed"
+
+post_commit="$(git -C "$repo_real" rev-parse --verify HEAD 2>/dev/null)" \
+  || die "installed release commit recheck failed"
+[[ "$post_commit" == "$pre_commit" ]] \
+  || die "installed release changed during emergency backup"
+require_clean_release \
+  || die "installed release worktree changed during emergency backup"
+[[ "$(realpath -e -- "$CREDENTIAL_MASTER_KEY_FILE")" == "$credential_key_real" \
+  && "$(stat -c '%h' -- "$CREDENTIAL_MASTER_KEY_FILE")" == 1 \
+  && "$(stat -c '%d:%i' -- "$CREDENTIAL_MASTER_KEY_FILE")" == "$credential_key_inode" ]] \
+  || die "credential master key identity changed during emergency backup"
 
 cat >"$stage/MANIFEST.txt" <<EOF
 format=learncoding-emergency-v1
 created_utc=$timestamp
+git_commit=$pre_commit
 scope=database-and-non-secret-recovery-config-only
 contains_secret_files=false
 contains_email_exports=false

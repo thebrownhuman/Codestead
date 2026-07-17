@@ -10,9 +10,12 @@ load_backup_config
 
 readonly QUIESCE_BUDGET_SECONDS=600
 readonly DEADLINE_KILL_GRACE_SECONDS=15
+readonly DEADLINE_GROUP_PROOF_SECONDS=5
+readonly DEADLINE_EVENT_MONITOR_STOP_REQUEST_SECONDS=25
 readonly DEADLINE_RESUME_RESERVE_SECONDS=5
 readonly MAX_EVENT_LOG_BYTES=1048576
 readonly MAX_EVENT_LOG_LINES=4096
+readonly MAX_CLAMAV_RESTART_EVENTS=32
 readonly -a REQUIRED_IMAGE_SERVICES=(
   app cloudflared exam-finalization-worker mail-worker migrate postgres
   practice-runner-recovery-worker project-review-correction-worker
@@ -27,9 +30,21 @@ readonly -a REPOSITORY_ARCHIVE_PATHS=(
 )
 
 for command_name in age age-keygen docker find flock git grep gzip head hostname python3 realpath \
-  sha256sum sleep stat sync tar timeout; do
+  sha256sum sleep stat sync tar; do
   require_command "$command_name"
 done
+managed_deadline="$SCRIPT_DIR/run-managed-deadline.py"
+[[ -f "$managed_deadline" && ! -L "$managed_deadline" ]] \
+  || die "managed deadline supervisor is missing or unsafe"
+
+run_fixed_deadline() {
+  local duration="$1" grace="$2"
+  shift 2
+  [[ "$duration" =~ ^[1-9][0-9]*$ && "$grace" =~ ^[1-9][0-9]*$ ]] \
+    || return 125
+  python3 "$managed_deadline" --expected-parent-pid "$BASHPID" \
+    "$duration" "$grace" -- "$@"
+}
 
 : "${BACKUP_ROOT:?BACKUP_ROOT is required}"
 : "${AGE_RECIPIENT_FILE:?AGE_RECIPIENT_FILE is required}"
@@ -134,7 +149,10 @@ done
 [[ -f "$REPO_ROOT/compose.yaml" && ! -L "$REPO_ROOT/compose.yaml" ]] \
   || die "repository deployment files are missing"
 repo_real="$(realpath -e -- "$REPO_ROOT")" || die "repository path is invalid"
-compose_config_json="$(timeout --foreground --kill-after=5s 30s \
+[[ "$repo_real" != *'|'* && "$repo_real" != *$'\r'* \
+  && "$repo_real" != *$'\n'* ]] \
+  || die "repository path is unsafe for canonical Docker event records"
+compose_config_json="$(run_fixed_deadline 30 5 \
   docker compose --env-file "$COMPOSE_ENV_FILE" -f "$REPO_ROOT/compose.yaml" \
     config --format json)" \
   || die "Compose project contract could not be resolved"
@@ -221,6 +239,31 @@ marker="$state_dir/local-last-success.env"
   && ! -e "$final_checksum" && ! -L "$final_checksum" ]] \
   || die "backup timestamp already exists"
 
+stage=""
+verify_dir=""
+ephemeral_dir=""
+bootstrap_cleanup() {
+  local original_status=$? cleanup_failed=0 target parent
+  trap - EXIT
+  for target in "$ephemeral_dir" "$verify_dir" "$stage"; do
+    [[ -n "$target" ]] || continue
+    if [[ "$target" == "$ephemeral_dir" ]]; then
+      parent="$BACKUP_EPHEMERAL_ROOT"
+    else
+      parent="$BACKUP_STAGE_ROOT"
+    fi
+    if [[ ! -d "$target" || -L "$target" || "$target" == "$parent" \
+      || "$(stat -c '%u' -- "$target" 2>/dev/null)" != "$(id -u)" ]] \
+      || ! path_is_within "$target" "$parent" \
+      || ! rmdir -- "$target" 2>/dev/null; then
+      cleanup_failed=1
+    fi
+  done
+  ((original_status != 0)) && exit "$original_status"
+  ((cleanup_failed == 0)) || exit 1
+  exit 0
+}
+trap bootstrap_cleanup EXIT
 stage="$(mktemp -d -- "$BACKUP_STAGE_ROOT/full.${timestamp}.XXXXXX")"
 verify_dir="$(mktemp -d -- "$BACKUP_STAGE_ROOT/verify.${timestamp}.XXXXXX")"
 ephemeral_dir="$(mktemp -d -- "$BACKUP_EPHEMERAL_ROOT/learncoding-backup.${timestamp}.XXXXXX")"
@@ -239,13 +282,23 @@ marker_published=0
 marker_validation_pending=0
 publication_commit_uncertain=0
 quiesce_started=0
+clamav_expected_running=0
 resume_attempted=0
 resumed=0
 deadline_seconds=0
 event_monitor_pid=""
+event_monitor_supervisor_start=""
+event_monitor_control=""
+event_monitor_control_device=""
+event_monitor_control_inode=""
 event_monitor_active=0
 event_monitor_closed=0
+event_monitor_containment_proven=1
 active_event_sentinel=""
+event_monitor_boundary=0
+event_checkpoint_sequence=0
+quiesce_event_phase=0
+expected_clamav_id=""
 declare -a captured_mutators=()
 
 safe_remove_tree() {
@@ -302,7 +355,7 @@ mv -fT -- "$temporary" "$marker"
 temporary=""
 sync -f -- "$directory"
 cmp -s -- "$before" "$marker"'
-    timeout --foreground --kill-after=1s 4s bash -c "$rollback_command" _ \
+    run_fixed_deadline 4 1 bash -c "$rollback_command" _ \
       "$marker_before" "$marker" "$state_dir"
   else
     rollback_command='set -Eeuo pipefail
@@ -312,7 +365,7 @@ directory="$2"
 rm -f -- "$marker"
 sync -f -- "$directory"
 [[ ! -e "$marker" && ! -L "$marker" ]]'
-    timeout --foreground --kill-after=1s 4s bash -c "$rollback_command" _ \
+    run_fixed_deadline 4 1 bash -c "$rollback_command" _ \
       "$marker" "$state_dir"
   fi
 }
@@ -321,16 +374,22 @@ cleanup() {
   local original_status=$? cleanup_failed=0 resume_failed=0
   trap - EXIT
 
-  unlink_ephemeral_identity || cleanup_failed=1
   if ((quiesce_started == 1 && resumed == 0)); then
     resume_captured || resume_failed=1
   fi
   if ((event_monitor_active == 1)); then
     terminate_event_monitor_cleanup || cleanup_failed=1
   fi
+  if ((event_monitor_containment_proven == 0)); then
+    emit_alert critical backup_monitor_containment_failed \
+      "backup monitor containment could not be proved; publication and protected staging were preserved"
+    ((original_status != 0)) && exit "$original_status"
+    exit 1
+  fi
 
-  if ((marker_validation_pending == 1 && marker_published == 1 \
-    && marker_committed == 0)); then
+  unlink_ephemeral_identity || cleanup_failed=1
+
+  if ((marker_validation_pending == 1 && marker_committed == 0)); then
     if rollback_unvalidated_marker; then
       marker_published=0
       marker_validation_pending=0
@@ -403,46 +462,141 @@ remaining_seconds() {
 run_deadline() {
   local remaining command_seconds
   remaining="$(remaining_seconds)" || return 124
-  ((remaining > DEADLINE_KILL_GRACE_SECONDS + DEADLINE_RESUME_RESERVE_SECONDS)) \
+  ((remaining > DEADLINE_KILL_GRACE_SECONDS + DEADLINE_GROUP_PROOF_SECONDS \
+    + DEADLINE_RESUME_RESERVE_SECONDS)) \
     || return 124
-  command_seconds=$((remaining - DEADLINE_KILL_GRACE_SECONDS - DEADLINE_RESUME_RESERVE_SECONDS))
-  timeout --foreground --kill-after="${DEADLINE_KILL_GRACE_SECONDS}s" \
-    "${command_seconds}s" "$@"
+  command_seconds=$((remaining - DEADLINE_KILL_GRACE_SECONDS \
+    - DEADLINE_GROUP_PROOF_SECONDS - DEADLINE_RESUME_RESERVE_SECONDS))
+  run_fixed_deadline "$command_seconds" "$DEADLINE_KILL_GRACE_SECONDS" "$@"
+}
+
+PROC_STATE=""
+PROC_PARENT=""
+PROC_PGID=""
+PROC_START=""
+readonly PROC_IDENTITY_ABSENT=1
+readonly PROC_IDENTITY_ERROR=2
+read_linux_process_identity() {
+  local pid="$1" raw remainder
+  local -a fields=()
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return "$PROC_IDENTITY_ERROR"
+  [[ -e "/proc/$pid/stat" ]] || return "$PROC_IDENTITY_ABSENT"
+  [[ -r "/proc/$pid/stat" ]] || return "$PROC_IDENTITY_ERROR"
+  if ! { IFS= read -r raw <"/proc/$pid/stat"; } 2>/dev/null; then
+    [[ ! -e "/proc/$pid/stat" ]] && return "$PROC_IDENTITY_ABSENT"
+    return "$PROC_IDENTITY_ERROR"
+  fi
+  [[ "$raw" == *') '* ]] || return "$PROC_IDENTITY_ERROR"
+  remainder="${raw##*) }"
+  read -r -a fields <<<"$remainder"
+  ((${#fields[@]} >= 20)) || return "$PROC_IDENTITY_ERROR"
+  [[ "${fields[0]}" =~ ^[A-Z]$ \
+    && "${fields[1]}" =~ ^[0-9]+$ \
+    && "${fields[2]}" =~ ^[0-9]+$ \
+    && "${fields[19]}" =~ ^[1-9][0-9]*$ ]] || return "$PROC_IDENTITY_ERROR"
+  PROC_STATE="${fields[0]}"
+  PROC_PARENT="${fields[1]}"
+  PROC_PGID="${fields[2]}"
+  PROC_START="${fields[19]}"
+}
+
+drain_event_monitor_group() {
+  local request_timeout monitor_status=0
+  event_monitor_containment_proven=0
+  [[ "$event_monitor_pid" =~ ^[1-9][0-9]*$ \
+    && "$event_monitor_supervisor_start" =~ ^[1-9][0-9]*$ \
+    && "$event_monitor_control_device" =~ ^[1-9][0-9]*$ \
+    && "$event_monitor_control_inode" =~ ^[1-9][0-9]*$ \
+    && -n "$event_monitor_control" ]] || return 1
+  request_timeout="$(remaining_seconds)" || return 1
+  [[ "$request_timeout" =~ ^[1-9][0-9]*$ ]] || return 1
+  ((request_timeout <= DEADLINE_EVENT_MONITOR_STOP_REQUEST_SECONDS)) \
+    || request_timeout="$DEADLINE_EVENT_MONITOR_STOP_REQUEST_SECONDS"
+  python3 "$managed_deadline" --request-stop "$event_monitor_control" \
+    --expected-control-device "$event_monitor_control_device" \
+    --expected-control-inode "$event_monitor_control_inode" \
+    --expected-supervisor-pid "$event_monitor_pid" \
+    --expected-supervisor-start "$event_monitor_supervisor_start" \
+    --request-timeout "$request_timeout" || return 1
+  wait "$event_monitor_pid" 2>/dev/null || monitor_status=$?
+  [[ "$monitor_status" == 143 ]] || return 1
+  [[ ! -e "$event_monitor_control" && ! -L "$event_monitor_control" ]] \
+    || return 1
+  event_monitor_containment_proven=1
 }
 
 event_monitor_is_alive() {
   ((event_monitor_active == 1)) \
-    && [[ "$event_monitor_pid" =~ ^[0-9]+$ ]] \
-    && kill -0 "$event_monitor_pid" 2>/dev/null
+    && [[ "$event_monitor_pid" =~ ^[1-9][0-9]*$ ]] \
+    && [[ "$event_monitor_supervisor_start" =~ ^[1-9][0-9]*$ ]] \
+    && [[ -f "$event_monitor_control" && ! -L "$event_monitor_control" ]] \
+    && read_linux_process_identity "$event_monitor_pid" \
+    && [[ "$PROC_START" == "$event_monitor_supervisor_start" \
+      && "$PROC_STATE" != Z ]]
 }
 
 wait_for_event_monitor_line() {
-  local expected="$1" snapshot="$stage/.docker-events-wait"
+  local expected="$1" lower_boundary="$2" snapshot="$stage/.docker-events-wait"
+  [[ "$lower_boundary" =~ ^[0-9]+$ ]] || return 1
   run_deadline bash -c '
     set -Eeuo pipefail
+    export LC_ALL=C
     output="$1"
     expected="$2"
     monitor_pid="$3"
     snapshot="$4"
     max_bytes="$5"
+    max_lines="$6"
+    lower="$7"
     trap '\''rm -f -- "$snapshot"'\'' EXIT
     while :; do
-      kill -0 "$monitor_pid" 2>/dev/null || exit 70
+      [[ -r "/proc/$monitor_pid/stat" ]] || exit 70
       head -c "$((max_bytes + 1))" -- "$output" >"$snapshot"
       bytes="$(stat -c "%s" -- "$snapshot")"
-      [[ "$bytes" =~ ^[0-9]+$ ]] || exit 71
+      [[ "$bytes" =~ ^[0-9]+$ && "$max_lines" =~ ^[1-9][0-9]*$ \
+        && "$lower" =~ ^[0-9]+$ ]] || exit 71
       ((bytes <= max_bytes)) || exit 72
-      grep -Fqx -- "$expected" "$snapshot" && exit 0
+      ((lower <= bytes)) || exit 73
+      if ((lower > 0)); then
+        lower_byte="$(dd if="$snapshot" bs=1 skip=$((lower - 1)) count=1 \
+          status=none | od -An -t u1 | tr -d "[:space:]")"
+        [[ "$lower_byte" == 10 ]] || exit 74
+      fi
+      offset=0
+      line_count=0
+      match_end=""
+      while IFS= read -r line; do
+        ((line_count += 1))
+        ((line_count <= max_lines)) || exit 77
+        line_start="$offset"
+        offset=$((offset + ${#line} + 1))
+        if ((line_start >= lower)) && [[ "$line" == "$expected" ]]; then
+          [[ -z "$match_end" ]] || exit 75
+          match_end="$offset"
+        fi
+      done <"$snapshot"
+      if [[ -n "$match_end" ]]; then
+        ((match_end > lower && match_end <= bytes)) || exit 76
+        printf "%s\n" "$match_end"
+        exit 0
+      fi
       sleep 0.02
     done
   ' event-wait "$event_monitor_output" "$expected" "$event_monitor_pid" \
-    "$snapshot" "$MAX_EVENT_LOG_BYTES"
+    "$snapshot" "$MAX_EVENT_LOG_BYTES" "$MAX_EVENT_LOG_LINES" \
+    "$lower_boundary"
 }
 
 emit_event_monitor_sentinel() {
   local sentinel_phase="$1" sentinel_name sentinel_id removed_id expected_line
-  [[ "$sentinel_phase" == start || "$sentinel_phase" == end ]] || return 1
+  local lower_boundary create_boundary destroy_boundary
+  [[ "$sentinel_phase" == start || "$sentinel_phase" == quiesce-open \
+    || "$sentinel_phase" == quiesce-close || "$sentinel_phase" == end \
+    || "$sentinel_phase" =~ ^checkpoint-[1-9][0-9]*$ ]] \
+    || return 1
   event_monitor_is_alive || return 1
+  lower_boundary="$event_monitor_boundary"
+  [[ "$lower_boundary" =~ ^[0-9]+$ ]] || return 1
   sentinel_name="codestead-backup-monitor-${timestamp}-${sentinel_phase}-$$"
   sentinel_id="$(run_deadline docker create --pull=never \
     --name "$sentinel_name" \
@@ -459,77 +613,354 @@ emit_event_monitor_sentinel() {
   sentinel_id="${sentinel_id//$'\n'/}"
   [[ "$sentinel_id" =~ ^[0-9a-f]{64}$ ]] || return 1
   active_event_sentinel="$sentinel_id"
-  expected_line="create|backup-monitor|$repo_real|$event_monitor_token|$sentinel_phase"
-  wait_for_event_monitor_line "$expected_line" || return 1
+  expected_line="create|$sentinel_id|backup-monitor|$repo_real|$event_monitor_token|$sentinel_phase||"
+  create_boundary="$(wait_for_event_monitor_line \
+    "$expected_line" "$lower_boundary")" || return 1
+  [[ "$create_boundary" =~ ^[1-9][0-9]*$ \
+    && "$create_boundary" -gt "$lower_boundary" ]] || return 1
   removed_id="$(run_deadline docker rm --force "$sentinel_id")" || return 1
   removed_id="${removed_id//$'\r'/}"
   removed_id="${removed_id//$'\n'/}"
   [[ "$removed_id" == "$sentinel_id" ]] || return 1
-  expected_line="destroy|backup-monitor|$repo_real|$event_monitor_token|$sentinel_phase"
-  wait_for_event_monitor_line "$expected_line" || return 1
+  expected_line="destroy|$sentinel_id|backup-monitor|$repo_real|$event_monitor_token|$sentinel_phase||"
+  destroy_boundary="$(wait_for_event_monitor_line \
+    "$expected_line" "$create_boundary")" || return 1
+  [[ "$destroy_boundary" =~ ^[1-9][0-9]*$ \
+    && "$destroy_boundary" -gt "$create_boundary" ]] || return 1
+  event_monitor_boundary="$destroy_boundary"
   active_event_sentinel=""
 }
 
+emit_event_monitor_checkpoint() {
+  local next_sequence
+  next_sequence=$((event_checkpoint_sequence + 1))
+  ((next_sequence > 0)) || return 1
+  emit_event_monitor_sentinel "checkpoint-$next_sequence" || return 1
+  event_checkpoint_sequence="$next_sequence"
+}
+
 audit_event_monitor() {
-  local expected_state="$1" snapshot="$stage/.docker-events-audit"
+  local expected_state="$1" requested_boundary="${2:-}"
+  local snapshot="$stage/.docker-events-audit"
+  local live_snapshot="$stage/.docker-events-live"
+  local audit_boundary
   [[ "$expected_state" == active || "$expected_state" == closed ]] || return 1
   [[ -f "$event_monitor_output" && ! -L "$event_monitor_output" ]] || return 1
+  [[ -f "$expected_mutator_map" && ! -L "$expected_mutator_map" \
+    && "$quiesce_event_phase" =~ ^[012]$ ]] || return 1
+  if [[ "$expected_state" == active ]]; then
+    [[ -z "$requested_boundary" ]] || return 1
+    emit_event_monitor_checkpoint || return 1
+    audit_boundary="$event_monitor_boundary"
+  else
+    [[ "$requested_boundary" =~ ^[1-9][0-9]*$ ]] || return 1
+    audit_boundary="$requested_boundary"
+  fi
   run_deadline bash -c '
     set -Eeuo pipefail
+    export LC_ALL=C
     output="$1"
     snapshot="$2"
-    max_bytes="$3"
-    max_lines="$4"
-    expected_repo="$5"
-    expected_token="$6"
-    expected_state="$7"
-    trap '\''rm -f -- "$snapshot"'\'' EXIT
-    head -c "$((max_bytes + 1))" -- "$output" >"$snapshot"
+    live_snapshot="$3"
+    boundary="$4"
+    max_bytes="$5"
+    max_lines="$6"
+    expected_repo="$7"
+    expected_token="$8"
+    expected_state="$9"
+    max_clamav_events="${10}"
+    expected_mutator_map="${11}"
+    quiesce_phase="${12}"
+    expected_clamav_id="${13}"
+    expected_checkpoint_sequence="${14}"
+    [[ "$max_clamav_events" =~ ^[0-9]+$ \
+      && "$quiesce_phase" =~ ^[012]$ \
+      && "$boundary" =~ ^[1-9][0-9]*$ \
+      && "$expected_checkpoint_sequence" =~ ^[1-9][0-9]*$ \
+      && ( -z "$expected_clamav_id" \
+        || "$expected_clamav_id" =~ ^[0-9a-f]{64}$ ) \
+      && -f "$expected_mutator_map" \
+      && ! -L "$expected_mutator_map" ]] || exit 70
+    trap '\''rm -f -- "$snapshot" "$live_snapshot"'\'' EXIT
+    head -c "$((max_bytes + 1))" -- "$output" >"$live_snapshot"
+    live_bytes="$(stat -c "%s" -- "$live_snapshot")"
+    [[ "$live_bytes" =~ ^[0-9]+$ ]] || exit 71
+    ((live_bytes <= max_bytes && boundary <= live_bytes)) || exit 72
+    head -c "$boundary" -- "$output" >"$snapshot"
     bytes="$(stat -c "%s" -- "$snapshot")"
-    [[ "$bytes" =~ ^[0-9]+$ ]] || exit 71
-    ((bytes <= max_bytes)) || exit 72
+    [[ "$bytes" =~ ^[0-9]+$ && "$bytes" == "$boundary" ]] || exit 71
+    terminal_byte="$(tail -c 1 -- "$snapshot" | od -An -t u1 \
+      | tr -d "[:space:]")"
+    [[ "$terminal_byte" == 10 ]] || exit 72
     start_create=0
     start_destroy=0
+    start_id=""
+    open_create=0
+    open_destroy=0
+    open_id=""
+    close_create=0
+    close_destroy=0
+    close_id=""
     end_create=0
     end_destroy=0
+    end_id=""
+    checkpoint_open=0
+    checkpoint_id=""
+    checkpoint_number=0
+    checkpoint_last=0
+    clamav_event_count=0
+    clamav_disruptive_count=0
+    clamav_recovery_count=0
+    clamav_healthy_count=0
+    clamav_stop_count=0
+    clamav_kill_count=0
+    clamav_die_count=0
+    clamav_restart_count=0
+    clamav_state=idle
+    declare -A expected_mutator_ids=()
+    declare -A expected_container_ids=()
+    declare -A mutator_states=()
+    declare -A monitor_sentinel_ids=()
+    while IFS="|" read -r expected_service expected_id expected_extra \
+      || [[ -n "${expected_service:-}" ]]; do
+      [[ -n "${expected_service:-}" ]] || continue
+      [[ -z "${expected_extra:-}" \
+        && "$expected_service" =~ ^[a-z0-9-]+$ \
+        && "$expected_id" =~ ^[0-9a-f]{64}$ \
+        && -z "${expected_mutator_ids[$expected_service]+x}" \
+        && -z "${expected_container_ids[$expected_id]+x}" ]] || exit 70
+      expected_mutator_ids[$expected_service]="$expected_id"
+      expected_container_ids[$expected_id]="$expected_service"
+      mutator_states[$expected_service]=await-kill
+    done <"$expected_mutator_map"
     line_count=0
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      [[ -n "$line" ]] || continue
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || exit 74
       ((line_count += 1))
       ((line_count <= max_lines)) || exit 73
-      IFS="|" read -r action service event_repo token sentinel_phase extra <<<"$line"
-      [[ -z "${extra:-}" && "$event_repo" == "$expected_repo" ]] || exit 74
+      pipe_count="${line//[!|]/}"
+      ((${#pipe_count} == 7)) || exit 74
+      IFS="|" read -r action container_id service event_repo token \
+        sentinel_phase event_signal exit_code <<<"$line"
+      [[ "$service" =~ ^[a-z0-9-]+$ \
+        && "$event_repo" == "$expected_repo" \
+        && "$container_id" =~ ^[0-9a-f]{64}$ \
+        && "$event_signal" =~ ^[0-9]*$ \
+        && "$exit_code" =~ ^[0-9]*$ ]] || exit 74
       case "$service" in
         backup-monitor)
           [[ "$token" == "$expected_token" \
-            && "$sentinel_phase" =~ ^(start|end)$ \
-            && "$action" =~ ^(create|destroy)$ ]] || exit 75
-          case "$sentinel_phase:$action" in
-            start:create) ((start_create += 1)) ;;
-            start:destroy) ((start_destroy += 1)) ;;
-            end:create) ((end_create += 1)) ;;
-            end:destroy) ((end_destroy += 1)) ;;
-          esac
+            && "$sentinel_phase" =~ ^(start|quiesce-open|quiesce-close|end|checkpoint-[1-9][0-9]*)$ \
+            && "$action" =~ ^(create|destroy)$ \
+            && -z "$event_signal" && -z "$exit_code" ]] || exit 75
+          if [[ "$action" == create ]]; then
+            [[ -z "${monitor_sentinel_ids[$container_id]+x}" ]] || exit 75
+            monitor_sentinel_ids[$container_id]=1
+          fi
+          if [[ "$sentinel_phase" =~ ^checkpoint-[1-9][0-9]*$ ]]; then
+            if [[ "$action" == create ]]; then
+              next_checkpoint=$((checkpoint_last + 1))
+              [[ "$sentinel_phase" == "checkpoint-$next_checkpoint" \
+                && "$start_destroy" == 1 && "$end_create" == 0 \
+                && "$start_create" == "$start_destroy" \
+                && "$open_create" == "$open_destroy" \
+                && "$close_create" == "$close_destroy" \
+                && "$end_create" == "$end_destroy" \
+                && "$checkpoint_open" == 0 ]] || exit 75
+              checkpoint_open=1
+              checkpoint_id="$container_id"
+              checkpoint_number="$next_checkpoint"
+            else
+              [[ "$checkpoint_open" == 1 \
+                && "$sentinel_phase" == "checkpoint-$checkpoint_number" \
+                && "$container_id" == "$checkpoint_id" ]] || exit 75
+              checkpoint_open=0
+              checkpoint_id=""
+              checkpoint_last="$checkpoint_number"
+              checkpoint_number=0
+            fi
+          else
+            ((checkpoint_open == 0)) || exit 75
+            case "$sentinel_phase:$action" in
+            start:create)
+              ((start_create == 0 && start_destroy == 0 \
+                && open_create == 0 && close_create == 0 \
+                && end_create == 0)) || exit 75
+              start_create=1
+              start_id="$container_id"
+              ;;
+            start:destroy)
+              ((start_create == 1 && start_destroy == 0)) || exit 75
+              [[ "$container_id" == "$start_id" ]] || exit 75
+              start_destroy=1
+              ;;
+            quiesce-open:create)
+              ((quiesce_phase >= 1 && start_destroy == 1 \
+                && open_create == 0 && close_create == 0 \
+                && end_create == 0)) || exit 75
+              open_create=1
+              open_id="$container_id"
+              ;;
+            quiesce-open:destroy)
+              ((open_create == 1 && open_destroy == 0)) || exit 75
+              [[ "$container_id" == "$open_id" ]] || exit 75
+              open_destroy=1
+              ;;
+            quiesce-close:create)
+              ((quiesce_phase == 2 && open_destroy == 1 \
+                && close_create == 0 && end_create == 0)) || exit 75
+              for expected_service in "${!expected_mutator_ids[@]}"; do
+                [[ "${mutator_states[$expected_service]}" == complete ]] \
+                  || exit 77
+              done
+              close_create=1
+              close_id="$container_id"
+              ;;
+            quiesce-close:destroy)
+              ((close_create == 1 && close_destroy == 0)) || exit 75
+              [[ "$container_id" == "$close_id" ]] || exit 75
+              close_destroy=1
+              ;;
+            end:create)
+              [[ "$expected_state" == closed ]] || exit 75
+              ((close_destroy == 1 && end_create == 0 \
+                && checkpoint_last == expected_checkpoint_sequence)) \
+                || exit 75
+              end_create=1
+              end_id="$container_id"
+              ;;
+            end:destroy)
+              ((end_create == 1 && end_destroy == 0)) || exit 75
+              [[ "$container_id" == "$end_id" ]] || exit 75
+              end_destroy=1
+              ;;
+            esac
+          fi
           ;;
         clamav)
+          ((checkpoint_open == 0)) || exit 76
           [[ -z "$token" && -z "$sentinel_phase" \
-            && "$action" =~ ^(start|restart|unpause)$ ]] || exit 76
+            && -n "$expected_clamav_id" \
+            && "$container_id" == "$expected_clamav_id" ]] || exit 76
+          ((clamav_event_count += 1))
+          ((clamav_event_count <= max_clamav_events)) || exit 76
+          # ClamAV is read-only with respect to the recovery point, but a
+          # restart is accepted only as one bounded lifecycle ending healthy.
+          case "$action" in
+            stop)
+              [[ -z "$event_signal" && -z "$exit_code" ]] || exit 76
+              [[ "$clamav_state" == idle || "$clamav_state" == stopping ]] \
+                || exit 76
+              clamav_state=stopping
+              ((clamav_disruptive_count += 1))
+              ((clamav_stop_count += 1))
+              ((clamav_stop_count <= 1)) || exit 76
+              ;;
+            kill)
+              [[ "$event_signal" =~ ^[1-9][0-9]*$ \
+                && -z "$exit_code" ]] || exit 76
+              [[ "$clamav_state" == idle || "$clamav_state" == stopping ]] \
+                || exit 76
+              clamav_state=stopping
+              ((clamav_disruptive_count += 1))
+              ((clamav_kill_count += 1))
+              ((clamav_kill_count <= 1)) || exit 76
+              ;;
+            die)
+              [[ -z "$event_signal" && "$exit_code" =~ ^[0-9]+$ ]] \
+                || exit 76
+              [[ "$clamav_state" == idle || "$clamav_state" == stopping ]] \
+                || exit 76
+              clamav_state=stopping
+              ((clamav_disruptive_count += 1))
+              ((clamav_die_count += 1))
+              ((clamav_die_count <= 1)) || exit 76
+              ;;
+            restart)
+              [[ -z "$event_signal" && -z "$exit_code" ]] || exit 76
+              [[ "$clamav_state" == idle || "$clamav_state" == stopping \
+                || "$clamav_state" == started ]] || exit 76
+              ((clamav_restart_count += 1))
+              ((clamav_restart_count <= 1)) || exit 76
+              ((clamav_disruptive_count += 1))
+              [[ "$clamav_state" != idle ]] || clamav_state=stopping
+              ;;
+            start|unpause)
+              [[ -z "$event_signal" && -z "$exit_code" ]] || exit 76
+              [[ "$clamav_state" == stopping ]] || exit 76
+              ((clamav_recovery_count += 1))
+              ((clamav_recovery_count <= 1)) || exit 76
+              clamav_state=started
+              ;;
+            "health_status: starting"|"health_status: unhealthy")
+              [[ -z "$event_signal" && -z "$exit_code" ]] || exit 76
+              [[ "$clamav_state" == started ]] || exit 76
+              ;;
+            "health_status: healthy")
+              [[ -z "$event_signal" && -z "$exit_code" ]] || exit 76
+              [[ "$clamav_state" == started ]] || exit 76
+              ((clamav_healthy_count += 1))
+              ((clamav_healthy_count == 1)) || exit 76
+              clamav_state=healthy
+              ;;
+            *) exit 76 ;;
+          esac
           ;;
         *)
-          # PostgreSQL and every application/worker action invalidate the
-          # recovery-point window. Unknown rows fail closed as stream ambiguity.
-          exit 77
+          ((checkpoint_open == 0)) || exit 77
+          [[ -z "$token" && -z "$sentinel_phase" \
+            && "$start_destroy" == 1 && "$open_destroy" == 1 \
+            && "$close_create" == 0 \
+            && -n "${expected_mutator_ids[$service]+x}" ]] \
+            || exit 77
+          [[ "$container_id" == "${expected_mutator_ids[$service]}" ]] \
+            || exit 77
+          case "${mutator_states[$service]}:$action:$event_signal:$exit_code" in
+            await-kill:kill:15:) mutator_states[$service]=await-die ;;
+            await-die:die::0|await-die:die::143)
+              mutator_states[$service]=await-stop
+              ;;
+            await-stop:stop::) mutator_states[$service]=complete ;;
+            *) exit 77 ;;
+          esac
           ;;
       esac
     done <"$snapshot"
+    if ((clamav_event_count > 0)); then
+      [[ "$clamav_state" == healthy ]] || exit 76
+      ((clamav_disruptive_count >= 1 \
+        && clamav_recovery_count == 1 \
+        && clamav_healthy_count == 1)) || exit 76
+    fi
     ((start_create == 1 && start_destroy == 1)) || exit 78
+    ((checkpoint_open == 0 \
+      && checkpoint_last == expected_checkpoint_sequence)) || exit 78
+    for expected_service in "${!expected_mutator_ids[@]}"; do
+      if ((quiesce_phase == 2)); then
+        [[ "${mutator_states[$expected_service]}" == complete ]] || exit 77
+      else
+        [[ "${mutator_states[$expected_service]}" == await-kill ]] || exit 77
+      fi
+    done
+    ((quiesce_phase < 1)) \
+      || ((open_create == 1 && open_destroy == 1)) || exit 79
+    ((quiesce_phase < 2)) \
+      || ((close_create == 1 && close_destroy == 1)) || exit 79
+    ((quiesce_phase >= 1)) \
+      || ((open_create == 0 && open_destroy == 0)) || exit 79
+    ((quiesce_phase >= 2)) \
+      || ((close_create == 0 && close_destroy == 0)) || exit 79
     if [[ "$expected_state" == active ]]; then
       ((end_create == 0 && end_destroy == 0)) || exit 79
     else
       ((end_create == 1 && end_destroy == 1)) || exit 80
     fi
-  ' event-audit "$event_monitor_output" "$snapshot" "$MAX_EVENT_LOG_BYTES" \
-    "$MAX_EVENT_LOG_LINES" "$repo_real" "$event_monitor_token" "$expected_state" \
+  ' event-audit "$event_monitor_output" "$snapshot" "$live_snapshot" \
+    "$audit_boundary" "$MAX_EVENT_LOG_BYTES" "$MAX_EVENT_LOG_LINES" \
+    "$repo_real" "$event_monitor_token" "$expected_state" \
+    "$MAX_CLAMAV_RESTART_EVENTS" "$expected_mutator_map" \
+    "$quiesce_event_phase" "$expected_clamav_id" \
+    "$event_checkpoint_sequence" \
     || return 1
   if [[ "$expected_state" == active ]]; then
     event_monitor_is_alive
@@ -539,78 +970,120 @@ audit_event_monitor() {
 }
 
 terminate_event_monitor_cleanup() {
-  local cleanup_status=0 attempt
+  local cleanup_status=0 drain_status=0
   if [[ -n "$active_event_sentinel" ]]; then
-    timeout --foreground --kill-after=1s 2s \
+    run_fixed_deadline 2 1 \
       docker rm --force "$active_event_sentinel" >/dev/null 2>&1 \
       || cleanup_status=1
     active_event_sentinel=""
   fi
-  if [[ "$event_monitor_pid" =~ ^[0-9]+$ ]]; then
-    if kill -0 "$event_monitor_pid" 2>/dev/null; then
-      kill -TERM "$event_monitor_pid" 2>/dev/null || cleanup_status=1
-      for attempt in {1..50}; do
-        kill -0 "$event_monitor_pid" 2>/dev/null || break
-        sleep 0.02
-      done
-      if kill -0 "$event_monitor_pid" 2>/dev/null; then
-        kill -KILL "$event_monitor_pid" 2>/dev/null || true
-        cleanup_status=1
-      fi
-    else
-      cleanup_status=1
-    fi
-    wait "$event_monitor_pid" 2>/dev/null || true
-  fi
+  drain_event_monitor_group || drain_status=$?
+  ((event_monitor_containment_proven == 1)) || return 1
+  ((drain_status == 0)) || cleanup_status=1
   event_monitor_active=0
   event_monitor_pid=""
+  event_monitor_supervisor_start=""
+  event_monitor_control=""
+  event_monitor_control_device=""
+  event_monitor_control_inode=""
   return "$cleanup_status"
 }
 
 start_event_monitor() {
-  local events_since remaining monitor_seconds
+  local events_since remaining monitor_seconds control_details control_extra control_pipe_count
+  local control_version control_supervisor control_pgid control_guardian_start
+  local control_endpoint control_nonce
+  local event_monitor_expected_parent_pid
   event_monitor_output="$stage/docker-events.log"
   event_monitor_error="$stage/docker-events.stderr"
+  event_monitor_control="$stage/.docker-events.control"
   event_monitor_token="${timestamp}.$$.${pre_commit:0:12}"
+  event_monitor_boundary=0
+  event_checkpoint_sequence=0
+  active_event_sentinel=""
   : >"$event_monitor_output"
   : >"$event_monitor_error"
   chmod 0600 -- "$event_monitor_output" "$event_monitor_error"
   events_since="$(run_deadline date -u +%Y-%m-%dT%H:%M:%S.%NZ)" || return 1
   remaining="$(remaining_seconds)" || return 1
-  ((remaining > DEADLINE_KILL_GRACE_SECONDS + DEADLINE_RESUME_RESERVE_SECONDS)) \
+  ((remaining > DEADLINE_KILL_GRACE_SECONDS + DEADLINE_GROUP_PROOF_SECONDS \
+    + DEADLINE_RESUME_RESERVE_SECONDS)) \
     || return 1
-  monitor_seconds=$((remaining - DEADLINE_KILL_GRACE_SECONDS - DEADLINE_RESUME_RESERVE_SECONDS))
-  timeout --foreground --kill-after="${DEADLINE_KILL_GRACE_SECONDS}s" \
-    "${monitor_seconds}s" docker events --since "$events_since" \
+  monitor_seconds=$((remaining - DEADLINE_KILL_GRACE_SECONDS \
+    - DEADLINE_GROUP_PROOF_SECONDS - DEADLINE_RESUME_RESERVE_SECONDS))
+  # This controller deliberately performs three read-only PostgreSQL execs
+  # (version, migration SELECT, and pg_dump). Docker exec events do not carry
+  # authenticated caller identity, so they cannot distinguish those commands
+  # from a Docker-socket administrator without a spoofable heuristic. The
+  # reviewed boundary therefore requires root/Docker-socket exclusivity during
+  # backup; every non-exec continuity action is monitored and fails closed.
+  event_monitor_containment_proven=0
+  event_monitor_expected_parent_pid="$BASHPID"
+  python3 "$managed_deadline" \
+    --expected-parent-pid "$event_monitor_expected_parent_pid" \
+    --control-file "$event_monitor_control" \
+    "$monitor_seconds" "$DEADLINE_KILL_GRACE_SECONDS" -- \
+    docker events --since "$events_since" \
       --filter type=container \
       --filter "label=com.docker.compose.project=$compose_project_name" \
       --filter "label=com.docker.compose.project.working_dir=$repo_real" \
       --filter event=create --filter event=destroy --filter event=start \
-      --filter event=restart --filter event=unpause \
-      --format '{{.Action}}|{{ index .Actor.Attributes "com.docker.compose.service" }}|{{ index .Actor.Attributes "com.docker.compose.project.working_dir" }}|{{ index .Actor.Attributes "com.codestead.backup.monitor.token" }}|{{ index .Actor.Attributes "com.codestead.backup.monitor.phase" }}' \
+      --filter event=die --filter event=kill --filter event=oom \
+      --filter event=pause --filter event=rename --filter event=restart \
+      --filter event=stop --filter event=unpause --filter event=update \
+      --filter event=health_status \
+      --format '{{.Action}}|{{.ID}}|{{ index .Actor.Attributes "com.docker.compose.service" }}|{{ index .Actor.Attributes "com.docker.compose.project.working_dir" }}|{{ index .Actor.Attributes "com.codestead.backup.monitor.token" }}|{{ index .Actor.Attributes "com.codestead.backup.monitor.phase" }}|{{ index .Actor.Attributes "signal" }}|{{ index .Actor.Attributes "exitCode" }}' \
       >"$event_monitor_output" 2>"$event_monitor_error" &
   event_monitor_pid=$!
   event_monitor_active=1
-  emit_event_monitor_sentinel start || return 1
-  audit_event_monitor active
+  run_deadline bash -c '
+    set -Eeuo pipefail
+    control="$1"
+    supervisor="$2"
+    while [[ ! -s "$control" ]]; do
+      [[ -r "/proc/$supervisor/stat" ]] || exit 70
+      sleep 0.02
+    done
+  ' event-monitor-control "$event_monitor_control" "$event_monitor_pid" \
+    || return 1
+  require_secure_regular_file "$event_monitor_control" 600 "$(id -u)" \
+    || return 1
+  IFS='|' read -r event_monitor_control_device event_monitor_control_inode \
+    <<<"$(stat -c '%d|%i' -- "$event_monitor_control")" || return 1
+  [[ "$event_monitor_control_device" =~ ^[1-9][0-9]*$ \
+    && "$event_monitor_control_inode" =~ ^[1-9][0-9]*$ ]] || return 1
+  control_details="$(cat -- "$event_monitor_control")" || return 1
+  control_pipe_count="${control_details//[!|]/}"
+  ((${#control_pipe_count} == 6)) || return 1
+  IFS='|' read -r control_version control_supervisor \
+    event_monitor_supervisor_start control_pgid control_guardian_start \
+    control_endpoint control_nonce control_extra <<<"$control_details"
+  [[ -z "${control_extra:-}" && "$control_version" == v1 \
+    && "$control_supervisor" == "$event_monitor_pid" \
+    && "$event_monitor_supervisor_start" =~ ^[1-9][0-9]*$ \
+    && "$control_pgid" =~ ^[1-9][0-9]*$ \
+    && "$control_guardian_start" =~ ^[1-9][0-9]*$ \
+    && "$control_endpoint" =~ ^[.]managed-deadline-stop-[0-9a-f]{32}[.]sock$ \
+    && "$control_nonce" =~ ^[0-9a-f]{64}$ ]] || return 1
+  emit_event_monitor_sentinel start
 }
 
 reconcile_stale_event_sentinels() {
   local listing container_id details full_id configured_image runtime_image status
   local container_name project_label working_dir_label service_label token phase watchtower extra
   local stale_stamp stale_phase stale_pid removed_id expected_runtime_image
-  expected_runtime_image="$(timeout --foreground --kill-after=5s 30s \
+  expected_runtime_image="$(run_fixed_deadline 30 5 \
     docker image inspect --format '{{.Id}}' "$operations_image")" || return 1
   expected_runtime_image="${expected_runtime_image//$'\r'/}"
   expected_runtime_image="${expected_runtime_image//$'\n'/}"
   [[ "$expected_runtime_image" =~ ^sha256:[0-9a-f]{64}$ ]] || return 1
-  listing="$(timeout --foreground --kill-after=5s 30s docker ps -a \
+  listing="$(run_fixed_deadline 30 5 docker ps -a \
     --filter 'name=^codestead-backup-monitor-' \
     --format '{{.ID}}')" || return 1
   while IFS= read -r container_id; do
     [[ -n "$container_id" ]] || continue
     [[ "$container_id" =~ ^[0-9a-f]{12,64}$ ]] || return 1
-    details="$(timeout --foreground --kill-after=5s 30s docker inspect \
+    details="$(run_fixed_deadline 30 5 docker inspect \
       --format '{{.Id}}|{{.Config.Image}}|{{.Image}}|{{.State.Status}}|{{.Name}}|{{ index .Config.Labels "com.docker.compose.project" }}|{{ index .Config.Labels "com.docker.compose.project.working_dir" }}|{{ index .Config.Labels "com.docker.compose.service" }}|{{ index .Config.Labels "com.codestead.backup.monitor.token" }}|{{ index .Config.Labels "com.codestead.backup.monitor.phase" }}|{{ index .Config.Labels "com.centurylinklabs.watchtower.enable" }}' \
       "$container_id")" || return 1
     IFS='|' read -r full_id configured_image runtime_image status container_name \
@@ -626,7 +1099,7 @@ reconcile_stale_event_sentinels() {
       && "$working_dir_label" == "$repo_real" \
       && "$service_label" == backup-monitor \
       && "$watchtower" == false ]] || return 1
-    if [[ "$container_name" =~ ^/codestead-backup-monitor-([0-9]{8}T[0-9]{6}Z)-(start|end)-([0-9]+)$ ]]; then
+    if [[ "$container_name" =~ ^/codestead-backup-monitor-([0-9]{8}T[0-9]{6}Z)-(start|quiesce-open|quiesce-close|end|checkpoint-[1-9][0-9]*)-([0-9]+)$ ]]; then
       stale_stamp="${BASH_REMATCH[1]}"
       stale_phase="${BASH_REMATCH[2]}"
       stale_pid="${BASH_REMATCH[3]}"
@@ -636,7 +1109,7 @@ reconcile_stale_event_sentinels() {
     [[ "$phase" == "$stale_phase" \
       && "$token" =~ ^${stale_stamp}[.]${stale_pid}[.][0-9a-f]{12}$ ]] \
       || return 1
-    removed_id="$(timeout --foreground --kill-after=5s 30s \
+    removed_id="$(run_fixed_deadline 30 5 \
       docker rm --force "$full_id")" || return 1
     removed_id="${removed_id//$'\r'/}"
     removed_id="${removed_id//$'\n'/}"
@@ -645,22 +1118,22 @@ reconcile_stale_event_sentinels() {
 }
 
 close_event_monitor() {
+  local drain_status=0 closed_boundary
   emit_event_monitor_sentinel end || return 1
+  closed_boundary="$event_monitor_boundary"
+  [[ "$closed_boundary" =~ ^[1-9][0-9]*$ ]] || return 1
   event_monitor_is_alive || return 1
-  kill -TERM "$event_monitor_pid" 2>/dev/null || return 1
-  run_deadline bash -c '
-    set -Eeuo pipefail
-    monitor_pid="$1"
-    while kill -0 "$monitor_pid" 2>/dev/null; do
-      sleep 0.02
-    done
-  ' _ "$event_monitor_pid" || return 1
-  wait "$event_monitor_pid" 2>/dev/null || true
+  drain_event_monitor_group || drain_status=$?
+  ((event_monitor_containment_proven == 1 && drain_status == 0)) || return 1
   event_monitor_active=0
   event_monitor_pid=""
+  event_monitor_supervisor_start=""
+  event_monitor_control=""
+  event_monitor_control_device=""
+  event_monitor_control_inode=""
   event_monitor_closed=1
   [[ ! -s "$event_monitor_error" ]] || return 1
-  audit_event_monitor closed
+  audit_event_monitor closed "$closed_boundary"
 }
 
 if [[ -e "$marker" || -L "$marker" ]]; then
@@ -754,6 +1227,158 @@ capture_image_map() {
   fi
 }
 
+capture_mutator_container_map() {
+  local output_file="$1" listing line service container_id full_id extra captured
+  local details running project working_dir service_label
+  declare -A expected_services=()
+  declare -A seen_services=()
+  declare -A seen_ids=()
+  local -a command=(
+    docker compose --env-file "$COMPOSE_ENV_FILE" -f "$REPO_ROOT/compose.yaml"
+    ps --status running --format '{{.Service}} {{.ID}}'
+  )
+
+  : >"$output_file" || return 1
+  chmod 0600 -- "$output_file" || return 1
+  for captured in "${captured_mutators[@]}"; do
+    [[ "$captured" =~ ^[a-z0-9-]+$ \
+      && -z "${expected_services[$captured]+x}" ]] || return 1
+    expected_services[$captured]=1
+  done
+  if ((clamav_expected_running == 1)); then
+    expected_services[clamav]=1
+  fi
+  listing="$(run_deadline "${command[@]}")" || return 1
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    read -r service container_id extra <<<"$line"
+    [[ -z "${extra:-}" && "$service" =~ ^[a-z0-9-]+$ \
+      && "$container_id" =~ ^[0-9a-f]{12,64}$ ]] || return 1
+    [[ -n "${expected_services[$service]+x}" ]] || continue
+    [[ -z "${seen_services[$service]+x}" ]] || return 1
+    details="$(run_deadline docker inspect --format \
+      '{{.Id}}|{{.State.Running}}|{{ index .Config.Labels "com.docker.compose.project" }}|{{ index .Config.Labels "com.docker.compose.project.working_dir" }}|{{ index .Config.Labels "com.docker.compose.service" }}' \
+      "$container_id")" || return 1
+    IFS='|' read -r full_id running project working_dir service_label extra \
+      <<<"$details"
+    [[ -z "${extra:-}" && "$full_id" =~ ^[0-9a-f]{64}$ \
+      && "$full_id" == "$container_id"* && "$running" == true \
+      && "$project" == "$compose_project_name" \
+      && "$working_dir" == "$repo_real" && "$service_label" == "$service" \
+      && -z "${seen_ids[$full_id]+x}" ]] || return 1
+    seen_services[$service]=1
+    seen_ids[$full_id]=1
+    if [[ "$service" == clamav ]]; then
+      expected_clamav_id="$full_id"
+    else
+      printf '%s|%s\n' "$service" "$full_id" >>"$output_file" \
+        || return 1
+    fi
+  done <<<"$listing"
+  for captured in "${captured_mutators[@]}"; do
+    [[ -n "${seen_services[$captured]+x}" ]] || return 1
+  done
+  ((clamav_expected_running == 0)) \
+    || [[ -n "${seen_services[clamav]+x}" \
+      && "$expected_clamav_id" =~ ^[0-9a-f]{64}$ ]] || return 1
+  sort -o "$output_file" "$output_file"
+}
+
+assert_captured_mutators_stopped() {
+  local service expected_id details full_id running project working_dir
+  local service_label extra
+  while IFS='|' read -r service expected_id extra || [[ -n "${service:-}" ]]; do
+    [[ -n "${service:-}" ]] || continue
+    [[ -z "${extra:-}" && "$service" =~ ^[a-z0-9-]+$ \
+      && "$expected_id" =~ ^[0-9a-f]{64}$ ]] || return 1
+    details="$(run_deadline docker inspect --format \
+      '{{.Id}}|{{.State.Running}}|{{ index .Config.Labels "com.docker.compose.project" }}|{{ index .Config.Labels "com.docker.compose.project.working_dir" }}|{{ index .Config.Labels "com.docker.compose.service" }}' \
+      "$expected_id")" || return 1
+    IFS='|' read -r full_id running project working_dir service_label extra \
+      <<<"$details"
+    [[ -z "${extra:-}" && "$full_id" == "$expected_id" \
+      && "$running" == false && "$project" == "$compose_project_name" \
+      && "$working_dir" == "$repo_real" && "$service_label" == "$service" ]] \
+      || return 1
+  done <"$expected_mutator_map"
+}
+
+current_postgres_container_id() {
+  local bounded="$1" parser_command
+  local -a command=(
+    docker compose --env-file "$COMPOSE_ENV_FILE" -f "$REPO_ROOT/compose.yaml"
+    ps -a --format '{{.Service}} {{.ID}}'
+  )
+  parser_command='set -Eeuo pipefail
+listing="$("$@")"
+count=0
+container_id=""
+while IFS= read -r line; do
+  [[ -n "$line" ]] || continue
+  read -r service candidate extra <<<"$line"
+  [[ -z "${extra:-}" && "$service" =~ ^[a-z0-9-]+$ \
+    && "$candidate" =~ ^[A-Za-z0-9_.-]+$ ]] || exit 84
+  if [[ "$service" == postgres ]]; then
+    [[ "$candidate" =~ ^[0-9a-f]{12,64}$ ]] || exit 84
+    ((count += 1))
+    container_id="$candidate"
+  fi
+done <<<"$listing"
+((count == 1)) || exit 85
+printf "%s\n" "$container_id"'
+  if [[ "$bounded" == true ]]; then
+    run_deadline bash -c "$parser_command" postgres-container "${command[@]}"
+  else
+    run_fixed_deadline 30 5 \
+      bash -c "$parser_command" postgres-container "${command[@]}"
+  fi
+}
+
+inspect_postgres_state() {
+  local container_id="$1" bounded="$2"
+  local -a command=(
+    docker inspect --format
+    '{{.Id}}|{{.State.Running}}|{{.State.Status}}|{{.State.Health.Status}}|{{ index .Config.Labels "com.docker.compose.project" }}|{{ index .Config.Labels "com.docker.compose.project.working_dir" }}|{{ index .Config.Labels "com.docker.compose.service" }}'
+    "$container_id"
+  )
+  if [[ "$bounded" == true ]]; then
+    run_deadline "${command[@]}"
+  else
+    run_fixed_deadline 30 5 "${command[@]}"
+  fi
+}
+
+validate_postgres_state_details() {
+  local details="$1" expected_id="${2:-}" full_id running status health
+  local project working_dir service extra
+  IFS='|' read -r full_id running status health project working_dir service extra \
+    <<<"$details"
+  [[ -z "${extra:-}" && "$full_id" =~ ^[0-9a-f]{64}$ \
+    && "$running" == true && "$status" == running && "$health" == healthy \
+    && "$project" == "$compose_project_name" && "$working_dir" == "$repo_real" \
+    && "$service" == postgres ]] || return 1
+  [[ -z "$expected_id" || "$full_id" == "$expected_id" ]]
+}
+
+capture_expected_postgres() {
+  local bounded="${1:-false}" details
+  expected_postgres_compose_id="$(current_postgres_container_id "$bounded")" \
+    || return 1
+  details="$(inspect_postgres_state "$expected_postgres_compose_id" "$bounded")" \
+    || return 1
+  validate_postgres_state_details "$details" || return 1
+  expected_postgres_id="${details%%|*}"
+  [[ "$expected_postgres_id" == "$expected_postgres_compose_id"* ]]
+}
+
+assert_postgres_continuity() {
+  local current_id details
+  current_id="$(current_postgres_container_id true)" || return 1
+  [[ "$current_id" == "$expected_postgres_compose_id" ]] || return 1
+  details="$(inspect_postgres_state "$current_id" true)" || return 1
+  validate_postgres_state_details "$details" "$expected_postgres_id"
+}
+
 validate_running_services() {
   local output="$1" service allowed candidate captured
   declare -A seen_running=()
@@ -781,6 +1406,35 @@ validate_running_services() {
   for service in "${captured_mutators[@]}"; do
     [[ -n "${seen_running[$service]+x}" ]] || return 1
   done
+  [[ -n "${seen_running[postgres]+x}" ]]
+}
+
+capture_mutators_from_running_output() {
+  local output="$1" allowed running_service
+  captured_mutators=()
+  for allowed in "${BACKUP_MUTATING_SERVICES[@]}"; do
+    while IFS= read -r running_service; do
+      if [[ "$running_service" == "$allowed" ]]; then
+        captured_mutators+=("$allowed")
+        break
+      fi
+    done <<<"$output"
+  done
+}
+
+validate_quiesced_running_services() {
+  local output="$1" service
+  declare -A seen_running=()
+  while IFS= read -r service; do
+    [[ -n "$service" ]] || continue
+    [[ "$service" =~ ^[a-z0-9-]+$ && -z "${seen_running[$service]+x}" ]] \
+      || return 1
+    seen_running[$service]=1
+    [[ "$service" == postgres || "$service" == clamav ]] || return 1
+  done <<<"$output"
+  [[ -n "${seen_running[postgres]+x}" \
+    && ( "$clamav_expected_running" == 0 \
+      || -n "${seen_running[clamav]+x}" ) ]]
 }
 
 tar_mtime="${timestamp:0:4}-${timestamp:4:2}-${timestamp:6:2} ${timestamp:9:2}:${timestamp:11:2}:${timestamp:13:2} UTC"
@@ -841,12 +1495,8 @@ rmdir -- "$probe_output_dir"
 
 pre_images="$stage/images.pre"
 post_images="$stage/images.post"
+expected_mutator_map="$stage/mutators.expected"
 capture_image_map "$pre_images" false || die "active container image inventory is invalid"
-capture_running_mutators captured_mutators || die "running mutator capture failed"
-running_before="$(compose_cmd ps --status running --services)" \
-  || die "running service inventory failed"
-validate_running_services "$running_before" \
-  || die "a conflicting or unknown Compose service is running"
 
 if ! age-keygen -o "$identity" >/dev/null 2>&1; then
   die "ephemeral age identity generation failed"
@@ -861,6 +1511,21 @@ chmod 0600 -- "$combined_recipients"
 
 deadline_seconds=$((SECONDS + QUIESCE_BUDGET_SECONDS))
 start_event_monitor || die "release-scoped Docker event monitor could not establish continuity"
+running_before="$(run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
+  -f "$REPO_ROOT/compose.yaml" ps --status running --services)" \
+  || die "running service inventory failed"
+capture_mutators_from_running_output "$running_before"
+validate_running_services "$running_before" \
+  || die "a conflicting or unknown Compose service is running"
+if grep -Fxq clamav <<<"$running_before"; then
+  clamav_expected_running=1
+fi
+capture_expected_postgres true \
+  || die "PostgreSQL is not running healthy with stable release identity"
+capture_mutator_container_map "$expected_mutator_map" \
+  || die "running mutator container identity capture failed"
+audit_event_monitor active \
+  || die "release-scoped Docker event continuity failed during identity capture"
 quiesce_started=1
 deadline_log() {
   local message="$*"
@@ -869,24 +1534,34 @@ deadline_log() {
     _ "$message"
 }
 die() {
-  printf '%s\n' 'fatal: quiesced backup transaction failed' >&2
+  printf 'fatal: quiesced backup transaction failed: %s\n' "$*" >&2
   exit 1
 }
 phase=quiescing
 deadline_log "backup phase=quiescing" || die
+emit_event_monitor_sentinel quiesce-open \
+  || die "release-scoped Docker event monitor could not open quiesce"
+quiesce_event_phase=1
 quiesce_command='set -Eeuo pipefail; source "$1"; config="$2"; shift 2; BACKUP_CONFIG_FILE="$config"; load_backup_config; captured_for_child=("$@"); quiesce_mutators captured_for_child'
 run_deadline bash -c "$quiesce_command" _ "$SCRIPT_DIR/common.sh" \
   "${BACKUP_CONFIG_FILE:-/etc/learncoding/backup.env}" "${captured_mutators[@]}"
+emit_event_monitor_sentinel quiesce-close \
+  || die "release-scoped Docker event monitor could not close quiesce"
+quiesce_event_phase=2
+audit_event_monitor active \
+  || die "captured mutator stop lifecycle failed closed"
+assert_captured_mutators_stopped \
+  || die "captured mutator container remained running after quiesce"
 phase=quiesced
 deadline_log "backup phase=quiesced" || die
 
 running_after="$(run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
   -f "$REPO_ROOT/compose.yaml" ps --status running --services)" \
   || die "post-quiesce service confirmation failed"
-while IFS= read -r service; do
-  [[ -z "$service" || "$service" == postgres || "$service" == clamav ]] \
-    || die "a mutating or unknown service remained running"
-done <<<"$running_after"
+validate_quiesced_running_services "$running_after" \
+  || die "PostgreSQL continuity or post-quiesce service state failed"
+assert_postgres_continuity \
+  || die "PostgreSQL identity or health changed after quiesce"
 
 snapshot_timestamp="$(run_deadline date -u +%Y%m%dT%H%M%SZ)" \
   || die "snapshot timestamp failed"
@@ -897,29 +1572,76 @@ database_version="${database_version//$'\r'/}"
 database_version="${database_version//$'\n'/}"
 [[ "$database_version" =~ ^postgres[[:space:]]+\(PostgreSQL\)[[:space:]]+17([.][0-9]+)?([[:space:]][A-Za-z0-9._+\(\)/:=-]+)*$ ]] \
   || die "PostgreSQL version is outside the reviewed major"
+assert_postgres_continuity \
+  || die "PostgreSQL identity or health changed after version query"
 
 migration_rows="$stage/migrations.rows"
 redirect_command='output="$1"; shift; exec "$@" >"$output"'
-run_deadline bash -c "$redirect_command" _ "$migration_rows" \
+migration_parser_script='import hashlib
+import re
+import sys
+
+if len(sys.argv) != 3 or sys.argv[1] != "migration-row-parser":
+    raise SystemExit(80)
+
+row_path = sys.argv[2]
+count = 0
+last_id = "0"
+last_created_at = "0"
+state_hash = hashlib.sha256()
+integer_pattern = re.compile(rb"[0-9]{1,20}")
+hash_pattern = re.compile(rb"[0-9a-f]{64}")
+
+with open(row_path, "rb") as rows:
+    for raw_row in rows:
+        state_hash.update(raw_row)
+        row = raw_row[:-1] if raw_row.endswith(b"\n") else raw_row
+        if not row:
+            continue
+        fields = row.split(b"|")
+        if len(fields) != 3:
+            raise SystemExit(81)
+        migration_id, migration_hash, created_at = fields
+        if (
+            integer_pattern.fullmatch(migration_id) is None
+            or hash_pattern.fullmatch(migration_hash) is None
+            or integer_pattern.fullmatch(created_at) is None
+        ):
+            raise SystemExit(81)
+        count += 1
+        if count > 100_000:
+            raise SystemExit(82)
+        last_id = migration_id.decode("ascii")
+        last_created_at = created_at.decode("ascii")
+
+sys.stdout.write(
+    f"{count}|{last_id}|{last_created_at}|{state_hash.hexdigest()}\n"
+)'
+migration_summary_command='set -Eeuo pipefail
+rows="$1"
+parser="$2"
+shift 2
+trap '\''rm -f -- "$rows"'\'' EXIT
+"$@" >"$rows"
+python3 -c "$parser" migration-row-parser "$rows"'
+migration_summary="$(run_deadline bash -c "$migration_summary_command" \
+  migration-summary "$migration_rows" "$migration_parser_script" \
   docker compose --env-file "$COMPOSE_ENV_FILE" \
     -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
-    'exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --field-separator="|" --set=ON_ERROR_STOP=1 --command="SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id"'
-migration_count=0
-migration_last_id=0
-migration_last_created_at=0
-while IFS='|' read -r migration_id migration_entry_hash migration_created extra; do
-  [[ -n "$migration_id" ]] || continue
-  [[ -z "${extra:-}" && "$migration_id" =~ ^[0-9]+$ \
-    && "$migration_entry_hash" =~ ^[0-9a-f]+$ \
-    && "$migration_created" =~ ^[0-9]+$ ]] \
-    || die "migration state query returned unsafe data"
-  ((migration_count += 1))
-  migration_last_id="$migration_id"
-  migration_last_created_at="$migration_created"
-done <"$migration_rows"
-migration_state_sha256="$(run_deadline sha256sum "$migration_rows")" \
-  || die "migration state checksum failed"
-migration_state_sha256="${migration_state_sha256%% *}"
+    'exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --field-separator="|" --set=ON_ERROR_STOP=1 --command="SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id"')" \
+  || die "migration state query or validation failed"
+IFS='|' read -r migration_count migration_last_id migration_last_created_at \
+  migration_state_sha256 migration_extra <<<"$migration_summary"
+[[ -z "${migration_extra:-}" \
+  && "$migration_count" =~ ^[0-9]{1,6}$ \
+  && "$migration_count" -le 100000 \
+  && "$migration_last_id" =~ ^[0-9]{1,20}$ \
+  && "$migration_last_created_at" =~ ^[0-9]{1,20}$ \
+  && "$migration_state_sha256" =~ ^[0-9a-f]{64}$ ]] \
+  || die "migration state summary was invalid"
+unset migration_summary
+assert_postgres_continuity \
+  || die "PostgreSQL identity or health changed after migration query"
 
 deadline_log "backup phase=dumping" || die
 run_deadline bash -c "$redirect_command" _ "$stage/database.dump" \
@@ -927,6 +1649,8 @@ run_deadline bash -c "$redirect_command" _ "$stage/database.dump" \
     -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
     'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl'
 [[ -s "$stage/database.dump" ]] || die "PostgreSQL dump is empty"
+assert_postgres_continuity \
+  || die "PostgreSQL identity or health changed after logical dump"
 phase=dump_complete
 deadline_log "backup phase=dump_complete" || die
 
@@ -964,10 +1688,10 @@ audit_event_monitor active \
 running_after_objects="$(run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
   -f "$REPO_ROOT/compose.yaml" ps --status running --services)" \
   || die "post-capture service confirmation failed"
-while IFS= read -r service; do
-  [[ -z "$service" || "$service" == postgres || "$service" == clamav ]] \
-    || die "a mutating or unknown service ran during recovery-point capture"
-done <<<"$running_after_objects"
+validate_quiesced_running_services "$running_after_objects" \
+  || die "PostgreSQL continuity or post-capture service state failed"
+assert_postgres_continuity \
+  || die "PostgreSQL identity or health changed during recovery-point capture"
 
 post_commit="$(run_deadline git -C "$repo_real" rev-parse --verify HEAD)" \
   || die "installed release commit recheck failed"
@@ -1068,17 +1792,26 @@ final_hash="${final_hash%% *}"
 run_deadline sync -f -- "$full_dir"
 phase=files_published
 deadline_log "backup phase=files_published" || die
+audit_event_monitor active \
+  || die "release-scoped Docker event continuity failed before marker publication"
+running_before_marker="$(run_deadline docker compose --env-file "$COMPOSE_ENV_FILE" \
+  -f "$REPO_ROOT/compose.yaml" ps --status running --services)" \
+  || die "pre-marker service confirmation failed"
+validate_quiesced_running_services "$running_before_marker" \
+  || die "PostgreSQL or ClamAV running-state continuity failed before marker publication"
+assert_postgres_continuity \
+  || die "PostgreSQL identity or health changed before marker publication"
 
 completed_utc="$(run_deadline date -u +%Y%m%dT%H%M%SZ)" \
   || die "completion timestamp failed"
 marker_command='set -Eeuo pipefail; source "$1"; write_success_marker "$2" "$3" "$4" "$5"'
 publication_commit_uncertain=1
+marker_validation_pending=1
 if ! run_deadline bash -c "$marker_command" _ "$SCRIPT_DIR/common.sh" \
   "$marker" "$filename" "$completed_utc" "$ciphertext_hash"; then
   die "success marker durability failed"
 fi
 marker_published=1
-marker_validation_pending=1
 close_event_monitor \
   || die "release-scoped Docker event continuity failed after marker durability"
 marker_validation_pending=0

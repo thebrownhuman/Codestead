@@ -40,15 +40,45 @@ jobs:
       - run: npm audit --audit-level=moderate
       - run: node infra/tests/validate-static.mjs
       - run: bash -n scripts/backup/*.sh infra/docker/entrypoint.sh infra/ops/*.sh infra/runner/*.sh infra/tests/*.sh
-      - run: bash infra/tests/backup-config.test.sh
-      - run: bash infra/tests/backup-retention.test.sh
-      - run: bash infra/tests/emergency-backup-atomicity.test.sh
       - run: bash infra/tests/runner-reconciliation.test.sh
       - run: bash infra/tests/runtime-config.test.sh
       - run: docker compose --env-file infra/env/compose.env.example config --quiet
       - run: node infra/tests/validate-compose.mjs
       - run: docker build --pull=false --tag learncoding-app:ci .
       - run: docker build --pull=false --target regrade-worker --tag learncoding-regrade-worker:ci .
+
+  backup-safety:
+    # 60 minutes covers the complete unfiltered backup publication suite and adjacent gates.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - run: node infra/tests/backup-ci-registration.test.mjs
+      - run: bash -n scripts/backup/*.sh infra/tests/*.sh
+      - run: python3 -m py_compile scripts/backup/run-managed-deadline.py infra/tests/managed-deadline-stop-channel-linux.py
+      - run: npm ci
+      - run: bash infra/tests/backup-config.test.sh
+      - run: bash infra/tests/restore-path-safety.test.sh
+      - run: bash infra/tests/managed-deadline-registration.test.sh
+      - run: bash infra/tests/managed-deadline-linux.test.sh
+      - run: bash infra/tests/credential-probe-cleanup.test.sh
+      - run: bash infra/tests/backup-consistency.test.sh
+      - run: bash infra/tests/backup-retention.test.sh
+      - run: bash infra/tests/emergency-backup-atomicity.test.sh
+      - run: bash infra/tests/backup-publication.test.sh
+
+  backup-production-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/backup-production-e2e.test.sh
 
   runner:
     runs-on: ubuntu-24.04

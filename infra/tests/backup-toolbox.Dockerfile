@@ -7,9 +7,13 @@ RUN apk add --no-cache \
       age \
       bash \
       coreutils \
+      diffutils \
+      docker-cli-compose \
       findutils \
       git \
       grep \
+      gzip \
+      python3 \
       tar \
       util-linux
 

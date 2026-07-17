@@ -271,13 +271,15 @@ case "$format" in
     ;;
   learncoding-emergency-v1)
     readonly -a emergency_keys=(
-      format created_utc scope contains_secret_files contains_email_exports
+      format created_utc git_commit scope contains_secret_files
+      contains_email_exports
     )
     ((${#manifest_values[@]} == ${#emergency_keys[@]} && ${#image_values[@]} == 0)) \
       || verification_fail manifest
     for key in "${emergency_keys[@]}"; do require_manifest_key "$key"; done
     validate_timestamp "${manifest_values[created_utc]}"
-    [[ "${manifest_values[scope]}" == database-and-non-secret-recovery-config-only \
+    [[ "${manifest_values[git_commit]}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ \
+      && "${manifest_values[scope]}" == database-and-non-secret-recovery-config-only \
       && "${manifest_values[contains_secret_files]}" == false \
       && "${manifest_values[contains_email_exports]}" == false ]] \
       || verification_fail manifest
