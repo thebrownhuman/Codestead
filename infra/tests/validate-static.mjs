@@ -27,9 +27,16 @@ function sha256File(relative) {
 
 function sourceManipulatesHarnessPath(content) {
   const pathToken = /(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)/u;
+  const approvedHermeticChildEnvironment =
+    '  launcher=("$production_env" -i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)';
   return content
     .split(/\r?\n/u)
-    .some((line) => !/^\s*(?:#|$)/u.test(line) && pathToken.test(line));
+    .some(
+      (line) =>
+        !/^\s*(?:#|$)/u.test(line) &&
+        line !== approvedHermeticChildEnvironment &&
+        pathToken.test(line),
+    );
 }
 
 function dockerStage(name) {
@@ -172,6 +179,8 @@ const runnerNetworkXml = read("infra/runner-vm/codestead-runner-network.xml");
 read("infra/runner-vm/cloud-init/meta-data");
 read("infra/runner-vm/cloud-init/user-data.template");
 const runnerProvisioner = read("infra/runner-vm/provision-host.sh");
+const runnerProvisionHelper = read("infra/runner-vm/codestead_runner_provision.py");
+const runnerProvisionContract = read("infra/runner-vm/runner-contract.json");
 const runnerGuestInstaller = read("infra/runner-vm/install-guest.sh");
 const runnerFirewall = read("infra/runner-vm/host-runner.nft");
 const runnerFirewallUnit = read("infra/systemd/learncoding-runner-firewall.service");
@@ -199,10 +208,30 @@ expect(
   !sourceManipulatesHarnessPath("RUNNER_PATH=/fixture/bin"),
   "PATH static guard must distinguish PATH from longer variable names",
 );
+expect(
+  !sourceManipulatesHarnessPath(
+    '  launcher=("$production_env" -i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)',
+  ),
+  "PATH static guard must allow the reviewed hermetic child environment",
+);
+for (const mutation of [
+  'launcher=("$production_env" HOME=/nonexistent PATH=/usr/bin:/bin)',
+  'launcher=(env -i HOME=/nonexistent PATH=/usr/bin:/bin)',
+  'PATH=/usr/bin:/bin command',
+  '  launcher=("$production_env"\u000b-i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)',
+  '  launcher=("$production_env"\u000c-i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)',
+  '  launcher=("$production_env"\r-i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)',
+  '  launcher=("$production_env"\u00a0-i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)',
+  '  launcher=("$production_env"\u2028-i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)',
+]) {
+  expect(
+    sourceManipulatesHarnessPath(mutation),
+    `PATH static guard must reject near-miss child environment: ${mutation}`,
+  );
+}
 for (const [label, source] of [
   ["runtime validator", runtimeValidation],
   ["sourced Compose environment", composeEnv],
-  ["runner provisioner", runnerProvisioner],
   ["recovery checker", recoveryChecker],
   ["recovery evidence collector", recoveryEvidence],
   ["systemd installer", systemdInstaller],
@@ -217,7 +246,6 @@ for (const [label, source] of [
 }
 
 const shellHarnesses = [
-  ["runner VM provision", provisionHarness],
   ["power recovery checker", recoveryHarness],
   ["runner reconciliation", runnerHarness],
   ["Systemd recovery", systemdHarness],
@@ -384,7 +412,6 @@ for (const [label, harness, variable, digest] of reviewedSourceContracts) {
   expect(harness.includes(`${variable}='${digest}'`), `${label} harness reviewed SHA must match the exact production bytes`);
 }
 for (const [label, harness, variable] of [
-  ["runner VM provision", provisionHarness, "provisioner_reviewed_sha256"],
   ["power recovery checker", recoveryHarness, "checker_reviewed_sha256"],
   ["power evidence", evidenceHarness, "collector_reviewed_sha256"],
 ]) {
@@ -772,13 +799,19 @@ expect(
       "learncoding-runner-firewall.service",
     ],
   ) &&
-    hasSingleSystemdDirective(composeUnit, "Unit", "Requires", "docker.service") &&
-    hasSystemdDirectiveTokens(composeUnit, "Unit", "Wants", [
-      "network-online.target",
-      "libvirtd.service",
-      "learncoding-runner-firewall.service",
-    ]),
-  "Compose systemd unit must retain Docker/local-fs and include network, libvirt, and firewall ordering",
+    hasSingleSystemdDirective(
+      composeUnit,
+      "Unit",
+      "Requires",
+      "docker.service learncoding-runner-firewall.service",
+    ) &&
+    hasSingleSystemdDirective(
+      composeUnit,
+      "Unit",
+      "Wants",
+      "network-online.target libvirtd.service",
+    ),
+  "Compose systemd unit must retain Docker/local-fs ordering and fail closed when the runner firewall fails",
 );
 expect(
   hasSingleSystemdDirective(
@@ -1005,7 +1038,7 @@ expect(/SOURCE_CODE_URL must be an HTTPS URL/.test(runtimeValidation), "runtime 
 expect(
   /--post-start/.test(runtimeValidation) &&
     /\btimeout\b/.test(runtimeValidation) &&
-    /runner URL must be exactly http:\/\/10\.20\.0\.12:4100/.test(runtimeValidation) &&
+    /runner URL must be exactly http:\/\/192\.168\.122\.12:4100/.test(runtimeValidation) &&
     /172\.29\.40\.0\/24/.test(runtimeValidation) &&
     /cdst-run0/.test(runtimeValidation),
   "runtime validation must expose only the post-start selector and require the exact runner URL/network",
@@ -1013,26 +1046,88 @@ expect(
 
 if (runnerNetworkXml) {
   expect(
-    /<name>codestead-runner<\/name>/.test(runnerNetworkXml) &&
+    /<name>default<\/name>/.test(runnerNetworkXml) &&
       /<forward\s+mode=["']nat["']/.test(runnerNetworkXml) &&
-      /<bridge\s+name=["']virbr-cdst["']/.test(runnerNetworkXml) &&
-      /address=["']10\.20\.0\.1["']/.test(runnerNetworkXml) &&
+      /<bridge\s+name=["']virbr0["']/.test(runnerNetworkXml) &&
+      /address=["']192\.168\.122\.1["']/.test(runnerNetworkXml) &&
+      /netmask=["']255\.255\.255\.0["']/.test(runnerNetworkXml) &&
+      /<range\s+start=["']192\.168\.122\.2["']\s+end=["']192\.168\.122\.254["']/.test(runnerNetworkXml) &&
       /mac=["']52:54:00:20:00:12["']/.test(runnerNetworkXml) &&
-      /ip=["']10\.20\.0\.12["']/.test(runnerNetworkXml),
-    "runner network XML must define only the reviewed dedicated NAT identity",
+      /ip=["']192\.168\.122\.12["']/.test(runnerNetworkXml),
+    "runner network XML must define the reviewed libvirt default NAT identity",
   );
 }
 if (runnerProvisioner) {
-  expect(/RUNNER_PROVISION_TEST_ROOT/.test(runnerProvisioner), "provisioner must expose only the narrow test-root seam");
+  expect(
+    /trusted_bootstrap=/.test(runnerProvisioner) &&
+      /O_NOFOLLOW/.test(runnerProvisioner) &&
+      /os\.fstat/.test(runnerProvisioner) &&
+      /hashlib\.sha256/.test(runnerProvisioner) &&
+      /compile\(source, path, "exec"\)/.test(runnerProvisioner) &&
+      /exec\(code, namespace, namespace\)/.test(runnerProvisioner) &&
+      !/\/usr\/bin\/python3 -I -B "\$helper"/.test(runnerProvisioner),
+    "provisioner wrapper must verify and execute the same no-follow helper bytes before any helper code runs",
+  );
+  expect(
+    /^helper_sha256='[0-9a-f]{64}'$/m.test(runnerProvisioner) &&
+      /^contract_sha256='[0-9a-f]{64}'$/m.test(runnerProvisioner),
+    "provisioner wrapper must pin both helper and contract bytes",
+  );
   expect(
     !/virsh\s+(?:--connect\s+\S+\s+)?(?:destroy|undefine|vol-delete)\b|--remove-all-storage|\b(?:br0|wlo1)\b|--network\s+(?:bridge|direct)=/i.test(
-      runnerProvisioner,
+      `${runnerProvisioner}\n${runnerProvisionHelper}`,
     ),
     "provisioner must not contain destructive libvirt/disk or Wi-Fi bridge operations",
   );
   expect(
-    /host-passthrough/.test(runnerProvisioner) && /cache=none/.test(runnerProvisioner) && /100G/.test(runnerProvisioner),
+    /host-passthrough/.test(runnerProvisionHelper) &&
+      /"--osinfo", EXPECTED_OSINFO/.test(runnerProvisionHelper) &&
+      /EXPECTED_OSINFO: Final = "ubuntu24\.04"/.test(runnerProvisionHelper) &&
+      /"osinfo": "ubuntu24\.04"/.test(runnerProvisionContract) &&
+      /cache=none/.test(runnerProvisionHelper) &&
+      /100G/.test(runnerProvisionHelper) &&
+      /"vcpus": 4/.test(runnerProvisionContract) &&
+      /"memory_mib": 8192/.test(runnerProvisionContract) &&
+      /"disk_bytes": 107374182400/.test(runnerProvisionContract),
     "provisioner must encode host-passthrough, cache=none, and the 100 GiB disk",
+  );
+  expect(
+    /selectors\.DefaultSelector/.test(runnerProvisionHelper) &&
+      /OUTPUT_LIMIT_BYTES/.test(runnerProvisionHelper) &&
+      /_terminate_process_group/.test(runnerProvisionHelper) &&
+      /_wait_for_process_group_exit/.test(runnerProvisionHelper) &&
+      /external process group survived SIGKILL/.test(runnerProvisionHelper),
+    "provisioner helper must incrementally bound command output and terminate overflowing process groups",
+  );
+  expect(
+    /_renameat2_noreplace/.test(runnerProvisionHelper) &&
+      /publication_checkpoint\("stage-fsynced"\)/.test(runnerProvisionHelper) &&
+      /publication_checkpoint\("destination-directory-fsynced"\)/.test(runnerProvisionHelper),
+    "provisioner helper must durably fsync stages before no-clobber publication",
+  );
+  expect(
+    /build_network_update_command\(before\.uuid/.test(runnerProvisionHelper) &&
+      /"bridge_mac": bridge_mac/.test(runnerProvisionHelper),
+    "provisioner helper must bind updates to the captured UUID and fingerprint bridge-MAC drift",
+  );
+  expect(
+    /tampered helper executed a top-level side effect/.test(provisionHarness) &&
+      /test_actual_network_convergence_clean_rerun_and_partial_live_repair/.test(provisionHarness) &&
+      /test_actual_domain_define_autostart_and_start_lifecycle_uses_no_destructive_action/.test(provisionHarness) &&
+      /test_integrated_transaction_clean_rerun_and_domain_cutpoint_recovery/.test(provisionHarness) &&
+      /test_network_name_replacement_race_fails_without_updating_replacement/.test(provisionHarness) &&
+      /test_signal_cleanup_escalates_from_term_to_kill_for_a_stuck_group/.test(provisionHarness) &&
+      /test_output_cleanup_kills_descendant_group_after_parent_exits/.test(provisionHarness) &&
+      /test_signal_cleanup_rejects_a_group_that_survives_sigkill/.test(provisionHarness) &&
+      /test_signal_cleanup_stops_after_group_disappears_before_id_reuse/.test(provisionHarness) &&
+      /test_linux_root_self_test_covers_a_real_descendant_group/.test(provisionHarness) &&
+      /test_osinfo_catalog_requires_exact_pinned_ubuntu_short_id/.test(provisionHarness) &&
+      /test_wrong_source_sha_fails_before_verified_bytes_are_returned/.test(provisionHarness) &&
+      /test_domain_rejects_unreviewed_optional_security_and_lifecycle_state/.test(provisionHarness) &&
+      /test_bridge_mac_is_part_of_non_target_network_fingerprint/.test(provisionHarness) &&
+      /publication_events/.test(runnerProvisionHelper) &&
+      /command output-bound self-test/.test(runnerProvisionHelper),
+    "runner VM harness must cover bootstrap tampering, fake lifecycle, cut points, bounded output, and fail-closed XML drift",
   );
 }
 if (runnerGuestInstaller) {
@@ -1115,7 +1210,7 @@ expect(
   "runner service must disable core dumps containing learner memory",
 );
 expect(
-  hasSingleShellAssignment(runnerEnv, "RUNNER_HOST", "10.20.0.12") &&
+  hasSingleShellAssignment(runnerEnv, "RUNNER_HOST", "192.168.122.12") &&
     hasSingleShellAssignment(runnerEnv, "RUNNER_PORT", "4100") &&
     hasSingleShellAssignment(runnerEnv, "RUNNER_MAX_CONCURRENCY", "2") &&
     hasSingleShellAssignment(runnerEnv, "RUNNER_MAX_QUEUE_DEPTH", "100"),

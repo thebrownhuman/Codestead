@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "network_sha256": "205f3b258e50cdb79823b07c5f0301cc5ed2f13d1db36575067be09461e80e72",
+  "meta_data_sha256": "855b9b35c2643a22a5636563c07fab9831f7fa293d0d2ec4e90ade200b940288",
+  "user_data_template_sha256": "58f1fafffcf1ac0d6591fccdf3a7f4653d840a1d7789708f26858fb5997df7a2",
+  "network": {
+    "name": "default",
+    "bridge": "virbr0",
+    "host_ip": "192.168.122.1",
+    "netmask": "255.255.255.0",
+    "dhcp_start": "192.168.122.2",
+    "dhcp_end": "192.168.122.254",
+    "guest_ip": "192.168.122.12",
+    "mac": "52:54:00:20:00:12"
+  },
+  "domain": {
+    "name": "codestead-runner",
+    "osinfo": "ubuntu24.04",
+    "vcpus": 4,
+    "memory_mib": 8192,
+    "disk_bytes": 107374182400,
+    "mac": "52:54:00:20:00:12",
+    "network": "default",
+    "disk_path": "/var/lib/libvirt/images/codestead-runner.qcow2",
+    "seed_path": "/var/lib/libvirt/boot/codestead-runner-seed.iso"
+  },
+  "ssh_policy": {
+    "ED25519": 256,
+    "RSA": 3072
+  },
+  "deadlines": {
+    "total_seconds": 600,
+    "kill_after_seconds": 5,
+    "outer_kill_after_seconds": 15,
+    "query_seconds": 15,
+    "mutation_seconds": 45,
+    "image_seconds": 300
+  },
+  "tools": [
+    "/usr/bin/cloud-localds",
+    "/usr/bin/env",
+    "/usr/bin/getent",
+    "/usr/bin/id",
+    "/usr/bin/python3",
+    "/usr/bin/qemu-img",
+    "/usr/bin/setpriv",
+    "/usr/bin/ssh-keygen",
+    "/usr/bin/systemctl",
+    "/usr/bin/test",
+    "/usr/bin/timeout",
+    "/usr/bin/virsh",
+    "/usr/bin/virt-install"
+  ]
+}

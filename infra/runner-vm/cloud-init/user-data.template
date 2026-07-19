@@ -1,0 +1,44 @@
+#cloud-config
+hostname: codestead-runner
+manage_etc_hosts: true
+disable_root: true
+ssh_pwauth: false
+
+users:
+  - default
+  - name: codestead-admin
+    gecos: Codestead runner administrator
+    groups:
+      - adm
+      - sudo
+    lock_passwd: true
+    shell: /bin/bash
+    sudo:
+      - ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - __RUNNER_ADMIN_SSH_PUBLIC_KEY__
+
+package_update: true
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+  - unattended-upgrades
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/60-codestead-runner.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root:root
+    permissions: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+runcmd:
+  - [systemctl, enable, --now, qemu-guest-agent.service]
+  - [systemctl, restart, ssh.service]
