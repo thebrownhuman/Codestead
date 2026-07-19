@@ -13,6 +13,7 @@ import {
   response,
   user,
 } from "@/lib/db/schema";
+import { hasPostgresErrorCode } from "@/lib/db/postgres-errors";
 import {
   BLUEPRINT_RESPONSE_KEY,
   EXAM_POLICY_VERSION,
@@ -326,7 +327,8 @@ describe("exam autosave exact-once PostgreSQL contract", () => {
       `);
     }
 
-    expect(failure).toMatchObject({ code: "P0001" });
+    expect(failure).toBeInstanceOf(Error);
+    expect(hasPostgresErrorCode(failure, "P0001")).toBe(true);
     expect(await countItemAnswers()).toHaveLength(0);
     expect(await db.select().from(examAutosaveMutation)).toHaveLength(0);
   });

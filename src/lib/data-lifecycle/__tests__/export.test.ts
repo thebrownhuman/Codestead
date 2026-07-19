@@ -163,6 +163,34 @@ describe("bounded safe export contract", () => {
     }
   });
 
+  it("uses the authoritative export timestamp when deciding whether battle results are sealed", async () => {
+    const snapshot = new Date("2026-07-14T12:00:00.000Z");
+    const battleSubmissionCalls: Array<{ statement: string; parameters: unknown[] }> = [];
+    mocks.query.mockImplementation(async (statement: string, parameters: unknown[]) => {
+      if (statement.includes("insert into data_lifecycle_run")) return { rows: [{ id: "run-battle-sealing" }] };
+      if (statement.includes("from coding_battle_submission submission")) {
+        battleSubmissionCalls.push({ statement, parameters });
+      }
+      return { rows: [] };
+    });
+
+    const exported = await createLearnerExport({
+      learnerId: "learner-1",
+      actorUserId: "admin-1",
+      requestId: "81000000-0000-4000-8000-000000000011",
+      now: snapshot,
+      maxRecords: 10,
+      maxBytes: 16_384,
+    });
+    await new Response(exported.stream).text();
+    await exported.completion;
+
+    expect(battleSubmissionCalls).toHaveLength(1);
+    expect(battleSubmissionCalls[0]?.statement).toContain("battle.reveal_at <= $4::timestamptz");
+    expect(battleSubmissionCalls[0]?.statement).not.toContain("now()");
+    expect(battleSubmissionCalls[0]?.parameters).toEqual(["learner-1", 11, 0, snapshot]);
+  });
+
   it("exports explicit smart-reminder choices and owner-bound dispatch evidence", async () => {
     const statements: string[] = [];
     mocks.query.mockImplementation(async (statement: string) => {

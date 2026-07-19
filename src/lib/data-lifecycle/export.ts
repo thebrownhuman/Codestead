@@ -23,7 +23,11 @@ const MAX_BYTES = 20 * 1_024 * 1_024;
 const PAGE_SIZE = 100;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type QuerySpec = Readonly<{ category: string; statement: string }>;
+type QuerySpec = Readonly<{
+  category: string;
+  statement: string;
+  usesSnapshotTime?: true;
+}>;
 
 const QUERIES: readonly QuerySpec[] = [
   {
@@ -868,13 +872,14 @@ const QUERIES: readonly QuerySpec[] = [
   },
   {
     category: "codingBattleSubmissions",
+    usesSnapshotTime: true,
     statement: `select jsonb_build_object(
       'id', submission.id, 'battleId', submission.battle_id,
       'answer', submission.answer, 'sourceAttemptId', submission.source_attempt_id,
-      'score', case when battle.reveal_at <= now() then submission.score else null end,
-      'passed', case when battle.reveal_at <= now() then submission.passed else null end,
-      'resultEvidence', case when battle.reveal_at <= now() then submission.result_evidence else null end,
-      'resultsSealed', battle.reveal_at > now(),
+      'score', case when battle.reveal_at <= $4::timestamptz then submission.score else null end,
+      'passed', case when battle.reveal_at <= $4::timestamptz then submission.passed else null end,
+      'resultEvidence', case when battle.reveal_at <= $4::timestamptz then submission.result_evidence else null end,
+      'resultsSealed', battle.reveal_at > $4::timestamptz,
       'submittedAt', submission.submitted_at, 'createdAt', submission.created_at,
       'internalRequestAndAnswerHashesIncluded', false
     ) as data from coding_battle_submission submission
@@ -1003,7 +1008,9 @@ export async function createLearnerExport(input: {
             const pageLimit = Math.min(PAGE_SIZE, limits.maxRecords - records);
             const result = await pool.query<{ data: Record<string, unknown> }>(
               query.statement,
-              [input.learnerId, pageLimit + 1, offset],
+              query.usesSnapshotTime
+                ? [input.learnerId, pageLimit + 1, offset, now]
+                : [input.learnerId, pageLimit + 1, offset],
             );
             if (!result.rows.length) break;
             const rows = result.rows.slice(0, pageLimit);
@@ -1021,7 +1028,9 @@ export async function createLearnerExport(input: {
                   for (const remaining of QUERIES.slice(queryIndex + 1)) {
                     const probe = await pool.query(
                       remaining.statement,
-                      [input.learnerId, 1, 0],
+                      remaining.usesSnapshotTime
+                        ? [input.learnerId, 1, 0, now]
+                        : [input.learnerId, 1, 0],
                     );
                     if (probe.rows.length) {
                       truncated = true;
