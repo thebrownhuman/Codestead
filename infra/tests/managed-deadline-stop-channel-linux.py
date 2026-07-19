@@ -1018,7 +1018,7 @@ def run_setup_failure_cleanup_case(root: Path) -> None:
 def run_control_publication_recovery_case(
     root: Path, label: str, fault: str, mutation: str
 ) -> None:
-    case_root = root / label
+    case_root = root / f"pub-{mutation}"
     case_root.mkdir(mode=0o700)
     control = case_root / "monitor.control"
     effect = case_root / "command.effect"
@@ -1105,7 +1105,7 @@ def run_control_publication_recovery_case(
 
 def run_endpoint_opath_failure_case(root: Path) -> None:
     label = "stop-channel-opath-failure-preserves-ambiguity"
-    case_root = root / label
+    case_root = root / "opath"
     case_root.mkdir(mode=0o700)
     control = case_root / "monitor.control"
     effect = case_root / "command.effect"
@@ -1559,7 +1559,7 @@ def run_overlong_path_case(root: Path) -> None:
         fail(f"{label}: overlong endpoint left a socket entry")
 
 
-with tempfile.TemporaryDirectory(prefix="managed-deadline-stop-") as temporary:
+with tempfile.TemporaryDirectory(prefix="mds-") as temporary:
     root = Path(temporary)
     PRIVATE_WORK_ROOT = root
     (root / "managed-command.py").write_text(
