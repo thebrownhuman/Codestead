@@ -118,6 +118,38 @@ fi
   || fail "managed-deadline helper is missing or unsafe"
 command -v python3 >/dev/null || fail "python3 is unavailable"
 
+managed_deadline_test_group="${MANAGED_DEADLINE_TEST_GROUP:-all}"
+case "$managed_deadline_test_group" in
+  all|run-fixed-deadline-command-substitution) ;;
+  *) fail "unknown MANAGED_DEADLINE_TEST_GROUP: $managed_deadline_test_group" ;;
+esac
+
+run_fixed_deadline_command_substitution_regression() (
+  local output status=0
+  trap - ERR
+  managed_deadline="$helper"
+  source <(/usr/bin/sed -n \
+    '/^run_fixed_deadline() {$/,/^}$/p' "$backup_controller")
+  [[ "$(type -t run_fixed_deadline)" == function ]] \
+    || fail "production run_fixed_deadline could not be loaded"
+
+  output="$(run_fixed_deadline 5 1 \
+    /usr/bin/printf '%s\n' command-substitution-ok)" || status=$?
+  [[ "$status" == 0 && "$output" == command-substitution-ok ]] \
+    || fail "production run_fixed_deadline failed under command substitution (status=$status)"
+
+  status=0
+  output="$(run_fixed_deadline 5 1 /bin/sh -c 'exit 73')" || status=$?
+  [[ "$status" == 73 ]] \
+    || fail "production run_fixed_deadline changed managed command status (status=$status)"
+)
+
+run_fixed_deadline_command_substitution_regression
+if [[ "$managed_deadline_test_group" == run-fixed-deadline-command-substitution ]]; then
+  echo "managed-deadline-run-fixed-deadline-command-substitution-tests-ok"
+  exit 0
+fi
+
 umask 077
 work="$(mktemp -d)"
 chmod 0700 "$work"

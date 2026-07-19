@@ -38,12 +38,17 @@ managed_deadline="$SCRIPT_DIR/run-managed-deadline.py"
   || die "managed deadline supervisor is missing or unsafe"
 
 run_fixed_deadline() {
-  local duration="$1" grace="$2"
+  local duration="$1" grace="$2" status
   shift 2
   [[ "$duration" =~ ^[1-9][0-9]*$ && "$grace" =~ ^[1-9][0-9]*$ ]] \
     || return 125
-  python3 "$managed_deadline" --expected-parent-pid "$BASHPID" \
-    "$duration" "$grace" -- "$@"
+  if python3 "$managed_deadline" --expected-parent-pid "$BASHPID" \
+    "$duration" "$grace" -- "$@"; then
+    status=0
+  else
+    status=$?
+  fi
+  return "$status"
 }
 
 : "${BACKUP_ROOT:?BACKUP_ROOT is required}"
