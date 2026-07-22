@@ -149,6 +149,40 @@ async function claimRun(
     now: Date;
   },
 ) {
+  if (!input.dryRun) {
+    const recoverable = await client.query<{
+      id: string;
+      status: "running" | "failed";
+      report: RetentionFileCheckpoint;
+    }>(
+      `select id, status, report
+         from data_lifecycle_run
+        where operation = 'retention'
+          and policy_version = $1
+          and dry_run = false
+          and status in ('running', 'failed')
+          and report ->> 'phase' = 'file_erasure_pending'
+        order by created_at asc, id asc
+        limit 1`,
+      [RETENTION_POLICY_VERSION],
+    );
+    const checkpoint = recoverable.rows[0];
+    if (checkpoint) {
+      if (checkpoint.status === "failed") {
+        const resumed = await client.query(
+          `update data_lifecycle_run
+              set status = 'running', error_code = null, completed_at = null,
+                  started_at = $2, updated_at = $2
+            where id = $1 and status = 'failed'`,
+          [checkpoint.id, input.now],
+        );
+        if ((resumed.rowCount ?? 0) !== 1) {
+          throw new Error("Lifecycle recovery state changed during claim.");
+        }
+      }
+      return { id: checkpoint.id, replay: null, resume: checkpoint.report };
+    }
+  }
   const inserted = await client.query<{ id: string }>(
     `insert into data_lifecycle_run
       (operation, policy_version, idempotency_key, dry_run, status, cutoff_manifest, started_at)
@@ -169,14 +203,12 @@ async function claimRun(
     operation: string;
     policy_version: string;
     dry_run: boolean;
-    cutoff_matches: boolean;
     status: string;
     report: RetentionReport | RetentionFileCheckpoint;
   }>(
-    `select id, operation, policy_version, dry_run,
-            cutoff_manifest = $2::jsonb as cutoff_matches, status, report
+    `select id, operation, policy_version, dry_run, status, report
        from data_lifecycle_run where idempotency_key = $1`,
-    [input.idempotencyKey, JSON.stringify(input.cutoffs)],
+    [input.idempotencyKey],
   );
   const row = existing.rows[0];
   if (!row) throw new Error("Lifecycle idempotency state could not be resolved.");
@@ -184,7 +216,6 @@ async function claimRun(
     row.operation !== "retention"
     || row.policy_version !== RETENTION_POLICY_VERSION
     || row.dry_run !== input.dryRun
-    || !row.cutoff_matches
   ) {
     throw new RetentionRunConflictError("IDEMPOTENCY_MISMATCH");
   }
@@ -234,7 +265,8 @@ async function eligibleObjectRows(
         and coalesce(deleted_at, updated_at) < $3
       )
       order by created_at asc, id asc
-      limit $4`,
+      limit $4
+      for update skip locked`,
     [
       cutoffs.temporaryObjects,
       cutoffs.aiRequestMetadataAndAttachments,
@@ -589,27 +621,47 @@ export async function runRetention(input: {
         throw error;
       }
 
-      const objectRows = await eligibleObjectRows(client, cutoffs, limit);
       const objectRoot = input.objectStorageRoot ?? process.env.OBJECT_STORAGE_PATH ?? "./data/objects";
       await client.query("begin");
       try {
-        await enqueueFileErasures(client, {
-          lifecycleRunId: runId,
-          operation: "retention",
-          objects: objectRows.rows.map((object) => ({
-            id: object.id,
-            storageKey: object.storage_key,
-          })),
-          now,
-        });
+        const objectRows = await eligibleObjectRows(client, cutoffs, limit);
         const objectIds = objectRows.rows.map((object) => object.id);
         let deletedObjects = 0;
         if (objectIds.length) {
           await client.query("delete from quota_ledger where object_id = any($1::uuid[])", [objectIds]);
-          const deleted = await client.query(
-            "delete from stored_object where id = any($1::uuid[])",
-            [objectIds],
+          const deleted = await client.query<{ id: string; storage_key: string }>(
+            `delete from stored_object
+              where id = any($1::uuid[])
+                and (
+                  (
+                    retention_class = 'temporary' and created_at < $2
+                  ) or (
+                    retention_class = 'ai_request_attachment' and created_at < $3
+                  ) or (
+                    (scan_status in ('quarantined', 'scanner_error', 'deleted') or deleted_at is not null)
+                    and coalesce(deleted_at, updated_at) < $4
+                  )
+                )
+              returning id, storage_key`,
+            [
+              objectIds,
+              cutoffs.temporaryObjects,
+              cutoffs.aiRequestMetadataAndAttachments,
+              cutoffs.failedQuarantinedOrSoftDeletedObjects,
+            ],
           );
+          if ((deleted.rowCount ?? 0) !== objectRows.rows.length) {
+            throw new Error("Retention object eligibility changed during locked deletion.");
+          }
+          await enqueueFileErasures(client, {
+            lifecycleRunId: runId,
+            operation: "retention",
+            objects: deleted.rows.map((object) => ({
+              id: object.id,
+              storageKey: object.storage_key,
+            })),
+            now,
+          });
           deletedObjects = deleted.rowCount ?? 0;
         }
         categories.objects = category(objectEligible, deletedObjects);
