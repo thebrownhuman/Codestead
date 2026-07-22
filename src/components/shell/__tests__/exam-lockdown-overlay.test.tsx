@@ -263,6 +263,48 @@ describe("active exam lockdown overlay", () => {
       .toHaveAttribute("href", "/exams/exam-1");
     expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
   });
+  it("ignores an older inactive response after a newer active response locks learning", async () => {
+    let poll: (() => void) | undefined;
+    vi.spyOn(window, "setInterval").mockImplementation((handler, timeout) => {
+      if (timeout === 15_000) poll = handler as () => void;
+      return {} as ReturnType<typeof window.setInterval>;
+    });
+    const olderInactive = deferred<Response>();
+    const newerActive = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn()
+      .mockReturnValueOnce(olderInactive.promise)
+      .mockReturnValueOnce(newerActive.promise));
+
+    render(<><div id="app-content-column">Tutor lesson assistance</div><ExamLockdownOverlay /></>);
+
+    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
+      .toBeInTheDocument();
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
+    expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
+
+    await act(async () => { poll?.(); });
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
+
+    await act(async () => {
+      newerActive.resolve(response("exam-1"));
+      await newerActive.promise;
+    });
+    expect(await screen.findByRole("link", { name: /Resume timed exam/i }))
+      .toHaveAttribute("href", "/exams/exam-1");
+    expect(mocks.purgeDraftRecoveryData).toHaveBeenCalledOnce();
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
+
+    await act(async () => {
+      olderInactive.resolve(response(null));
+      await olderInactive.promise;
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("link", { name: /Resume timed exam/i }))
+      .toHaveAttribute("href", "/exams/exam-1");
+    expect(mocks.purgeDraftRecoveryData).toHaveBeenCalledOnce();
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
+  });
   it("keeps a known closed-book lock when a later catalog refresh is unavailable", async () => {
     let poll: (() => void) | undefined;
     vi.spyOn(window, "setInterval").mockImplementation((handler, timeout) => {

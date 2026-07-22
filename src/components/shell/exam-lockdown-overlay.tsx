@@ -81,6 +81,7 @@ export function ExamLockdownOverlay({
   const [sessionBoundaryPending, setSessionBoundaryPending] = useState(false);
   const [refreshAttempt, setRefreshAttempt] = useState(0);
   const generationRef = useRef(0);
+  const refreshRequestRef = useRef(0);
   const latestNamespaceRef = useRef(namespace);
   const observedKeyRef = useRef<string | null>(null);
   const sessionBoundaryRef = useRef(false);
@@ -90,6 +91,7 @@ export function ExamLockdownOverlay({
     if (latestNamespaceRef.current === namespace) return;
     latestNamespaceRef.current = namespace;
     generationRef.current += 1;
+    refreshRequestRef.current += 1;
     observedKeyRef.current = null;
     sessionBoundaryRef.current = false;
     setSessionBoundaryPending(false);
@@ -159,12 +161,13 @@ export function ExamLockdownOverlay({
     const controller = new AbortController();
     let cancelled = false;
     const check = () => {
+      const requestId = ++refreshRequestRef.current;
       setLockState((current) => (
         current.kind === "locked" ? current : { kind: "checking" }
       ));
       void refresh(controller.signal)
         .then((result) => {
-          if (cancelled) return;
+          if (cancelled || refreshRequestRef.current !== requestId) return;
           if (result.kind === "unavailable") return;
           if (result.kind === "auth-denied") {
             void handleSessionDenial();
@@ -188,6 +191,7 @@ export function ExamLockdownOverlay({
     return () => {
       cancelled = true;
       generationRef.current += 1;
+      refreshRequestRef.current += 1;
       controller.abort();
       window.clearInterval(interval);
     };
