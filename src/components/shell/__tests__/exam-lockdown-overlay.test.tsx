@@ -203,20 +203,66 @@ describe("active exam lockdown overlay", () => {
 
   it("does not expose internal errors if the catalog is unavailable", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("database secret"); }));
-    render(<ExamLockdownOverlay />);
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    render(<><div id="app-content-column">Lesson content</div><ExamLockdownOverlay /></>);
+    expect(await screen.findByRole("alertdialog", { name: /Cannot verify exam status/i }))
+      .toHaveTextContent(/check exam status again/i);
     expect(document.body).not.toHaveTextContent("database secret");
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
     expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
   });
 
   it("does not delete drafts when the catalog response is unavailable", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 503 })));
-    render(<ExamLockdownOverlay />);
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    render(<><div id="app-content-column">Lesson content</div><ExamLockdownOverlay /></>);
+    expect(await screen.findByRole("alertdialog", { name: /Cannot verify exam status/i }))
+      .toBeInTheDocument();
     expect(mocks.openBrowserOutbox).not.toHaveBeenCalled();
     expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
+    expect(document.getElementById("app-content-column")).toHaveAttribute("aria-hidden", "true");
   });
 
+
+  it("fails closed while pending or unavailable, then follows authoritative inactive and active states", async () => {
+    let poll: (() => void) | undefined;
+    vi.spyOn(window, "setInterval").mockImplementation((handler, timeout) => {
+      if (timeout === 15_000) poll = handler as () => void;
+      return {} as ReturnType<typeof window.setInterval>;
+    });
+    const pending = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn()
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(response(null))
+      .mockResolvedValueOnce(response("exam-1")));
+
+    render(<><aside id="app-sidebar">Navigation</aside><div id="app-content-column">Tutor lesson assistance</div><ExamLockdownOverlay /></>);
+
+    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
+      .toHaveTextContent(/ordinary learning remains locked/i);
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
+    expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
+
+    await act(async () => { pending.resolve(new Response(null, { status: 503 })); });
+    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
+      .toBeInTheDocument();
+    expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Check exam status again/i }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
+      .toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Check exam status again/i }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(document.getElementById("app-content-column")).not.toHaveAttribute("inert");
+    expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
+
+    await act(async () => { poll?.(); });
+    await waitFor(() => expect(mocks.purgeDraftRecoveryData).toHaveBeenCalledOnce());
+    expect(await screen.findByRole("link", { name: /Resume timed exam/i }))
+      .toHaveAttribute("href", "/exams/exam-1");
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
+  });
   it("keeps a known closed-book lock when a later catalog refresh is unavailable", async () => {
     let poll: (() => void) | undefined;
     vi.spyOn(window, "setInterval").mockImplementation((handler, timeout) => {
@@ -231,7 +277,7 @@ describe("active exam lockdown overlay", () => {
     expect(await screen.findByRole("link", { name: /Resume timed exam/i }))
       .toHaveAttribute("href", "/exams/exam-1");
 
-    poll?.();
+    await act(async () => { poll?.(); });
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     expect(screen.getByRole("link", { name: /Resume timed exam/i }))
       .toHaveAttribute("href", "/exams/exam-1");
@@ -322,7 +368,7 @@ describe("active exam lockdown overlay", () => {
     });
     expect(navigate).not.toHaveBeenCalled();
 
-    poll?.();
+    await act(async () => { poll?.(); });
     expect(await screen.findByRole("alertdialog", { name: /Session ended/i }))
       .toBeInTheDocument();
     await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login"));

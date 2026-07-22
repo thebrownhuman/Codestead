@@ -29,10 +29,14 @@ type ActiveExam = {
   moduleTitle: string;
 };
 
-type LockState = {
-  exam: ActiveExam;
-  cleanup: "pending" | "ready" | "error";
-};
+type LockState =
+  | { kind: "checking" }
+  | { kind: "unlocked" }
+  | {
+      kind: "locked";
+      exam: ActiveExam;
+      cleanup: "pending" | "ready" | "error";
+    };
 
 type CatalogRefreshResult =
   | { kind: "available"; exam: ActiveExam | null }
@@ -73,8 +77,9 @@ export function ExamLockdownOverlay({
 } = {}) {
   const pathname = usePathname();
   const namespace = useBrowserDurabilityNamespace();
-  const [lockState, setLockState] = useState<LockState | null>(null);
+  const [lockState, setLockState] = useState<LockState>({ kind: "checking" });
   const [sessionBoundaryPending, setSessionBoundaryPending] = useState(false);
+  const [refreshAttempt, setRefreshAttempt] = useState(0);
   const generationRef = useRef(0);
   const latestNamespaceRef = useRef(namespace);
   const observedKeyRef = useRef<string | null>(null);
@@ -88,7 +93,7 @@ export function ExamLockdownOverlay({
     observedKeyRef.current = null;
     sessionBoundaryRef.current = false;
     setSessionBoundaryPending(false);
-    setLockState(null);
+    setLockState({ kind: "checking" });
   }, [namespace]);
 
   const refresh = useCallback(async (signal?: AbortSignal): Promise<CatalogRefreshResult> => {
@@ -123,10 +128,10 @@ export function ExamLockdownOverlay({
 
   const prepareClosedBookEntry = useCallback(async (exam: ActiveExam) => {
     const generation = ++generationRef.current;
-    setLockState({ exam, cleanup: "pending" });
+    setLockState({ kind: "locked", exam, cleanup: "pending" });
     if (!namespace) {
       if (generationRef.current === generation) {
-        setLockState({ exam, cleanup: "error" });
+        setLockState({ kind: "locked", exam, cleanup: "error" });
       }
       return;
     }
@@ -140,11 +145,11 @@ export function ExamLockdownOverlay({
         })
       ));
       if (generationRef.current === generation) {
-        setLockState({ exam, cleanup: "ready" });
+        setLockState({ kind: "locked", exam, cleanup: "ready" });
       }
     } catch {
       if (generationRef.current === generation) {
-        setLockState({ exam, cleanup: "error" });
+        setLockState({ kind: "locked", exam, cleanup: "error" });
       }
     }
   }, [namespace]);
@@ -154,6 +159,9 @@ export function ExamLockdownOverlay({
     const controller = new AbortController();
     let cancelled = false;
     const check = () => {
+      setLockState((current) => (
+        current.kind === "locked" ? current : { kind: "checking" }
+      ));
       void refresh(controller.signal)
         .then((result) => {
           if (cancelled) return;
@@ -165,7 +173,7 @@ export function ExamLockdownOverlay({
           if (!result.exam) {
             observedKeyRef.current = null;
             generationRef.current += 1;
-            setLockState(null);
+            setLockState({ kind: "unlocked" });
             return;
           }
           const observedKey = `${namespace ?? "missing"}:${result.exam.sessionId}`;
@@ -183,16 +191,27 @@ export function ExamLockdownOverlay({
       controller.abort();
       window.clearInterval(interval);
     };
-  }, [enabled, handleSessionDenial, namespace, prepareClosedBookEntry, refresh]);
+  }, [
+    enabled,
+    handleSessionDenial,
+    namespace,
+    prepareClosedBookEntry,
+    refresh,
+    refreshAttempt,
+  ]);
 
-  const active = lockState?.exam ?? null;
+  const active = lockState.kind === "locked" ? lockState.exam : null;
   const alreadyInExam = active && pathname === `/exams/${active.sessionId}`;
   useEffect(() => {
     if (active && !alreadyInExam) resumeRef.current?.focus();
   }, [active, alreadyInExam]);
 
   useLayoutEffect(() => {
-    const locked = sessionBoundaryPending || Boolean(active && !alreadyInExam);
+    const locked = enabled && (
+      sessionBoundaryPending
+      || lockState.kind === "checking"
+      || Boolean(active && !alreadyInExam)
+    );
     const regions = [
       document.getElementById("app-sidebar"),
       document.getElementById("app-content-column"),
@@ -212,7 +231,7 @@ export function ExamLockdownOverlay({
         region.removeAttribute("aria-hidden");
       }
     };
-  }, [active, alreadyInExam, sessionBoundaryPending]);
+  }, [active, alreadyInExam, enabled, lockState.kind, sessionBoundaryPending]);
 
   if (sessionBoundaryPending) {
     return (
@@ -236,7 +255,38 @@ export function ExamLockdownOverlay({
     );
   }
 
-  if (!lockState || alreadyInExam) return null;
+  if (!enabled) return null;
+
+  if (lockState.kind === "checking") {
+    return (
+      <div className={styles.examLockBackdrop} role="presentation">
+        <section
+          aria-describedby="exam-status-check-description"
+          aria-labelledby="exam-status-check-title"
+          aria-modal="true"
+          className={styles.examLockDialog}
+          role="alertdialog"
+        >
+          <span className={styles.examLockIcon}><ShieldAlert aria-hidden="true" size={28} /></span>
+          <span className={styles.navLabel}>EXAM STATUS UNVERIFIED</span>
+          <h1 id="exam-status-check-title">Cannot verify exam status</h1>
+          <p id="exam-status-check-description">
+            Ordinary learning remains locked until Codestead confirms that no closed-book exam is active. Your locally saved work is preserved.
+          </p>
+          <button
+            className="button button-primary"
+            onClick={() => setRefreshAttempt((attempt) => attempt + 1)}
+            type="button"
+          >
+            Check exam status again
+          </button>
+          <small>Reconnect or reload this page if status checks remain unavailable.</small>
+        </section>
+      </div>
+    );
+  }
+
+  if (lockState.kind === "unlocked" || alreadyInExam) return null;
 
   if (lockState.cleanup !== "ready") {
     const failed = lockState.cleanup === "error";

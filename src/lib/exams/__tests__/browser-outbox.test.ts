@@ -425,6 +425,60 @@ describe("useDurableExamOutbox", () => {
   });
 
 
+
+  it("conflicts an incompatible recovered receipt and keeps local with a fresh identity", async () => {
+    const recovered = answerRecord({
+      answer: "recovered local winner",
+      baseRevision: 0,
+      clientMutationId: firstMutationId,
+    });
+    const harness = repositoryHarness();
+    harness.answers.set(recovered.storageKey, recovered);
+    const replacementMutationId = "30000000-0000-4000-8000-000000000002";
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(replacementMutationId);
+    const sent: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      sent.push(body);
+      return autosaveAcknowledgement(body);
+    }));
+    const view = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession({
+        answers: {
+          "written-1": {
+            revision: 2,
+            answer: { text: "authoritative server winner" },
+            savedAt: new Date().toISOString(),
+          },
+        },
+      }),
+      repository: harness.repository,
+    }));
+
+    await waitForHydration(view.result);
+    await waitFor(() => expect(view.result.current.saveState).toBe("conflict"));
+    expect(sent).toHaveLength(0);
+    expect(view.result.current.conflicts["written-1"]).toMatchObject({
+      clientMutationId: firstMutationId,
+      localAnswer: "recovered local winner",
+      serverAnswer: "authoritative server winner",
+      serverRevision: 2,
+    });
+    expect([...harness.answers.values()]).toEqual([recovered]);
+
+    await act(() => view.result.current.resolveConflict("written-1", "keep-local"));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({
+      clientMutationId: replacementMutationId,
+      baseRevision: 2,
+      answer: { text: "recovered local winner" },
+    });
+    expect(sent[0]?.clientMutationId).not.toBe(firstMutationId);
+    await waitFor(() => expect(view.result.current.saveState).toBe("server-saved"));
+    view.unmount();
+  });
+
   it("retries response loss with a byte-equivalent body and compare-deletes the replay", async () => {
     vi.useFakeTimers();
     const bodies: string[] = [];
@@ -599,7 +653,7 @@ describe("useDurableExamOutbox", () => {
     expect(result.current.issue?.kind).toBe("event-recovery");
   });
 
-  it("preserves and rebases B when A is acknowledged after B commits", async () => {
+  it("preserves B under a fresh durable identity when A's receipt advances its base", async () => {
     const firstResponse = deferred<Response>();
     const sent: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -631,12 +685,12 @@ describe("useDurableExamOutbox", () => {
     });
     expect(sent).toHaveLength(2);
     expect(sent[1]).toMatchObject({
-      clientMutationId: bBeforeAck.clientMutationId,
       baseRevision: 3,
       answer: { text: "B" },
     });
+    expect(sent[1]?.clientMutationId).not.toBe(bBeforeAck.clientMutationId);
     expect(harness.putAnswers.at(-1)).toMatchObject({
-      clientMutationId: bBeforeAck.clientMutationId,
+      clientMutationId: sent[1]?.clientMutationId,
       payload: { answer: "B", baseRevision: 3 },
     });
     expect(harness.answers.size).toBe(0);
@@ -862,7 +916,10 @@ describe("useDurableExamOutbox", () => {
   });
 
   it("retires an immutable answer body only after acknowledgement cleanup completes", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(firstMutationId);
+    const secondMutationId = "30000000-0000-4000-8000-000000000002";
+    vi.spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValue(secondMutationId);
     const bodies: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       bodies.push(String(init?.body));
@@ -887,7 +944,7 @@ describe("useDurableExamOutbox", () => {
       answer: { text: "first acknowledged value" },
     });
     expect(JSON.parse(bodies[1]!) as Record<string, unknown>).toMatchObject({
-      clientMutationId: firstMutationId,
+      clientMutationId: secondMutationId,
       answer: { text: "second acknowledged value" },
     });
     expect(result.current.issue).toBeNull();
@@ -896,10 +953,12 @@ describe("useDurableExamOutbox", () => {
 
   it("retires a hard mutation body only after its durable replacement commits", async () => {
     const secondMutationId = "30000000-0000-4000-8000-000000000002";
+    const thirdMutationId = "30000000-0000-4000-8000-000000000003";
     vi.spyOn(crypto, "randomUUID")
       .mockReturnValueOnce(firstMutationId)
       .mockReturnValueOnce(secondMutationId)
-      .mockReturnValue(firstMutationId);
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValue(thirdMutationId);
     const bodies: Array<Record<string, unknown>> = [];
     vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -925,13 +984,13 @@ describe("useDurableExamOutbox", () => {
     expect(result.current.issue?.kind).toBe("protocol");
     await act(() => result.current.updateAnswer("written-1", "durable B"));
     await act(() => result.current.flush());
-    await act(() => result.current.updateAnswer("written-1", "fresh C reusing A's id"));
+    await act(() => result.current.updateAnswer("written-1", "fresh C after an ID collision"));
     await act(() => result.current.flush());
 
     expect(bodies).toHaveLength(3);
     expect(bodies[2]).toMatchObject({
-      clientMutationId: firstMutationId,
-      answer: { text: "fresh C reusing A's id" },
+      clientMutationId: thirdMutationId,
+      answer: { text: "fresh C after an ID collision" },
     });
     expect(result.current.saveState).toBe("server-saved");
     expect(result.current.issue).toBeNull();
@@ -1072,12 +1131,12 @@ describe("useDurableExamOutbox", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toMatchObject({
-      clientMutationId: durableB.clientMutationId,
       baseRevision: 3,
       answer: { text: "B" },
     });
+    expect(bodies[1]?.clientMutationId).not.toBe(durableB.clientMutationId);
     expect(harness.putAnswers.at(-1)).toMatchObject({
-      clientMutationId: durableB.clientMutationId,
+      clientMutationId: bodies[1]?.clientMutationId,
       payload: { answer: "B", baseRevision: 3 },
     });
     expect(result.current.saveState).toBe("server-saved");
@@ -1478,7 +1537,11 @@ describe("useDurableExamOutbox", () => {
   );
 
   it("retires the conflicted immutable body after keep-local replacement commits", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(firstMutationId);
+    const replacementMutationId = "30000000-0000-4000-8000-000000000002";
+    vi.spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValue(replacementMutationId);
     const bodies: Array<Record<string, unknown>> = [];
     vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -1506,7 +1569,7 @@ describe("useDurableExamOutbox", () => {
     await act(() => result.current.resolveConflict("written-1", "keep-local"));
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toMatchObject({
-      clientMutationId: firstMutationId,
+      clientMutationId: replacementMutationId,
       baseRevision: 7,
       answer: { text: "keep this value" },
     });
@@ -1515,7 +1578,10 @@ describe("useDurableExamOutbox", () => {
   });
 
   it("retires the conflicted immutable body after use-server cleanup commits", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(firstMutationId);
+    const replacementMutationId = "30000000-0000-4000-8000-000000000002";
+    vi.spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValue(replacementMutationId);
     const bodies: Array<Record<string, unknown>> = [];
     vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -1545,7 +1611,7 @@ describe("useDurableExamOutbox", () => {
     await act(() => result.current.flush());
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toMatchObject({
-      clientMutationId: firstMutationId,
+      clientMutationId: replacementMutationId,
       baseRevision: 9,
       answer: { text: "new value after server choice" },
     });
@@ -1555,10 +1621,12 @@ describe("useDurableExamOutbox", () => {
 
   it("retires A's immutable body when its conflict is rehomed to durable B", async () => {
     const secondMutationId = "30000000-0000-4000-8000-000000000002";
+    const replacementMutationId = "30000000-0000-4000-8000-000000000003";
     vi.spyOn(crypto, "randomUUID")
       .mockReturnValueOnce(firstMutationId)
       .mockReturnValueOnce(secondMutationId)
-      .mockReturnValue(firstMutationId);
+      .mockReturnValueOnce(firstMutationId)
+      .mockReturnValue(replacementMutationId);
     const firstResponse = deferred<Response>();
     const bodies: Array<Record<string, unknown>> = [];
     vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -1594,7 +1662,7 @@ describe("useDurableExamOutbox", () => {
     await act(() => result.current.resolveConflict("written-1", "keep-local"));
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toMatchObject({
-      clientMutationId: firstMutationId,
+      clientMutationId: replacementMutationId,
       baseRevision: 5,
       answer: { text: "B" },
     });
@@ -1965,7 +2033,10 @@ describe("useDurableExamOutbox", () => {
   });
 
   it("retires an immutable event body only after acknowledged event cleanup completes", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(eventId);
+    const secondEventId = "40000000-0000-4000-8000-000000000002";
+    vi.spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce(eventId)
+      .mockReturnValue(secondEventId);
     const posted: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (!String(input).endsWith("/events")) throw new Error("unexpected request");
@@ -1983,11 +2054,11 @@ describe("useDurableExamOutbox", () => {
     await act(() => result.current.recordEvent("window_blur", { sequence: 1 }));
     await waitFor(() => expect(harness.deletedEvents).toEqual([eventId]));
     await act(() => result.current.recordEvent("window_focus", { sequence: 2 }));
-    await waitFor(() => expect(harness.deletedEvents).toEqual([eventId, eventId]));
+    await waitFor(() => expect(harness.deletedEvents).toEqual([eventId, secondEventId]));
 
     expect(posted.map((body) => JSON.parse(body))).toEqual([
       { clientEventId: eventId, type: "window_blur", metadata: { sequence: 1 } },
-      { clientEventId: eventId, type: "window_focus", metadata: { sequence: 2 } },
+      { clientEventId: secondEventId, type: "window_focus", metadata: { sequence: 2 } },
     ]);
     expect(result.current.issue).toBeNull();
   });
