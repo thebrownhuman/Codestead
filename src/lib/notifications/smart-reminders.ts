@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { db, pool } from "@/lib/db/client";
 import { notification, smartReminderDispatch } from "@/lib/db/schema";
-import { enqueueEmailInTransaction, type EmailTemplate } from "@/lib/notifications/outbox";
+import { enqueueEmailInTransaction, type AccountEmailTemplate } from "@/lib/notifications/outbox";
 
 export type SmartReminderKind = "daily_study" | "revision" | "goal" | "challenge" | "weekly_summary";
 
@@ -39,7 +39,7 @@ const copy: Record<SmartReminderKind, {
   title: string;
   body: string;
   actionUrl: string;
-  template: EmailTemplate;
+  template: AccountEmailTemplate;
 }> = {
   daily_study: {
     title: "One small coding step is enough",

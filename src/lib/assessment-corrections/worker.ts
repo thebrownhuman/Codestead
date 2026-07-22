@@ -581,8 +581,8 @@ async function persistOutcome(job: ClaimedJob, correctedResult: ExamResult, runn
         .digest("hex");
       await client.query(
         `insert into email_outbox
-          (user_id, to_email, template, template_version, variables, idempotency_key, status)
-         values ($1,lower($2),'assessment-corrected','1',$3::jsonb,$4,'pending')
+          (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, status)
+         values ($1,'a:' || $1,lower($2),'assessment-corrected','1',$3::jsonb,$4,'pending')
          on conflict (idempotency_key) do nothing`,
         [job.userId, learnerAuthority.rows[0].email, JSON.stringify({
           name: learnerAuthority.rows[0].name,

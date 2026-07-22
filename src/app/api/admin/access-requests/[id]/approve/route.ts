@@ -75,6 +75,7 @@ export async function POST(
     to: candidate.email,
     template: "invitation",
     variables: { name: candidate.name, url: activationUrl },
+    systemProducer: "access-request-approved",
     idempotencySeed: invitationId,
   });
   await writeAuditEvent({

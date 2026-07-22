@@ -3203,6 +3203,7 @@ export const emailOutbox = pgTable(
     variables: jsonb("variables").$type<Record<string, string>>().notNull(),
     idempotencyKey: text("idempotency_key").notNull().unique(),
     operationId: uuid("operation_id").defaultRandom().notNull().unique(),
+    deliveryScopeKey: text("delivery_scope_key"),
     status: notificationStatusEnum("status").default("pending").notNull(),
     attemptCount: integer("attempt_count").default(0).notNull(),
     claimToken: uuid("claim_token"),
@@ -3220,6 +3221,7 @@ export const emailOutbox = pgTable(
   },
   (table) => [
     index("email_outbox_queue_idx").on(table.status, table.nextAttemptAt),
+    index("email_outbox_delivery_scope_idx").on(table.deliveryScopeKey),
     index("email_outbox_user_idx").on(table.userId),
     uniqueIndex("email_outbox_claim_token_unique")
       .on(table.claimToken)
@@ -3235,6 +3237,16 @@ export const emailOutbox = pgTable(
     check(
       "email_outbox_quarantine_evidence",
       sql`${table.status} <> 'quarantined' OR (${table.quarantinedAt} IS NOT NULL AND ${table.lastErrorCode} IS NOT NULL AND btrim(${table.lastErrorCode}) <> '')`,
+    ),
+    check(
+      "email_outbox_delivery_scope_valid",
+      sql`${table.deliveryScopeKey} IS NULL OR (
+        (${table.userId} IS NOT NULL AND ${table.deliveryScopeKey} = 'a:' || ${table.userId})
+        OR (${table.userId} IS NULL AND ${table.deliveryScopeKey} = 's:' || ${table.operationId}::text
+          AND ${table.templateVersion} = '1' AND ${table.template} IN ('invitation', 'access-rejected'))
+        OR (${table.userId} IS NULL AND ${table.deliveryScopeKey} = 'o:' || ${table.operationId}::text
+          AND ${table.status} IN ('sent', 'failed', 'suppressed', 'quarantined'))
+      )`,
     ),
   ],
 );

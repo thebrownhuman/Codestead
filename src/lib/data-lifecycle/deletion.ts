@@ -127,6 +127,32 @@ async function deleteCount(client: PoolClient, statement: string, values: unknow
   return result.rowCount ?? 0;
 }
 
+type LockedDeletionOutboxRow = Readonly<{
+  id: string;
+  status: string;
+  provider_call_started: Date | string | null;
+}>;
+
+async function lockDeletionOutboxRows(
+  client: PoolClient,
+  input: Readonly<{ userId: string; email: string }>,
+) {
+  const result = await client.query<LockedDeletionOutboxRow>(
+    `select id, status, provider_call_started from email_outbox
+      where user_id = $1 or lower(to_email) = lower($2)
+      order by id
+      for update`,
+    [input.userId, input.email],
+  );
+  if (
+    result.rows.some((row) =>
+      row.status === "sending" && row.provider_call_started !== null,
+    )
+  ) {
+    throw new AccountDeletionError("PROVIDER_OPERATION_IN_PROGRESS");
+  }
+}
+
 async function cancelUndispatchedRunnerAdmissions(client: PoolClient, userId: string, now: Date) {
   await client.query(
     `with cancellable as (
@@ -214,8 +240,12 @@ async function authorizeAndClaim(input: {
            from admin_fallback_reservation reservation
            join admin_fallback_grant grant_row on grant_row.id = reservation.grant_id
           where grant_row.learner_id = $1 and reservation.status = 'reserved'
+         union all
+         select 1 from email_outbox
+          where (user_id = $1 or lower(to_email) = lower($2))
+            and status = 'sending' and provider_call_started is not null
        ) as blocked`,
-      [input.learnerId],
+      [input.learnerId, target.email],
     );
     if (providerOperationsInFlight.rows[0]?.blocked) {
       throw new AccountDeletionError("PROVIDER_OPERATION_IN_PROGRESS");
@@ -334,6 +364,10 @@ export async function deleteLearnerAccount(input: {
       if (current.rows[0]?.status !== "deletion_pending") {
         throw new AccountDeletionError("LEARNER_NOT_FOUND");
       }
+      await lockDeletionOutboxRows(client, {
+        userId: input.learnerId,
+        email: claim.target.email,
+      });
       const priorCheckpoint = await client.query<{
         report: { phase?: string; deletedRows?: Record<string, number> };
       }>("select report from data_lifecycle_run where id = $1 for update", [claim.runId]);
@@ -754,6 +788,15 @@ export async function deleteLearnerAccount(input: {
       if (finalUser.rows[0]?.status !== "deletion_pending") {
         throw new AccountDeletionError("LEARNER_NOT_FOUND");
       }
+      await lockDeletionOutboxRows(client, {
+        userId: input.learnerId,
+        email: claim.target.email,
+      });
+      deletedRows.emailOutbox = (deletedRows.emailOutbox ?? 0) + await deleteCount(
+        client,
+        "delete from email_outbox where user_id = $1 or lower(to_email) = lower($2)",
+        [input.learnerId, claim.target.email],
+      );
       const durableFileSummary = await fileErasureSummary(client, claim.runId);
       if (!durableFileSummary.complete || durableFileSummary.total !== fileSummary.total) {
         throw new AccountDeletionError("FILE_ERASURE_FAILED");
@@ -800,15 +843,18 @@ export async function deleteLearnerAccount(input: {
          values ($1, $2, $3, $4, $5, $6, $7, 'awaiting_retention_expiry', $8::jsonb)`,
         [tombstoneId, id, identityHash, RETENTION_POLICY_VERSION, input.actorUserId, now, backupRetentionUntil, JSON.stringify(report)],
       );
+      const mailOperationId = randomUUID();
       const mailKey = createHash("sha256")
         .update(`account-deleted:${id}:${claim.runId}`)
         .digest("hex");
       await client.query(
         `insert into email_outbox
-          (user_id, to_email, template, template_version, variables, idempotency_key, status)
-         values (null, lower($1), 'account-deleted', '1', $2::jsonb, $3, 'pending')
+          (operation_id, user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, status)
+         values ($1, $2, 'a:' || $2, lower($3), 'account-deleted', '1', $4::jsonb, $5, 'pending')
          on conflict (idempotency_key) do nothing`,
         [
+          mailOperationId,
+          id,
           claim.target.email,
           JSON.stringify({
             backupRetentionUntil: backupRetentionUntil.toISOString(),

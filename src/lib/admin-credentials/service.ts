@@ -298,6 +298,7 @@ async function appendCredentialNotice(
     .insert(emailOutbox)
     .values({
       userId: target.userId,
+      deliveryScopeKey: `a:${target.userId}`,
       toEmail: target.ownerEmail.toLowerCase(),
       template: "credential-changed",
       templateVersion: "1",

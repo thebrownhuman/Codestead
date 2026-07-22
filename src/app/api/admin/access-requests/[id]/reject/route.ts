@@ -65,6 +65,7 @@ export async function POST(
     to: candidate.email,
     template: "access-rejected",
     variables: { name: candidate.name },
+    systemProducer: "access-request-rejected",
     idempotencySeed: candidate.id,
   });
   await writeAuditEvent({

@@ -407,6 +407,13 @@
       "when": 1784741687704,
       "tag": "0057_mail_outbox_reliability",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1784753601960,
+      "tag": "0058_mail_delivery_scope",
+      "breakpoints": true
     }
   ]
 }

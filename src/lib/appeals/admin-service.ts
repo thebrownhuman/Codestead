@@ -676,8 +676,8 @@ export async function decideAppeal(input: {
       .digest("hex");
     await client.query(
       `insert into email_outbox
-        (user_id, to_email, template, template_version, variables, idempotency_key, status)
-       values ($1, lower($2), 'appeal-updated', '1', $3::jsonb, $4, 'pending')
+        (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, status)
+       values ($1, 'a:' || $1, lower($2), 'appeal-updated', '1', $3::jsonb, $4, 'pending')
        on conflict (idempotency_key) do nothing`,
       [
         row.user_id,

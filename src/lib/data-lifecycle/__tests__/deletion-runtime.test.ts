@@ -46,6 +46,16 @@ const mocks = vi.hoisted(() => {
     if (sql.startsWith("select exists (") && sql.includes("provider_operation_receipt")) {
       return { rows: [{ blocked: state.mode === "provider_in_flight" }], rowCount: 1 };
     }
+    if (sql.startsWith("select id, status, provider_call_started from email_outbox")) {
+      const rows = (state.mode as string) === "mail_boundary_race"
+        ? [{
+            id: "c3000000-0000-4000-8000-000000000001",
+            status: "sending",
+            provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
+          }]
+        : [];
+      return { rows, rowCount: rows.length };
+    }
     if (sql.startsWith("select exists (") && sql.includes("from code_submission")) {
       return {
         rows: [{ blocked: ["runner_in_flight", "rehearsal_in_flight"].includes(state.mode) }],
@@ -202,6 +212,17 @@ describe("account deletion runtime orchestration", () => {
     expect(statements.findIndex((sql) => sql.includes("delete from admin_fallback_grant")))
       .toBeLessThan(statements.findIndex((sql) => sql.includes("delete from provider_credential")));
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("'account-deleted'"))).toBe(true);
+    const normalizedStatements = statements.map((sql) => sql.replace(/\s+/g, " ").trim());
+    const outboxLockIndex = normalizedStatements.findIndex((sql) =>
+      sql.startsWith("select id, status, provider_call_started from email_outbox") && sql.endsWith("for update"));
+    const outboxDeleteIndex = normalizedStatements.findIndex((sql) => sql.startsWith("delete from email_outbox"));
+    expect(outboxLockIndex).toBeGreaterThan(-1);
+    expect(outboxLockIndex).toBeLessThan(outboxDeleteIndex);
+    const deletionNoticeInsert = normalizedStatements.find((sql) =>
+      sql.startsWith("insert into email_outbox") && sql.includes("'account-deleted'"));
+    expect(deletionNoticeInsert).toContain("operation_id, user_id, delivery_scope_key");
+    expect(deletionNoticeInsert).toContain("'a:' || $2");
+    expect(deletionNoticeInsert).not.toContain("values (null");
     const authorityLocks = (mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>)
       .filter(([sql]) => String(sql).includes("pg_advisory_xact_lock(hashtext($1))"))
       .map(([, values]) => (values as string[] | undefined)?.[0]);
@@ -284,6 +305,18 @@ describe("account deletion runtime orchestration", () => {
     expect(mocks.unlink).not.toHaveBeenCalled();
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).startsWith("insert into data_lifecycle_run")))
       .toBe(false);
+  });
+
+  it("rolls back if mail crosses the provider boundary after the initial conflict check", async () => {
+    mocks.state.mode = "mail_boundary_race" as never;
+    await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+      code: "PROVIDER_OPERATION_IN_PROGRESS",
+    });
+    const statements = mocks.query.mock.calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim());
+    expect(statements.some((sql) => sql.startsWith("select id, status, provider_call_started from email_outbox") && sql.endsWith("for update")))
+      .toBe(true);
+    expect(statements.some((sql) => sql.startsWith("delete from public_portfolio"))).toBe(false);
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
   });
 
   it("rejects possibly dispatched runner work before claiming deletion or erasing files", async () => {

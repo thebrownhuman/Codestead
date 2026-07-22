@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
                   name: "Administrator",
                   url: `${process.env.APP_URL ?? "http://localhost:3000"}/admin/access`,
                 },
+                systemProducer: "access-request-admin",
                 idempotencySeed: `access-request:${parsed.data.email}`,
               });
             }

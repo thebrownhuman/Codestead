@@ -44,13 +44,16 @@ describe("email outbox", () => {
 
   it("uses distinct keys for different templates or business events", async () => {
     await enqueueEmail({
-      to: "a@example.com", template: "invitation", variables: {}, idempotencySeed: "event-0001",
+      to: "a@example.com", template: "invitation", variables: {},
+      systemProducer: "access-request-approved", idempotencySeed: "event-0001",
     });
     await enqueueEmail({
-      to: "a@example.com", template: "verify-email", variables: {}, idempotencySeed: "event-0001",
+      to: "a@example.com", template: "verify-email", variables: {},
+      userId: "learner-1", idempotencySeed: "event-0001",
     });
     await enqueueEmail({
-      to: "a@example.com", template: "invitation", variables: {}, idempotencySeed: "event-0002",
+      to: "a@example.com", template: "invitation", variables: {},
+      systemProducer: "access-request-approved", idempotencySeed: "event-0002",
     });
     const keys = mocks.values.mock.calls.map(([value]) => (value as { idempotencyKey: string }).idempotencyKey);
     expect(new Set(keys).size).toBe(3);
