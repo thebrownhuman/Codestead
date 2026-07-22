@@ -48,17 +48,21 @@ remote_archive="$remote_base/full/$archive"
 remote_sidecar="$remote_archive.sha256"
 remote_point="$remote_base/state/points/$archive.env"
 remote_pointer="$remote_base/state/LAST_SUCCESS"
+archive_bytes="$(stat -c '%s' -- "$archive_path")" || die "marked archive size could not be read"
+rclone_bulk_plan_fits_service_budget "$archive_bytes" 2 \
+  || die "archive upload and readback cannot fit the four-hour service budget"
+
 
 log "uploading the marked encrypted recovery point"
-run_rclone copyto "$archive_path" "$remote_archive" --checksum \
+run_rclone_bulk "$archive_bytes" copyto "$archive_path" "$remote_archive" --checksum \
   || die "offsite archive upload failed"
-run_rclone copyto "$archive_path.sha256" "$remote_sidecar" --checksum \
+run_rclone_control copyto "$archive_path.sha256" "$remote_sidecar" --checksum \
   || die "offsite checksum upload failed"
 readback_dir="$stage/readback"
 install -d -m 0700 "$readback_dir"
-run_rclone copyto "$remote_archive" "$readback_dir/$archive" \
+run_rclone_bulk "$archive_bytes" copyto "$remote_archive" "$readback_dir/$archive" \
   || die "offsite archive read-back failed"
-run_rclone copyto "$remote_sidecar" "$readback_dir/$archive.sha256" \
+run_rclone_control copyto "$remote_sidecar" "$readback_dir/$archive.sha256" \
   || die "offsite checksum read-back failed"
 verify_ciphertext_checksum "$readback_dir/$archive" \
   || die "offsite read-back checksum verification failed"
@@ -79,14 +83,14 @@ if ((${#point_entries[@]} == 0)); then
     "$attestation_completed" "$archive_sha256" \
     || die "offsite point attestation could not be created"
   pending_point="$remote_base/state/points/.${archive}.pending-$(date -u +%Y%m%dT%H%M%SZ)-$$"
-  run_rclone copyto "$point_candidate" "$pending_point" \
+  run_rclone_control copyto "$point_candidate" "$pending_point" \
     || die "offsite point-attestation upload was not confirmed"
-  run_rclone moveto "$pending_point" "$remote_point" \
+  run_rclone_control moveto "$pending_point" "$remote_point" \
     || die "offsite point-attestation publication was not confirmed"
 elif ((${#point_entries[@]} == 1)) \
   && [[ "${point_entries[0]}" == "$archive.env" ]]; then
   point_candidate="$stage/point.env"
-  run_rclone copyto "$remote_point" "$point_candidate" \
+  run_rclone_control copyto "$remote_point" "$point_candidate" \
     || die "existing offsite point attestation could not be read"
   read_success_marker "$point_candidate" \
     || die "existing offsite point attestation is invalid"
@@ -97,7 +101,7 @@ else
 fi
 
 point_readback="$stage/point-readback.env"
-run_rclone copyto "$remote_point" "$point_readback" \
+run_rclone_control copyto "$remote_point" "$point_readback" \
   || die "offsite point-attestation read-back failed"
 cmp -s -- "$point_candidate" "$point_readback" \
   || die "offsite point-attestation read-back differs"
@@ -107,12 +111,12 @@ read_success_marker "$point_readback" \
   || die "verified point attestation does not describe the uploaded archive"
 
 pending_pointer="$remote_base/state/.LAST_SUCCESS.pending-$(date -u +%Y%m%dT%H%M%SZ)-$$"
-run_rclone copyto "$point_readback" "$pending_pointer" \
+run_rclone_control copyto "$point_readback" "$pending_pointer" \
   || die "offsite pointer upload was not confirmed"
-run_rclone moveto "$pending_pointer" "$remote_pointer" \
+run_rclone_control moveto "$pending_pointer" "$remote_pointer" \
   || die "offsite pointer publication was not confirmed"
 pointer_readback="$stage/pointer-readback.env"
-run_rclone copyto "$remote_pointer" "$pointer_readback" \
+run_rclone_control copyto "$remote_pointer" "$pointer_readback" \
   || die "offsite pointer read-back failed"
 cmp -s -- "$point_readback" "$pointer_readback" \
   || die "offsite pointer differs from immutable point attestation"

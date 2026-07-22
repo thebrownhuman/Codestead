@@ -1,9 +1,9 @@
 [Unit]
-Description=Check LearnCoding backups every six hours
+Description=Check LearnCoding backups hourly
 
 [Timer]
 OnBootSec=15m
-OnUnitActiveSec=6h
+OnUnitActiveSec=1h
 RandomizedDelaySec=10m
 Persistent=true
 Unit=learncoding-backup-check.service

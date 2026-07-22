@@ -46,6 +46,17 @@ case "$operation" in
     source_path="$(map_path "$1")"
     destination_path="$(map_path "$2")"
     mkdir -p -- "$(dirname -- "$destination_path")"
+    if [[ "${FAKE_PARTIAL_ARCHIVE_TIMEOUT:-0}" == 1 \
+      && "$destination_path" == "$FAKE_REMOTE_ROOT"/*/full/*.tar.gz.age ]]; then
+      head -c 1 -- "$source_path" >"$destination_path"
+      sleep 8
+      exit 75
+    fi
+    if [[ "${FAKE_BULK_SLEEP_SECONDS:-0}" =~ ^[1-9][0-9]*$ \
+      && ( "$source_path" == */full/*.tar.gz.age \
+        || "$destination_path" == */full/*.tar.gz.age ) ]]; then
+      sleep "$FAKE_BULK_SLEEP_SECONDS"
+    fi
     cp -- "$source_path" "$destination_path"
     ;;
   moveto)
@@ -62,6 +73,10 @@ case "$operation" in
     if [[ -n "${FAKE_DUPLICATE_TARGET:-}" && "$target" == "$FAKE_DUPLICATE_TARGET" ]]; then
       printf '%s\n' "$entry"
     fi
+    ;;
+  size)
+    target="$(map_path "$1")"
+    printf '{"count":1,"bytes":%s}\n' "$(stat -c '%s' -- "$target")"
     ;;
   cat)
     cat -- "$(map_path "$1")"
@@ -100,7 +115,7 @@ BACKUP_STAGE_ROOT=$work/stage
 BACKUP_LOCK_FILE=$work/backup.lock
 RCLONE_REMOTE=fake:/codestead/backups
 RCLONE_CONFIG=$rclone_config
-MAX_OFFSITE_AGE_HOURS=36
+MAX_OFFSITE_AGE_HOURS=30
 FILESYSTEM_WARN_PERCENT=70
 FILESYSTEM_CRITICAL_PERCENT=99
 CHECK_OFFSITE=1
@@ -113,7 +128,33 @@ run_env=(
   "BACKUP_CONFIG_FILE=$config"
 )
 
-env "${run_env[@]}" bash "$sync_script"
+tight_bulk_env=(
+  "${run_env[@]}"
+  "RCLONE_CONTROL_TIMEOUT_SECONDS=1"
+  "RCLONE_MIN_BULK_BYTES_PER_SECOND=1048576"
+  "RCLONE_BULK_OVERHEAD_SECONDS=2"
+  "RCLONE_SERVICE_BUDGET_SECONDS=10"
+  "RCLONE_SERVICE_RESERVE_SECONDS=1"
+  "RCLONE_OPERATION_GRACE_SECONDS=1"
+)
+
+partial_started=$SECONDS
+if env "${tight_bulk_env[@]}" "FAKE_PARTIAL_ARCHIVE_TIMEOUT=1" \
+  bash "$sync_script" >/dev/null 2>&1; then
+  fail "partial remote archive write did not time out"
+fi
+if ((SECONDS - partial_started >= 6)); then
+  fail "partial remote archive write exceeded its size-derived bulk deadline"
+fi
+[[ -f "$work/remote/codestead/backups/full/$archive" ]] \
+  || fail "timeout fixture did not create a partial remote archive"
+[[ ! -e "$work/remote/codestead/backups/state/LAST_SUCCESS" \
+  && ! -e "$work/remote/codestead/backups/state/points/$archive.env" \
+  && ! -e "$work/backup/state/offsite-last-success.env" ]] \
+  || fail "timed-out partial upload advanced a success marker"
+rm -rf -- "$work/remote/codestead"
+
+env "${tight_bulk_env[@]}" "FAKE_BULK_SLEEP_SECONDS=2" bash "$sync_script"
 point_path="$work/remote/codestead/backups/state/points/$archive.env"
 pointer_path="$work/remote/codestead/backups/state/LAST_SUCCESS"
 [[ -f "$point_path" && -f "$pointer_path" ]] \

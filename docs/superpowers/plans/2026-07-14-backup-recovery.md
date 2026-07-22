@@ -262,13 +262,13 @@ Require `/etc/learncoding/rclone.conf` to be a root-owned, non-symlink mode-0600
 Add these exact defaults:
 
 ```bash
-MAX_OFFSITE_AGE_HOURS=36
+MAX_OFFSITE_AGE_HOURS=30
 RESTORE_DRILL_SOURCE=offsite
 RCLONE_REMOTE=gdrive:Codestead/backups
 RCLONE_CONFIG=/etc/learncoding/rclone.conf
 ```
 
-`check-backups.sh` validates both the remote marker completion age and the snapshot timestamp embedded in its strict archive basename, requires the matching immutable point attestation to be unique and byte-identical, then validates that the remote archive/sidecar exist. It must not compare the remote archive name to the newest local filename. `MAX_OFFSITE_AGE_HOURS=36` is an operational freshness gate; the RPO 24-hour objective is proven only by the measured snapshot age in the real isolated offsite restore drill.
+`check-backups.sh` validates both the remote marker completion age and the snapshot timestamp embedded in its strict archive basename, requires the matching immutable point attestation to be unique and byte-identical, then validates that the remote archive/sidecar exist. It must not compare the remote archive name to the newest local filename. `MAX_OFFSITE_AGE_HOURS=30` covers the daily cadence, 20-minute timer jitter, four-hour worst-case runtime, and margin; the hourly monitor catches a missed publication at its first poll beyond that age. The RPO 24-hour objective remains distinct and is proven only by the measured snapshot age in the real isolated offsite restore drill.
 
 - [ ] **Step 5: Run focused tests**
 

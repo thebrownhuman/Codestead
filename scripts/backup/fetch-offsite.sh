@@ -73,7 +73,7 @@ require_unique_remote_object() {
 
 pointer="$stage/LAST_SUCCESS"
 require_unique_remote_object "$remote_base/state/LAST_SUCCESS" "$stage/listing.pointer"
-run_rclone copyto "$remote_base/state/LAST_SUCCESS" "$pointer" \
+run_rclone_control copyto "$remote_base/state/LAST_SUCCESS" "$pointer" \
   || die "remote success pointer could not be downloaded"
 read_success_marker "$pointer" || die "remote success pointer is invalid"
 archive="$SUCCESS_ARCHIVE"
@@ -81,7 +81,7 @@ archive_sha256="$SUCCESS_SHA256"
 
 attestation="$stage/$archive.env"
 require_unique_remote_object "$remote_base/state/points/$archive.env" "$stage/listing.attestation"
-run_rclone copyto "$remote_base/state/points/$archive.env" "$attestation" \
+run_rclone_control copyto "$remote_base/state/points/$archive.env" "$attestation" \
   || die "immutable point attestation could not be downloaded"
 cmp -s -- "$pointer" "$attestation" \
   || die "remote pointer differs from its immutable point attestation"
@@ -94,9 +94,17 @@ downloaded_archive="$stage/$archive"
 require_unique_remote_object "$remote_base/full/$archive" "$stage/listing.archive"
 require_unique_remote_object \
   "$remote_base/full/$archive.sha256" "$stage/listing.sidecar"
-run_rclone copyto "$remote_base/full/$archive" "$downloaded_archive" \
+archive_size_metadata="$stage/archive-size.json"
+run_rclone_capture "$archive_size_metadata" "$RCLONE_OUTPUT_LIMIT_BYTES" \
+  size "$remote_base/full/$archive" --json \
+  || die "marked offsite archive size could not be read"
+archive_bytes="$(python3 -c 'import json,sys; value=json.load(open(sys.argv[1], encoding="utf-8")); count=value.get("count"); size=value.get("bytes"); assert count == 1 and isinstance(size, int) and size > 0; print(size)' "$archive_size_metadata")" \
+  || die "marked offsite archive size metadata is invalid"
+rclone_bulk_plan_fits_service_budget "$archive_bytes" 1 \
+  || die "archive download and restore reserve cannot fit the four-hour service budget"
+run_rclone_bulk "$archive_bytes" copyto "$remote_base/full/$archive" "$downloaded_archive" \
   || die "marked offsite archive could not be downloaded"
-run_rclone copyto "$remote_base/full/$archive.sha256" "$downloaded_archive.sha256" \
+run_rclone_control copyto "$remote_base/full/$archive.sha256" "$downloaded_archive.sha256" \
   || die "marked offsite checksum could not be downloaded"
 verify_ciphertext_checksum "$downloaded_archive" \
   || die "downloaded offsite recovery point failed checksum verification"
@@ -110,7 +118,7 @@ chmod 0600 -- "$destination/$archive" "$destination/$archive.sha256"
 sync -f -- "$destination/$archive" "$destination/$archive.sha256"
 rm -f -- "$pointer" "$attestation" \
   "$stage/listing.pointer" "$stage/listing.attestation" \
-  "$stage/listing.archive" "$stage/listing.sidecar"
+  "$stage/listing.archive" "$stage/listing.sidecar" "$archive_size_metadata"
 rmdir -- "$stage"
 stage="$destination/.offsite-fetch.removed"
 sync -f -- "$destination"

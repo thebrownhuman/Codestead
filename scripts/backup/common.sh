@@ -259,12 +259,16 @@ load_backup_config() {
   : "${BACKUP_LOCK_FILE:=/run/lock/learncoding-backup.lock}"
   : "${BACKUP_STAGE_ROOT:=/var/tmp/learncoding-backup}"
   : "${MAX_BACKUP_AGE_HOURS:=36}"
-  : "${MAX_OFFSITE_AGE_HOURS:=36}"
+  : "${MAX_OFFSITE_AGE_HOURS:=30}"
   : "${MAX_RESTORE_DRILL_AGE_HOURS:=2160}"
   : "${RESTORE_DRILL_SOURCE:=offsite}"
   : "${RCLONE_REMOTE:=gdrive:Codestead/backups}"
   : "${RCLONE_CONFIG:=/etc/learncoding/rclone.conf}"
-  : "${RCLONE_OPERATION_TIMEOUT_SECONDS:=120}"
+  : "${RCLONE_CONTROL_TIMEOUT_SECONDS:=120}"
+  : "${RCLONE_MIN_BULK_BYTES_PER_SECOND:=4194304}"
+  : "${RCLONE_BULK_OVERHEAD_SECONDS:=600}"
+  : "${RCLONE_SERVICE_BUDGET_SECONDS:=14400}"
+  : "${RCLONE_SERVICE_RESERVE_SECONDS:=600}"
   : "${RCLONE_OPERATION_GRACE_SECONDS:=5}"
   : "${RCLONE_OUTPUT_LIMIT_BYTES:=1048576}"
   : "${FILESYSTEM_WARN_PERCENT:=70}"
@@ -276,10 +280,25 @@ load_backup_config() {
     || die "filesystem capacity thresholds must satisfy 1 <= warning < critical <= 99"
   [[ "$MAX_OFFSITE_AGE_HOURS" =~ ^[1-9][0-9]*$ \
     && "$MAX_RESTORE_DRILL_AGE_HOURS" =~ ^[1-9][0-9]*$ \
-    && "$RCLONE_OPERATION_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_CONTROL_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_MIN_BULK_BYTES_PER_SECOND" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_BULK_OVERHEAD_SECONDS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_SERVICE_BUDGET_SECONDS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_SERVICE_RESERVE_SECONDS" =~ ^[1-9][0-9]*$ \
     && "$RCLONE_OPERATION_GRACE_SECONDS" =~ ^[1-9][0-9]*$ \
     && "$RCLONE_OUTPUT_LIMIT_BYTES" =~ ^[1-9][0-9]*$ ]] \
-    || die "offsite/drill age, deadline, grace, and output limits must be positive integers"
+    || die "offsite/drill age, transfer policy, grace, and output limits must be positive integers"
+  [[ ${#RCLONE_CONTROL_TIMEOUT_SECONDS} -le 5 \
+    && ${#RCLONE_MIN_BULK_BYTES_PER_SECOND} -le 12 \
+    && ${#RCLONE_BULK_OVERHEAD_SECONDS} -le 5 \
+    && ${#RCLONE_SERVICE_BUDGET_SECONDS} -le 5 \
+    && ${#RCLONE_SERVICE_RESERVE_SECONDS} -le 5 ]] \
+    || die "rclone transfer policy values exceed safe arithmetic bounds"
+  ((RCLONE_MIN_BULK_BYTES_PER_SECOND <= 1000000000000 \
+    && RCLONE_SERVICE_BUDGET_SECONDS <= 14400)) \
+    || die "rclone throughput or service budget exceeds its policy bound"
+  rclone_bulk_plan_fits_service_budget 1 2 \
+    || die "rclone service budget cannot fit upload, readback, and reserve"
   [[ ${#MAX_RESTORE_DRILL_AGE_HOURS} -le 4 ]] && ((MAX_RESTORE_DRILL_AGE_HOURS <= 2160)) \
     || die "restore drill age limit must not exceed 2160 hours"
 }
@@ -448,19 +467,59 @@ validate_rclone_remote() {
 }
 
 run_managed_backup_command() {
-  local script_dir managed_deadline
+  local deadline_seconds="${1:-}" script_dir managed_deadline
+  shift || return 125
+  [[ "$deadline_seconds" =~ ^[1-9][0-9]*$ ]] || return 125
   script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)" || return 125
   managed_deadline="$script_dir/run-managed-deadline.py"
   [[ -f "$managed_deadline" && ! -L "$managed_deadline" ]] || return 125
   python3 "$managed_deadline" --expected-parent-pid "$BASHPID" \
-    "$RCLONE_OPERATION_TIMEOUT_SECONDS" "$RCLONE_OPERATION_GRACE_SECONDS" -- "$@"
+    "$deadline_seconds" "$RCLONE_OPERATION_GRACE_SECONDS" -- "$@"
 }
 
-run_rclone() {
+rclone_bulk_timeout_seconds() {
+  local archive_bytes="${1:-}" transfer_seconds
+  [[ "$archive_bytes" =~ ^[1-9][0-9]*$ && ${#archive_bytes} -le 19 ]] || return 1
+  if ((${#archive_bytes} == 19)); then
+    [[ "$archive_bytes" < 9223372036854775808 ]] || return 1
+  fi
+  transfer_seconds=$(((archive_bytes - 1) / RCLONE_MIN_BULK_BYTES_PER_SECOND + 1))
+  ((transfer_seconds <= 9223372036854775807 - RCLONE_BULK_OVERHEAD_SECONDS)) || return 1
+  printf '%s\n' "$((transfer_seconds + RCLONE_BULK_OVERHEAD_SECONDS))"
+}
+
+rclone_bulk_plan_fits_service_budget() {
+  local archive_bytes="${1:-}" bulk_legs="${2:-}" deadline required
+  [[ "$bulk_legs" == 1 || "$bulk_legs" == 2 ]] || return 1
+  deadline="$(rclone_bulk_timeout_seconds "$archive_bytes")" || return 1
+  ((deadline < RCLONE_SERVICE_BUDGET_SECONDS)) || return 1
+  required=$((deadline * bulk_legs + RCLONE_SERVICE_RESERVE_SECONDS))
+  ((required < RCLONE_SERVICE_BUDGET_SECONDS))
+}
+
+_run_rclone_with_deadline() {
+  local deadline_seconds="${1:-}"
+  shift || return 125
   require_secure_rclone_config || return 125
   validate_rclone_remote || return 125
-  run_managed_backup_command rclone "$@" --config "$RCLONE_CONFIG" \
+  run_managed_backup_command "$deadline_seconds" rclone "$@" --config "$RCLONE_CONFIG" \
     --contimeout 15s --timeout 60s --retries 1 --low-level-retries 1
+}
+
+run_rclone_control() {
+  _run_rclone_with_deadline "$RCLONE_CONTROL_TIMEOUT_SECONDS" "$@"
+}
+
+run_rclone_bulk() {
+  local archive_bytes="${1:-}" deadline_seconds
+  shift || return 125
+  deadline_seconds="$(rclone_bulk_timeout_seconds "$archive_bytes")" || return 125
+  _run_rclone_with_deadline "$deadline_seconds" "$@"
+}
+
+# Backward-compatible control-only name for metadata, retention, and evidence calls.
+run_rclone() {
+  run_rclone_control "$@"
 }
 
 run_rclone_capture() {
@@ -468,7 +527,7 @@ run_rclone_capture() {
   shift 2 || return 125
   [[ "$output" == /* && "$maximum_bytes" =~ ^[1-9][0-9]*$ ]] || return 125
   [[ ! -e "$output" && ! -L "$output" ]] || return 125
-  if ! run_rclone "$@" >"$output"; then
+  if ! run_rclone_control "$@" >"$output"; then
     rm -f -- "$output"
     return 1
   fi
