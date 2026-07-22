@@ -46,7 +46,12 @@ const authz = {
     user: { id: "learner-1", name: "Learner" },
     session: { id: "session-1" },
   },
-  account: { status: "pending", role: "learner", twoFactorEnabled: true },
+  account: {
+    status: "pending",
+    role: "learner",
+    twoFactorEnabled: true,
+    mustChangePassword: false,
+  },
   response: null,
 };
 
@@ -87,6 +92,21 @@ describe("onboarding completion MFA gate", () => {
     expect(mocks.initializePlans).not.toHaveBeenCalled();
   });
 
+  it("keeps a bootstrap account pending until the dedicated password flow clears the flag", async () => {
+    rows(true);
+    mocks.requireAuth.mockResolvedValueOnce({
+      ...authz,
+      account: { ...authz.account, mustChangePassword: true },
+    });
+
+    const response = await POST();
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ missing: ["password_change"] });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.set).not.toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: false }));
+  });
+
   it("activates the account and initializes selected-track plans after durable MFA", async () => {
     rows(true);
 
@@ -104,6 +124,7 @@ describe("onboarding completion MFA gate", () => {
     });
     expect(mocks.transaction).toHaveBeenCalledOnce();
     expect(mocks.update).toHaveBeenCalledTimes(2);
+    expect(mocks.set).not.toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: false }));
     expect(mocks.initializePlans).toHaveBeenCalledWith(
       "learner-1",
       "onboarding-plans:learner-1",
@@ -154,5 +175,6 @@ describe("onboarding completion MFA gate", () => {
     });
     expect(mocks.transaction).toHaveBeenCalledOnce();
     expect(mocks.update).toHaveBeenCalledTimes(2);
+    expect(mocks.set).not.toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: false }));
   });
 });

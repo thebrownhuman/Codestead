@@ -79,6 +79,10 @@ function request(path: string, body: unknown = {}) {
   });
 }
 
+function getRequest(path: string) {
+  return new NextRequest(`https://learn.test/api/auth${path}`, { method: "GET" });
+}
+
 async function expectGenericDenial(response: Response) {
   expect(response.status).toBe(403);
   expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -94,11 +98,23 @@ describe("raw Better Auth security-management boundary", () => {
   });
 
   it.each([
-    "/two-factor/enable",
+    "/change-password",
+    "/set-password",
+    "/link-social",
     "/two-factor/disable",
     "/two-factor/get-totp-uri",
     "/two-factor/generate-backup-codes",
-  ])("denies active-account factor management before Better Auth: %s", async (path) => {
+    "/list-sessions",
+    "/revoke-session",
+    "/revoke-sessions",
+    "/revoke-other-sessions",
+    "/admin/list-users",
+    "/sign-up/email",
+    "/account-info",
+    "/get-access-token",
+    "/refresh-token",
+    "/update-user",
+  ])("default-denies raw authority route before Better Auth: %s", async (path) => {
     await expectGenericDenial(await POST(request(path)));
     expect(mocks.betterAuthPost).not.toHaveBeenCalled();
   });
@@ -133,7 +149,7 @@ describe("raw Better Auth security-management boundary", () => {
       factorVerified: false,
     });
 
-    const response = await POST(request("/two-factor/enable/"));
+    const response = await POST(request("/two-factor/enable"));
 
     expect(response.status).toBe(200);
     expect(mocks.betterAuthPost).toHaveBeenCalledOnce();
@@ -198,16 +214,63 @@ describe("raw Better Auth security-management boundary", () => {
     expect(mocks.betterAuthPost).toHaveBeenCalledOnce();
   });
 
-  it("keeps GET and ordinary Better Auth POST operations available", async () => {
-    const getResponse = await GET(new NextRequest("https://learn.test/api/auth/get-session"));
-    const postResponse = await POST(request("/sign-in/email", {
-      email: "learner@example.test",
-      password: "not-a-real-secret",
-    }));
-
-    expect(getResponse.status).toBe(200);
-    expect(postResponse.status).toBe(200);
+  it.each([
+    "/get-session",
+    "/verify-email?token=opaque",
+    "/reset-password/one-token",
+    "/callback/google?code=opaque&state=opaque",
+    "/error?error=access_denied",
+  ])("keeps only the required GET flow available: %s", async (path) => {
+    const response = await GET(getRequest(path));
+    expect(response.status).toBe(200);
     expect(mocks.betterAuthGet).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    "/list-sessions",
+    "/account-info",
+    "/get-access-token",
+    "/reset-password",
+    "/reset-password/two/segments",
+    "/callback/github",
+    "/callback/google/extra",
+    "/sign-in/email",
+  ])("default-denies every unclassified or method-mismatched GET: %s", async (path) => {
+    await expectGenericDenial(await GET(getRequest(path)));
+    expect(mocks.betterAuthGet).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "/sign-in/email",
+    "/sign-out",
+    "/request-password-reset",
+    "/reset-password",
+  ])("keeps the required ordinary POST flow available: %s", async (path) => {
+    const response = await POST(request(path));
+    expect(response.status).toBe(200);
     expect(mocks.betterAuthPost).toHaveBeenCalledOnce();
+  });
+
+  it("allows only Google through the generic social sign-in endpoint", async () => {
+    expect((await POST(request("/sign-in/social", { provider: "google" }))).status).toBe(200);
+    expect(mocks.betterAuthPost).toHaveBeenCalledOnce();
+
+    vi.clearAllMocks();
+    await expectGenericDenial(await POST(request("/sign-in/social", { provider: "github" })));
+    expect(mocks.betterAuthPost).not.toHaveBeenCalled();
+
+    await expectGenericDenial(await POST(request("/sign-in/social", { provider: ["google"] })));
+    expect(mocks.betterAuthPost).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "/verify-email",
+    "/callback/google",
+    "/error",
+    "/request-password-reset/extra",
+    "/unknown",
+  ])("default-denies every unclassified or method-mismatched POST: %s", async (path) => {
+    await expectGenericDenial(await POST(request(path)));
+    expect(mocks.betterAuthPost).not.toHaveBeenCalled();
   });
 });

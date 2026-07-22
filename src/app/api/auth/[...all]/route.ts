@@ -4,13 +4,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { readInitialTotpEnrollmentAuthority } from "@/lib/security/better-auth-management-authority";
 import {
-  classifyRawBetterAuthPost,
+  classifyRawBetterAuthRequest,
   mayBeginInitialTotpEnrollment,
 } from "@/lib/security/better-auth-management-policy";
 
 const betterAuthHandlers = toNextJsHandler(auth);
-
-export const { GET } = betterAuthHandlers;
 
 function unavailableSecurityAction() {
   return NextResponse.json(
@@ -22,10 +20,24 @@ function unavailableSecurityAction() {
   );
 }
 
+export async function GET(request: Request) {
+  return classifyRawBetterAuthRequest(request.method, request.url) === "pass-through"
+    ? betterAuthHandlers.GET(request)
+    : unavailableSecurityAction();
+}
+
 export async function POST(request: Request) {
-  const action = classifyRawBetterAuthPost(request.url);
+  const action = classifyRawBetterAuthRequest(request.method, request.url);
   if (action === "pass-through") return betterAuthHandlers.POST(request);
   if (action === "deny") return unavailableSecurityAction();
+  if (action === "google-social-sign-in") {
+    const body = await request.clone().json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body) ||
+        (body as { provider?: unknown }).provider !== "google") {
+      return unavailableSecurityAction();
+    }
+    return betterAuthHandlers.POST(request);
+  }
 
   // Initial enrollment is the only raw factor mutation allowed. Re-read the
   // durable session/account and factor row; request bodies and cookie claims

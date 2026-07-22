@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "files": 120,
-  "operations": 154,
-  "matrixRows": 154,
+  "files": 121,
+  "operations": 155,
+  "matrixRows": 155,
   "boundaryCounts": {
     "public": 5,
     "auth-handler": 2,
-    "authenticated": 87,
+    "authenticated": 88,
     "admin": 60
   },
   "objectAuthorizationCounts": {
     "public-input": 5,
     "administrator-scope": 60,
-    "session-user": 83,
+    "session-user": 84,
     "auth-provider": 2,
     "no-user-object": 2,
     "consent-projected-cohort": 2
@@ -993,7 +993,7 @@
       "admin": "delegated-to-auth-provider",
       "objectAuthorization": "auth-provider",
       "ownershipProof": "Better Auth session and account policy",
-      "operationSourceSha256": "e33b0b19b359b79c78f3818e92047e78c801f55528ce2a96fb7d6d9899b5e676"
+      "operationSourceSha256": "35a80e11f233ff86ebc672a216e2fe4574859d9aa1facde577565fa742655dfd"
     },
     {
       "operation": "POST /api/auth/[...all]",
@@ -1006,7 +1006,7 @@
       "admin": "delegated-to-auth-provider",
       "objectAuthorization": "auth-provider",
       "ownershipProof": "Better Auth session and account policy",
-      "operationSourceSha256": "0e99208f0097145711144035e677eee3b1659b5b93c4d04168d2a2a63e1d00b9"
+      "operationSourceSha256": "0d58de3970811cdbb23061a2d2418d5144e0a29c386ddd84aa0160ed4bbc6663"
     },
     {
       "operation": "GET /api/battles/[battleId]",
@@ -1838,7 +1838,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "dae2a52e5b72619ac96c2888547133e0189c7ccdcc5892b230ea295bd1c4d7fc"
+      "operationSourceSha256": "4f56c03bbe542bea5ec6928f00b9b8af73b0f32cc28822b1886a07b6ecf079be"
     },
     {
       "operation": "POST /api/onboarding/interests/preview",
@@ -2023,6 +2023,19 @@
       "operationSourceSha256": "99c92ae437b3ba672f912de208aa2f440115e350f448c9f9f418fc35f060e100"
     },
     {
+      "operation": "POST /api/security/forced-password-change",
+      "file": "src/app/api/security/forced-password-change/route.ts",
+      "route": "/api/security/forced-password-change",
+      "method": "POST",
+      "boundary": "authenticated",
+      "anonymous": "authenticated",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "session-user",
+      "ownershipProof": "all user context is derived from authz.session.user.id",
+      "operationSourceSha256": "6d0134c43733857e7a23a871b5249f17084ea0d2d036a825e28378e5d4b2a081"
+    },
+    {
       "operation": "POST /api/security/fresh-mfa",
       "file": "src/app/api/security/fresh-mfa/route.ts",
       "route": "/api/security/fresh-mfa",
@@ -2127,14 +2140,14 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-07-20T19:47:28.683Z",
+  "generatedAt": "2026-07-22T11:06:55.802Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",
     "guardDecisionTest": "src/lib/http/__tests__/authz.test.ts",
     "representativeObjectAuthorizationTest": "integration/runtime-authorization.integration.test.ts",
     "protectedOperationInvocations": {
-      "anonymousAuthenticated": 87,
+      "anonymousAuthenticated": 88,
       "anonymousAdmin": 60,
       "learnerAdmin": 60
     },

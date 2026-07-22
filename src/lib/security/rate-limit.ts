@@ -26,6 +26,7 @@ export type RateLimitPolicyName =
   | "fallback_grant_admin"
   | "plan_revision_admin"
   | "onboarding_complete_user"
+  | "forced_password_change_user"
   | "privacy_consent_user"
   | "social_profile_user"
   | "portfolio_mutation_user"
@@ -92,6 +93,7 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   fallback_grant_admin: policy("fallback_grant_admin", 20, 60 * 60),
   plan_revision_admin: policy("plan_revision_admin", 30, 60 * 60),
   onboarding_complete_user: policy("onboarding_complete_user", 10, 60 * 60),
+  forced_password_change_user: policy("forced_password_change_user", 6, 60),
   privacy_consent_user: policy("privacy_consent_user", 30, 60 * 60),
   social_profile_user: policy("social_profile_user", 30, 60 * 60),
   portfolio_mutation_user: policy("portfolio_mutation_user", 30, 60 * 60),

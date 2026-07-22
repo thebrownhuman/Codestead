@@ -50,6 +50,11 @@ export const auth = betterAuth({
     usePlural: false,
   }),
   trustedOrigins: [process.env.APP_URL ?? "http://localhost:3000"],
+  account: {
+    accountLinking: {
+      disableImplicitLinking: true,
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 12,
@@ -182,6 +187,7 @@ export const auth = betterAuth({
             .limit(1);
 
           if (!validInvite) return false;
+          return { data: { mustChangePassword: false } };
         },
         after: async (createdUser) => {
           await db.transaction(async (tx) => {

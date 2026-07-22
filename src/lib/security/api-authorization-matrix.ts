@@ -134,6 +134,7 @@ const SESSION_USER_OPERATIONS = new Set([
   "GET /api/projects/[id]/revisions/[revisionId]",
   "GET /api/projects",
   "POST /api/projects",
+  "POST /api/security/forced-password-change",
   "POST /api/security/fresh-mfa",
   "POST /api/security/verify-backup-code",
   "GET /api/session-revocation-requests",

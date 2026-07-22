@@ -17,7 +17,13 @@ vi.mock("drizzle-orm", () => ({ eq: mocks.eq }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: mocks.getSession } } }));
 vi.mock("@/lib/db/client", () => ({ db: { select: mocks.select } }));
 vi.mock("@/lib/db/schema", () => ({
-  user: { id: "user.id", status: "user.status", role: "user.role", twoFactorEnabled: "user.twoFactorEnabled" },
+  user: {
+    id: "user.id",
+    status: "user.status",
+    role: "user.role",
+    twoFactorEnabled: "user.twoFactorEnabled",
+    mustChangePassword: "user.mustChangePassword",
+  },
 }));
 vi.mock("@/lib/exams/capability-gate", () => ({ gateClosedBookCapability: mocks.examGate }));
 
@@ -43,7 +49,12 @@ describe("protected request authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getSession.mockResolvedValue(SESSION);
-    mocks.limit.mockResolvedValue([{ status: "active", role: "learner", twoFactorEnabled: true }]);
+    mocks.limit.mockResolvedValue([{
+      status: "active",
+      role: "learner",
+      twoFactorEnabled: true,
+      mustChangePassword: false,
+    }]);
     mocks.examGate.mockResolvedValue({ allowed: true });
   });
 
@@ -68,7 +79,12 @@ describe("protected request authorization", () => {
   it("rechecks active status and MFA in the database on every protected request", async () => {
     const result = await requireAuth();
     expect(result.session).toEqual(SESSION);
-    expect(result.account).toEqual({ status: "active", role: "learner", twoFactorEnabled: true });
+    expect(result.account).toEqual({
+      status: "active",
+      role: "learner",
+      twoFactorEnabled: true,
+      mustChangePassword: false,
+    });
     expect(result.response).toBeNull();
     expect(mocks.select).toHaveBeenCalledOnce();
     expect(mocks.eq).toHaveBeenCalledWith("user.id", "learner-1");
@@ -93,6 +109,27 @@ describe("protected request authorization", () => {
     const response = mustResponse(result.response);
     expect(response.status).toBe(403);
     expect(await responseBody(response)).toMatchObject({ code: "ACCOUNT_NOT_ACTIVE" });
+  });
+
+  it("blocks protected features while durable password rotation is required", async () => {
+    mocks.limit.mockResolvedValue([{
+      status: "active",
+      role: "admin",
+      twoFactorEnabled: true,
+      mustChangePassword: true,
+    }]);
+
+    const blocked = await requireAuth();
+    const response = mustResponse(blocked.response);
+    expect(response.status).toBe(403);
+    expect(await responseBody(response)).toEqual({
+      error: "Change the temporary password before using this feature.",
+      code: "PASSWORD_CHANGE_REQUIRED",
+    });
+
+    const forcedChange = await requireAuth({ allowPasswordChange: true, allowPending: true });
+    expect(forcedChange.session).toEqual(SESSION);
+    expect(forcedChange.response).toBeNull();
   });
 
   it("blocks a social/passwordless session until that exact session completes TOTP", async () => {
@@ -130,7 +167,12 @@ describe("protected request authorization", () => {
     expect(await responseBody(response)).toEqual({ error: "Administrator access required." });
     expect(SESSION.user.role).toBe("admin");
 
-    mocks.limit.mockResolvedValue([{ status: "active", role: "admin", twoFactorEnabled: true }]);
+    mocks.limit.mockResolvedValue([{
+      status: "active",
+      role: "admin",
+      twoFactorEnabled: true,
+      mustChangePassword: false,
+    }]);
     const allowed = await requireAdmin();
     expect(allowed.session).toEqual(SESSION);
     expect(allowed.account?.role).toBe("admin");
