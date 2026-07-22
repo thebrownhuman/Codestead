@@ -104,4 +104,22 @@ describe("notification delivery privacy", () => {
     expect((error as Error).message).toBe("Gmail delivery failed (500).");
     expect((error as Error).message).not.toContain("provider echoed private email content");
   });
+
+  it.each([
+    { body: {}, description: "missing" },
+    { body: { id: "" }, description: "empty" },
+    { body: { id: "   " }, description: "blank" },
+  ])("rejects a Gmail 2xx response with a $description message ID", async ({ body }) => {
+    vi.stubEnv("MAIL_ADAPTER", "gmail");
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "access" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(body), { status: 200 })));
+
+    await expect(sendEmail({
+      to: "learner@example.com", template: "invitation", variables: {},
+    })).rejects.toThrow("Gmail delivery returned no message ID.");
+  });
 });
