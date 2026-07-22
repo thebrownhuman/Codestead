@@ -131,6 +131,7 @@ export const notificationStatusEnum = pgEnum("notification_status", [
   "sent",
   "failed",
   "suppressed",
+  "quarantined",
 ]);
 
 /** Better Auth owns these five tables. App-specific fields are explicitly declared. */
@@ -3201,16 +3202,40 @@ export const emailOutbox = pgTable(
     templateVersion: text("template_version").notNull(),
     variables: jsonb("variables").$type<Record<string, string>>().notNull(),
     idempotencyKey: text("idempotency_key").notNull().unique(),
+    operationId: uuid("operation_id").defaultRandom().notNull().unique(),
     status: notificationStatusEnum("status").default("pending").notNull(),
     attemptCount: integer("attempt_count").default(0).notNull(),
+    claimToken: uuid("claim_token"),
+    claimOwner: text("claim_owner"),
+    claimVersion: integer("claim_version").default(0).notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    providerCallStarted: timestamp("provider_call_started", { withTimezone: true }),
+    adapter: text("adapter"),
+    providerMessageId: text("provider_message_id"),
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
     lastErrorCode: text("last_error_code"),
     ...timestamps,
   },
   (table) => [
     index("email_outbox_queue_idx").on(table.status, table.nextAttemptAt),
     index("email_outbox_user_idx").on(table.userId),
+    uniqueIndex("email_outbox_claim_token_unique")
+      .on(table.claimToken)
+      .where(sql`${table.claimToken} IS NOT NULL`),
+    uniqueIndex("email_outbox_provider_message_unique")
+      .on(table.adapter, table.providerMessageId)
+      .where(sql`${table.providerMessageId} IS NOT NULL`),
+    check("email_outbox_claim_version_nonnegative", sql`${table.claimVersion} >= 0`),
+    check(
+      "email_outbox_provider_identity_valid",
+      sql`${table.providerMessageId} IS NULL OR (${table.adapter} IS NOT NULL AND btrim(${table.adapter}) <> '' AND btrim(${table.providerMessageId}) <> '')`,
+    ),
+    check(
+      "email_outbox_quarantine_evidence",
+      sql`${table.status} <> 'quarantined' OR (${table.quarantinedAt} IS NOT NULL AND ${table.lastErrorCode} IS NOT NULL AND btrim(${table.lastErrorCode}) <> '')`,
+    ),
   ],
 );
 
