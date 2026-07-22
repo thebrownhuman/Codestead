@@ -1,0 +1,230 @@
+# Disposable Linux CI overlay for the real production Compose topology.
+# It replaces only external runner/tunnel dependencies with isolated in-project
+# stubs and binds every persistent path to a trap-cleaned temporary directory.
+services:
+  postgres:
+    pull_policy: never
+    command:
+      - postgres
+      - -c
+      - fsync=on
+      - -c
+      - synchronous_commit=on
+      - -c
+      - full_page_writes=on
+    volumes:
+      - type: bind
+        source: ${TOPOLOGY_POSTGRES_DIR:?Set TOPOLOGY_POSTGRES_DIR}
+        target: /var/lib/postgresql/data
+      - type: bind
+        source: ${TOPOLOGY_POSTGRES_SOCKET_DIR:?Set TOPOLOGY_POSTGRES_SOCKET_DIR}
+        target: /run/learncoding-postgres
+    healthcheck:
+      test: ["CMD-SHELL", '[ "$$(cat /proc/1/comm)" = postgres ] && pg_isready -h /run/learncoding-postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  database-role-bootstrap:
+    pull_policy: never
+
+  migrate:
+    pull_policy: never
+
+  platform-seed:
+    pull_policy: never
+
+  admin-bootstrap:
+    pull_policy: never
+
+  app:
+    pull_policy: never
+    environment:
+      UPLOADS_ENABLED: "false"
+      MAIL_ADAPTER: outbox
+      GOOGLE_CLIENT_ID: ""
+    volumes:
+      - type: bind
+        source: ${TOPOLOGY_NEXT_CACHE_DIR:?Set TOPOLOGY_NEXT_CACHE_DIR}
+        target: /app/.next/cache
+      - type: bind
+        source: ${TOPOLOGY_APP_DATA_DIR:?Set TOPOLOGY_APP_DATA_DIR}
+        target: /var/lib/learncoding
+    healthcheck:
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 10s
+
+  runner-stub:
+    image: ${APP_RUNTIME_IMAGE:?Set APP_RUNTIME_IMAGE}
+    pull_policy: never
+    entrypoint: []
+    command:
+      - node
+      - -e
+      - |
+        const http = require('node:http');
+        const server = http.createServer((request, response) => {
+          const body = JSON.stringify({ ok: true, fixture: 'isolated-runner' });
+          response.writeHead(200, {
+            'content-type': 'application/json',
+            'content-length': Buffer.byteLength(body),
+            'cache-control': 'no-store'
+          });
+          response.end(body);
+        });
+        server.listen(4100, '192.168.122.12');
+        const stop = () => server.close(() => process.exit(0));
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+    user: "1000:1000"
+    restart: unless-stopped
+    stop_grace_period: 10s
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=4m
+    networks:
+      runner-stub-net:
+        ipv4_address: 192.168.122.12
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://192.168.122.12:4100/health').then((r) => { if (r.status !== 200) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+    mem_limit: 96m
+    cpus: 0.20
+    pids_limit: 32
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+      io.codestead.fixture: production-topology-v1
+
+  runner-egress-gateway:
+    pull_policy: never
+    environment:
+      RUNNER_GATEWAY_LISTEN_HOST: ${TOPOLOGY_RUNNER_CLIENT_IP:?Set TOPOLOGY_RUNNER_CLIENT_IP}
+    depends_on:
+      runner-stub:
+        condition: service_healthy
+    networks:
+      runner-client:
+        interface_name: runner-client
+        ipv4_address: ${TOPOLOGY_RUNNER_CLIENT_IP:?Set TOPOLOGY_RUNNER_CLIENT_IP}
+      runner-egress:
+        interface_name: runner-egress
+        ipv4_address: ${TOPOLOGY_RUNNER_EGRESS_IP:?Set TOPOLOGY_RUNNER_EGRESS_IP}
+        gw_priority: 100
+      runner-stub-net:
+        interface_name: runner-stub
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://${TOPOLOGY_RUNNER_CLIENT_IP:?Set TOPOLOGY_RUNNER_CLIENT_IP}:4100/__codestead_runner_gateway_health', { redirect: 'manual' }).then((response) => { if (response.status !== 204) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+
+  mail-worker:
+    pull_policy: never
+    environment:
+      MAIL_ADAPTER: outbox
+      OUTBOX_POLL_SECONDS: "1"
+    healthcheck: &worker-health
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 10s
+
+  reward-worker:
+    pull_policy: never
+    environment:
+      REWARD_POLL_SECONDS: "2"
+    healthcheck: *worker-health
+
+  regrade-worker:
+    pull_policy: never
+    environment:
+      REGRADE_POLL_SECONDS: "2"
+    healthcheck: *worker-health
+
+  exam-finalization-worker:
+    pull_policy: never
+    environment:
+      EXAM_FINALIZATION_POLL_SECONDS: "2"
+    healthcheck: *worker-health
+
+  practice-runner-recovery-worker:
+    pull_policy: never
+    environment:
+      PRACTICE_RECOVERY_POLL_SECONDS: "2"
+    healthcheck: *worker-health
+
+  project-review-correction-worker:
+    pull_policy: never
+    environment:
+      PROJECT_REVIEW_CORRECTION_POLL_SECONDS: "2"
+    healthcheck: *worker-health
+
+  cloudflared:
+    image: ${APP_RUNTIME_IMAGE:?Set APP_RUNTIME_IMAGE}
+    pull_policy: never
+    entrypoint: []
+    command:
+      - node
+      - -e
+      - |
+        const http = require('node:http');
+        const server = http.createServer((_request, response) => {
+          response.writeHead(204, { 'cache-control': 'no-store' });
+          response.end();
+        });
+        server.listen(20241, '0.0.0.0');
+        const stop = () => server.close(() => process.exit(0));
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:20241/ready').then((r) => { if (r.status !== 204) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+    labels:
+      io.codestead.fixture: production-topology-v1
+
+networks:
+  frontend:
+    internal: true
+  mail-egress:
+    internal: true
+  github-egress:
+    internal: true
+  runner-client:
+    driver: bridge
+    internal: true
+    ipam: !override
+      config:
+        - subnet: ${TOPOLOGY_RUNNER_CLIENT_SUBNET:?Set TOPOLOGY_RUNNER_CLIENT_SUBNET}
+          gateway: ${TOPOLOGY_RUNNER_CLIENT_GATEWAY:?Set TOPOLOGY_RUNNER_CLIENT_GATEWAY}
+          ip_range: ${TOPOLOGY_RUNNER_CLIENT_RANGE:?Set TOPOLOGY_RUNNER_CLIENT_RANGE}
+  runner-egress:
+    driver: bridge
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.name: ${TOPOLOGY_RUNNER_BRIDGE:?Set TOPOLOGY_RUNNER_BRIDGE}
+    ipam: !override
+      config:
+        - subnet: ${TOPOLOGY_RUNNER_EGRESS_SUBNET:?Set TOPOLOGY_RUNNER_EGRESS_SUBNET}
+          gateway: ${TOPOLOGY_RUNNER_EGRESS_GATEWAY:?Set TOPOLOGY_RUNNER_EGRESS_GATEWAY}
+          ip_range: ${TOPOLOGY_RUNNER_EGRESS_RANGE:?Set TOPOLOGY_RUNNER_EGRESS_RANGE}
+  signature-egress:
+    internal: true
+  runner-stub-net:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 192.168.122.0/24
+          gateway: 192.168.122.1

@@ -454,6 +454,18 @@ function initialEditorValues(session: ExamSessionView) {
   }
   return { answers, revisions };
 }
+function matchesPossibleCommittedResponseLoss(
+  controller: Controller,
+  record: ExamAnswerOutboxRecord,
+  item: PublicExamItem,
+  acknowledgedRevision: number,
+) {
+  const serverAnswer = controller.session.answers[record.payload.itemId];
+  return acknowledgedRevision === record.payload.baseRevision + 1
+    && serverAnswer?.revision === acknowledgedRevision
+    && responseEditorValue(item, serverAnswer.answer) === record.payload.answer;
+}
+
 
 function estimatedDeadline(session: ExamSessionView, receivedAt: number): number {
   const serverNow = Date.parse(session.serverNow);
@@ -1353,6 +1365,7 @@ async function runAnswerDrain(controller: Controller, generation: number) {
         if (
           record.payload.baseRevision < acknowledgedRevision
           && !controller.sentAnswerBodies.has(record.clientMutationId)
+          && !matchesPossibleCommittedResponseLoss(controller, record, item, acknowledgedRevision)
         ) {
           await rebaseUnsentRecord(controller, generation, record, acknowledgedRevision);
           controller.inFlightAnswer = null;

@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule bounded Codestead recovery verification
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=15m
+Persistent=true
+Unit=learncoding-recovery-check.service
+
+[Install]
+WantedBy=timers.target

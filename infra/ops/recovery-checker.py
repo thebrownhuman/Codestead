@@ -8,6 +8,7 @@ with shell strings.
 
 from __future__ import annotations
 
+import ctypes
 import dataclasses
 import decimal
 import errno
@@ -28,6 +29,15 @@ import time
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Callable, Mapping, Sequence
 from typing import Final
+
+from existing_container_baseline import (
+    MAXIMUM_BASELINE_BYTES,
+    MAXIMUM_INSPECTION_BYTES,
+    BaselineContractError,
+    ContainerIdentity,
+    inspection_matches_record,
+    parse_baseline,
+)
 
 try:
     import fcntl
@@ -64,13 +74,15 @@ MAXIMUM_PROC_STAT_BYTES: Final = 4_096
 EXPECTED_COMPOSE_SERVICES: Final[dict[str, str]] = {
     "postgres": "healthy",
     "app": "healthy",
+    "runner-egress-gateway": "healthy",
+    "mail-worker": "healthy",
+    "reward-worker": "healthy",
+    "regrade-worker": "healthy",
+    "exam-finalization-worker": "healthy",
+    "practice-runner-recovery-worker": "healthy",
+    "project-review-correction-worker": "healthy",
+    "file-erasure-worker": "healthy",
     "cloudflared": "healthy",
-    "mail-worker": "",
-    "reward-worker": "",
-    "regrade-worker": "",
-    "exam-finalization-worker": "",
-    "practice-runner-recovery-worker": "",
-    "project-review-correction-worker": "",
 }
 
 EXPECTED_CONTENT_SECURITY_POLICY: Final = "; ".join(
@@ -126,6 +138,19 @@ _SIGNATURE_PATTERN: Final = re.compile(r"sha256=[0-9a-f]{64}")
 
 class ContractError(RuntimeError):
     """A response or protected input violated the recovery contract."""
+
+
+def _runner_secret_expected_gid(test_mode: bool) -> int:
+    """Return the production GID or its one-ID-userns overflow representation."""
+
+    if not test_mode:
+        return 2000
+    override = os.environ.get("RECOVERY_CHECK_TEST_RUNNER_SECRET_GID", "")
+    if not override:
+        return 2000
+    if override != "65534":
+        raise ContractError("test runner-secret GID is invalid")
+    return 65534
 
 
 class ProbeError(RuntimeError):
@@ -499,9 +524,59 @@ def _relative_components(relative: str) -> list[str]:
     return components
 
 
+_INOTIFY_MUTATION_MASK: Final = (
+    0x00000002  # IN_MODIFY
+    | 0x00000004  # IN_ATTRIB
+    | 0x00000008  # IN_CLOSE_WRITE
+    | 0x00000400  # IN_DELETE_SELF
+    | 0x00000800  # IN_MOVE_SELF
+    | 0x00004000  # IN_Q_OVERFLOW
+    | 0x00008000  # IN_IGNORED
+)
+
+
+def _open_mutation_watch(descriptor: int) -> int:
+    """Watch the opened inode so mutate-and-restore cannot evade revalidation."""
+
+    if sys.platform != "linux" or descriptor < 0:
+        raise ContractError("protected mutation watches require Linux")
+    libc = ctypes.CDLL(None, use_errno=True)
+    inotify_init1 = libc.inotify_init1
+    inotify_init1.argtypes = [ctypes.c_int]
+    inotify_init1.restype = ctypes.c_int
+    inotify_add_watch = libc.inotify_add_watch
+    inotify_add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
+    inotify_add_watch.restype = ctypes.c_int
+    watch_descriptor = inotify_init1(os.O_CLOEXEC | os.O_NONBLOCK)
+    if watch_descriptor < 0:
+        error = ctypes.get_errno()
+        raise ContractError("protected mutation watch could not be created") from OSError(error, os.strerror(error))
+    try:
+        watched_path = f"/proc/self/fd/{descriptor}".encode("ascii")
+        if inotify_add_watch(watch_descriptor, watched_path, _INOTIFY_MUTATION_MASK) < 0:
+            error = ctypes.get_errno()
+            raise ContractError("protected inode could not be watched") from OSError(error, os.strerror(error))
+        return watch_descriptor
+    except BaseException:
+        os.close(watch_descriptor)
+        raise
+
+
+def _mutation_watch_changed(watch_descriptor: int) -> bool:
+    if watch_descriptor < 0:
+        raise ContractError("protected mutation watch is closed")
+    try:
+        return bool(os.read(watch_descriptor, 65_536))
+    except BlockingIOError:
+        return False
+    except OSError as error:
+        raise ContractError("protected mutation watch could not be read") from error
+
+
 @dataclasses.dataclass
 class ProtectedFile:
     descriptor: int
+    watch_descriptor: int
     data: bytes
     trusted_root: str
     relative: str
@@ -518,16 +593,22 @@ class ProtectedFile:
         return f"/proc/{os.getpid()}/fd/{self.descriptor}"
 
     def close(self) -> None:
-        if self.descriptor < 0:
-            return
-        descriptor = self.descriptor
-        self.descriptor = -1
-        try:
-            os.close(descriptor)
-        except OSError as error:
-            raise ContractError("protected descriptor cleanup failed") from error
+        failures: list[OSError] = []
+        for field in ("descriptor", "watch_descriptor"):
+            descriptor = getattr(self, field)
+            if descriptor < 0:
+                continue
+            setattr(self, field, -1)
+            try:
+                os.close(descriptor)
+            except OSError as error:
+                failures.append(error)
+        if failures:
+            raise ContractError("protected descriptor cleanup failed") from failures[0]
 
     def verify_current(self) -> None:
+        if _mutation_watch_changed(self.watch_descriptor):
+            raise ContractError("protected canonical input was modified")
         current, descriptor, identity = _read_protected_file(
             self.trusted_root,
             self.relative,
@@ -541,6 +622,8 @@ class ProtectedFile:
             raise ContractError("protected canonical input identity changed")
         if not hmac.compare_digest(hashlib.sha256(current).digest(), hashlib.sha256(self.data).digest()):
             raise ContractError("protected canonical input bytes changed")
+        if _mutation_watch_changed(self.watch_descriptor):
+            raise ContractError("protected canonical input was modified")
 
 
 def _read_protected_file(
@@ -596,18 +679,32 @@ def _read_protected_file(
             or before.st_size > maximum_bytes
         ):
             raise ContractError("protected file metadata is invalid")
+
+        def read_once() -> bytes:
+            try:
+                os.lseek(file_descriptor, 0, os.SEEK_SET)
+            except OSError as error:
+                raise ContractError("protected file could not be rewound") from error
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                chunk = os.read(
+                    file_descriptor,
+                    min(65_536, maximum_bytes + 1 - total),
+                )
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > maximum_bytes:
+                    raise ContractError("protected file exceeds its byte limit")
+            return b"".join(chunks)
+
+        stable_data = read_once()
+        middle = os.fstat(file_descriptor)
         if _after_open is not None:
             _after_open()
-        chunks: list[bytes] = []
-        total = 0
-        while True:
-            chunk = os.read(file_descriptor, min(65_536, maximum_bytes + 1 - total))
-            if not chunk:
-                break
-            chunks.append(chunk)
-            total += len(chunk)
-            if total > maximum_bytes:
-                raise ContractError("protected file exceeds its byte limit")
+        data = read_once()
         after = os.fstat(file_descriptor)
         identity_before = (
             before.st_dev,
@@ -619,6 +716,16 @@ def _read_protected_file(
             before.st_mtime_ns,
             before.st_ctime_ns,
         )
+        identity_middle = (
+            middle.st_dev,
+            middle.st_ino,
+            middle.st_mode,
+            middle.st_uid,
+            middle.st_gid,
+            middle.st_size,
+            middle.st_mtime_ns,
+            middle.st_ctime_ns,
+        )
         identity_after = (
             after.st_dev,
             after.st_ino,
@@ -629,9 +736,18 @@ def _read_protected_file(
             after.st_mtime_ns,
             after.st_ctime_ns,
         )
-        if identity_after != identity_before or total != before.st_size:
+        if (
+            identity_middle[:6] != identity_before[:6]
+            or identity_after[:6] != identity_before[:6]
+            or len(stable_data) != before.st_size
+            or len(data) != before.st_size
+        ):
             raise ContractError("protected file changed while being read")
-        data = b"".join(chunks)
+        if not hmac.compare_digest(
+            hashlib.sha256(stable_data).digest(),
+            hashlib.sha256(data).digest(),
+        ):
+            raise ContractError("protected file bytes changed while being read")
         if retain_descriptor:
             retained_descriptor = descriptors.pop()
         return data, retained_descriptor, identity_before
@@ -698,12 +814,14 @@ def open_protected_file(
     if descriptor < 0:
         raise ContractError("protected descriptor was not retained")
     source_descriptor = descriptor
+    watch_descriptor = -1
     snapshot_descriptor = -1
     try:
         if fcntl is None or not hasattr(os, "memfd_create"):
             raise ContractError("sealed protected snapshots require Linux memfd support")
         flags = getattr(os, "MFD_CLOEXEC", 0x0001) | getattr(os, "MFD_ALLOW_SEALING", 0x0002)
         snapshot_descriptor = os.memfd_create("recovery-compose-input", flags)
+        watch_descriptor = _open_mutation_watch(source_descriptor)
         offset = 0
         while offset < len(data):
             written = os.write(snapshot_descriptor, data[offset:])
@@ -727,6 +845,7 @@ def open_protected_file(
         source_descriptor = -1
         protected = ProtectedFile(
             descriptor=snapshot_descriptor,
+            watch_descriptor=watch_descriptor,
             data=data,
             trusted_root=trusted_root,
             relative=relative,
@@ -736,11 +855,13 @@ def open_protected_file(
             maximum_bytes=maximum_bytes,
             source_identity=identity,
         )
+        protected.verify_current()
         snapshot_descriptor = -1
+        watch_descriptor = -1
         return protected
     finally:
         cleanup_failed = False
-        for pending in (source_descriptor, snapshot_descriptor):
+        for pending in (source_descriptor, snapshot_descriptor, watch_descriptor):
             if pending >= 0:
                 try:
                     os.close(pending)
@@ -1468,9 +1589,10 @@ class RecoveryChecker:
         self.deadline = Deadline(RECOVERY_LIMIT_SECONDS, monotonic=monotonic)
         self.environment = self._command_environment()
         self.configuration: RuntimeConfiguration | None = None
-        self.expected_containers: set[str] = set()
+        self.expected_containers: dict[str, ContainerIdentity] = {}
         self._compose_environment: ProtectedFile | None = None
         self._compose_definition: ProtectedFile | None = None
+        self._runner_secret_gid = _runner_secret_expected_gid(test_mode)
         self._last_challenge = ""
 
     def _command_environment(self) -> dict[str, str]:
@@ -1562,7 +1684,12 @@ class RecoveryChecker:
         compose_file: ProtectedFile | None = None
         try:
             baseline = read_protected_file(
-                self.trusted_root, BASELINE_RELATIVE, 0, 0, 0o600, 16_384
+                self.trusted_root,
+                BASELINE_RELATIVE,
+                0,
+                0,
+                0o600,
+                MAXIMUM_BASELINE_BYTES,
             )
             environment_file = open_protected_file(
                 self.trusted_root, COMPOSE_ENV_RELATIVE, 0, 0, 0o640, 65_536
@@ -1580,32 +1707,23 @@ class RecoveryChecker:
                     self.trusted_root,
                     RUNNER_SECRET_RELATIVE,
                     0,
-                    2000,
+                    self._runner_secret_gid,
                     0o440,
                     256,
                 )
             )
             configuration = parse_runtime_environment(environment_file.data)
-            names: set[str] = set()
-            lines = baseline.split(b"\n")
-            if lines and lines[-1] == b"":
-                lines.pop()
-            if not lines:
-                raise ContractError("protected baseline is empty")
-            for name in lines:
-                if _NAME_PATTERN.fullmatch(name) is None:
-                    raise ContractError("protected baseline name is malformed")
-                decoded = name.decode("ascii")
-                if decoded in names:
-                    raise ContractError("protected baseline contains a duplicate")
-                names.add(decoded)
+            try:
+                identities = parse_baseline(baseline)
+            except BaselineContractError as error:
+                raise ContractError("protected container baseline is invalid") from error
             self.configuration = configuration
-            self.expected_containers = names
+            self.expected_containers = identities
             self._compose_environment = environment_file
             self._compose_definition = compose_file
             environment_file = None
             compose_file = None
-            state.existing_expected = len(names)
+            state.existing_expected = len(identities)
             return state
         finally:
             cleanup_failed = False
@@ -1773,21 +1891,19 @@ class RecoveryChecker:
         return self._postgres_settings() and self._postgres_mount()
 
     def _existing_containers(self) -> int:
-        try:
-            raw = self._run(
-                "docker", ("ps", "--format", "{{.Names}}"), cap=MAXIMUM_COMMAND_BYTES
-            )
-            running: set[str] = set()
-            lines = raw.split(b"\n")
-            if lines and lines[-1] == b"":
-                lines.pop()
-            for name in lines:
-                if _NAME_PATTERN.fullmatch(name) is None:
-                    raise ContractError("docker container name is malformed")
-                running.add(name.decode("ascii"))
-            return len(self.expected_containers & running)
-        except (ContractError, ProbeError):
-            return 0
+        matches = 0
+        for name, record in self.expected_containers.items():
+            try:
+                raw = self._run(
+                    "docker",
+                    ("inspect", "--type", "container", name),
+                    cap=MAXIMUM_INSPECTION_BYTES,
+                )
+                if inspection_matches_record(raw, record):
+                    matches += 1
+            except (ContractError, ProbeError):
+                continue
+        return matches
 
     @staticmethod
     def _single_fields(raw: bytes, expected: Mapping[str, str]) -> bool:
@@ -2133,7 +2249,7 @@ class RecoveryChecker:
                     self.trusted_root,
                     RUNNER_SECRET_RELATIVE,
                     0,
-                    2000,
+                    self._runner_secret_gid,
                     0o440,
                     256,
                 )
@@ -2160,8 +2276,12 @@ class RecoveryChecker:
         units = (
             "learncoding-backup.timer",
             "learncoding-backup-check.timer",
+            "learncoding-offsite-sync.timer",
+            "learncoding-offsite-retention.timer",
+            "learncoding-restore-drill-reminder.timer",
             "learncoding-retention.timer",
             "learncoding-recovery-check.timer",
+            "learncoding-ingress-recovery.timer",
         )
         try:
             for unit in units:
@@ -2222,6 +2342,34 @@ class RecoveryChecker:
         )
 
 
+def _write_test_diagnostic(test_mode: bool, error: BaseException) -> None:
+    if not test_mode:
+        return
+    destination = os.environ.get("FAKE_DIAGNOSTIC_FILE", "")
+    if not destination or not os.path.isabs(destination):
+        return
+    message = f"{type(error).__name__}:{error}".encode("utf-8", "replace")[:1_024]
+    descriptor = -1
+    try:
+        descriptor = os.open(
+            destination,
+            os.O_WRONLY | os.O_TRUNC | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            return
+        os.write(descriptor, message)
+        os.fsync(descriptor)
+    except OSError:
+        return
+    finally:
+        if descriptor >= 0:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+
+
 def _worker_result(test_mode: bool) -> tuple[dict[str, object], int]:
     state = ProbeState()
     checker: RecoveryChecker | None = None
@@ -2258,7 +2406,8 @@ def _worker_result(test_mode: bool) -> tuple[dict[str, object], int]:
             timed_out=True,
             elapsed=RECOVERY_LIMIT_SECONDS,
         ), 1
-    except (ContractError, ProbeError, OSError, ValueError):
+    except (ContractError, ProbeError, OSError, ValueError) as error:
+        _write_test_diagnostic(test_mode, error)
         elapsed = 0
         if checker is not None:
             try:
@@ -2328,6 +2477,7 @@ def _minimal_worker_environment(test_mode: bool) -> dict[str, str]:
             "RECOVERY_CHECK_TEST_COMMAND_ROOT",
             "RECOVERY_CHECK_TEST_MONOTONIC_FILE",
             "RECOVERY_CHECK_TEST_EPOCH",
+            "RECOVERY_CHECK_TEST_RUNNER_SECRET_GID",
             "RECOVERY_CHECK_TEST_WATCHDOG_SECONDS",
         }
         for name, value in os.environ.items():
@@ -2458,6 +2608,13 @@ def _run_parent(test_mode: bool) -> tuple[dict[str, object], int]:
         _check_termination_requested()
         payload = _validate_worker_payload(bytes(output["stdout"]))
         if output["stderr"]:
+            if test_mode:
+                diagnostic = bytes(output["stderr"][:1_024]).decode(
+                    "utf-8", "replace"
+                )
+                _write_test_diagnostic(
+                    True, ContractError(f"worker stderr: {diagnostic}")
+                )
             raise ContractError("worker emitted diagnostics")
         outcome = payload, 0 if returncode == 0 and payload["recovered"] is True else 1
     except GlobalTimeout:

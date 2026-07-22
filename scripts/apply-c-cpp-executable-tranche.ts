@@ -26,7 +26,7 @@ interface RuntimeImages {
 const root = process.cwd();
 const contentRoot = path.join(root, "content");
 const bankRoot = path.join(contentRoot, "authored", "assessment-banks");
-const runtimeImagesPath = path.join(root, "services", "runner", "dist", "runtime-images.json");
+const runtimeImagesPath = path.join(root, "scripts", "curriculum-runtime-pins.json");
 
 async function loadJson<T>(filePath: string): Promise<T> {
   return JSON.parse(await readFile(filePath, "utf8")) as T;

@@ -28,6 +28,11 @@ file_env() {
 
 for variable in \
   DATABASE_URL \
+  DATABASE_BOOTSTRAP_URL \
+  DATABASE_APP_URL \
+  DATABASE_MIGRATOR_URL \
+  DATABASE_WORKER_URL \
+  DATABASE_OPS_URL \
   BOOTSTRAP_ADMIN_PASSWORD \
   BETTER_AUTH_SECRET \
   LOST_DEVICE_PROOF_KEY \
@@ -43,9 +48,17 @@ do
 done
 
 if [ "${NODE_ENV:-}" = "production" ]; then
-  if [ -z "${DATABASE_URL:-}" ]; then
-    echo "fatal: DATABASE_URL is required in production" >&2
-    exit 64
+  if [ -n "${DATABASE_BOOTSTRAP_URL:-}" ]; then
+    for variable in DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL; do
+      eval "value=\${$variable-}"
+      if [ -z "$value" ]; then
+        echo "fatal: the complete database role credential set is required" >&2
+        exit 64
+      fi
+    done
+  elif [ -z "${DATABASE_URL:-}" ]; then
+      echo "fatal: DATABASE_URL is required in production" >&2
+      exit 64
   fi
   if [ "${REQUIRE_APP_SECRETS:-0}" = "1" ]; then
     auth_secret="${BETTER_AUTH_SECRET:-}"

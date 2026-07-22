@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-07-14T11:18:03.796Z",
+  "generatedAt": "2026-07-22T05:44:10.539Z",
   "scope": "Launch-1 HTML, accessible/responsive CSS, JavaScript, and intermediate React authoring evidence",
   "status": "structure-only",
   "counts": {
@@ -46,12 +46,18 @@
     }
   },
   "environment": {
-    "packageLockHash": "sha256:70eafa98f898a07b157bcb9f3742a63b4889634f48a86beec9b094873aef7623",
+    "packageLockHash": "sha256:ccd762d523bfceca132b5efcfaa8cb4237ed35dfb10b573c01ae8ae7c1e49bed",
     "node": {
       "tag": "learncoding/runtime-javascript:local",
-      "expectedImageDigest": "sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931",
-      "actualImageId": null,
-      "imageMatches": null,
+      "manifestDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
+      "configDigest": null,
+      "immutableReference": null,
+      "tagDescriptorDigest": null,
+      "tagImageId": null,
+      "exactReferenceDescriptorDigest": null,
+      "exactReferenceImageId": null,
+      "independentlyValidated": false,
+      "expectedImageDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
       "expectedVersion": "v22.23.1",
       "inspectedVersion": null,
       "versionMatches": null,
@@ -73,7 +79,7 @@
       "reactRouterNodeEngine": ">=22.22.0",
       "testingLibraryReactVersion": "16.3.2",
       "testingLibraryUserEventVersion": "14.6.1",
-      "authoringHostNodeVersion": "v24.14.0",
+      "authoringHostNodeVersion": "v22.23.1",
       "productionNodeBaseline": "22.23.1",
       "productionNodeMeetsRouterEngine": true
     }

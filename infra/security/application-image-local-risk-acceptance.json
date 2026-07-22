@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "acceptanceId": "codestead-unsigned-local-application-images-v1",
+  "scope": "Unsigned local OCI application images used only by the private Codestead NUC pilot; registry releases remain signature-gated.",
+  "owner": "github.com/thebrownhuman",
+  "approvedBy": "github.com/thebrownhuman",
+  "approvedAt": "2026-07-19T00:00:00Z",
+  "expiresAt": "2026-10-17T00:00:00Z",
+  "rationale": "The private pilot needs reproducible offline-capable image builds before registry keyless signing is operational. Exact Git archive binding, immutable base digests, SBOMs, vulnerability gates, and a private deployment boundary reduce—but do not eliminate—the unsigned-image substitution risk.",
+  "reassessmentTriggers": [
+    "The application becomes publicly reachable or the learner cohort expands beyond the private pilot.",
+    "The Dockerfile, pinned base image, build frontend, BuildKit, Docker, or scanner toolchain changes.",
+    "A HIGH or CRITICAL vulnerability, supply-chain alert, credential incident, or image-integrity incident occurs.",
+    "Registry keyless signing and attestation publication becomes operational for the release path.",
+    "The approval owner, threat model, deployment topology, or source repository identity changes."
+  ]
+}

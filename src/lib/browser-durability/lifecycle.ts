@@ -295,20 +295,6 @@ function createNativeChannel(): BrowserRecoveryBoundaryChannel | null {
   };
 }
 
-function boundaryMatchesScope(
-  boundary: BrowserRecoveryBoundary,
-  scope: BrowserRecoveryWriteScope,
-) {
-  if (boundary.kind === "all") return true;
-  if (boundary.kind === "namespace") return boundary.namespace === scope.namespace;
-  if (boundary.kind === "drafts") {
-    return scope.kind === "drafts" && boundary.namespace === scope.namespace;
-  }
-  return scope.kind === "exam"
-    && boundary.namespace === scope.namespace
-    && boundary.sessionId === scope.sessionId;
-}
-
 function boundaryClosedError() {
   return new DOMException("Browser recovery generation retired.", "AbortError");
 }

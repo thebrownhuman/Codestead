@@ -242,7 +242,7 @@ test.describe("standalone Code Lab runner UX", () => {
     await expect(page.locator("pre").filter({ hasText: "layout-ok" })).toBeVisible();
 
     const codeLab = page.locator('div[class*="codeLab"]').first();
-    const editorSurface = codeLab.locator('.monaco-editor, [class*="editorFallback"], [class*="editorLoading"]').first();
+    const editorSurface = codeLab.locator('[class*="editorFrame"]');
     await expect(editorSurface).toBeVisible();
     const editorBox = await editorSurface.boundingBox();
     expect(editorBox?.height ?? 0).toBeGreaterThanOrEqual(250);

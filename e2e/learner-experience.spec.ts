@@ -226,6 +226,12 @@ test.describe("new learner experience", () => {
   });
 
   test("fixture dashboard links to an honest, interactive roadmap preview", async ({ page }) => {
+    // Next's development compiler can broadcast a full Fast Refresh reload
+    // while compiling a cold route. Warm the destination before a live page
+    // exists so that reload cannot replace the navigation being asserted.
+    const roadmapCompilation = await page.request.get("/roadmap");
+    expect(roadmapCompilation.ok()).toBe(true);
+
     await page.goto("/learn");
     await expect(page.getByRole("region", { name: "Learning summary" })).toContainText("Verified XP");
     await expect(page.getByText(/^Level \d+$/)).toBeVisible();

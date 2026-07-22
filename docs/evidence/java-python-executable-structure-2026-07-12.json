@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-14T11:18:00.249Z",
+  "generatedAt": "2026-07-20T19:57:56.768Z",
   "scope": "Programming Foundations, Java 21 and Python 3.14 authored code-task pinned-runtime evidence",
   "status": "structure-only",
   "counts": {
@@ -18,15 +18,25 @@
   "imageEvidence": {
     "java": {
       "tag": "learncoding/runtime-java:local",
-      "expected": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
-      "actual": null,
-      "matches": false
+      "manifestDigest": "sha256:bec0bd9af9f698dea650e80f26d79f412c8f4cc13aec335af58cd3bc6ec95a46",
+      "configDigest": null,
+      "immutableReference": null,
+      "tagDescriptorDigest": null,
+      "tagImageId": null,
+      "exactReferenceDescriptorDigest": null,
+      "exactReferenceImageId": null,
+      "independentlyValidated": false
     },
     "python": {
       "tag": "learncoding/runtime-python:local",
-      "expected": "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
-      "actual": null,
-      "matches": false
+      "manifestDigest": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
+      "configDigest": null,
+      "immutableReference": null,
+      "tagDescriptorDigest": null,
+      "tagImageId": null,
+      "exactReferenceDescriptorDigest": null,
+      "exactReferenceImageId": null,
+      "independentlyValidated": false
     }
   },
   "results": [],

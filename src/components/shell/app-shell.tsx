@@ -70,12 +70,14 @@ export function AppShell({
   admin = false,
   viewer = { name: "Aarav Rao", role: "Learner" },
   browserDurabilityNamespace = null,
+  authenticatedSessionMonitoring = browserDurabilityNamespace !== null,
   navigate = (destination: string) => { window.location.href = destination; },
 }: {
   children: React.ReactNode;
   admin?: boolean;
   viewer?: { name: string; role: string; image?: string | null };
   browserDurabilityNamespace?: string | null;
+  authenticatedSessionMonitoring?: boolean;
   navigate?: (destination: string) => void;
 }) {
   const pathname = usePathname();
@@ -298,7 +300,9 @@ export function AppShell({
   return (
     <BrowserDurabilityNamespaceProvider namespace={browserDurabilityNamespace}>
     <div className={styles.shell}>
-      {recoveryReady && <ExamLockdownOverlay />}
+      {recoveryReady && (
+        <ExamLockdownOverlay enabled={authenticatedSessionMonitoring} />
+      )}
       <aside
         aria-hidden={compactNavigation && !open ? true : undefined}
         aria-label="Primary navigation"

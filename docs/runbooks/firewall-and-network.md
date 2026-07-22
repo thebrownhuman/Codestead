@@ -34,17 +34,26 @@ All listed ports should be closed or filtered. The application hostname should s
 
 ## Runner VM
 
-Use a dedicated VLAN if the hypervisor supports it. Replace both example addresses:
+The authoritative topology is the libvirt `default` network on bridge `virbr0`, with host `192.168.122.1` and the reviewed `codestead-runner` reservation at `192.168.122.12`. Do not create a custom runner network or substitute an older address.
+
+Runner API ingress is enforced by the reviewed nftables files, not by an example UFW rule. On the trusted NUC, `learncoding-runner-firewall.service` allows only fixed Compose gateway source `172.29.40.2` on `cdst-run0` to guest TCP 4100 and rejects every other runner-egress path. Inside the guest, `learncoding-runner-guest-firewall.service` default-denies ingress, allows host `192.168.122.1` to SSH and TCP 4100, and allows only gateway source `172.29.40.2` to TCP 4100. Unrelated host traffic remains outside the dedicated Codestead table.
+
+Verify the installed policies without replacing them:
 
 ```bash
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow from 10.20.0.11 to any port 4100 proto tcp comment 'trusted app only'
-sudo ufw allow from 10.20.10.0/24 to any port 22 proto tcp comment 'private admin SSH'
-sudo ufw enable
+# On the trusted NUC
+sudo systemctl is-enabled learncoding-runner-firewall.service
+sudo systemctl is-active learncoding-runner-firewall.service
+sudo nft list table inet codestead_runner
+
+# Inside the dedicated runner VM
+sudo systemctl is-enabled learncoding-runner-guest-firewall.service
+sudo systemctl is-active learncoding-runner-guest-firewall.service
+sudo nft list table inet codestead_runner_guest
+sudo ss -lnt '( sport = :4100 )'
 ```
 
-Set `RUNNER_HOST` to the VM's private IP, not `0.0.0.0`. After pre-pulling all digest-pinned runtime images, consider restricting VM egress at the hypervisor firewall. Re-open only the minimum apt and registry egress during a supervised patch/image-refresh window. The runner API itself does not need internet access.
+Set `RUNNER_HOST=192.168.122.12`, never `0.0.0.0`. Administrative SSH reaches the guest through the trusted host path; do not open port 22 to an arbitrary LAN. After pre-pulling all digest-pinned runtime images, consider restricting VM egress at the hypervisor firewall. Re-open only the minimum apt and registry egress during a supervised patch/image-refresh window. The runner API itself does not need internet access.
 
 Confirm the runner implementation still emits Docker flags for `--pull never`, `--network none`, read-only root, dropped capabilities, no-new-privileges, PID/memory/CPU/file limits, and an unprivileged UID before each release.
 

@@ -271,7 +271,7 @@ bootstrap_cleanup() {
 trap bootstrap_cleanup EXIT
 stage="$(mktemp -d -- "$BACKUP_STAGE_ROOT/full.${timestamp}.XXXXXX")"
 verify_dir="$(mktemp -d -- "$BACKUP_STAGE_ROOT/verify.${timestamp}.XXXXXX")"
-ephemeral_dir="$(mktemp -d -- "$BACKUP_EPHEMERAL_ROOT/learncoding-backup.${timestamp}.XXXXXX")"
+ephemeral_dir="$(mktemp -d -- "$BACKUP_EPHEMERAL_ROOT/b.XXXXXX")"
 chmod 0700 -- "$stage" "$verify_dir" "$ephemeral_dir"
 identity="$ephemeral_dir/identity.txt"
 ephemeral_recipient="$ephemeral_dir/recipient.txt"
@@ -395,7 +395,18 @@ cleanup() {
   unlink_ephemeral_identity || cleanup_failed=1
 
   if ((marker_validation_pending == 1 && marker_committed == 0)); then
-    if rollback_unvalidated_marker; then
+    if ((marker_before_present == 1)) \
+      && require_secure_regular_file "$marker" 600 "$(id -u)" \
+      && cmp -s -- "$marker_before" "$marker"; then
+      marker_published=0
+      marker_validation_pending=0
+      publication_commit_uncertain=0
+    elif ((marker_before_present == 0)) \
+      && [[ ! -e "$marker" && ! -L "$marker" ]]; then
+      marker_published=0
+      marker_validation_pending=0
+      publication_commit_uncertain=0
+    elif rollback_unvalidated_marker; then
       marker_published=0
       marker_validation_pending=0
       publication_commit_uncertain=0
@@ -1001,7 +1012,7 @@ start_event_monitor() {
   local event_monitor_expected_parent_pid
   event_monitor_output="$stage/docker-events.log"
   event_monitor_error="$stage/docker-events.stderr"
-  event_monitor_control="$stage/.docker-events.control"
+  event_monitor_control="$ephemeral_dir/.docker-events.control"
   event_monitor_token="${timestamp}.$$.${pre_commit:0:12}"
   event_monitor_boundary=0
   event_checkpoint_sequence=0
@@ -1017,7 +1028,7 @@ start_event_monitor() {
   monitor_seconds=$((remaining - DEADLINE_KILL_GRACE_SECONDS \
     - DEADLINE_GROUP_PROOF_SECONDS - DEADLINE_RESUME_RESERVE_SECONDS))
   # This controller deliberately performs three read-only PostgreSQL execs
-  # (version, migration SELECT, and pg_dump). Docker exec events do not carry
+  # (version, migration SELECT, and logical dump). Docker exec events do not carry
   # authenticated caller identity, so they cannot distinguish those commands
   # from a Docker-socket administrator without a spoofable heuristic. The
   # reviewed boundary therefore requires root/Docker-socket exclusivity during
@@ -1633,7 +1644,7 @@ migration_summary="$(run_deadline bash -c "$migration_summary_command" \
   migration-summary "$migration_rows" "$migration_parser_script" \
   docker compose --env-file "$COMPOSE_ENV_FILE" \
     -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
-    'exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --field-separator="|" --set=ON_ERROR_STOP=1 --command="SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id"')" \
+    'exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --field-separator="|" --set=ON_ERROR_STOP=1 --command="SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id"')" \
   || die "migration state query or validation failed"
 IFS='|' read -r migration_count migration_last_id migration_last_created_at \
   migration_state_sha256 migration_extra <<<"$migration_summary"
@@ -1652,7 +1663,7 @@ deadline_log "backup phase=dumping" || die
 run_deadline bash -c "$redirect_command" _ "$stage/database.dump" \
   docker compose --env-file "$COMPOSE_ENV_FILE" \
     -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
-    'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl'
+    'exec pg_dump --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl'
 [[ -s "$stage/database.dump" ]] || die "PostgreSQL dump is empty"
 assert_postgres_continuity \
   || die "PostgreSQL identity or health changed after logical dump"
@@ -1757,7 +1768,8 @@ phase=encrypted
 deadline_log "backup phase=encrypted" || die
 
 verify_result="$(run_deadline bash "$SCRIPT_DIR/verify-archive.sh" \
-  "$tmp_archive" "$identity" "$verify_dir")" \
+  "$tmp_archive" "$identity" "$verify_dir" \
+  --internal-staging-candidate)" \
   || die "candidate decrypt verification failed"
 [[ "$verify_result" == archive_valid=true ]] \
   || die "candidate verifier returned an invalid acknowledgement"

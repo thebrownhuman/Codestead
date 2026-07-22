@@ -234,6 +234,103 @@ grep -Fq 'STOPPED 143' "$helper" \
 grep -Fq 'GROUP_SCAN_SECONDS' "$helper" \
   && grep -Fq 'next_group_scan' "$helper" \
   || fail "managed-deadline process-group proof has no bounded scan cadence"
+"$python_command" - "$helper" <<'PY' \
+  || fail "managed-deadline process-group race classification regressed"
+import importlib.util
+import pathlib
+import sys
+import tempfile
+
+helper_path = pathlib.Path(sys.argv[1])
+
+
+def load_helper(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise SystemExit("cannot load managed-deadline helper")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def install_proc_fixture(module, first_error):
+    real_path = module.Path
+
+    class Entry:
+        def __init__(self, name):
+            self.name = name
+
+    class ProcRoot:
+        def iterdir(self):
+            return [Entry("101"), Entry("102"), Entry("self")]
+
+    def fake_path(value):
+        return ProcRoot() if value == "/proc" else real_path(value)
+
+    def fake_identity(pid):
+        if pid == 101:
+            raise first_error
+        return module.ProcessIdentity(
+            pid=pid, state="S", parent_pid=1, pgid=77, start_time=1234
+        )
+
+    module.Path = fake_path
+    module.proc_identity = fake_identity
+
+
+helper = load_helper(helper_path, "managed_deadline_group_members_base")
+install_proc_fixture(helper, ProcessLookupError("vanished"))
+members = helper.group_members(77, 999)
+if [identity.pid for identity in members] != [102]:
+    raise SystemExit("ProcessLookupError was not treated as a vanished /proc entry")
+
+helper = load_helper(helper_path, "managed_deadline_group_members_permission")
+install_proc_fixture(helper, PermissionError("denied"))
+try:
+    helper.group_members(77, 999)
+except helper.ContainmentError as error:
+    if not isinstance(error.__cause__, PermissionError):
+        raise SystemExit("PermissionError lost its fail-closed cause")
+else:
+    raise SystemExit("PermissionError was incorrectly treated as process disappearance")
+
+source = helper_path.read_text(encoding="utf-8")
+needle = "        except (FileNotFoundError, ProcessLookupError):\n"
+replacement = "        except FileNotFoundError:\n"
+if source.count(needle) != 1:
+    raise SystemExit("ProcessLookupError mutation anchor is missing or ambiguous")
+with tempfile.TemporaryDirectory() as work:
+    mutant_path = pathlib.Path(work) / "run-managed-deadline-mutant.py"
+    mutant_path.write_text(source.replace(needle, replacement), encoding="utf-8")
+    mutant = load_helper(mutant_path, "managed_deadline_group_members_mutant")
+    install_proc_fixture(mutant, ProcessLookupError("vanished"))
+    try:
+        mutant.group_members(77, 999)
+    except mutant.ContainmentError as error:
+        if not isinstance(error.__cause__, ProcessLookupError):
+            raise SystemExit("mutant failed for the wrong reason")
+    else:
+        raise SystemExit("ProcessLookupError catch-removal mutation survived")
+PY
+node - "$publication_test" <<'JS' \
+  || fail "real-helper configured runtime cleanup registration regressed"
+const fs = require("node:fs");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const required = [
+  "    printf '%s\\n' \"$work/runtime\"",
+  'assert_case_protected_roots_empty "$label failure" "$case_root"',
+  'assert_case_protected_roots_empty "real controller success" "$quiesce_success_case"',
+  'assert_case_protected_roots_empty "marker writer deadline failure" "$marker_group_case"',
+  'assert_case_protected_roots_empty "migration parser deadline failure" "$migration_deadline_case"',
+  'assert_case_protected_roots_empty "migration producer deadline failure" "$migration_producer_case"',
+];
+for (const fragment of required) {
+  if (source.split(fragment).length !== 2) {
+    throw new Error(`configured runtime cleanup fragment is missing or ambiguous: ${fragment}`);
+  }
+}
+JS
 node - "$helper" <<'JS' \
   || fail "managed-deadline signal block/parent check does not guard publication and GO"
 const fs = require('node:fs');

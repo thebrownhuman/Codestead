@@ -18,6 +18,11 @@ import {
 const DEFAULT_BATCH_SIZE = 1_000;
 const MAX_BATCH_SIZE = 5_000;
 
+type RetentionDependencies = Readonly<{
+  processFileErasures: typeof processFileErasures;
+}>;
+const defaultRetentionDependencies: RetentionDependencies = { processFileErasures };
+
 type CountRow = { count: string | number };
 type IdRow = { id: string };
 
@@ -274,7 +279,7 @@ export async function runRetention(input: {
   batchSize?: number;
   now?: Date;
   objectStorageRoot?: string;
-}): Promise<RetentionReport> {
+}, dependencies: RetentionDependencies = defaultRetentionDependencies): Promise<RetentionReport> {
   const now = input.now ?? new Date();
   if (!Number.isFinite(now.getTime())) throw new Error("A valid job timestamp is required.");
   const limit = batchSize(input.batchSize);
@@ -296,7 +301,7 @@ export async function runRetention(input: {
     if (claimed.replay) return claimed.replay;
     if (claimed.resume) {
       const objectRoot = input.objectStorageRoot ?? process.env.OBJECT_STORAGE_PATH ?? "./data/objects";
-      const fileSummary = await processFileErasures({
+      const fileSummary = await dependencies.processFileErasures({
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });
@@ -651,7 +656,7 @@ export async function runRetention(input: {
       }
       // No unlink occurs until both the metadata deletion and its queue are
       // durable. If this process dies, claimRun resumes this checkpoint.
-      const fileSummary = await processFileErasures({
+      const fileSummary = await dependencies.processFileErasures({
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });

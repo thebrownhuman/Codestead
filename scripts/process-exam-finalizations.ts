@@ -2,6 +2,9 @@ import { hostname } from "node:os";
 
 import { processExamFinalizationBatch } from "../src/app/api/exams/_lib/finalization-worker";
 import { pool } from "../src/lib/db/client";
+import { createWorkerHealthReporter } from "./lib/worker-health";
+
+let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
 
 async function main() {
   const pollSeconds = Number.parseInt(process.env.EXAM_FINALIZATION_POLL_SECONDS ?? "5", 10);
@@ -14,9 +17,11 @@ async function main() {
   }
   const workerId = `exam-finalizer-${hostname().replace(/[^A-Za-z0-9._:-]/g, "-").slice(0, 60)}`;
   const once = process.argv.includes("--once");
+  healthReporter = createWorkerHealthReporter({ worker: "exam-finalization-worker" });
   do {
     const report = await processExamFinalizationBatch({ workerId, limit: batchSize });
     console.info(JSON.stringify({ event: "exam_finalization.batch", ...report }));
+    healthReporter.success();
     if (once) break;
     await new Promise((resolve) => setTimeout(resolve, report.processed ? 500 : pollSeconds * 1_000));
   } while (true);
@@ -24,6 +29,8 @@ async function main() {
 
 main()
   .catch((error) => {
+    healthReporter?.retry(error);
+    healthReporter?.terminalFailure(error);
     console.error(JSON.stringify({
       event: "exam_finalization.worker_failed",
       code: error instanceof Error ? error.name : "UNKNOWN",

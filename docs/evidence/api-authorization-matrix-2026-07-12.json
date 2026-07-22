@@ -35,7 +35,7 @@
       "file": "src/app/api/exams/_lib/service.ts",
       "purpose": "exam sessions and answers",
       "anchors": 4,
-      "sourceSha256": "48949237a92277536e61488dc6bca1bede40c6214bebd45169433cd6f3c7cd62"
+      "sourceSha256": "e11f966b69b96a65e62e5ab80eb9913986bbcd776b36e2171acd8caa5edc04a2"
     },
     {
       "file": "src/lib/learning-service/drizzle-store.ts",
@@ -54,6 +54,12 @@
       "purpose": "project-review appeals",
       "anchors": 1,
       "sourceSha256": "9811f585e0c3c2abc084992311fc18ddc03fe967149a536f502156b004380bc7"
+    },
+    {
+      "file": "src/lib/storage/file-deletion.ts",
+      "purpose": "owner-bound file tombstone, quota release, and durable erasure enqueue",
+      "anchors": 3,
+      "sourceSha256": "a6ff7e32579a9e54cddda51cbfb35dab59bb15ff2cd1dee97384e51dec80143a"
     },
     {
       "file": "src/lib/projects/revision-service.ts",
@@ -987,7 +993,7 @@
       "admin": "delegated-to-auth-provider",
       "objectAuthorization": "auth-provider",
       "ownershipProof": "Better Auth session and account policy",
-      "operationSourceSha256": "21d8fd6b4b8c7bb7424e9acc8bc02cf0ae8f4c6a6d2c44465bd50a76b926c18e"
+      "operationSourceSha256": "e33b0b19b359b79c78f3818e92047e78c801f55528ce2a96fb7d6d9899b5e676"
     },
     {
       "operation": "POST /api/auth/[...all]",
@@ -1000,7 +1006,7 @@
       "admin": "delegated-to-auth-provider",
       "objectAuthorization": "auth-provider",
       "ownershipProof": "Better Auth session and account policy",
-      "operationSourceSha256": "21d8fd6b4b8c7bb7424e9acc8bc02cf0ae8f4c6a6d2c44465bd50a76b926c18e"
+      "operationSourceSha256": "0e99208f0097145711144035e677eee3b1659b5b93c4d04168d2a2a63e1d00b9"
     },
     {
       "operation": "GET /api/battles/[battleId]",
@@ -1117,7 +1123,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "6541f09ef1f19d99caf382b81b2023c9fbb2a7c46fdb4ebe326aa781ca5d166a"
+      "operationSourceSha256": "7c22753650483b215bb01bb43bfbbd5723987179ffeec87cce562870ea1c3ded"
     },
     {
       "operation": "GET /api/community/discussions",
@@ -1312,7 +1318,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "b5187f802b032089e459ef1df97476908046aa8c292cb07d2d7bd786c1b6c0b3"
+      "operationSourceSha256": "ef9ce2105a9e706c9bfda5081e20c2753d2078b5c3746b8794bbd3cf2983590e"
     },
     {
       "operation": "POST /api/exams/[sessionId]/events",
@@ -1428,8 +1434,8 @@
       "learner": "allowed",
       "admin": "allowed",
       "objectAuthorization": "session-user",
-      "ownershipProof": "identifier bound by eq(storedObject.ownerUserId, authz.session.user.id)",
-      "operationSourceSha256": "5558403013f125a1ed27e948bfee581f1919b9792fa1e57169cc5aa90da3d539"
+      "ownershipProof": "identifier bound by ownerUserId: authz.session.user.id",
+      "operationSourceSha256": "80a5893337ce80deade2ffe7b2e2464dcba247851cce5393825ee226dcf149a7"
     },
     {
       "operation": "GET /api/files/[id]",
@@ -1442,7 +1448,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(storedObject.ownerUserId, authz.session.user.id)",
-      "operationSourceSha256": "46cef8e414f9ae2f8cee3187a00ad7404eb82f6fc056400d071cd544cce4d3fe"
+      "operationSourceSha256": "3ff1452958438200c76b8611bbe68e15de737ce3cff8a1cbb89f1974ac74976f"
     },
     {
       "operation": "GET /api/files",
@@ -1455,7 +1461,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "da17900fb2eb072a2c1f8f22adbbbe2e4227e88a2134550a83463f5fb7a8e751"
+      "operationSourceSha256": "4ce837d13d0f04ee4361bfcffd61f3f290e59fff67f4ed4d2c9ad4f5061ab302"
     },
     {
       "operation": "POST /api/files",
@@ -1468,7 +1474,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "34eae436076b5cb49180d260d67b0047fbe2ca011a29911e46bd83bd46d29ea0"
+      "operationSourceSha256": "0e13b4ed8f00bd71933e85fa54d7efca30bc5ad9950262ede92e7cf0327a247d"
     },
     {
       "operation": "POST /api/games/check",
@@ -1494,7 +1500,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "1e8aa5d083a222560adf30c6368164ede231ab407fa742ebc90faafe97ee2f21"
+      "operationSourceSha256": "8a8ffc1a41a0c665f19533593d2ec0b0a02bfae776fdff5dd7737e53258500fd"
     },
     {
       "operation": "GET /api/invitations/validate",
@@ -2121,7 +2127,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-07-14T11:17:50.837Z",
+  "generatedAt": "2026-07-20T19:47:28.683Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",

@@ -1,0 +1,8 @@
+destroy table inet codestead_runner
+add table inet codestead_runner
+add chain inet codestead_runner forward { type filter hook forward priority filter + 10; policy accept; }
+add rule inet codestead_runner forward iifname "cdst-run0" ip saddr 172.29.40.2 ip daddr 192.168.122.12 tcp dport 4100 accept
+add rule inet codestead_runner forward iifname "cdst-run0" drop
+add rule inet codestead_runner forward ip daddr 192.168.122.12 tcp dport 4100 drop
+add rule inet codestead_runner forward oifname "virbr0" meta l4proto tcp tcp dport 4100 drop
+add rule inet codestead_runner forward ct state established,related accept

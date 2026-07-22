@@ -1,9 +1,9 @@
 [Unit]
 Description=LearnCoding trusted application stack
-Documentation=/opt/learncoding/docs/deployment.md
-After=docker.service network-online.target local-fs.target
-Requires=docker.service
-Wants=network-online.target
+Documentation=file:/opt/learncoding/docs/deployment.md
+After=docker.service network-online.target local-fs.target libvirtd.service learncoding-runner-firewall.service
+Requires=docker.service learncoding-runner-firewall.service
+Wants=network-online.target libvirtd.service
 RequiresMountsFor=/opt/learncoding /etc/learncoding /srv/learncoding
 OnFailure=learncoding-alert@%n.service
 StartLimitIntervalSec=15min
@@ -14,15 +14,13 @@ Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/learncoding
 EnvironmentFile=/etc/learncoding/compose.env
-ExecStartPre=/usr/bin/bash /opt/learncoding/infra/ops/validate-runtime.sh
-ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans
-ExecStartPost=/usr/bin/bash /opt/learncoding/infra/ops/smoke-production.sh --startup-wait 600
-ExecReload=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans
-ExecStop=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans
+ExecStart=/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/start-production-stack.sh --startup-wait 600
+ExecReload=/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/start-production-stack.sh --startup-wait 600
+ExecStop=/usr/bin/env -i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/sbin:/usr/bin:/sbin:/bin DOCKER_CONFIG=/nonexistent DOCKER_HOST=unix:///var/run/docker.sock COMPOSE_PROJECT_NAME=learncoding COMPOSE_PROFILES= /usr/bin/docker compose --project-name learncoding --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans
 Restart=on-failure
-RestartSec=30s
+RestartSec=15s
 TimeoutStartSec=15min
-TimeoutStopSec=2min
+TimeoutStopSec=5min
 
 [Install]
 WantedBy=multi-user.target

@@ -250,6 +250,7 @@ export class RunnerService {
     readonly queueDepth: number;
     readonly activeJobs: number;
     readonly concurrency: number;
+    readonly generatedAtEpoch: number;
   } {
     this.assertAvailable();
     return {
@@ -257,6 +258,7 @@ export class RunnerService {
       queueDepth: this.queueDepth,
       activeJobs: this.activeJobs,
       concurrency: this.#config.concurrency,
+      generatedAtEpoch: Math.floor(this.#clock() / 1_000),
     };
   }
 

@@ -1,0 +1,37 @@
+[Unit]
+Description=Codestead host-to-runner firewall
+Documentation=file:/opt/learncoding/docs/runbooks/runner-isolation.md
+After=network-online.target libvirtd.service
+Before=learncoding-compose.service
+Wants=network-online.target libvirtd.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStartPre=/usr/sbin/nft --check --file /opt/learncoding/infra/runner-vm/host-runner.nft
+ExecStart=/usr/sbin/nft --file /opt/learncoding/infra/runner-vm/host-runner.nft
+ExecReload=/usr/sbin/nft --file /opt/learncoding/infra/runner-vm/host-runner.nft
+RemainAfterExit=yes
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_NETLINK AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

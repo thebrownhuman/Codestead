@@ -155,6 +155,42 @@ describe("practice runner crash recovery", () => {
     }));
   });
 
+  it("excludes held power-rehearsal jobs from both candidate selection and the locked reload", async () => {
+    let candidateSql = "";
+    let lockedSql = "";
+    mocks.poolQuery.mockImplementation(async (statement: string) => {
+      if (statement.includes("with stale as")) return { rows: [], rowCount: 0 };
+      if (statement.includes("select j.id")) {
+        candidateSql = statement;
+        return { rows: [{ id: admission.runnerJobId }], rowCount: 1 };
+      }
+      throw new Error(`Unexpected pool SQL: ${statement}`);
+    });
+    mocks.guardQuery.mockImplementation(async (statement: string) => {
+      if (statement.includes("pg_try_advisory_lock")) return { rows: [{ acquired: true }] };
+      if (statement.includes("pg_advisory_unlock")) return { rows: [{}] };
+      if (statement.includes("from runner_job j")) {
+        lockedSql = statement;
+        return { rows: [row] };
+      }
+      if (statement.includes("update runner_job")) return { rows: [], rowCount: 1 };
+      throw new Error(`Unexpected SQL: ${statement}`);
+    });
+
+    await expect(processPracticeRunnerRecoveryBatch({ runner: runner() })).resolves.toMatchObject({
+      processed: 1,
+      reconciled: 1,
+    });
+
+    for (const statement of [candidateSql, lockedSql]) {
+      expect(statement).toContain("not exists");
+      expect(statement).toContain("runner_power_rehearsal_event");
+      expect(statement).toContain("slot_one_runner_job_id = j.id");
+      expect(statement).toContain("slot_two_runner_job_id = j.id");
+      expect(statement).toContain("state in ('armed','filled')");
+    }
+  });
+
   it("never fallback-settles after dispatch-record persistence becomes ambiguous", async () => {
     const queued = {
       jobId: "remote-practice-job",

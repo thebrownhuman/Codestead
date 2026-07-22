@@ -1,0 +1,10 @@
+destroy table inet codestead_runner_guest
+add table inet codestead_runner_guest
+add chain inet codestead_runner_guest input { type filter hook input priority filter; policy drop; }
+add chain inet codestead_runner_guest output { type filter hook output priority filter; policy accept; }
+add rule inet codestead_runner_guest input ct state invalid drop
+add rule inet codestead_runner_guest input iifname "lo" accept
+add rule inet codestead_runner_guest input ct state established,related accept
+add rule inet codestead_runner_guest input ip saddr 192.168.122.1 tcp dport 22 accept
+add rule inet codestead_runner_guest input ip saddr 192.168.122.1 tcp dport 4100 accept
+add rule inet codestead_runner_guest input ip saddr 172.29.40.2 tcp dport 4100 accept

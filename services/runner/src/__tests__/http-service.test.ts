@@ -125,16 +125,60 @@ function headers(
 }
 
 describe("HTTP runner service", () => {
-  it("serves minimal unauthenticated health", async () => {
-    const { baseUrl } = await setup();
-    const response = await fetch(`${baseUrl}/healthz`);
+  it("serves an exact minimal unauthenticated health envelope", async () => {
+    const { baseUrl, service } = await setup();
+    const response = await fetch(`${baseUrl}/healthz`, {
+      headers: { "x-request-id": "health-request-0001" },
+    });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    const body = await response.text();
+    expect(body).toBe(
+      `{"status":"ok","queueDepth":0,"activeJobs":0,"concurrency":2,"generatedAtEpoch":${Math.floor(nowMs / 1_000)}}`,
+    );
+    expect(JSON.parse(body)).toEqual({
       status: "ok",
       queueDepth: 0,
       activeJobs: 0,
       concurrency: 2,
+      generatedAtEpoch: Math.floor(nowMs / 1_000),
     });
+    expect(body).not.toContain(secret);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(service.metrics.authFailures).toBe(0);
+  });
+
+  it("signs health deterministically over request ID, status, and body", async () => {
+    const { baseUrl } = await setup();
+    const requestId = "health-request-0002";
+
+    const first = await fetch(`${baseUrl}/healthz`, {
+      headers: { "x-request-id": requestId },
+    });
+    const firstBody = await first.text();
+    const firstSignature = first.headers.get("x-runner-response-signature");
+    const second = await fetch(`${baseUrl}/healthz`, {
+      headers: { "x-request-id": requestId },
+    });
+    const secondBody = await second.text();
+    const secondSignature = second.headers.get("x-runner-response-signature");
+
+    expect(first.status).toBe(200);
+    expect(first.headers.get("x-request-id")).toBe(requestId);
+    expect(firstBody).toBe(secondBody);
+    expect(firstSignature).toBe(secondSignature);
+    expect(firstSignature).toBe(
+      signResponse(secret, requestId, 200, firstBody),
+    );
+    expect(firstSignature).not.toBe(
+      signResponse(secret, "health-request-mutated", 200, firstBody),
+    );
+    expect(firstSignature).not.toBe(
+      signResponse(secret, requestId, 503, firstBody),
+    );
+    expect(firstSignature).not.toBe(
+      signResponse(secret, requestId, 200, `${firstBody} `),
+    );
   });
 
   it("rejects unsigned job submission", async () => {

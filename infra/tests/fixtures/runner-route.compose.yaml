@@ -1,0 +1,90 @@
+name: ${ROUTE_TEST_PROJECT:?Set ROUTE_TEST_PROJECT}
+
+x-route-test-service: &route-test-service
+  image: busybox@sha256:222ad6d973c0d198014546a65cd02c5fdedcc172123c5b4c2bf0af636550bd94
+  command: ["/bin/sh", "-ceu", "trap 'exit 0' TERM INT; while :; do sleep 3600 & wait $!; done"]
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=1m
+
+services:
+  app:
+    <<: *route-test-service
+    networks:
+      frontend:
+        interface_name: frontend
+        gw_priority: 100
+      data:
+        interface_name: data
+      runner-client:
+        interface_name: runner-client
+
+  runner-egress-gateway:
+    <<: *route-test-service
+    networks:
+      runner-client:
+        interface_name: runner-client
+        ipv4_address: 172.29.41.2
+      runner-egress:
+        interface_name: runner-egress
+        ipv4_address: 172.29.40.2
+        gw_priority: 100
+
+  legacy-direct-app:
+    <<: *route-test-service
+    networks:
+      frontend:
+        interface_name: frontend
+        gw_priority: 100
+      data:
+        interface_name: data
+      runner-egress:
+        interface_name: runner-egress
+
+  wrong-priority-gateway:
+    <<: *route-test-service
+    networks:
+      frontend:
+        interface_name: frontend
+        gw_priority: 200
+      runner-client:
+        interface_name: runner-client
+        ipv4_address: 172.29.41.3
+      runner-egress:
+        interface_name: runner-egress
+        ipv4_address: 172.29.40.3
+        gw_priority: 100
+
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.42.0/24
+  data:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.43.0/24
+  runner-client:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.41.0/24
+          gateway: 172.29.41.1
+          ip_range: 172.29.41.128/25
+  runner-egress:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: ${ROUTE_TEST_BRIDGE:?Set ROUTE_TEST_BRIDGE}
+    ipam:
+      config:
+        - subnet: 172.29.40.0/24
+          gateway: 172.29.40.1
+          ip_range: 172.29.40.128/25

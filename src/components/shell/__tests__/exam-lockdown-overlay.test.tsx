@@ -80,6 +80,25 @@ describe("active exam lockdown overlay", () => {
     });
   });
 
+  it("does not poll or redirect when authenticated session monitoring is disabled", async () => {
+    const fetchMock = vi.fn();
+    const navigate = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <>
+        <aside id="app-sidebar">Navigation</aside>
+        <div id="app-content-column">Demo lesson</div>
+        <ExamLockdownOverlay enabled={false} navigate={navigate} />
+      </>,
+    );
+    await act(async () => { await Promise.resolve(); });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByText("Demo lesson")).not.toHaveAttribute("inert");
+  });
+
   it("blocks non-exam app UI and focuses the only resume action", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response("exam-1")));
     render(<><aside id="app-sidebar">Navigation</aside><div id="app-content-column">Lesson content</div><ExamLockdownOverlay /></>);

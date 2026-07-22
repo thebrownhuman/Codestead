@@ -21,5 +21,13 @@ export default async function LearnerLayout({ children }: { children: React.Reac
     );
     return <AppShell admin={authz.account.role === "admin"} browserDurabilityNamespace={browserDurabilityNamespace} viewer={{ name: authz.session.user.name, role: authz.account.role === "admin" ? "Administrator" : "Learner", image: authz.session.user.image }}>{children}</AppShell>;
   }
-  return <AppShell admin viewer={{ name: "Aarav Rao", role: "Demo learner" }}>{children}</AppShell>;
+  // A non-null namespace activates authenticated draft/device synchronization.
+  // Demo mode has no server session, so keep it local-only instead of turning
+  // an expected draft 401 into a delayed redirect to the sign-in page.
+  return <AppShell
+    admin
+    authenticatedSessionMonitoring={false}
+    browserDurabilityNamespace={null}
+    viewer={{ name: "Aarav Rao", role: "Demo learner" }}
+  >{children}</AppShell>;
 }

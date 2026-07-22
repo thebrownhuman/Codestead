@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -24,6 +24,12 @@ import {
   type BrowserVerificationCase,
   type WebCourseId,
 } from "./content-seeds/web-executable-tranche";
+import {
+  projectRuntimeIdentityEvidence,
+  validateLocalRuntimeIdentity,
+  type LocalRuntimeIdentityEvidence,
+} from "./lib/local-runtime-identity";
+import { verifyOrApplyDeterministicEvidence } from "./lib/deterministic-evidence";
 
 interface RuntimeImageRecord {
   readonly language: string;
@@ -135,14 +141,6 @@ function dockerAvailable(): boolean {
   return spawnSync("docker", ["info"], { stdio: "ignore", windowsHide: true }).status === 0;
 }
 
-function dockerImageId(tag: string): string | null {
-  const result = spawnSync(
-    "docker",
-    ["image", "inspect", tag, "--format", "{{.Id}}"],
-    { encoding: "utf8", windowsHide: true },
-  );
-  return result.status === 0 ? result.stdout.trim() : null;
-}
 
 function compareOutput(item: CodeAssessmentItem, testIndex: number, actual: string): boolean {
   const test = item.tests[testIndex]!;
@@ -244,7 +242,7 @@ function assertSourcePolicy(item: CodeAssessmentItem): void {
   }
 }
 
-async function executeNode(item: CodeAssessmentItem, stdin: string): Promise<ExecutionResult> {
+async function executeNode(item: CodeAssessmentItem, stdin: string, imageReference: string): Promise<ExecutionResult> {
   if (item.runtime.engine !== "isolated-runner" || item.runtime.language !== "javascript") {
     throw new Error(`${item.id} is not a JavaScript isolated-runner item.`);
   }
@@ -269,7 +267,7 @@ async function executeNode(item: CodeAssessmentItem, stdin: string): Promise<Exe
     "--tmpfs", "/work:rw,exec,nosuid,nodev,size=16777216,uid=65532,gid=65532,mode=0700",
     "--user", "65532:65532", "--env", "HOME=/tmp", "--workdir", "/work",
     "--mount", `type=bind,src=${directory},dst=/input,readonly`,
-    nodeTag, "/opt/runner/execute", "--mode", "run", "--language", "javascript",
+    imageReference, "/opt/runner/execute", "--mode", "run", "--language", "javascript",
     "--source-root", "/input", "--entrypoint", `/input/${item.runtime.entrypoint}`,
   ];
   return await new Promise((resolve, reject) => {
@@ -510,7 +508,7 @@ async function main(): Promise<void> {
     repository.getAuthoredContentSet(),
     structureOnly
       ? Promise.resolve<RuntimeImages | null>(null)
-      : readFile(path.join(root, "services", "runner", "dist", "runtime-images.json"), "utf8").then((value) => JSON.parse(value) as RuntimeImages),
+      : readFile(path.join(root, "scripts", "curriculum-runtime-pins.json"), "utf8").then((value) => JSON.parse(value) as RuntimeImages),
     structureOnly
       ? Promise.resolve<RuntimeInspection | null>(null)
       : readFile(path.join(root, "services", "runner", "dist", "runtime-inspection.json"), "utf8").then((value) => JSON.parse(value) as RuntimeInspection),
@@ -626,11 +624,37 @@ async function main(): Promise<void> {
   const packageLockHash = await fileDigest(path.join(root, "package-lock.json"));
   const browserExecutableHash = structureOnly ? null : await fileDigest(executablePath);
   const dockerReady = structureOnly ? false : dockerAvailable();
-  const actualNodeImageId = dockerReady ? dockerImageId(nodeTag) : null;
-  const nodeImageMatches = structureOnly ? null : actualNodeImageId === javascriptDigest;
+  let nodeIdentity: LocalRuntimeIdentityEvidence | null = null;
+  let nodeIdentityEvidence: object = {
+    tag: nodeTag,
+    manifestDigest: javascriptDigest,
+    configDigest: null,
+    immutableReference: null,
+    tagDescriptorDigest: null,
+    tagImageId: null,
+    exactReferenceDescriptorDigest: null,
+    exactReferenceImageId: null,
+    independentlyValidated: false,
+  };
   const nodeVersionMatches = structureOnly ? null : javascriptInspection?.version === expectedNodeVersion;
-  if (!structureOnly && (!dockerReady || !nodeImageMatches || !nodeVersionMatches)) {
-    throw new Error(`Pinned Node runtime unavailable or mismatched: docker=${dockerReady}, image=${actualNodeImageId}, expected=${javascriptDigest}, version=${javascriptInspection?.version ?? "missing"}.`);
+  if (!structureOnly) {
+    if (!dockerReady) throw new Error("Docker is unavailable for the pinned Node runtime.");
+    const runtimeManifest = JSON.parse(await readFile(
+      path.join(root, "services", "runner", "dist", "runtime-local-build-identities.json"),
+      "utf8",
+    )) as unknown;
+    nodeIdentity = validateLocalRuntimeIdentity({
+      manifest: runtimeManifest,
+      expectations: [{
+        language: "javascript",
+        tag: nodeTag,
+        declaredContentDigest: javascriptDigest,
+      }],
+    }).javascript ?? null;
+    if (!nodeIdentity || !nodeVersionMatches) {
+      throw new Error(`Pinned Node runtime unavailable or mismatched: docker=${dockerReady}, expected=${javascriptDigest}, version=${javascriptInspection?.version ?? "missing"}.`);
+    }
+    nodeIdentityEvidence = projectRuntimeIdentityEvidence(nodeIdentity);
   }
 
   let browser: Browser | undefined;
@@ -648,7 +672,8 @@ async function main(): Promise<void> {
     await runJobs(nodeJobs, 2, async ({ item, test, testIndex }) => {
       const started = Date.now();
       try {
-        const execution = await executeNode(item, test.stdin);
+        if (!nodeIdentity) throw new Error("Validated local runtime identity is missing for javascript.");
+        const execution = await executeNode(item, test.stdin, nodeIdentity.immutableReference);
         if (execution.timedOut) throw new Error("timeout");
         if (execution.code !== 0) throw new Error(`runner exit ${execution.code}; stderr=${execution.stderr.slice(0, 500)}`);
         if (!compareOutput(item, testIndex, execution.stdout)) {
@@ -687,9 +712,9 @@ async function main(): Promise<void> {
   const browserItems = codeItems.filter((item) => item.runtime.engine === "browser-verifier");
   const nodeItems = codeItems.filter((item) => item.runtime.engine === "isolated-runner");
   const totalCases = codeItems.reduce((sum, item) => sum + item.tests.length, 0);
-  const report = {
+  const buildEvidence = (generatedAt: string) => ({
     schemaVersion: "1.0.0",
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     scope: "Launch-1 HTML, accessible/responsive CSS, JavaScript, and intermediate React authoring evidence",
     status: structureOnly ? "structure-only" : failures.length === 0 && results.length === totalCases ? "verified" : "failed-or-partial",
     counts: {
@@ -717,10 +742,8 @@ async function main(): Promise<void> {
     environment: {
       packageLockHash,
       node: {
-        tag: nodeTag,
+        ...nodeIdentityEvidence,
         expectedImageDigest: javascriptDigest,
-        actualImageId: actualNodeImageId,
-        imageMatches: nodeImageMatches,
         expectedVersion: expectedNodeVersion,
         inspectedVersion: javascriptInspection?.version ?? null,
         versionMatches: nodeVersionMatches,
@@ -772,11 +795,21 @@ async function main(): Promise<void> {
       "Composite fixtures prove bounded declared facets of reference solutions; they do not independently prove learner explanation quality, maintainability, complete mastery, or every browser/platform boundary.",
       "The local Chromium executable hash is recorded as evidence but differs across operating systems; the cross-platform semantic pin is Playwright version, browser revision, and reported browser version.",
     ],
-  };
-  const reportPath = path.join(root, "docs", "evidence", structureOnly
+  });
+  const reportName = structureOnly
     ? "web-executable-structure-2026-07-12.json"
-    : "web-executable-runtime-2026-07-12.json");
-  await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+    : "web-executable-runtime-2026-07-12.json";
+  await verifyOrApplyDeterministicEvidence({
+    argv: process.argv.slice(2),
+    root,
+    trustedDirectory: "exclusive-writer",
+    relativePath: path.join("docs", "evidence", reportName),
+    buildEvidence,
+    applyCommand: structureOnly
+      ? "npm run web:executable:structure:apply"
+      : "npm run web:executable:evidence:apply",
+    allowArgument: (argument) => argument === "--structure-only",
+  });
   console.log(
     `Web executable verification: ${declared.length} skills, ${browserItems.length} browser, ` +
       `${nodeItems.length} Node, ${Object.keys(WEB_NON_CODE_FACETS).length} non-code, ` +

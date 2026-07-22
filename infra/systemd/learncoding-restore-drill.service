@@ -1,8 +1,10 @@
 [Unit]
 Description=LearnCoding supervised isolated restore drill
 Documentation=/opt/learncoding/docs/runbooks/backup-and-restore.md
-After=learncoding-compose.service
-Requires=learncoding-compose.service
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+RequiresMountsFor=/mnt/learncoding-backups
 OnFailure=learncoding-alert@%n.service
 
 # This unit is intentionally manual: attach the offline age identity, set

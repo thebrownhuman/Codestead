@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Codestead restore drill freshness daily
+
+[Timer]
+OnCalendar=*-*-* 06:15:00 UTC
+RandomizedDelaySec=20m
+Persistent=true
+AccuracySec=1m
+Unit=learncoding-restore-drill-reminder.service
+
+[Install]
+WantedBy=timers.target

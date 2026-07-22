@@ -1,0 +1,12 @@
+[Unit]
+Description=Publish the verified Codestead recovery point offsite daily
+
+[Timer]
+OnCalendar=*-*-* 04:15:00 UTC
+RandomizedDelaySec=20m
+Persistent=true
+AccuracySec=1m
+Unit=learncoding-offsite-sync.service
+
+[Install]
+WantedBy=timers.target

@@ -4,7 +4,7 @@
 
 **Goal:** Provision the isolated two-slot KVM runner, make the trusted Codestead stack and runner recover automatically after reboot or sudden AC loss, preserve every acknowledged durable record, and produce auditable same-NUC deployment evidence without changing existing NUC services.
 
-**Architecture:** A dedicated libvirt NAT network (`10.20.0.0/24`) connects only the trusted host and a fixed-address Ubuntu runner guest at `10.20.0.12`; learner jobs remain network-disabled containers inside that guest. The trusted Compose project uses immutable prebuilt images, explicit PostgreSQL durability settings, persistent bind mounts, bounded shutdown budgets, and restart policies. Systemd orders mount validation, libvirt/firewall, Docker, Compose startup, and a bounded recovery monitor; BIOS AC-restore plus libvirt/domain autostart completes the power-return chain. Repository automation gathers privacy-safe evidence, while the one physical AC-cut action remains administrator-supervised.
+**Architecture:** The libvirt `default` network (`192.168.122.0/24`) on bridge `virbr0` carries a reviewed DHCP reservation for the fixed-address Ubuntu runner guest at `192.168.122.12`; learner jobs remain network-disabled containers inside that guest. The trusted Compose project uses immutable prebuilt images, explicit PostgreSQL durability settings, persistent bind mounts, bounded shutdown budgets, and restart policies. Systemd orders mount validation, libvirt/firewall, Docker, Compose startup, and a bounded recovery monitor; BIOS AC-restore plus libvirt/domain autostart completes the power-return chain. Repository automation gathers privacy-safe evidence, while the one physical AC-cut action remains administrator-supervised.
 
 **Tech Stack:** Ubuntu Server 24.04, libvirt/KVM/QEMU, qcow2, cloud-init, nftables, Docker Engine 29, Docker Compose 5, systemd, Bash, Node.js runner, PostgreSQL 17, Cloudflare Tunnel.
 
@@ -30,7 +30,7 @@
 
 ## File Structure
 
-- Create `infra/runner-vm/codestead-runner-network.xml`: dedicated NAT, stable MAC, and DHCP reservation.
+- Create `infra/runner-vm/codestead-runner-network.xml`: canonical libvirt default NAT topology, stable MAC, and additive DHCP reservation.
 - Create cloud-init metadata/user-data templates under `infra/runner-vm/cloud-init/`.
 - Create `infra/runner-vm/provision-host.sh`: checksum-verified, non-destructive VM/network provisioning.
 - Create `infra/runner-vm/install-guest.sh`: pinned runner dependency and service installation inside the guest.
@@ -67,14 +67,14 @@
 Place fake `virsh`, `qemu-img`, `cloud-localds`, `virt-install`, `sha256sum`, `install`, and `systemctl` in a temporary `PATH`. Record arguments and assert:
 
 ```bash
-grep -Fq 'net-define' "$events"
-grep -Fq 'net-autostart codestead-runner' "$events"
+grep -Fq 'net-update' "$events"
+grep -Fq 'net-autostart' "$events"
 grep -Fq 'autostart codestead-runner' "$events"
 grep -Fq 'resize' "$events"
 grep -Fq '100G' "$events"
 grep -Fq -- '--vcpus 4' "$events"
 grep -Fq -- '--memory 8192' "$events"
-grep -Fq -- '--network network=codestead-runner,mac=52:54:00:20:00:12' "$events"
+grep -Fq -- '--network network=default,mac=52:54:00:20:00:12' "$events"
 ! grep -Eq -- '--network (bridge|direct)=|br0|wlo1' "$events"
 ```
 
@@ -110,7 +110,7 @@ git add infra/tests/runner-vm-provision.test.sh infra/tests/systemd-recovery.tes
 git commit -m "test(ops): define runner and power recovery contract"
 ```
 
-### Task 2: Dedicated libvirt NAT and non-destructive runner VM provisioning
+### Task 2: Canonical libvirt default NAT and non-destructive runner VM provisioning
 
 **Files:**
 - Create: `infra/runner-vm/codestead-runner-network.xml`
@@ -120,13 +120,13 @@ git commit -m "test(ops): define runner and power recovery contract"
 - Modify: `infra/tests/runner-vm-provision.test.sh`
 
 **Interfaces:**
-- Produces: libvirt network `codestead-runner`, bridge `virbr-cdst`, NAT `10.20.0.0/24`, host `10.20.0.1`, guest `10.20.0.12`, MAC `52:54:00:20:00:12`.
+- Produces: an additive reservation on the libvirt `default` network, bridge `virbr0`, NAT `192.168.122.0/24`, host `192.168.122.1`, guest `192.168.122.12`, MAC `52:54:00:20:00:12`.
 - Produces: domain `codestead-runner` and `/var/lib/libvirt/images/codestead-runner.qcow2`.
 - Consumes: `RUNNER_BASE_IMAGE_PATH`, `RUNNER_BASE_IMAGE_SHA256`, and `RUNNER_ADMIN_SSH_PUBLIC_KEY_FILE`.
 
-- [ ] **Step 1: Add exact network XML**
+- [ ] **Step 1: Add the exact default-network reservation contract**
 
-Define a forward mode `nat` network, bridge `virbr-cdst`, IP `10.20.0.1/24`, DHCP range `10.20.0.100–10.20.0.200`, and host reservation MAC `52:54:00:20:00:12` to `10.20.0.12`. Do not forward a public port.
+Validate the libvirt `default` NAT network on bridge `virbr0`, host `192.168.122.1/24`, without replacing unrelated existing XML. Converge only the reviewed host reservation MAC `52:54:00:20:00:12` to `192.168.122.12`. Do not forward a public port.
 
 - [ ] **Step 2: Add secret-free cloud-init templates**
 
@@ -138,13 +138,13 @@ Create hostname `codestead-runner`, an administrator user with the supplied publ
 
 ```text
 validate root, /dev/kvm, commands, source regular-file mode, and exact SHA-256
-refuse an existing domain/network with incompatible XML
+refuse an existing domain or incompatible default-network identity/topology
 refuse an existing final disk unless it is already attached to the expected domain
 copy/convert the verified image to a temporary qcow2
 resize the temporary image to 100G
 fsync and atomically rename it into /var/lib/libvirt/images
 create cloud-init seed from protected temporary files
-define/start/autostart the NAT network
+converge the reservation and start/autostart the libvirt default network
 define the domain with 4 vCPU, 8192 MiB, host-passthrough, virtio, cache=none
 autostart/start the domain
 remove the seed staging directory on every exit
@@ -182,8 +182,8 @@ git commit -m "feat(runner): provision isolated KVM guest"
 - Modify: `docs/runbooks/runner-isolation.md`
 
 **Interfaces:**
-- Consumes: reviewed release at `/opt/learncoding`, mode-0440 `/etc/learncoding/runner-shared-secret`, five recorded runtime image digests, and private address `10.20.0.12`.
-- Produces: enabled Docker and `learncoding-runner.service` in the guest, exactly two job slots, durable mode-0600 journal, and host firewall allowing only `cdst-run0`/`172.29.40.0/24` to guest TCP 4100.
+- Consumes: reviewed release at `/opt/learncoding`, mode-0440 `/etc/learncoding/runner-shared-secret`, five recorded runtime image digests, and private address `192.168.122.12`.
+- Produces: enabled Docker and `learncoding-runner.service` in the guest, exactly two job slots, durable mode-0600 journal, and host firewall allowing only gateway source `172.29.40.2` on `cdst-run0` to guest TCP 4100.
 
 - [ ] **Step 1: Extend launcher/unit tests**
 
@@ -195,7 +195,7 @@ The installer validates Ubuntu 24.04, KVM guest address, reviewed release checks
 
 - [ ] **Step 3: Implement narrow host firewall**
 
-Create an nftables table dedicated to Codestead with established/related acceptance, an allow from interface `cdst-run0` and source `172.29.40.0/24` to `10.20.0.12:4100`, then a drop for all other traffic to that destination port. Policy for unrelated traffic remains accept. The systemd unit validates syntax before replacing only the dedicated table and is ordered after network/libvirt and before Codestead Compose.
+Create an nftables table dedicated to Codestead with an allow from interface `cdst-run0` and fixed gateway source `172.29.40.2` to `192.168.122.12:4100`, then reject every other runner-egress flow to that destination before allowing unrelated established traffic. Policy for unrelated traffic remains accept. The systemd unit validates syntax before replacing only the dedicated table and is ordered after network/libvirt and before Codestead Compose.
 
 - [ ] **Step 4: Run runner tests**
 
@@ -232,7 +232,7 @@ git commit -m "feat(runner): install restart-safe isolated service"
 - Modify: `docs/deployment.md`
 
 **Interfaces:**
-- Consumes: private runner URL `http://10.20.0.12:4100`, reviewed immutable image references, persistent `/srv/learncoding` roots.
+- Consumes: private runner URL `http://192.168.122.12:4100`, reviewed immutable image references, persistent `/srv/learncoding` roots.
 - Produces: PostgreSQL crash durability, controlled-stop budgets, deterministic runner egress, Watchtower exclusion, and a Compose model bootable without builds/pulls.
 
 - [ ] **Step 1: Repair and extend semantic Compose tests**
@@ -262,7 +262,7 @@ Expected: tests fail on missing durability/stop/network settings after the inven
 
 - [ ] **Step 3: Implement Compose durability**
 
-Set PostgreSQL command options to `fsync=on`, `synchronous_commit=on`, and `full_page_writes=on`; retain `POSTGRES_INITDB_ARGS=--data-checksums`. Add `stop_grace_period: 2m` to PostgreSQL, `1m` to app and database-mutating workers, and `30s` to cloudflared. Add fixed runner-egress IPAM subnet and bridge name `cdst-run0`. Join only app and runner-consuming workers to it. Preserve all persistent bind mounts and internal data network.
+Set PostgreSQL command options to `fsync=on`, `synchronous_commit=on`, and `full_page_writes=on`; retain `POSTGRES_INITDB_ARGS=--data-checksums`. Add `stop_grace_period: 2m` to PostgreSQL, `1m` to app and database-mutating workers, and `30s` to cloudflared. Add separate fixed `runner-client` and `runner-egress` IPAM networks with bridge name `cdst-run0` for egress. Join the app and runner-consuming workers only to `runner-client`; attach the secretless `runner-egress-gateway` to both networks, and make it the only Compose service that joins `runner-egress`. Preserve all persistent bind mounts and the internal data network.
 
 Place `migrate`, `platform-seed`, and `admin-bootstrap` behind the `operations` profile. Change long-running app/worker dependencies to PostgreSQL health rather than migration completion. The release transaction explicitly runs migration, seed, and bootstrap before first startup; ordinary systemd boot only validates the recorded migration state and starts long-running services, so a power return cannot trigger a schema release.
 
@@ -340,7 +340,7 @@ Keep release migration/seed/bootstrap outside this boot unit.
 
 - [ ] **Step 2: Implement bounded recovery checker**
 
-Poll every 10 seconds until 900 seconds. Require active Docker/libvirt/firewall, active/autostarted runner domain, signed runner health with concurrency two, PostgreSQL healthy plus durability settings, app readiness, expected workers, cloudflared running, public HTTPS correct host/security headers, enabled persistent timers, and every pre-existing container name currently running. Emit one final JSON object of booleans/counts/timing only.
+Poll every 10 seconds until 900 seconds. Require active Docker/libvirt/firewall, active/autostarted runner domain, signed runner health with concurrency two, PostgreSQL healthy plus durability settings, app readiness, expected workers, cloudflared running, public HTTPS correct host/security headers, enabled persistent timers, and every pre-existing container's captured ID, image, configuration, restart policy, health requirement, and strict live state. Emit one final JSON object of booleans/counts/timing only.
 
 - [ ] **Step 3: Add recovery service/timer and installer wiring**
 
@@ -381,7 +381,7 @@ git commit -m "feat(ops): recover Codestead automatically after boot"
 - Modify: `docs/deployment.md`
 
 **Interfaces:**
-- Produces: `capture-recovery-evidence.sh pre PATH` and `capture-recovery-evidence.sh post PATH`, writing mode-0600 JSON/checksum with versions, status booleans/counts, boot ID, uptime, filesystem/SMART summary, VM state, backup ID, and recovery elapsed time.
+- Produces: `capture-recovery-evidence.sh pre PATH` and `capture-recovery-evidence.sh post PATH POWER_RESTORED_UTC PUBLIC_READY_UTC`, writing mode-0600 JSON/checksum with versions, status booleans/counts, boot ID, uptime, filesystem/SMART summary, VM state, backup ID, and recovery elapsed time.
 - Consumes: no learner data, HTTP bodies, runner journal, database row content, or secrets.
 
 - [ ] **Step 1: Implement evidence collector**
@@ -407,7 +407,7 @@ test -n "$backup_uuid"
 printf 'UUID=%s /mnt/learncoding-backups ext4 nofail,x-systemd.automount,x-systemd.device-timeout=10s,nodev,nosuid,noexec 0 2\n' "$backup_uuid"
 ```
 
-3. Enable Docker, libvirt, default/dedicated network, domain autostart, runner guest service, Codestead systemd unit, firewall, timers, and external uptime monitor.
+3. Enable Docker, libvirt, the default network, domain autostart, runner guest service, Codestead systemd unit, firewall, timers, and external uptime monitor.
 4. Capture known markers: server-saved draft, progress, audit, queued mail, two runner jobs, and browser-durable offline lesson/exam entries.
 5. Capture pre evidence and finish a verified offsite restore drill.
 6. Remove AC once without graceful shutdown; restore AC and perform no manual start.
@@ -517,14 +517,15 @@ If there is no corrective diff, do not create an empty commit.
 - [ ] **Step 1: Record and protect the pre-existing NUC baseline**
 
 ```bash
-sudo docker ps --format '{{.Names}}' | sort | sudo tee /etc/learncoding/existing-containers.txt >/dev/null
-sudo chown root:root /etc/learncoding/existing-containers.txt
-sudo chmod 0600 /etc/learncoding/existing-containers.txt
+sudo /usr/bin/python3 -B /opt/learncoding/infra/ops/capture-existing-containers.py
+sudo test -s /etc/learncoding/existing-containers.txt
+sudo stat -c '%U:%G %a %n' /etc/learncoding/existing-containers.txt
+sudo /opt/learncoding/infra/ops/check-recovery.sh
 sudo systemctl is-active docker cloudflared tailscaled
 sudo systemctl --failed --no-legend
 ```
 
-Expected: Docker/cloudflared/Tailscale are active, failed-unit list is empty, and the baseline contains the five existing container names.
+Expected: capture prints only `capturedExistingContainers=5`; the canonical schema-v2 baseline is `root:root` mode `0600`; recovery binds the exact five container instances and their reviewed runtime state; Docker/cloudflared/Tailscale are active; and the failed-unit list is empty.
 
 - [ ] **Step 2: Install libvirt tooling and provision the guest**
 
@@ -536,11 +537,11 @@ sudo RUNNER_BASE_IMAGE_PATH=/var/cache/codestead/ubuntu-24.04-server-cloudimg-am
   RUNNER_BASE_IMAGE_SHA256="$RUNNER_BASE_IMAGE_SHA256" \
   RUNNER_ADMIN_SSH_PUBLIC_KEY_FILE=/etc/learncoding/runner-admin.pub \
   bash /opt/learncoding/infra/runner-vm/provision-host.sh
-sudo virsh net-info codestead-runner
+sudo virsh net-info default
 sudo virsh dominfo codestead-runner
 ```
 
-Expected: network/domain are active and autostarted; domain reports 4 vCPU and 8 GiB; guest lease is `10.20.0.12`. `/etc/learncoding/runner-base-image.sha256` is installed from the reviewed release manifest before execution.
+Expected: the `default` network and `codestead-runner` domain are active and autostarted; the network uses bridge `virbr0`, the domain reports 4 vCPU and 8 GiB, and the guest lease is `192.168.122.12`. `/etc/learncoding/runner-base-image.sha256` is installed from the reviewed release manifest before execution.
 
 - [ ] **Step 3: Install and verify the guest runner**
 
@@ -549,7 +550,7 @@ Transfer the reviewed release archive and runner secret through the documented p
 ```bash
 sudo systemctl is-enabled docker learncoding-runner.service
 sudo systemctl is-active docker learncoding-runner.service
-curl --fail --silent http://10.20.0.12:4100/healthz | jq -e \
+curl --fail --silent http://192.168.122.12:4100/healthz | jq -e \
   '.status == "ok" and .concurrency == 2 and .activeJobs == 0'
 ```
 
@@ -575,16 +576,15 @@ Follow the backup plan handoff and require success before reboot testing.
 
 - [ ] **Step 6: Controlled reboot recovery**
 
-Capture pre evidence, run `sudo reboot`, reconnect without starting services manually, and run:
+Run `sudo reboot`, reconnect without starting services manually, and run:
 
 ```bash
 sudo systemctl --failed --no-legend
 sudo systemctl start learncoding-recovery-check.service
-sudo /opt/learncoding/infra/ops/capture-recovery-evidence.sh post \
-  /var/lib/learncoding/recovery-evidence/reboot-post.json
+sudo /opt/learncoding/infra/ops/check-recovery.sh
 ```
 
-Expected: no failed units; existing containers, runner VM, trusted stack, tunnel, timers, and public HTTPS recovered under 15 minutes.
+Expected: no failed units; existing containers, runner VM, trusted stack, tunnel, timers, and public HTTPS recovered under 15 minutes. Do not invoke the post evidence collector for this software reboot: its two timing arguments are reserved for the operator-observed physical restoration and public readiness in step 8.
 
 - [ ] **Step 7: Rehearse image rollback**
 

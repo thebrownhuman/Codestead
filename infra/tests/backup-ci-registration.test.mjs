@@ -398,6 +398,70 @@ function validateHarnessCleanupEvidenceContract(source) {
   }
 }
 
+function validateHarnessEphemeralRuntimeContract(source) {
+  const runtimeCheck = harnessFunction(
+    source,
+    "assert_ephemeral_runtime_clean",
+    "production E2E short ephemeral-runtime validator is missing or malformed",
+  );
+  for (const [fragment, message] of [
+    ['local stage_root="$test_root/staging" ephemeral_root="/run/bpe"', "production E2E does not use the reviewed short in-container ephemeral root"],
+    ["--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0", "production E2E short ephemeral root is not backed by an explicit private tmpfs"],
+  ]) requireHarnessFragment(source, fragment, message);
+  for (const [fragment, message] of [
+    ['[[ "$root" == /run/bpe ]]', "ephemeral-runtime validator accepts a different or long root"],
+    ['.managed-deadline-stop-00000000000000000000000000000000.sock', "ephemeral-runtime validator omits the deterministic AF_UNIX endpoint probe"],
+    ['${#endpoint_probe} == 78 && ${#endpoint_probe} < 108', "ephemeral-runtime validator does not prove the exact AF_UNIX byte bound"],
+    ['"$(stat -c \'%a:%u\' -- "$root")" == 700:0', "ephemeral-runtime validator omits exact mode/owner proof"],
+    ['"$(findmnt -n -o SOURCE -T "$root")" == tmpfs', "ephemeral-runtime validator omits tmpfs source proof"],
+    ['"$(findmnt -n -o FSTYPE -T "$root")" == tmpfs', "ephemeral-runtime validator omits tmpfs filesystem proof"],
+    ['"$(findmnt -n -o TARGET -T "$root")" == "$root"', "ephemeral-runtime validator omits exact mount-target proof"],
+    ['[[ -z "$(find -P "$root" -mindepth 1 -print -quit)" ]]', "ephemeral-runtime validator omits deterministic residue proof"],
+  ]) if (!runtimeCheck.includes(fragment)) fail(message);
+  if (source.split('assert_ephemeral_runtime_clean "$ephemeral_root"').length !== 3) {
+    fail("production E2E does not prove ephemeral tmpfs state before and after backup");
+  }
+}
+
+function validateHarnessRestoreEntrypointContract(source) {
+  for (const [fragment, message] of [
+    [
+      'scripts/backup/restore.sh',
+      "production E2E bypasses the real restore entrypoint",
+    ],
+    [
+      '--destination "$restore_root" --restore-db "$restore_database"',
+      "production E2E does not bind the verified extraction and isolated database to restore.sh",
+    ],
+    [
+      '--env RESTORE_CREDENTIAL_PROBE=/restore/credential-probe.json',
+      "production E2E does not recover the produced credential probe",
+    ],
+    [
+      '--env CREDENTIAL_MASTER_KEY_FILE=/recovery/credential_master_key',
+      "production E2E does not use the recovery master key",
+    ],
+    [
+      '--import tsx /app/scripts/verify-restored-backup.ts',
+      "production E2E does not run the real database/app-data/credential restore smoke",
+    ],
+    [
+      '--network "container:$postgres_id" --read-only --cap-drop ALL',
+      "production restore smoke is not isolated to the disposable PostgreSQL namespace",
+    ],
+  ]) {
+    requireHarnessFragment(source, fragment, message);
+  }
+  for (const forbidden of [
+    'docker exec "$postgres_id" createdb',
+    'docker exec -i "$postgres_id" pg_restore',
+  ]) {
+    if (source.includes(forbidden)) {
+      fail("production E2E still contains a manual restore bypass");
+    }
+  }
+}
+
 function normalizeWorkflow(document) {
   const withoutCrLf = document.replaceAll("\r\n", "");
   if (withoutCrLf.includes("\r")) {
@@ -415,10 +479,19 @@ const pythonSyntaxRun =
   "python3 -m py_compile scripts/backup/run-managed-deadline.py infra/tests/managed-deadline-stop-channel-linux.py";
 const productionE2eRun =
   "CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/backup-production-e2e.test.sh";
+const rootFixturePrefix =
+  "sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash";
+const rootFixtureRun = (fixture) => `${rootFixturePrefix} ${fixture}`;
+const rootRequiredFixtures = [
+  "infra/tests/offsite-recovery.test.sh", "infra/tests/offsite-retention.test.sh",
+  "infra/tests/recovery-kit.test.sh", "infra/tests/recovery-evidence-verifier.test.sh",
+];
 const requiredBackupRuns = [
   registrationRun,
   shellSyntaxRun,
   pythonSyntaxRun,
+  "sudo apt-get update",
+  "sudo apt-get install --yes age",
   "npm ci",
   "bash infra/tests/backup-config.test.sh",
   "bash infra/tests/restore-path-safety.test.sh",
@@ -429,9 +502,26 @@ const requiredBackupRuns = [
   "bash infra/tests/backup-retention.test.sh",
   "bash infra/tests/emergency-backup-atomicity.test.sh",
   "bash infra/tests/backup-publication.test.sh",
+  rootFixtureRun("infra/tests/offsite-recovery.test.sh"),
+  rootFixtureRun("infra/tests/offsite-retention.test.sh"),
+  rootFixtureRun("infra/tests/recovery-kit.test.sh"),
+  "bash infra/tests/restore-chronology.test.sh",
+  "node infra/tests/restore-drill-contract.test.mjs",
+  "npm exec vitest run scripts/verify-restored-backup.test.ts",
+  rootFixtureRun("infra/tests/recovery-evidence-verifier.test.sh"),
+  "bash infra/tests/restore-drill-reminder.test.sh",
+  "bash infra/tests/systemd-backup.test.sh",
 ];
 const expectedApplicationRuns = [
   "npm ci",
+  "npm run production-load:ci-registration",
+  "npm run production-load:test-control:bundle",
+  "npm run production-load:fixture-runtime:bundle",
+  "npm run production-load:fixture-runtime:systemd",
+  "CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:fixture-runtime:lifecycle",
+  'sudo env "PATH=$PATH" CODESTEAD_REQUIRE_LINUX_ROOT=1 npm run production-load:test-control:runtime',
+  "CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:peer-credentials",
+  "CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:disposable-sandbox",
   "npm run lint",
   "npm run typecheck",
   "npm run security:dependencies:known",
@@ -442,7 +532,9 @@ const expectedApplicationRuns = [
   "npm run ai:eval -- --check",
   "npm run test:auth-boundary",
   "npm run test:coverage",
+  "npm run content:brand:check",
   "npm run content:validate",
+  "npm run projects:catalog:validate",
   "npm run dsa:parity:check",
   "npm run c-cpp:executable:check",
   "npm run java-python:executable:check",
@@ -453,8 +545,53 @@ const expectedApplicationRuns = [
   "npm run build",
   "npm audit --audit-level=moderate",
   "node infra/tests/validate-static.mjs",
+  "node --test infra/tests/database-least-privilege-static.test.mjs",
+  "node --test infra/tests/runtime-validator-ingress-policy.test.mjs",
+  "node --test infra/tests/production-load-peer-preflight.test.mjs infra/tests/production-load-postgres-socket.test.mjs infra/tests/production-load-systemd.test.mjs",
+  "node --test infra/tests/runner-power-rehearsal-control.test.mjs",
+  "node --test infra/tests/ingress-control-ci-registration.test.mjs infra/tests/ingress-systemd.test.mjs",
+  "node infra/tests/runtime-validator-structure.test.mjs",
+  "node infra/tests/runtime-validator-harness-contract.test.mjs",
+  "node --test infra/tests/runner-egress-gateway.test.mjs infra/tests/runner-egress-gateway-stream-failures.test.mjs",
+  "sudo apt-get update",
+  "sudo apt-get install --yes bubblewrap nftables shellcheck",
+  "shellcheck --severity=warning infra/ops/capture-recovery-evidence.sh infra/ops/install-compose-ci.sh infra/ops/release-production.sh infra/ops/rollback-production.sh infra/ops/smoke-production.sh infra/ops/validate-production-load-fixture-runtime.sh infra/ops/validate-production-load-test-control-runtime.sh infra/runner-vm/install-guest.sh infra/tests/compose-release-cli-contract.test.sh infra/tests/power-evidence.test.sh infra/tests/production-load-disposable-sandbox.test.sh infra/tests/production-load-fixture-lifecycle.test.sh infra/tests/production-load-peer-credentials.test.sh infra/tests/production-load-test-control-runtime.test.sh infra/tests/recovery-evidence-entry.test.sh infra/tests/recovery-evidence-main.test.sh infra/tests/release-production.test.sh infra/tests/rollback-production.test.sh infra/tests/runner-firewall.test.sh infra/tests/runner-firewall-packets.test.sh infra/tests/runner-guest-installer.test.sh infra/tests/runner-vm-provision.test.sh infra/tests/smoke-production.test.sh",
+  "shellcheck --severity=warning infra/tests/ingress-control-linux.test.sh",
+  "shellcheck --severity=warning infra/ops/start-production-stack.sh infra/ops/recover-production-ingress.sh infra/tests/start-production-stack.test.sh infra/tests/start-production-stack-adversarial.test.sh infra/tests/ingress-recovery.test.sh",
+  "shellcheck --severity=warning --exclude=SC2034 infra/ops/check-recovery.sh",
+  "shellcheck --severity=warning --exclude=SC2128,SC2174,SC2178 infra/tests/power-recovery-check.test.sh",
   "bash -n scripts/backup/*.sh infra/docker/entrypoint.sh infra/ops/*.sh infra/runner/*.sh infra/tests/*.sh",
+  "python3 infra/tests/runner-release-tree.test.py",
+  "python3 infra/tests/release-tree-packaging.test.py",
+  "python3 infra/tests/existing-container-baseline.test.py",
+  "python3 infra/tests/capture-existing-containers.test.py",
+  "sudo python3 infra/tests/capture-existing-containers-linux.test.py",
+  "python3 infra/tests/test_production_load_browser_journey.py",
+  "python3 infra/tests/test_production_load_control.py",
+  "python3 infra/tests/test_production_load_peer_credentials.py",
+  "sudo -n bash infra/tests/ingress-control-linux.test.sh",
+  "sudo -n bash infra/tests/start-production-stack.test.sh",
+  "sudo -n bash infra/tests/start-production-stack-adversarial.test.sh",
+  "sudo -n bash infra/tests/ingress-recovery.test.sh",
+  "bash infra/tests/runner-vm-provision.test.sh",
+  "sudo bash infra/tests/runner-guest-installer.test.sh",
+  "sudo bash infra/tests/runner-firewall.test.sh",
+  "sudo bash infra/tests/runner-firewall-packets.test.sh",
+  "python3 infra/tests/recovery-evidence-helper.test.py",
+  "python3 infra/tests/recovery-evidence-provenance.test.py",
+  "python3 infra/tests/recovery-evidence-storage-health.test.py",
+  "python3 infra/tests/recovery-evidence-atomic.test.py",
+  "python3 infra/tests/recovery-evidence-collection.test.py",
+  "sudo bash infra/tests/power-evidence.test.sh",
+  "sudo bash infra/tests/power-recovery-check.test.sh",
+  "sudo bash infra/tests/systemd-recovery.test.sh",
+  "bash infra/ops/install-compose-ci.sh",
+  "bash infra/tests/smoke-production.test.sh",
+  "bash infra/tests/release-production.test.sh",
+  "bash infra/tests/rollback-production.test.sh",
+  "REQUIRE_COMPOSE_MAJOR=5 bash infra/tests/compose-release-cli-contract.test.sh",
   "bash infra/tests/runner-reconciliation.test.sh",
+  "bash infra/tests/runtime-validator-network-fixture.test.sh",
   "bash infra/tests/runtime-config.test.sh",
   "docker compose --env-file infra/env/compose.env.example config --quiet",
   "node infra/tests/validate-compose.mjs",
@@ -463,21 +600,29 @@ const expectedApplicationRuns = [
 ];
 const reviewedJobNames = [
   "application",
+  "application-images",
+  "production-topology",
   "backup-safety",
   "backup-production-e2e",
   "runner",
   "postgres-integration",
   "curriculum-runtime",
+  "auth-browser",
   "browser",
 ];
+const checkoutProjection = [
+  "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0",
+  "        with:",
+  "          persist-credentials: false",
+];
 const setupNodeProjection = [
-  "      - uses: actions/setup-node@v7",
+  "      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0",
   "        with:",
   "          node-version: 22.23.1",
   "          cache: npm",
 ];
 const dockerSetupProjection = [
-  "      - uses: docker/setup-docker-action@v5",
+  "      - uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0",
   "        with:",
   "          daemon-config: |",
   "            {",
@@ -486,16 +631,136 @@ const dockerSetupProjection = [
   "              }",
   "            }",
 ];
+const topologyDockerProjection = [
+  "      - run: |",
+  "          set -Eeuo pipefail",
+  "          expected_endpoint=\u0027unix:///var/run/docker.sock\u0027",
+  "          current_context=\"$(docker context show)\"",
+  "          current_endpoint=\"$(docker context inspect --format \u0027{{.Endpoints.docker.Host}}\u0027 \"$current_context\")\"",
+  "          effective_endpoint=\"${DOCKER_HOST:-$current_endpoint}\"",
+  "          if [[ \"$current_endpoint\" != \"$expected_endpoint\" || \"$effective_endpoint\" != \"$expected_endpoint\" || ! -S /var/run/docker.sock ]]; then",
+  "            echo \"The topology job requires the disposable host system Docker socket.\" \u003e\u00262",
+  "            exit 1",
+  "          fi",
+  "          container_ids=\"$(docker ps -aq)\"",
+  "          if [[ -n \"$container_ids\" ]]; then",
+  "            echo \"The topology job refuses a host with pre-existing containers.\" \u003e\u00262",
+  "            exit 1",
+  "          fi",
+  "          readonly docker_package_version=\u00275:29.6.1-1~ubuntu.24.04~noble\u0027",
+  "          readonly docker_gpg_sha256=\u00271500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570\u0027",
+  "          docker_gpg_key=\"$(mktemp)\"",
+  "          trap \u0027rm -f -- \"$docker_gpg_key\"\u0027 EXIT",
+  "          curl --fail --silent --show-error --location \\",
+  "            https://download.docker.com/linux/ubuntu/gpg \\",
+  "            --output \"$docker_gpg_key\"",
+  "          printf \u0027%s  %s\\n\u0027 \"$docker_gpg_sha256\" \"$docker_gpg_key\" | sha256sum --check --status",
+  "          . /etc/os-release",
+  "          [[ \"$ID\" == ubuntu \u0026\u0026 \"$VERSION_CODENAME\" == noble ]] || {",
+  "            echo \"The reviewed Docker package is pinned to Ubuntu 24.04 noble.\" \u003e\u00262",
+  "            exit 1",
+  "          }",
+  "          sudo install -m 0755 -d /etc/apt/keyrings",
+  "          sudo install -m 0644 \"$docker_gpg_key\" /etc/apt/keyrings/docker.asc",
+  "          printf \u0027deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\\n\u0027 \\",
+  "            \"$(dpkg --print-architecture)\" \"$VERSION_CODENAME\" \\",
+  "            | sudo tee /etc/apt/sources.list.d/docker.list \u003e/dev/null",
+  "          conflicting_packages=(",
+  "            docker.io docker-doc docker-compose docker-compose-v2 podman-docker",
+  "            containerd runc moby-engine moby-cli moby-buildx moby-compose",
+  "          )",
+  "          installed_conflicts=()",
+  "          for package in \"${conflicting_packages[@]}\"; do",
+  "            if dpkg-query -W -f=\u0027${db:Status-Abbrev}\u0027 \"$package\" 2\u003e/dev/null | grep -q \u0027^ii \u0027; then",
+  "              installed_conflicts+=(\"$package\")",
+  "            fi",
+  "          done",
+  "          if ((${#installed_conflicts[@]} \u003e 0)); then",
+  "            sudo apt-get remove --yes \"${installed_conflicts[@]}\"",
+  "          fi",
+  "          sudo apt-get update",
+  "          apt-cache madison docker-ce | awk \u0027{print $3}\u0027 | grep -Fx -- \"$docker_package_version\" \u003e/dev/null",
+  "          apt-cache madison docker-ce-cli | awk \u0027{print $3}\u0027 | grep -Fx -- \"$docker_package_version\" \u003e/dev/null",
+  "          sudo apt-get install --yes --no-install-recommends --allow-downgrades \\",
+  "            docker-ce=$docker_package_version \\",
+  "            docker-ce-cli=$docker_package_version \\",
+  "            containerd.io \\",
+  "            docker-buildx-plugin",
+  "          sudo systemctl enable --now docker.service",
+  "      - uses: docker/setup-compose-action@112d3e30db3bf437d207fea57f22510569d1ab97 # v2.0.0",
+  "        with:",
+  "          version: v5.3.1",
+  "      - run: |",
+  "          set -Eeuo pipefail",
+  "          [[ \"$(docker version --format \u0027{{.Client.Version}}\u0027)\" == 29.6.1 ]]",
+  "          [[ \"$(docker version --format \u0027{{.Server.Version}}\u0027)\" == 29.6.1 ]]",
+  "          compose_version=\"$(docker compose version --short)\"",
+  "          [[ \"${compose_version#v}\" == 5.3.1 ]]",
+  "          current_context=\"$(docker context show)\"",
+  "          current_endpoint=\"$(docker context inspect --format \u0027{{.Endpoints.docker.Host}}\u0027 \"$current_context\")\"",
+  "          [[ \"$current_endpoint\" == unix:///var/run/docker.sock ]]",
+  "          [[ \"${DOCKER_HOST:-$current_endpoint}\" == unix:///var/run/docker.sock ]]",
+  "          [[ -S /var/run/docker.sock ]]",
+  "          container_ids=\"$(docker ps -aq)\"",
+  "          [[ -z \"$container_ids\" ]]",
+];
+const trivySetupProjection = [
+  "      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6",
+  "        with:",
+  "          version: 0.69.3",
+  '      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only',
+  '      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-java-db-only',
+];
+function runtimeEvidenceUploadProjection(artifactName) {
+  return [
+    "      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2",
+    "        if: always()",
+    "        with:",
+    `          name: ${artifactName}`,
+    "          path: |",
+    "            services/runner/dist/runtime-inspection.json",
+    "            services/runner/dist/runtime-images.env",
+    "            services/runner/dist/runtime-images.json",
+    "            services/runner/dist/runtime-security/**",
+    "            services/runner/dist/.runtime-security.failed-*/**",
+    "          if-no-files-found: warn",
+    "          include-hidden-files: true",
+    "          retention-days: 14",
+  ];
+}
 const reviewedJobContracts = new Map([
   [
     "application",
     [
       "    runs-on: ubuntu-24.04",
-      "    timeout-minutes: 35",
+      "    timeout-minutes: 70",
       "    steps:",
-      "      - uses: actions/checkout@v7",
+      ...checkoutProjection,
       ...setupNodeProjection,
       ...expectedApplicationRuns.map((command) => `      - run: ${command}`),
+    ],
+  ],
+  [
+    "production-topology",
+    [
+      "    runs-on: ubuntu-24.04",
+      "    timeout-minutes: 45",
+      "    env:",
+      '      RUNNER_ENVIRONMENT: ${{ runner.environment }}',
+      '      CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"',
+      '      CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"',
+      "    steps:",
+      ...checkoutProjection,
+      ...topologyDockerProjection,
+      "      - run: node infra/tests/production-topology-ci-registration.test.mjs",
+      "      - run: |",
+      "          bash -n infra/tests/production-topology.test.sh infra/tests/production-topology-early-cleanup.test.sh",
+      "          bash infra/tests/production-topology-early-cleanup.test.sh",
+      "          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true \\",
+      '            --volume "$GITHUB_WORKSPACE:/repo:ro" \\',
+      "            koalaman/shellcheck@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d \\",
+      "            --severity=warning /repo/infra/tests/production-topology.test.sh /repo/infra/tests/production-topology-early-cleanup.test.sh",
+      "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/production-topology.test.sh",
     ],
   ],
   [
@@ -504,7 +769,7 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 60",
       "    steps:",
-      "      - uses: actions/checkout@v7",
+      ...checkoutProjection,
       ...setupNodeProjection,
       ...requiredBackupRuns.map((command) => `      - run: ${command}`),
     ],
@@ -515,9 +780,7 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 30",
       "    steps:",
-      "      - uses: actions/checkout@v7",
-      "        with:",
-      "          persist-credentials: false",
+      ...checkoutProjection,
       `      - run: ${productionE2eRun}`,
     ],
   ],
@@ -526,12 +789,17 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 35",
+      "    env:",
+      "      RUNTIME_TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache",
+      "      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1",
+      "      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
+      "      RUNTIME_SOURCE_REVISION: ${{ github.sha }}",
       "    defaults:",
       "      run:",
       "        working-directory: services/runner",
       "    steps:",
-      "      - uses: actions/checkout@v7",
-      "      - uses: actions/setup-node@v7",
+      ...checkoutProjection,
+      "      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0",
       "        with:",
       "          node-version: 22.23.1",
       "          cache: npm",
@@ -542,8 +810,13 @@ const reviewedJobContracts = new Map([
       "      - run: npm run build",
       ...dockerSetupProjection,
       "      - run: npm run runtime:build",
+      "      - run: npm run runtime:inspect",
       "      - run: npm run runtime:test",
-      "      - run: npm audit --omit=dev --audit-level=high",
+      ...trivySetupProjection,
+      "      - run: npm run runtime:scan",
+      "      - run: npm run runtime:record",
+      "      - run: npm audit --audit-level=high",
+      ...runtimeEvidenceUploadProjection("runner-runtime-release-evidence"),
     ],
   ],
   [
@@ -552,10 +825,13 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 20",
       "    steps:",
-      "      - uses: actions/checkout@v7",
+      ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
       "      - run: npm run test:integration",
+      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+      "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
     ],
   ],
   [
@@ -563,8 +839,13 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 45",
+      "    env:",
+      "      RUNTIME_TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache",
+      "      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1",
+      "      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
+      "      RUNTIME_SOURCE_REVISION: ${{ github.sha }}",
       "    steps:",
-      "      - uses: actions/checkout@v7",
+      ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
       "      - run: npm ci",
@@ -574,14 +855,34 @@ const reviewedJobContracts = new Map([
       "        working-directory: services/runner",
       "      - run: npm run runtime:inspect",
       "        working-directory: services/runner",
+      "      - run: npm run runtime:test",
+      "        working-directory: services/runner",
+      ...trivySetupProjection,
+      "      - run: npm run runtime:scan",
+      "        working-directory: services/runner",
       "      - run: npm run runtime:record",
       "        working-directory: services/runner",
+      "      - run: npm run curriculum:runtime-pins:check",
       "      - run: npx playwright install --with-deps chromium",
       "      - run: npm run dsa:parity:verify",
       "      - run: npm run c-cpp:executable:verify",
       "      - run: npm run java-python:executable:verify",
       "      - run: npm run ai-code:executable:verify",
       "      - run: npm run web:executable:verify",
+      ...runtimeEvidenceUploadProjection("curriculum-runtime-release-evidence"),
+    ],
+  ],
+  [
+    "auth-browser",
+    [
+      "    runs-on: ubuntu-24.04",
+      "    timeout-minutes: 30",
+      "    steps:",
+      ...checkoutProjection,
+      ...setupNodeProjection,
+      "      - run: npm ci",
+      "      - run: npx playwright install --with-deps chromium firefox webkit",
+      "      - run: npm run test:browser:auth",
     ],
   ],
   [
@@ -589,13 +890,29 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 25",
+      "    strategy:",
+      "      fail-fast: false",
+      "      matrix:",
+      "        include:",
+      "          - project: chromium",
+      "            browser: chromium",
+      "          - project: firefox",
+      "            browser: firefox",
+      "          - project: webkit",
+      "            browser: webkit",
+      "          - project: tablet-safari",
+      "            browser: webkit",
+      "          - project: small-mobile",
+      "            browser: webkit",
+      "          - project: mobile-safari",
+      "            browser: webkit",
       "    steps:",
-      "      - uses: actions/checkout@v7",
+      ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
-      "      - run: npx playwright install --with-deps chromium firefox webkit",
+      "      - run: npx playwright install --with-deps ${{ matrix.browser }}",
       "      - run: npm run sync:monaco",
-      "      - run: npm run test:e2e",
+      "      - run: npm run test:e2e -- --project=${{ matrix.project }}",
     ],
   ],
 ]);
@@ -816,6 +1133,19 @@ function expectHarnessRejected(label, source, validator) {
 }
 
 function runHarnessAdversarialSelfTests(source) {
+  for (const [label, needle, replacement] of [
+    ["long ephemeral root", 'local stage_root="$test_root/staging" ephemeral_root="/run/bpe"', 'local stage_root="$test_root/staging" ephemeral_root="$test_root/ephemeral"'],
+    ["ephemeral tmpfs backing", "--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0", "--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0755,uid=0,gid=0"],
+    ["AF_UNIX exact length", '${#endpoint_probe} == 78 && ${#endpoint_probe} < 108', '${#endpoint_probe} < 108'],
+    ["ephemeral root ownership", '"$(stat -c \'%a:%u\' -- "$root")" == 700:0', '"$(stat -c \'%a\' -- "$root")" == 700'],
+    ["ephemeral residue check", '[[ -z "$(find -P "$root" -mindepth 1 -print -quit)" ]]', "true"],
+  ]) {
+    expectHarnessRejected(
+      label,
+      replaceExactly(source, needle, replacement),
+      validateHarnessEphemeralRuntimeContract,
+    );
+  }
   expectHarnessRejected(
     "self-hosted outer marker",
     replaceExactly(
@@ -1035,11 +1365,11 @@ function withApplicationRun(document, command) {
 
 function withRunnerRun(document, command) {
   const anchor =
-    "      - run: npm run runtime:build\n      - run: npm run runtime:test\n";
+    "      - run: npm run runtime:build\n      - run: npm run runtime:inspect\n";
   return replaceExactly(
     document,
     anchor,
-    `      - run: npm run runtime:build\n      - run: ${command}\n      - run: npm run runtime:test\n`,
+    `      - run: npm run runtime:build\n      - run: ${command}\n      - run: npm run runtime:inspect\n`,
   );
 }
 
@@ -1100,6 +1430,7 @@ function runAdversarialSelfTests(document) {
     "postgres-integration",
     "curriculum-runtime",
     "browser",
+    "production-topology",
   ]) {
     for (const line of [
       "    needs: application",
@@ -1194,7 +1525,7 @@ function runAdversarialSelfTests(document) {
   );
 
   const productionStep = `      - run: ${productionE2eRun}`;
-  const checkoutStep = "      - uses: actions/checkout@v7";
+  const checkoutStep = "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0";
   const productionCheckout =
     `${checkoutStep}\n        with:\n          persist-credentials: false`;
   const productionStepsAnchor =
@@ -1231,20 +1562,24 @@ function runAdversarialSelfTests(document) {
     "production e2e checkout credentials persistence enabled",
     replaceExactly(
       document,
-      "          persist-credentials: false\n",
-      "          persist-credentials: true\n",
+      `${productionCheckout}\n${productionStep}`,
+      `${checkoutStep}\n        with:\n          persist-credentials: true\n${productionStep}`,
     ),
   );
   expectRejected(
     "production e2e checkout credentials setting missing",
-    replaceExactly(document, `${productionCheckout}\n`, `${checkoutStep}\n`),
+    replaceExactly(
+      document,
+      `${productionCheckout}\n${productionStep}`,
+      `${checkoutStep}\n${productionStep}`,
+    ),
   );
   expectRejected(
     "production e2e checkout extra properties",
     replaceExactly(
       document,
-      `${productionCheckout}\n`,
-      `${productionCheckout}\n          fetch-depth: 0\n`,
+      `${productionCheckout}\n${productionStep}`,
+      `${productionCheckout}\n          fetch-depth: 0\n${productionStep}`,
     ),
   );
   for (const indicator of ["|", "|-", "|+", ">", ">-", ">+"]) {
@@ -1311,8 +1646,8 @@ function runAdversarialSelfTests(document) {
     "browser step environment",
     replaceExactly(
       document,
-      "      - run: npm run test:e2e\n",
-      "      - run: npm run test:e2e\n        env:\n          CODESTEAD_DISPOSABLE_HOST: 1\n",
+      "      - run: npm run test:e2e -- --project=${{ matrix.project }}\n",
+      "      - run: npm run test:e2e -- --project=${{ matrix.project }}\n        env:\n          CODESTEAD_DISPOSABLE_HOST: 1\n",
     ),
     "browser executable contract changed",
   );
@@ -1367,6 +1702,41 @@ function runAdversarialSelfTests(document) {
     expectRejected(
       `backup step control ${property}`,
       withBackupStepProperty(document, property),
+    );
+  }
+  for (const fixture of rootRequiredFixtures) {
+    const reviewedRun = `      - run: ${rootFixtureRun(fixture)}`;
+    expectRejected(
+      `unprivileged root-required fixture ${fixture}`,
+      replaceExactly(document, reviewedRun, `      - run: bash ${fixture}`),
+    );
+    expectRejected(
+      `sudo fixture without environment reset ${fixture}`,
+      replaceExactly(document, reviewedRun, `      - run: sudo bash ${fixture}`),
+    );
+    expectRejected(
+      `sudo fixture preserving caller environment ${fixture}`,
+      replaceExactly(
+        document,
+        reviewedRun,
+        `      - run: sudo -E bash ${fixture}`,
+      ),
+    );
+    expectRejected(
+      `sudo fixture with inherited PATH ${fixture}`,
+      replaceExactly(
+        document,
+        reviewedRun,
+        `      - run: sudo env -i "PATH=$PATH" HOME=/root LC_ALL=C bash ${fixture}`,
+      ),
+    );
+    expectRejected(
+      `sudo fixture with extra environment ${fixture}`,
+      replaceExactly(
+        document,
+        reviewedRun,
+        `      - run: ${rootFixtureRun(fixture)} UNREVIEWED=1`,
+      ),
     );
   }
 
@@ -1444,6 +1814,8 @@ validateHarnessHostedRunnerContract(productionE2eHarness);
 validateHarnessRegistryContract(productionE2eHarness);
 validateHarnessCredentialProbeCleanupContract(productionE2eHarness);
 validateHarnessCleanupEvidenceContract(productionE2eHarness);
+validateHarnessEphemeralRuntimeContract(productionE2eHarness);
+validateHarnessRestoreEntrypointContract(productionE2eHarness);
 runHarnessAdversarialSelfTests(productionE2eHarness);
 
 console.log("backup-ci-registration-tests-ok");

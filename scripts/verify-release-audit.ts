@@ -16,6 +16,18 @@ const matrixIds = [...matrix.matchAll(requirementRow)].map((match) => match[1]!)
 const rows = [...audit.matchAll(auditRow)].map((match) => ({ id: match[1]!, status: match[2]! }));
 const errors: string[] = [];
 
+const forbiddenCurrentSecurityClaims = [
+  /Exact current image IDs, SPDX SBOMs and Trivy/i,
+  /Six exact local app-family images now have identity assertions, per-image SPDX SBOMs and exact Trivy reports/i,
+];
+for (const claim of forbiddenCurrentSecurityClaims) {
+  if (claim.test(audit)) {
+    errors.push(
+      `Release audit presents historical image-security evidence as current: ${claim.source}`,
+    );
+  }
+}
+
 if (new Set(matrixIds).size !== matrixIds.length) errors.push("Requirements matrix contains duplicate stable IDs.");
 const rowCounts = new Map<string, number>();
 for (const row of rows) rowCounts.set(row.id, (rowCounts.get(row.id) ?? 0) + 1);

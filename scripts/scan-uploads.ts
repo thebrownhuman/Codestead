@@ -1,9 +1,14 @@
 import path from "node:path";
 
 import { pool } from "../src/lib/db/client";
+
 import { ClamdClient } from "../src/lib/storage/clamd-client";
 import { PostgresUploadScanRepository } from "../src/lib/storage/scan-repository";
-import { processScanBatch } from "../src/lib/storage/upload-scanner";
+import { uploadsEnabled } from "../src/lib/storage/upload-feature";
+import { processScanBatch, type ScanBatchSummary } from "../src/lib/storage/upload-scanner";
+import { createWorkerHealthReporter } from "./lib/worker-health";
+
+let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
 
 function integer(name: string, fallback: number, minimum: number, maximum: number) {
   const raw = process.env[name];
@@ -28,6 +33,7 @@ const leaseMs = integer("UPLOAD_SCAN_LEASE_SECONDS", 180, 30, 900) * 1_000;
 const maxAttempts = integer("UPLOAD_SCAN_MAX_ATTEMPTS", 8, 1, 100);
 const retryBaseMs = integer("UPLOAD_SCAN_RETRY_BASE_SECONDS", 5, 1, 3600) * 1_000;
 const retryMaximumMs = integer("UPLOAD_SCAN_RETRY_MAX_SECONDS", 900, 1, 86_400) * 1_000;
+
 const clamdPort = integer("CLAMD_PORT", 3310, 1, 65_535);
 const clamdTimeoutMs = integer("CLAMD_TIMEOUT_SECONDS", 120, 5, 600) * 1_000;
 if (leaseMs <= clamdTimeoutMs + 10_000) throw new Error("UPLOAD_SCAN_LEASE_TOO_SHORT");
@@ -59,12 +65,14 @@ async function main() {
     port: clamdPort,
     timeoutMs: clamdTimeoutMs,
   });
+  healthReporter = createWorkerHealthReporter({ worker: "scan-worker" });
+  if (!uploadsEnabled()) throw new Error("UPLOADS_DISABLED");
 
   console.info(JSON.stringify({ event: "upload.scanner_started", mode: once ? "once" : "continuous" }));
   do {
     const startedAt = Date.now();
     try {
-      const summary = await processScanBatch({
+      const summary: ScanBatchSummary = await processScanBatch({
         repository,
         scanner,
         root,
@@ -79,13 +87,15 @@ async function main() {
         ...summary,
         durationMs: Date.now() - startedAt,
       }));
+      healthReporter.success();
       if (!once && summary.claimed === 0 && !stopping) await sleep(pollMs);
     } catch (error) {
+      healthReporter.retry(error);
       console.error(JSON.stringify({
         event: "upload.scan_worker_error",
         code: error instanceof Error ? "WORKER_CYCLE_FAILED" : "UNKNOWN",
       }));
-      if (once) throw error;
+      if (once || healthReporter.consecutiveFailures > 2) throw error;
       if (!stopping) await sleep(pollMs);
     }
   } while (!once && !stopping);
@@ -93,5 +103,8 @@ async function main() {
 }
 
 main()
-  .catch(() => { process.exitCode = 1; })
+  .catch((error) => {
+    healthReporter?.terminalFailure(error);
+    process.exitCode = 1;
+  })
   .finally(() => pool.end());

@@ -7,6 +7,9 @@ import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity
 import type { EmailTemplate } from "../src/lib/notifications/outbox";
 import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
 import { scheduleSmartReminders } from "../src/lib/notifications/smart-reminders";
+import { createWorkerHealthReporter } from "./lib/worker-health";
+
+let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
 
 async function processBatch(limit = 10) {
   const now = new Date();
@@ -91,6 +94,7 @@ async function main() {
     throw new Error("INACTIVITY_SCHEDULE_SECONDS must be an integer from 10 to 3600.");
   }
   const once = process.argv.includes("--once");
+  healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });
   let lastInactivityScheduleAt = 0;
   let lastSmartReminderScheduleAt = 0;
   do {
@@ -107,6 +111,7 @@ async function main() {
     }
     const result = await processBatch();
     console.info(JSON.stringify({ event: "email.outbox_batch", ...result }));
+    healthReporter.success();
     if (once) break;
     await new Promise((resolve) =>
       setTimeout(resolve, result.claimed ? 1_000 : pollSeconds * 1_000),
@@ -116,6 +121,8 @@ async function main() {
 
 main()
   .catch((error) => {
+    healthReporter?.retry(error);
+    healthReporter?.terminalFailure(error);
     console.error(JSON.stringify({ event: "email.worker_failed", code: error instanceof Error ? error.name : "UNKNOWN" }));
     process.exitCode = 1;
   })

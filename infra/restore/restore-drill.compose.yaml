@@ -1,0 +1,228 @@
+services:
+  postgres:
+    image: ${RESTORE_POSTGRES_IMAGE:-postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394}
+    user: "${RESTORE_POSTGRES_UID:?Set RESTORE_POSTGRES_UID}:${RESTORE_POSTGRES_GID:?Set RESTORE_POSTGRES_GID}"
+    command:
+      - postgres
+      - -c
+      - fsync=on
+      - -c
+      - synchronous_commit=on
+      - -c
+      - full_page_writes=on
+      - -c
+      - unix_socket_directories=/run/learncoding-postgres
+      - -c
+      - unix_socket_permissions=0700
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: learncoding_restore
+      POSTGRES_USER: learncoding_restore
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF8 --auth-local=scram-sha-256 --auth-host=scram-sha-256
+    secrets:
+      - postgres_password
+    group_add:
+      - "${RESTORE_SECRETS_GID:-2000}"
+    networks:
+      - restore-data
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,nodev,size=1g,uid=${RESTORE_POSTGRES_UID},gid=${RESTORE_POSTGRES_GID},mode=0700
+      - /run/learncoding-postgres:rw,noexec,nosuid,nodev,size=16m,uid=${RESTORE_POSTGRES_UID},gid=${RESTORE_POSTGRES_GID},mode=0700
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h /run/learncoding-postgres -U learncoding_restore -d learncoding_restore"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    mem_limit: 1536m
+    cpus: 1.0
+    pids_limit: 128
+
+  database-role-bootstrap:
+    profiles: ["operations"]
+    image: ${RESTORE_OPERATIONS_IMAGE:?Set RESTORE_OPERATIONS_IMAGE to the reviewed immutable operations image digest}
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command: ["node", "/app/scripts/bootstrap-database-roles.mjs"]
+    environment:
+      POSTGRES_DB: learncoding_restore
+      POSTGRES_USER: learncoding_restore
+      DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
+      DATABASE_APP_URL_FILE: /run/secrets/database_app_url
+      DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
+      DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+    secrets:
+      - source: database_bootstrap_url
+        target: database_bootstrap_url
+      - source: database_url
+        target: database_app_url
+      - source: database_migrator_url
+        target: database_migrator_url
+      - source: database_worker_url
+        target: database_worker_url
+      - source: database_ops_url
+        target: database_ops_url
+    group_add:
+      - "${RESTORE_SECRETS_GID:-2000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - restore-data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+
+  database-boundary-preflight:
+    profiles: ["operations"]
+    image: ${RESTORE_OPERATIONS_IMAGE:?Set RESTORE_OPERATIONS_IMAGE to the reviewed immutable operations image digest}
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command: ["node", "/app/scripts/verify-database-role-boundaries.mjs"]
+    environment:
+      POSTGRES_DB: learncoding_restore
+      DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
+      DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+    secrets:
+      - source: database_url
+        target: database_url
+      - source: database_migrator_url
+        target: database_migrator_url
+      - source: database_worker_url
+        target: database_worker_url
+      - source: database_ops_url
+        target: database_ops_url
+    group_add:
+      - "${RESTORE_SECRETS_GID:-2000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - restore-data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+
+  database-boundary-verifier:
+    profiles: ["operations"]
+    image: ${RESTORE_OPERATIONS_IMAGE:?Set RESTORE_OPERATIONS_IMAGE to the reviewed immutable operations image digest}
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]
+    environment:
+      POSTGRES_DB: learncoding_restore
+      DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
+      DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+    secrets:
+      - source: database_url
+        target: database_url
+      - source: database_migrator_url
+        target: database_migrator_url
+      - source: database_worker_url
+        target: database_worker_url
+      - source: database_ops_url
+        target: database_ops_url
+    group_add:
+      - "${RESTORE_SECRETS_GID:-2000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - restore-data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+
+  smoke:
+    image: ${RESTORE_OPERATIONS_IMAGE:?Set RESTORE_OPERATIONS_IMAGE to the reviewed immutable operations image digest}
+    restart: "no"
+    user: "0:0"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - node
+      - --import
+      - tsx
+      - /app/scripts/verify-restored-backup.ts
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      RESTORE_APP_DATA_ROOT: /restore-app-data
+      RESTORE_APP_DATA_MANIFEST: /restore/app-data-objects.sha256
+      RESTORE_CREDENTIAL_PROBE: /restore/credential-probe.json
+      CREDENTIAL_MASTER_KEY_FILE: /run/secrets/credential_master_key
+    secrets:
+      - source: database_ops_url
+        target: database_url
+    volumes:
+      - type: bind
+        source: ${RESTORE_EXTRACTED_ROOT:?Set RESTORE_EXTRACTED_ROOT to the protected extracted backup directory}
+        target: /restore
+        read_only: true
+      - type: bind
+        source: ${RESTORE_APP_DATA_ROOT_HOST:?Set RESTORE_APP_DATA_ROOT_HOST to the protected restored app-data directory}
+        target: /restore-app-data
+        read_only: true
+      - type: bind
+        source: ${RESTORE_CREDENTIAL_MASTER_KEY_FILE:?Set RESTORE_CREDENTIAL_MASTER_KEY_FILE to the recovered master key}
+        target: /run/secrets/credential_master_key
+        read_only: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - restore-data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+
+secrets:
+  postgres_password:
+    file: ${RESTORE_POSTGRES_PASSWORD_FILE:?Set RESTORE_POSTGRES_PASSWORD_FILE}
+  database_bootstrap_url:
+    file: ${RESTORE_DATABASE_BOOTSTRAP_URL_FILE:?Set RESTORE_DATABASE_BOOTSTRAP_URL_FILE}
+  database_url:
+    file: ${RESTORE_DATABASE_APP_URL_FILE:?Set RESTORE_DATABASE_APP_URL_FILE}
+  database_migrator_url:
+    file: ${RESTORE_DATABASE_MIGRATOR_URL_FILE:?Set RESTORE_DATABASE_MIGRATOR_URL_FILE}
+  database_worker_url:
+    file: ${RESTORE_DATABASE_WORKER_URL_FILE:?Set RESTORE_DATABASE_WORKER_URL_FILE}
+  database_ops_url:
+    file: ${RESTORE_DATABASE_OPS_URL_FILE:?Set RESTORE_DATABASE_OPS_URL_FILE}
+
+networks:
+  restore-data:
+    internal: true

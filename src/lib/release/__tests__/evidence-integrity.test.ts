@@ -84,6 +84,41 @@ describe("evidence integrity verifier", () => {
       .toContain(`actual=${sha256("changed\n")}`);
   });
 
+  it("accepts a uniform CRLF checkout for Git-normalized text evidence", async () => {
+    const root = await fixture();
+    const canonical = "export const checked = true;\nexport const count = 2;\n";
+    await write(root, "scripts/check.ts", canonical.replaceAll("\n", "\r\n"));
+    await write(root, "docs/evidence/text.json", JSON.stringify({
+      artifactSha256: { "scripts/check.ts": sha256(canonical) },
+    }));
+
+    const report = await verifyEvidenceIntegrity({ root, markdownRoots: [] });
+
+    expect(report.issues).toEqual([]);
+    expect(report.evidence.hashes).toBe(1);
+  });
+
+  it.each([
+    ["infra/check.sh", "forced-LF deployment script"],
+    ["docs/check.png", "binary asset"],
+  ])("keeps %s byte-exact as a %s", async (target) => {
+    const root = await fixture();
+    const canonical = "first\nsecond\n";
+    await write(root, target, canonical.replaceAll("\n", "\r\n"));
+    await write(root, "docs/evidence/exact.json", JSON.stringify({
+      artifactSha256: { [target]: sha256(canonical) },
+    }));
+
+    const report = await verifyEvidenceIntegrity({ root, markdownRoots: [] });
+
+    expect(report.issues).toEqual([
+      expect.objectContaining({
+        kind: "STALE_HASH",
+        detail: expect.stringContaining(`actual=${sha256(canonical.replaceAll("\n", "\r\n"))}`),
+      }),
+    ]);
+  });
+
   it("checks recursive named path and Sha256 pairs without treating metadata as artifacts", async () => {
     const root = await fixture();
     const source = "export const checked = true;\n";

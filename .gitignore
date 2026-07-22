@@ -13,6 +13,8 @@
 /out
 /public/monaco
 /services/runner/dist
+/dist
+/RELEASE.SHA256SUMS
 
 # local data and uploads
 /data
@@ -33,6 +35,10 @@
 Thumbs.db
 .idea
 .vscode
+
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
 
 # TypeScript
 *.tsbuildinfo

@@ -1,15 +1,21 @@
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { ContentRepository, type CodeAssessmentItem } from "../src/lib/content";
 import { AI_CODE_TASKS } from "./content-seeds/ai-code-tasks";
 import {
+  projectRuntimeIdentityEvidence,
+  validateLocalRuntimeIdentity,
+  type LocalRuntimeIdentityEvidence,
+} from "./lib/local-runtime-identity";
+import { verifyOrApplyDeterministicEvidence } from "./lib/deterministic-evidence";
+import {
   executePinnedCurriculumReference,
   normalizeProgramOutput,
   PINNED_CURRICULUM_RUNTIMES,
   pinnedDockerAvailable,
-  pinnedImageId,
+
 } from "./pinned-curriculum-runtime";
 
 const root = process.cwd();
@@ -59,22 +65,42 @@ async function main(): Promise<void> {
   if (issues.length) throw new Error(`AI authored runtime structure failed:\n${issues.join("\n")}`);
 
   const structureOnly = process.argv.includes("--structure-only");
-  const limitArgument = process.argv.find((argument) => argument.startsWith("--limit="));
-  const limit = limitArgument ? Number.parseInt(limitArgument.split("=")[1]!, 10) : matched.length;
-  if (!Number.isInteger(limit) || limit < 1) throw new Error("--limit must be a positive integer.");
+  const limitArguments = process.argv.filter((argument) => /^--limit/.test(argument));
+  if (limitArguments.length > 1 || (limitArguments[0] !== undefined && !/^--limit=[1-9]\d*$/.test(limitArguments[0]))) {
+    throw new Error("--limit must be provided once as a positive integer.");
+  }
+  const limit = limitArguments[0] ? Number.parseInt(limitArguments[0].slice("--limit=".length), 10) : matched.length;
   const selected = matched.slice(0, limit);
-  const actualImage = pinnedImageId("python");
-  const imageEvidence = {
+  let runtimeIdentity: LocalRuntimeIdentityEvidence | null = null;
+  let imageEvidence: object = {
     tag: PINNED_CURRICULUM_RUNTIMES.python.tag,
-    expected: PINNED_CURRICULUM_RUNTIMES.python.imageDigest,
-    actual: actualImage,
-    matches: actualImage === PINNED_CURRICULUM_RUNTIMES.python.imageDigest,
+    manifestDigest: PINNED_CURRICULUM_RUNTIMES.python.imageDigest,
+    configDigest: null,
+    immutableReference: null,
+    tagDescriptorDigest: null,
+    tagImageId: null,
+    exactReferenceDescriptorDigest: null,
+    exactReferenceImageId: null,
+    independentlyValidated: false,
   };
   if (!structureOnly && !pinnedDockerAvailable()) {
     throw new Error("Docker is unavailable; --structure-only is permitted only when runtime execution is intentionally deferred.");
   }
-  if (!structureOnly && !imageEvidence.matches) {
-    throw new Error(`Pinned AI Python runtime image mismatch: ${JSON.stringify(imageEvidence)}`);
+  if (!structureOnly) {
+    const runtimeManifest = JSON.parse(await readFile(
+      path.join(root, "services", "runner", "dist", "runtime-local-build-identities.json"),
+      "utf8",
+    )) as unknown;
+    runtimeIdentity = validateLocalRuntimeIdentity({
+      manifest: runtimeManifest,
+      expectations: [{
+        language: "python",
+        tag: PINNED_CURRICULUM_RUNTIMES.python.tag,
+        declaredContentDigest: PINNED_CURRICULUM_RUNTIMES.python.imageDigest,
+      }],
+    }).python ?? null;
+    if (!runtimeIdentity) throw new Error("Validated local runtime identity is missing for python.");
+    imageEvidence = projectRuntimeIdentityEvidence(runtimeIdentity);
   }
 
   const jobs = selected.flatMap(({ skillId, item }) => item.tests.map((test) => ({ skillId, item, test })));
@@ -97,8 +123,10 @@ async function main(): Promise<void> {
       const started = Date.now();
       try {
         if (item.runtime.engine !== "isolated-runner") throw new Error("runtime changed after validation");
+        if (!runtimeIdentity) throw new Error("Validated local runtime identity is missing for python.");
         const executed = await executePinnedCurriculumReference({
           language: "python",
+          imageReference: runtimeIdentity.immutableReference,
           source: item.answer.referenceSolution,
           stdin: test.stdin,
           timeLimitMs: item.runtime.timeLimitMs,
@@ -141,9 +169,9 @@ async function main(): Promise<void> {
   results.sort((left, right) => left.itemId.localeCompare(right.itemId) || left.testId.localeCompare(right.testId));
   const failures = results.filter((result) => result.status === "failed");
   const fullRuntimeRun = !structureOnly && selected.length === matched.length;
-  const report = {
+  const buildEvidence = (generatedAt: string) => ({
     schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     scope: "AI course deterministic offline Python labs pinned-runtime evidence",
     status: failures.length === 0 && fullRuntimeRun ? "verified" : structureOnly ? "structure-only" : "failed-or-partial",
     counts: {
@@ -162,18 +190,25 @@ async function main(): Promise<void> {
       "All items remain AI-assisted drafts with null human reviewer and zero formal-exam eligibility.",
       "Local Docker image ID evidence does not replace production KVM/NUC and CVE verification.",
     ],
-  };
-  const reportPath = path.join(
+  });
+  const reportName = structureOnly
+    ? "ai-code-executable-structure-2026-07-12.json"
+    : fullRuntimeRun
+      ? "ai-code-executable-runtime-2026-07-12.json"
+      : "ai-code-executable-sample-2026-07-12.json";
+  await verifyOrApplyDeterministicEvidence({
+    argv: process.argv.slice(2),
     root,
-    "docs",
-    "evidence",
-    structureOnly
-      ? "ai-code-executable-structure-2026-07-12.json"
+    trustedDirectory: "exclusive-writer",
+    relativePath: path.join("docs", "evidence", reportName),
+    buildEvidence,
+    applyCommand: structureOnly
+      ? "npm run ai-code:executable:structure:apply"
       : fullRuntimeRun
-        ? "ai-code-executable-runtime-2026-07-12.json"
-        : "ai-code-executable-sample-2026-07-12.json",
-  );
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+        ? "npm run ai-code:executable:evidence:apply"
+        : `npm run ai-code:executable:evidence:apply -- --limit=${selected.length}`,
+    allowArgument: (argument) => argument === "--structure-only" || /^--limit=[1-9]\d*$/.test(argument),
+  });
   console.log(`AI code ${structureOnly ? "structure" : "runtime"} verification: ${matched.length} tasks, ${results.length} cases, ${failures.length} failures, full=${fullRuntimeRun}.`);
   if (failures.length || (process.argv.includes("--check") && !structureOnly && !fullRuntimeRun)) {
     process.exitCode = 1;

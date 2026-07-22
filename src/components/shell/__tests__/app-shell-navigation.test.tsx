@@ -16,6 +16,7 @@ const durability = vi.hoisted(() => ({
   close: vi.fn(),
   withRepository: vi.fn(),
 }));
+const overlay = vi.hoisted(() => ({ render: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { signOut: vi.fn() } }));
@@ -29,7 +30,12 @@ vi.mock("@/lib/browser-durability/lifecycle", () => ({
 vi.mock("@/lib/drafts/logout", () => ({
   signOutWithBrowserDurabilityCleanup: durability.signOutCleanup,
 }));
-vi.mock("../exam-lockdown-overlay", () => ({ ExamLockdownOverlay: () => null }));
+vi.mock("../exam-lockdown-overlay", () => ({
+  ExamLockdownOverlay: (props: { enabled?: boolean }) => {
+    overlay.render(props);
+    return null;
+  },
+}));
 
 import { AppShell } from "../app-shell";
 
@@ -137,6 +143,7 @@ describe("AppShell compact navigation", () => {
     durability.openBrowserOutbox.mockReset();
     durability.prepareNamespace.mockReset();
     durability.signOutCleanup.mockReset();
+    overlay.render.mockReset();
     durability.openBrowserOutbox.mockResolvedValue({ close: durability.close });
     durability.prepareNamespace.mockResolvedValue(undefined);
     durability.signOutCleanup.mockResolvedValue({ cleanupSucceeded: true });
@@ -351,6 +358,23 @@ describe("AppShell compact navigation", () => {
     render(<AppShell browserDurabilityNamespace={null}><p>Demo content</p></AppShell>);
     expect(screen.getByText("Demo content")).toBeInTheDocument();
     expect(durability.openBrowserOutbox).not.toHaveBeenCalled();
+  });
+
+  it("can prepare demo recovery storage without enabling authenticated session polling", async () => {
+    render(
+      <AppShell
+        authenticatedSessionMonitoring={false}
+        browserDurabilityNamespace="demo-namespace"
+      >
+        <p>Durable demo content</p>
+      </AppShell>,
+    );
+
+    expect(await screen.findByText("Durable demo content")).toBeInTheDocument();
+    expect(durability.prepareNamespace).toHaveBeenCalledWith(expect.objectContaining({
+      namespace: "demo-namespace",
+    }));
+    expect(overlay.render).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
   });
 
   it("disables sign-out while pending and shows a retryable authority error", async () => {

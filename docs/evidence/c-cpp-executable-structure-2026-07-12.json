@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-07-14T11:17:59.409Z",
+  "generatedAt": "2026-07-20T19:57:56.015Z",
   "scope": "C23 and C++20 executable authored curriculum evidence",
   "status": "structure-only",
   "counts": {
@@ -34,9 +34,14 @@
   "imageEvidence": {
     "c": {
       "tag": "learncoding/runtime-c:local",
-      "expectedDigest": "sha256:8c88ddbf1dd1da836bedd2030d8c2039482862cf32f105c21933b5be9103298b",
-      "actualImageId": null,
-      "digestMatches": false,
+      "manifestDigest": "sha256:3b1c69546c0c92c68fa162fe312a0fad0751f775241cccfbaf21df6b8705d9bf",
+      "configDigest": null,
+      "immutableReference": null,
+      "tagDescriptorDigest": null,
+      "tagImageId": null,
+      "exactReferenceDescriptorDigest": null,
+      "exactReferenceImageId": null,
+      "independentlyValidated": false,
       "expectedCompilerVersion": "gcc (Alpine 14.2.0) 14.2.0",
       "inspectedCompilerVersion": "gcc (Alpine 14.2.0) 14.2.0",
       "compilerVersionMatches": true,
@@ -49,9 +54,14 @@
     },
     "cpp": {
       "tag": "learncoding/runtime-cpp:local",
-      "expectedDigest": "sha256:84246b973295b3da05158ca19b77780f4b625746dc761f7fc97eba60bb858a8d",
-      "actualImageId": null,
-      "digestMatches": false,
+      "manifestDigest": "sha256:e3864e55c7c376ca479ca85cc15dda81016f6e53aa88ed2172b69e2af9e0d45a",
+      "configDigest": null,
+      "immutableReference": null,
+      "tagDescriptorDigest": null,
+      "tagImageId": null,
+      "exactReferenceDescriptorDigest": null,
+      "exactReferenceImageId": null,
+      "independentlyValidated": false,
       "expectedCompilerVersion": "g++ (Alpine 14.2.0) 14.2.0",
       "inspectedCompilerVersion": "g++ (Alpine 14.2.0) 14.2.0",
       "compilerVersionMatches": true,

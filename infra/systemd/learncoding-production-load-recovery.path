@@ -1,0 +1,12 @@
+[Unit]
+Description=Recover an interrupted Codestead production load fault
+Documentation=file:/opt/learncoding/docs/runbooks/load-testing.md
+After=local-fs.target
+
+[Path]
+PathExists=/var/lib/learncoding-production-load/production-load-fault-journal.json
+Unit=learncoding-production-load-recovery.service
+MakeDirectory=false
+
+[Install]
+WantedBy=multi-user.target

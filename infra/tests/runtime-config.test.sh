@@ -11,7 +11,7 @@ sha256_bin=/usr/bin/sha256sum
 perl_bin=/usr/bin/perl
 validator="$repo_root/infra/ops/validate-runtime.sh"
 validator_shebang='#!/usr/bin/env bash'
-validator_reviewed_sha256='0607c6805cb9df618817c09ed50029fdffc555cd9375b3765ea5bf2550ce61b2'
+validator_reviewed_sha256='ca635db9105e002c0c1a101ffa4d88ece4c146e3e84f49a2cc0b8aa1eb4e13c5'
 
 if [[ "$(/usr/bin/uname -s 2>/dev/null || true)" != Linux ]]; then
   echo 'FAIL: authoritative runtime contract requires Linux Bubblewrap containment' >&2
@@ -387,19 +387,24 @@ assert_path_mutation_defenses "$bash_bin"
 
 trusted_stat_assignment_count="$(grep -Fxc 'readonly trusted_stat_bin="/usr/bin/stat"' "$validator_stage" || true)"
 trusted_realpath_assignment_count="$(grep -Fxc 'readonly trusted_realpath_bin="/usr/bin/realpath"' "$validator_stage" || true)"
-if [[ "$trusted_stat_assignment_count" != 1 || "$trusted_realpath_assignment_count" != 1 ]]; then
+trusted_node_resolution_count="$(grep -Fxc 'resolved_node_bin="$(type -P node || true)"' "$validator_stage" || true)"
+trusted_bash_syntax_count="$(grep -Fxc '  /usr/bin/bash -n "$postgres_storage_preparer" >/dev/null || {' "$validator_stage" || true)"
+if [[ "$trusted_stat_assignment_count" != 1 || "$trusted_realpath_assignment_count" != 1 ||
+  "$trusted_node_resolution_count" != 1 || "$trusted_bash_syntax_count" != 1 ]]; then
   echo 'FAIL: runtime validator trusted metadata-tool boundary changed unexpectedly' >&2
   exit 1
 fi
 unexpected_absolute_commands="$(tail -n +2 "$validator_stage" | \
   grep -E '/(usr/)?(s?bin|libexec)/[A-Za-z0-9_.+-]+' | \
   grep -Fv 'readonly trusted_stat_bin="/usr/bin/stat"' | \
-  grep -Fv 'readonly trusted_realpath_bin="/usr/bin/realpath"' || true)"
+  grep -Fv 'readonly trusted_realpath_bin="/usr/bin/realpath"' | \
+  grep -Fv '      --entrypoint /usr/bin/getent "$POSTGRES_IMAGE" passwd postgres' | \
+  grep -Fv '  /usr/bin/bash -n "$postgres_storage_preparer" >/dev/null || {' || true)"
 if [[ -n "$unexpected_absolute_commands" ]]; then
   echo 'FAIL: runtime validator can bypass the isolated command root with an absolute executable' >&2
   exit 1
 fi
-if tail -n +2 "$validator_stage" | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
+if tail -n +2 "$validator_stage" | grep -Fv '  /usr/bin/bash -n "$postgres_storage_preparer" >/dev/null || {' | grep -Eq '\$BASH([^A-Za-z0-9_]|$)|\$\{BASH([^A-Za-z0-9_]|$)|(^|[;&|({])[[:space:]]*(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+|(^|[[:space:]])(if|then|while|until|do|else|!)[[:space:]]+(exec[[:space:]]+|command[[:space:]]+)?["'"'"']?/[A-Za-z0-9_.+/-]+'; then
   echo 'FAIL: runtime validator can invoke an absolute executable or the ambient Bash interpreter outside the fake PATH' >&2
   exit 1
 fi
@@ -429,10 +434,12 @@ if [[ "$runtime_source_count" != 1 || "$all_runtime_source_count" != 1 ]]; then
 fi
 runtime_input_redirects="$(tail -n +2 "$validator_stage" | grep -E '(^|[^<])<[[:space:]]*([^<(&]|$)' || true)"
 expected_runtime_input_redirects="$(printf '%s\n' \
+  '  done <"$config_path"' \
+  'cloudflare_credentials="$(<"$secrets_dir/cloudflare_tunnel_credentials.json")"' \
   '  tr -d '\''[:space:]'\'' <"$file" | wc -c' \
   'decoded_key_bytes="$(tr -d '\''\r\n '\'' <"$secrets_dir/credential_master_key" | base64 --decode 2>/dev/null | wc -c)" || {')"
 if [[ "$runtime_input_redirects" != "$expected_runtime_input_redirects" ]]; then
-  echo 'FAIL: runtime validator contains an uninstrumented input redirection outside the two validated secret reads' >&2
+  echo 'FAIL: runtime validator contains an uninstrumented input redirection outside the approved config and validated secret reads' >&2
   exit 1
 fi
 
@@ -441,6 +448,8 @@ render_runtime_validator_copy() {
   local canonical_stat='readonly trusted_stat_bin="/usr/bin/stat"'
   local canonical_realpath='readonly trusted_realpath_bin="/usr/bin/realpath"'
   local canonical_docker='resolved_docker_bin="$(type -P docker || true)"'
+  local canonical_node='resolved_node_bin="$(type -P node || true)"'
+  local canonical_bash_syntax='  /usr/bin/bash -n "$postgres_storage_preparer" >/dev/null || {'
   local line command_name
   local line_number=0
 
@@ -457,6 +466,8 @@ render_runtime_validator_copy() {
         "$canonical_stat") printf 'readonly trusted_stat_bin=%q\n' "$case_root/bin/trusted-stat" ;;
         "$canonical_realpath") printf 'readonly trusted_realpath_bin=%q\n' "$case_root/bin/trusted-realpath" ;;
         "$canonical_docker") printf 'resolved_docker_bin=%q\n' "$case_root/bin/docker" ;;
+        "$canonical_node") printf 'resolved_node_bin=%q\n' "$case_root/bin/node" ;;
+        "$canonical_bash_syntax") printf '  %q -n "$postgres_storage_preparer" >/dev/null || {\n' "$case_root/bin/bash" ;;
         *) printf '%s\n' "$line" ;;
       esac
     done <"$source"
@@ -468,17 +479,21 @@ make_runtime_validator_copy() {
   local canonical_stat='readonly trusted_stat_bin="/usr/bin/stat"'
   local canonical_realpath='readonly trusted_realpath_bin="/usr/bin/realpath"'
   local canonical_docker='resolved_docker_bin="$(type -P docker || true)"'
+  local canonical_node='resolved_node_bin="$(type -P node || true)"'
+  local canonical_bash_syntax='  /usr/bin/bash -n "$postgres_storage_preparer" >/dev/null || {'
   local expected_file="$destination.expected" candidate="$destination.candidate"
   local line actual_sha256
-  local stat_count=0 realpath_count=0 docker_count=0
+  local stat_count=0 realpath_count=0 docker_count=0 node_count=0 bash_syntax_count=0
 
   verify_exact_staged_shell_source "$staged_source" "$bash_bin" "$validator_shebang" "$expected_sha256" || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" == "$canonical_stat" ]] && stat_count=$((stat_count + 1))
     [[ "$line" == "$canonical_realpath" ]] && realpath_count=$((realpath_count + 1))
     [[ "$line" == "$canonical_docker" ]] && docker_count=$((docker_count + 1))
+    [[ "$line" == "$canonical_node" ]] && node_count=$((node_count + 1))
+    [[ "$line" == "$canonical_bash_syntax" ]] && bash_syntax_count=$((bash_syntax_count + 1))
   done <"$staged_source"
-  (( stat_count == 1 && realpath_count == 1 && docker_count == 1 )) || return 1
+  (( stat_count == 1 && realpath_count == 1 && docker_count == 1 && node_count == 1 && bash_syntax_count == 1 )) || return 1
 
   rm -f -- "$expected_file" "$candidate" "$destination"
   render_runtime_validator_copy "$staged_source" "$expected_file" "$case_root" || return 1
@@ -492,9 +507,13 @@ make_runtime_validator_copy() {
   [[ "$(grep -Fxc -- "readonly trusted_stat_bin=$case_root/bin/trusted-stat" "$destination" || true)" == 1 ]] || return 1
   [[ "$(grep -Fxc -- "readonly trusted_realpath_bin=$case_root/bin/trusted-realpath" "$destination" || true)" == 1 ]] || return 1
   [[ "$(grep -Fxc -- "resolved_docker_bin=$case_root/bin/docker" "$destination" || true)" == 1 ]] || return 1
+  [[ "$(grep -Fxc -- "resolved_node_bin=$case_root/bin/node" "$destination" || true)" == 1 ]] || return 1
+  [[ "$(grep -Fxc -- "  $case_root/bin/bash -n \"\$postgres_storage_preparer\" >/dev/null || {" "$destination" || true)" == 1 ]] || return 1
   ! grep -Fq -- "$canonical_stat" "$destination" || return 1
   ! grep -Fq -- "$canonical_realpath" "$destination" || return 1
   ! grep -Fq -- "$canonical_docker" "$destination" || return 1
+  ! grep -Fq -- "$canonical_node" "$destination" || return 1
+  ! grep -Fq -- "$canonical_bash_syntax" "$destination" || return 1
   verify_exact_staged_shell_source "$destination" "$bash_bin" "#!$bash_bin" "$expected_transformed_sha256"
 }
 
@@ -503,11 +522,15 @@ write_runtime_site_mutation() {
   local canonical_stat='readonly trusted_stat_bin="/usr/bin/stat"'
   local canonical_realpath='readonly trusted_realpath_bin="/usr/bin/realpath"'
   local canonical_docker='resolved_docker_bin="$(type -P docker || true)"'
+  local canonical_node='resolved_node_bin="$(type -P node || true)"'
+  local canonical_bash_syntax='  /usr/bin/bash -n "$postgres_storage_preparer" >/dev/null || {'
   local target changed line
   case "$mutation" in
     missing-stat|duplicate-stat|changed-stat) target="$canonical_stat"; changed='readonly trusted_stat_bin="/bin/stat"' ;;
     missing-realpath|duplicate-realpath|changed-realpath) target="$canonical_realpath"; changed='readonly trusted_realpath_bin="/bin/realpath"' ;;
     missing-docker|duplicate-docker|changed-docker) target="$canonical_docker"; changed='resolved_docker_bin="$(command -v docker || true)"' ;;
+    missing-node|duplicate-node|changed-node) target="$canonical_node"; changed='resolved_node_bin="$(command -v node || true)"' ;;
+    missing-bash-syntax|duplicate-bash-syntax|changed-bash-syntax) target="$canonical_bash_syntax"; changed='  bash -n "$postgres_storage_preparer" >/dev/null || {' ;;
     *) return 1 ;;
   esac
   : >"$destination"
@@ -529,7 +552,8 @@ assert_runtime_site_mutations() {
   local sentinel="$work/runtime-site.sentinel" mutation_sha256
   printf '%s' unchanged >"$sentinel"
   for mutation in missing-stat duplicate-stat changed-stat missing-realpath duplicate-realpath changed-realpath \
-    missing-docker duplicate-docker changed-docker; do
+    missing-docker duplicate-docker changed-docker missing-node duplicate-node changed-node \
+    missing-bash-syntax duplicate-bash-syntax changed-bash-syntax; do
     write_runtime_site_mutation "$mutation" "$mutated"
     mutation_sha256="$(sha256_file "$mutated")" || fail "could not hash runtime $mutation site mutation"
     rm -f -- "$staged" "$transformed"
@@ -548,14 +572,25 @@ config=
 secrets=
 fake_stat_target=
 fake_runner_url=
+fake_runner_client_url=
+fake_runner_client_subnet=
+fake_runner_gateway_source=
 fake_runner_subnet=
 fake_runner_bridge=
 fake_app_image=
 fake_long_restart=
+fake_cloudflared_restart=
 fake_oneshot_restart=
+ambient_postgres_image=
+ambient_postgres_uid=
+ambient_postgres_gid=
+fake_postgres_config_user=
+fake_postgres_passwd_entry=
 fake_postgres_fsync=
 fake_postgres_sync_commit=
 fake_postgres_full_page_writes=
+fake_node_object_check_status=
+fake_bash_preparer_check_status=
 fake_host_port=false
 fake_live_fsync=
 fake_live_sync_commit=
@@ -577,15 +612,27 @@ make_fixture() {
   config="$case_dir/compose.env"
   secrets="$case_dir/secrets"
   fake_stat_target=
-  fake_runner_url='http://10.20.0.12:4100'
+  fake_runner_url='http://192.168.122.12:4100'
+  fake_runner_client_url='http://runner-egress-gateway:4100'
+  fake_runner_client_subnet='172.29.41.0/24'
+  fake_runner_client_internal='true'
+  fake_runner_gateway_source='172.29.40.2'
   fake_runner_subnet='172.29.40.0/24'
   fake_runner_bridge='cdst-run0'
   fake_app_image="registry.example.test/codestead/runtime@sha256:$digest_a"
   fake_long_restart='unless-stopped'
+  fake_cloudflared_restart='on-failure:5'
   fake_oneshot_restart='no'
+  ambient_postgres_image="postgres:17-bookworm@sha256:$digest_2"
+  ambient_postgres_uid=999
+  ambient_postgres_gid=999
+  fake_postgres_config_user='postgres'
+  fake_postgres_passwd_entry='postgres:x:999:999:PostgreSQL:/var/lib/postgresql:/bin/sh'
   fake_postgres_fsync='on'
   fake_postgres_sync_commit='on'
   fake_postgres_full_page_writes='on'
+  fake_node_object_check_status=0
+  fake_bash_preparer_check_status=0
   fake_host_port=false
   fake_live_fsync='on'
   fake_live_sync_commit='on'
@@ -599,13 +646,29 @@ make_fixture() {
 
   mkdir -p \
     "$case_dir/bin" \
-    "$case_repo" \
+    "$case_repo/infra/ops" \
     "$secrets" \
     "$case_dir/data/postgres" \
     "$case_dir/data/next-cache" \
     "$case_dir/data/app-data" \
     "$case_dir/data/uploads" \
     "$case_dir/data/clamav"
+  printf '%s\n' 'export {};' >"$case_repo/infra/ops/prepare-object-storage.mjs"
+  cat >"$case_repo/infra/ops/prepare-postgres-control-socket.sh" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+EOF
+  printf '%s\n' 'export {};' >"$case_repo/infra/ops/validate-database-secrets.mjs"
+  chown 0:0 \
+    "$case_repo" \
+    "$case_repo/infra" \
+    "$case_repo/infra/ops" \
+    "$case_repo/infra/ops/prepare-object-storage.mjs" \
+    "$case_repo/infra/ops/prepare-postgres-control-socket.sh" \
+    "$case_repo/infra/ops/validate-database-secrets.mjs"
+  chmod 0700 "$case_repo" "$case_repo/infra" "$case_repo/infra/ops"
+  chmod 0644 "$case_repo/infra/ops/prepare-object-storage.mjs" "$case_repo/infra/ops/validate-database-secrets.mjs"
+  chmod 0755 "$case_repo/infra/ops/prepare-postgres-control-socket.sh"
 
   printf '%s\n' 'services: {}' >"$case_repo/compose.yaml"
   chmod 0400 "$case_repo/compose.yaml"
@@ -628,11 +691,28 @@ if [[ "$#" == 1 && "${1:-}" == "info" ]]; then
   exit 0
 fi
 
-if [[ "$#" == 16 && "$1" == compose && "$2" == --env-file && "$3" == "$FAKE_EXPECTED_COMPOSE_ENV" && \
+if [[ "$#" == 5 && "$1" == image && "$2" == inspect && "$3" == --format && \
+  "$4" == '{{.Config.User}}' && "$5" == "$FAKE_POSTGRES_IMAGE" ]]; then
+  printf '%s\n' "$FAKE_POSTGRES_CONFIG_USER"
+  exit 0
+fi
+
+if [[ "$#" == 16 && "$1" == run && "$2" == --rm && "$3" == --pull && "$4" == never && \
+  "$5" == --network && "$6" == none && "$7" == --read-only && "$8" == --cap-drop && \
+  "$9" == ALL && "${10}" == --security-opt && "${11}" == no-new-privileges && \
+  "${12}" == --entrypoint && "${13}" == /usr/bin/getent && "${14}" == "$FAKE_POSTGRES_IMAGE" && \
+  "${15}" == passwd && "${16}" == postgres ]]; then
+  printf '%s\n' "$FAKE_POSTGRES_PASSWD_ENTRY"
+  exit 0
+fi
+
+if [[ "$#" == 19 && "$1" == compose && "$2" == --env-file && "$3" == "$FAKE_EXPECTED_COMPOSE_ENV" && \
   "$4" == -f && "$5" == "$FAKE_EXPECTED_COMPOSE_FILE" && "$6" == exec && "$7" == -T && \
-  "$8" == postgres && "$9" == psql && "${10}" == --username=learncoding && \
-  "${11}" == --dbname=learncoding && "${12}" == --no-align && "${13}" == --tuples-only && \
-  "${14}" == '--field-separator=|' && "${15}" == --command && "${16}" == "$FAKE_EXPECTED_POSTGRES_SQL" ]]; then
+  "$8" == postgres && "$9" == psql && "${10}" == --host=/run/learncoding-postgres && \
+  "${11}" == --username=learncoding && "${12}" == --dbname=learncoding && \
+  "${13}" == --no-psqlrc && "${14}" == --quiet && "${15}" == --no-align && \
+  "${16}" == --tuples-only && "${17}" == '--field-separator=|' && \
+  "${18}" == --command && "${19}" == "$FAKE_EXPECTED_POSTGRES_SQL" ]]; then
   printf '%s|%s\n' \
     fsync "$FAKE_LIVE_FSYNC" \
     synchronous_commit "$FAKE_LIVE_SYNC_COMMIT" \
@@ -660,8 +740,17 @@ emit_host_port() {
 }
 
 if [[ "${1:-}" == "compose" ]]; then
-  [[ "$#" == 6 && "${2:-}" == --env-file && "${3:-}" == "$FAKE_EXPECTED_COMPOSE_ENV" &&
-    "${4:-}" == -f && "${5:-}" == "$FAKE_EXPECTED_COMPOSE_FILE" && "${6:-}" == config ]] || exit 64
+  operations_profile=false
+  if [[ "$#" == 6 && "${2:-}" == --env-file && "${3:-}" == "$FAKE_EXPECTED_COMPOSE_ENV" &&
+    "${4:-}" == -f && "${5:-}" == "$FAKE_EXPECTED_COMPOSE_FILE" && "${6:-}" == config ]]; then
+    :
+  elif [[ "$#" == 8 && "${2:-}" == --env-file && "${3:-}" == "$FAKE_EXPECTED_COMPOSE_ENV" &&
+    "${4:-}" == -f && "${5:-}" == "$FAKE_EXPECTED_COMPOSE_FILE" &&
+    "${6:-}" == --profile && "${7:-}" == operations && "${8:-}" == config ]]; then
+    operations_profile=true
+  else
+    exit 64
+  fi
   postgres_image="$(value_for postgres image 'registry.example.test/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222')"
   postgres_restart="$(value_for postgres restart unless-stopped)"
   postgres_stop="$(value_for postgres stop-grace 2m)"
@@ -688,14 +777,14 @@ if [[ "${1:-}" == "compose" ]]; then
     "    restart: $app_restart" \
     "    stop_grace_period: $app_stop" \
     '    environment:' \
-    "      RUNNER_BASE_URL: $FAKE_RUNNER_URL" \
+    "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL" \
     '    networks:' \
     '      - data' \
     '      - frontend' \
-    '      - runner-egress'
+    '      - runner-client'
   emit_host_port app
   for service in mail-worker reward-worker regrade-worker exam-finalization-worker \
-    practice-runner-recovery-worker project-review-correction-worker scan-worker; do
+    practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker; do
     service_image="$(value_for "$service" image 'registry.example.test/worker@sha256:3333333333333333333333333333333333333333333333333333333333333333')"
     service_restart="$(value_for "$service" restart unless-stopped)"
     service_stop="$(value_for "$service" stop-grace 1m)"
@@ -705,29 +794,70 @@ if [[ "${1:-}" == "compose" ]]; then
       "    restart: $service_restart" \
       "    stop_grace_period: $service_stop"
     emit_host_port "$service"
+    case "$service" in
+      regrade-worker|exam-finalization-worker|practice-runner-recovery-worker)
+        printf '%s\n' \
+          '    environment:' \
+          "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL" \
+          '    networks:' \
+          '      - data' \
+          '      - runner-client'
+        ;;
+    esac
   done
   cloudflared_image="$(value_for cloudflared image 'registry.example.test/cloudflared@sha256:3333333333333333333333333333333333333333333333333333333333333333')"
-  cloudflared_restart="$(value_for cloudflared restart unless-stopped)"
+  cloudflared_restart="$(value_for cloudflared restart "$FAKE_CLOUDFLARED_RESTART")"
   cloudflared_stop="$(value_for cloudflared stop-grace 30s)"
   printf '%s\n' \
     '  cloudflared:' \
     "    image: $cloudflared_image" \
     "    restart: $cloudflared_restart" \
-    "    stop_grace_period: $cloudflared_stop"
+    "    stop_grace_period: $cloudflared_stop" \
+    '    secrets:' \
+    '      - source: cloudflare_tunnel_credentials' \
+    '        target: cloudflare_tunnel_credentials'
   emit_host_port cloudflared
-  for service in migrate lifecycle platform-seed admin-bootstrap; do
-    service_image="$(value_for "$service" image 'registry.example.test/operations@sha256:1111111111111111111111111111111111111111111111111111111111111111')"
-    service_restart="$(value_for "$service" restart "$FAKE_ONESHOT_RESTART")"
-    printf '%s\n' \
-      "  $service:" \
-      '    profiles:' \
-      '      - operations' \
-      "    image: $service_image" \
-      "    restart: $service_restart"
-    emit_host_port "$service"
-  done
+  if [[ "$operations_profile" == true ]]; then
+    for service in database-role-bootstrap database-negative-probes database-boundary-verifier \
+      migrate lifecycle platform-seed admin-bootstrap; do
+      service_image="$(value_for "$service" image 'registry.example.test/operations@sha256:1111111111111111111111111111111111111111111111111111111111111111')"
+      service_restart="$(value_for "$service" restart "$FAKE_ONESHOT_RESTART")"
+      printf '%s\n' \
+        "  $service:" \
+        '    profiles:' \
+        '      - operations' \
+        "    image: $service_image" \
+        "    restart: $service_restart"
+      emit_host_port "$service"
+    done
+  fi
+  gateway_image="$(value_for runner-egress-gateway image "$FAKE_APP_IMAGE")"
+  gateway_restart="$(value_for runner-egress-gateway restart unless-stopped)"
+  gateway_stop="$(value_for runner-egress-gateway stop-grace 15s)"
+  printf '%s\n' \
+    '  runner-egress-gateway:' \
+    "    image: $gateway_image" \
+    "    restart: $gateway_restart" \
+    "    stop_grace_period: $gateway_stop" \
+    '    environment:' \
+    "      RUNNER_GATEWAY_UPSTREAM: $FAKE_RUNNER_URL" \
+    '    networks:' \
+    '      runner-client:' \
+    '        ipv4_address: 172.29.41.2' \
+    '        interface_name: runner-client' \
+    '      runner-egress:' \
+    '        gw_priority: 100' \
+    '        interface_name: runner-egress' \
+    "        ipv4_address: $FAKE_RUNNER_GATEWAY_SOURCE"
+  emit_host_port runner-egress-gateway
   printf '%s\n' \
     'networks:' \
+    '  runner-client:' \
+    '    driver: bridge' \
+    "    internal: $FAKE_RUNNER_CLIENT_INTERNAL" \
+    '    ipam:' \
+    '      config:' \
+    "        - subnet: $FAKE_RUNNER_CLIENT_SUBNET" \
     '  runner-egress:' \
     '    driver: bridge' \
     '    driver_opts:' \
@@ -749,13 +879,49 @@ set -Eeuo pipefail
   for argument in "$@"; do printf ' %q' "$argument"; done
   printf '\n'
 } >>"$FAKE_DOCKER_LOG"
-[[ "$#" == 18 && "${1:-}" == 30s ]] || exit 64
+[[ "$#" == 21 && "${1:-}" == 30s ]] || exit 64
 shift
 [[ "${1:-}" == "$FAKE_DOCKER_BINARY" ]] || exit 64
 shift
 exec "$FAKE_DOCKER_BINARY" "$@"
 EOF
   chmod 0555 "$case_dir/bin/timeout"
+  printf '#!%s\n' "$bash_bin" >"$case_dir/bin/node"
+  cat >>"$case_dir/bin/node" <<'EOF'
+set -Eeuo pipefail
+{
+  printf 'node'
+  for argument in "$@"; do printf ' %q' "$argument"; done
+  printf '\n'
+} >>"$FAKE_DOCKER_LOG"
+if [[ "$#" == 2 && "$1" == --check && "$2" == "$FAKE_EXPECTED_OBJECT_PREPARER" ]]; then
+  exit "$FAKE_NODE_OBJECT_CHECK_STATUS"
+fi
+if [[ "$#" == 9 && "$1" == "$FAKE_EXPECTED_DATABASE_VALIDATOR" && \
+  "$2" == learncoding && "$3" == learncoding && \
+  "$4" == "$FAKE_EXPECTED_SECRETS_DIR/postgres_password" && \
+  "$5" == "$FAKE_EXPECTED_SECRETS_DIR/database_bootstrap_url" && \
+  "$6" == "$FAKE_EXPECTED_SECRETS_DIR/database_url" && \
+  "$7" == "$FAKE_EXPECTED_SECRETS_DIR/database_migrator_url" && \
+  "$8" == "$FAKE_EXPECTED_SECRETS_DIR/database_worker_url" && \
+  "$9" == "$FAKE_EXPECTED_SECRETS_DIR/database_ops_url" ]]; then
+  printf '%s\n' 'database secret topology valid'
+  exit 0
+fi
+exit 64
+EOF
+  printf '#!%s\n' "$bash_bin" >"$case_dir/bin/bash"
+  cat >>"$case_dir/bin/bash" <<'EOF'
+set -Eeuo pipefail
+{
+  printf 'bash'
+  for argument in "$@"; do printf ' %q' "$argument"; done
+  printf '\n'
+} >>"$FAKE_DOCKER_LOG"
+[[ "$#" == 2 && "$1" == -n && "$2" == "$FAKE_EXPECTED_POSTGRES_PREPARER" ]] || exit 64
+exit "$FAKE_BASH_PREPARER_CHECK_STATUS"
+EOF
+  chmod 0555 "$case_dir/bin/node" "$case_dir/bin/bash"
   mkdir -m 0700 "$case_dir/tmp"
   printf '#!%s\n' "$bash_bin" >"$case_dir/bin/fake-safe-command"
   cat >>"$case_dir/bin/fake-safe-command" <<'EOF'
@@ -815,23 +981,27 @@ realpath_input_is_contained() {
 
 case "$command_name" in
   trusted-stat)
-    [[ "$#" == 4 && "$1" == -c && "$3" == -- && ( "$2" == '%u:%g:%a' || "$2" == '%a' || "$2" == '%u' ) ]] || exit 64
+    [[ "$#" == 4 && "$1" == -c && "$3" == -- && ( "$2" == '%u:%g:%a' || "$2" == '%u:%g:%a:%h' || "$2" == '%a' || "$2" == '%u' ) ]] || exit 64
     safe_fixture_path "$4" || exit 97
     stat_output="$(/usr/bin/stat -c "$2" -- "$4")" || exit 97
-    if [[ "$2" == '%u:%g:%a' ]]; then
-      IFS=: read -r stat_uid stat_gid stat_mode <<<"$stat_output"
+    if [[ "$2" == '%u:%g:%a' || "$2" == '%u:%g:%a:%h' ]]; then
+      IFS=: read -r stat_uid stat_gid stat_mode stat_links <<<"$stat_output"
       if [[ "$stat_gid" == "$RUNTIME_NAMESPACE_OVERFLOW_GID" ]]; then
         stat_gid="$FAKE_EXPECTED_SECRET_GID"
       fi
-      printf '%s:%s:%s\n' "$stat_uid" "$stat_gid" "$stat_mode"
+      if [[ "$2" == '%u:%g:%a:%h' ]]; then
+        printf '%s:%s:%s:%s\n' "$stat_uid" "$stat_gid" "$stat_mode" "$stat_links"
+      else
+        printf '%s:%s:%s\n' "$stat_uid" "$stat_gid" "$stat_mode"
+      fi
     else
       printf '%s\n' "$stat_output"
     fi
     ;;
   trusted-realpath)
-    [[ "$#" == 4 && "$1" == --canonicalize-missing && "$2" == --no-symlinks && "$3" == -- ]] || exit 64
+    [[ "$#" == 4 && ( "$1" == --canonicalize-missing || "$1" == --canonicalize-existing ) && "$2" == --no-symlinks && "$3" == -- ]] || exit 64
     realpath_input_is_contained "$4" || exit 97
-    resolved="$(/usr/bin/realpath --canonicalize-missing --no-symlinks -- "$4")" || exit 97
+    resolved="$(/usr/bin/realpath "$1" --no-symlinks -- "$4")" || exit 97
     has_fixture_prefix "$resolved" || exit 97
     printf '%s\n' "$resolved"
     ;;
@@ -871,9 +1041,13 @@ EOF
   chmod 0555 "$case_dir/bin"/*
   fake_docker_sha256="$(sha256_file "$case_dir/bin/docker")" || fail 'could not hash strict fake Docker command'
   fake_timeout_sha256="$(sha256_file "$case_dir/bin/timeout")" || fail 'could not hash strict fake timeout command'
+  fake_node_sha256="$(sha256_file "$case_dir/bin/node")" || fail 'could not hash strict fake Node command'
+  fake_bash_sha256="$(sha256_file "$case_dir/bin/bash")" || fail 'could not hash strict fake Bash command'
   fake_safe_sha256="$(sha256_file "$case_dir/bin/fake-safe-command")" || fail 'could not hash strict safe-command wrapper'
   verify_exact_staged_shell_source "$case_dir/bin/docker" "$bash_bin" "#!$bash_bin" "$fake_docker_sha256" || fail 'fake Docker identity is not verified'
   verify_exact_staged_shell_source "$case_dir/bin/timeout" "$bash_bin" "#!$bash_bin" "$fake_timeout_sha256" || fail 'fake timeout identity is not verified'
+  verify_exact_staged_shell_source "$case_dir/bin/node" "$bash_bin" "#!$bash_bin" "$fake_node_sha256" || fail 'fake Node identity is not verified'
+  verify_exact_staged_shell_source "$case_dir/bin/bash" "$bash_bin" "#!$bash_bin" "$fake_bash_sha256" || fail 'fake Bash identity is not verified'
   for command_name in trusted-stat trusted-realpath grep mktemp rm tr wc base64; do
     verify_exact_staged_shell_source "$case_dir/bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_safe_sha256" ||
       fail "runtime safe command identity is not verified: $command_name"
@@ -894,20 +1068,24 @@ EOF
     exit 1
   }
   grep -Fxq "resolved_docker_bin=$case_dir/bin/docker" "$validator_under_test" || fail 'runtime test did not instrument exact Docker resolution site'
+  grep -Fxq "resolved_node_bin=$case_dir/bin/node" "$validator_under_test" || fail 'runtime test did not instrument exact Node resolution site'
+  grep -Fxq "  $case_dir/bin/bash -n \"\$postgres_storage_preparer\" >/dev/null || {" "$validator_under_test" || \
+    fail 'runtime test did not instrument exact Bash syntax-check site'
   validator_under_test_sha256="$(sha256_file "$validator_under_test")" || fail 'could not hash transformed runtime validator'
   verify_exact_staged_shell_source "$validator_under_test" "$bash_bin" "#!$bash_bin" "$validator_under_test_sha256" ||
     fail 'transformed runtime validator identity is not verified'
   : >"$fake_docker_log"
 
   cat >"$case_dir/cloudflare.yml" <<'EOF'
-tunnel: 11111111-1111-1111-1111-111111111111
+tunnel: 11111111-1111-4111-8111-111111111111
+credentials-file: /run/secrets/cloudflare_tunnel_credentials
 ingress:
   - hostname: pilot.example.test
     service: http://app:3000
   - service: http_status:404
 EOF
   chown 0:0 "$case_dir/cloudflare.yml"
-  chmod 0600 "$case_dir/cloudflare.yml"
+  chmod 0640 "$case_dir/cloudflare.yml"
 
   cat >"$config" <<EOF
 APP_URL=https://pilot.example.test
@@ -924,8 +1102,11 @@ UPLOADS_ENABLED=false
 COMPOSE_PROFILES=
 SECRETS_GID=$secrets_gid
 POSTGRES_IMAGE=postgres:17-bookworm@sha256:$digest_2
+POSTGRES_UID=999
+POSTGRES_GID=999
 CLOUDFLARED_IMAGE=cloudflare/cloudflared:2026.1.0@sha256:$digest_3
 CLAMAV_IMAGE=$pilot_clamav
+REQUIRE_BOOTSTRAP_ADMIN_SECRET=false
 MAIL_ADAPTER=console
 MAIL_FROM=
 GOOGLE_CLIENT_ID=
@@ -933,19 +1114,23 @@ SECRETS_DIR=$secrets
 CLOUDFLARE_CONFIG_FILE=$case_dir/cloudflare.yml
 LEARN_DATA_ROOT=$case_dir/data
 VALIDATION_MODE=pilot
-RUNNER_BASE_URL=http://10.20.0.12:4100
+RUNNER_BASE_URL=http://192.168.122.12:4100
 EOF
   chown 0:0 "$config"
   chmod 0640 "$config"
 
   printf '%s' "postgres-$secret_canary" >"$secrets/postgres_password"
-  printf '%s' "postgresql://learncoding:$database_canary@postgres/learncoding" >"$secrets/database_url"
+  printf '%s' "postgresql://learncoding:postgres-$secret_canary@postgres/learncoding" >"$secrets/database_bootstrap_url"
+  printf '%s' "postgresql://learncoding_app:app-$database_canary@postgres/learncoding" >"$secrets/database_url"
+  printf '%s' "postgresql://learncoding_migrator:migrator-$database_canary@postgres/learncoding" >"$secrets/database_migrator_url"
+  printf '%s' "postgresql://learncoding_worker:worker-$database_canary@postgres/learncoding" >"$secrets/database_worker_url"
+  printf '%s' "postgresql://learncoding_ops:ops-$database_canary@postgres/learncoding" >"$secrets/database_ops_url"
   printf '%s' 'better-auth-secret-at-least-thirty-two-bytes' >"$secrets/better_auth_secret"
   printf '%s' 'lost-device-proof-key-at-least-thirty-two-bytes' >"$secrets/lost_device_proof_key"
   printf '%s' 'deletion-tombstone-key-at-least-thirty-two-bytes' >"$secrets/deletion_tombstone_key"
   printf '%s' 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=' >"$secrets/credential_master_key"
   printf '%s' 'runner-shared-secret-at-least-thirty-two-bytes' >"$secrets/runner_shared_secret"
-  printf '%s' '{"AccountTag":"fixture","TunnelSecret":"fixture"}' >"$secrets/cloudflare_tunnel_credentials.json"
+  printf '%s' '{"AccountTag":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","TunnelSecret":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","TunnelID":"11111111-1111-4111-8111-111111111111"}' >"$secrets/cloudflare_tunnel_credentials.json"
   : >"$secrets/google_client_secret"
   : >"$secrets/gmail_client_id"
   : >"$secrets/gmail_client_secret"
@@ -967,7 +1152,9 @@ set_config() {
 }
 
 add_bootstrap_secret() {
-  printf '%s' 'temporary-admin-password-123' >"$secrets/bootstrap_admin_password"
+  local value='temporary-admin-password-123'
+  (( $# == 0 )) || value="$1"
+  printf '%s' "$value" >"$secrets/bootstrap_admin_password"
   chown 0:"$secrets_gid" "$secrets/bootstrap_admin_password"
   chmod 0440 "$secrets/bootstrap_admin_password"
 }
@@ -1073,14 +1260,14 @@ prepare_minimal_runtime_mounts() {
 
 assert_containment_gate_mutations() {
   local sentinel="$work/containment-gate.sentinel" rejected="$work/rejected-bwrap"
-  local candidate="$work/containment-candidate" status
+  local containment_candidate="$work/containment-candidate" status
   printf '%s' unchanged >"$sentinel"
   printf '#!%s\n%s\n' "$bash_bin" 'exit 77' >"$rejected"
-  printf '#!%s\nprintf reached >%q\n' "$bash_bin" "$sentinel" >"$candidate"
-  chmod 0700 "$rejected" "$candidate"
+  printf '#!%s\nprintf reached >%q\n' "$bash_bin" "$sentinel" >"$containment_candidate"
+  chmod 0700 "$rejected" "$containment_candidate"
   verify_fixed_outer_binary "$work/missing-bwrap" true && fail 'missing Bubblewrap dependency was accepted'
   set +e
-  "$env_bin" -i PATH= "$rejected" --unshare-user --unshare-pid --unshare-net -- "$candidate" >/dev/null 2>&1
+  "$env_bin" -i PATH= "$rejected" --unshare-user --unshare-pid --unshare-net -- "$containment_candidate" >/dev/null 2>&1
   status=$?
   set -e
   [[ "$status" == 77 && "$(<"$sentinel")" == unchanged ]] || fail 'rejected containment reached runtime SUT sentinel'
@@ -1100,7 +1287,7 @@ prepare_runtime_containment() {
   verify_fixed_outer_binary /usr/bin/bwrap true ||
     fail '/usr/bin/bwrap must be a regular root-owned non-writable authoritative test dependency'
   containment_probe_dir="$case_dir/containment-output-probe"
-  mkdir -m 0700 -p "$containment_probe_dir"
+  mkdir -m 0700 "$containment_probe_dir"
   {
     printf '%s\n' '#!/usr/bin/bash'
     printf 'readonly containment_probe_dir=%q\nreadonly containment_outside=%q\nreadonly containment_repo=%q\n' \
@@ -1188,6 +1375,7 @@ EOF
     --ro-bind "$case_dir/cloudflare.yml" "$case_dir/cloudflare.yml"
     --ro-bind "$case_dir/data" "$case_dir/data"
     --ro-bind "$case_repo/compose.yaml" "$case_repo/compose.yaml"
+    --ro-bind "$case_repo/infra" "$case_repo/infra"
   )
   containment_rw_mounts=(--bind "$containment_probe_dir" "$containment_probe_dir")
   containment_command=(
@@ -1203,7 +1391,7 @@ EOF
     --proc /proc --dev /dev --remount-ro / --chdir "$containment_probe_dir" --
     /usr/bin/bash "$entry"
   )
-  preflight_ro_probes="$entry:$validator_under_test:$case_dir/bin:$config:$secrets:$case_dir/cloudflare.yml:$case_dir/data:$case_repo/compose.yaml"
+  preflight_ro_probes="$entry:$validator_under_test:$case_dir/bin:$config:$secrets:$case_dir/cloudflare.yml:$case_dir/data:$case_repo/compose.yaml:$case_repo/infra"
   for token in "${containment_command[@]}"; do
     if [[ "$token" == --proc ]]; then
       preflight_containment+=(--ro-bind "$secrets" "$secrets")
@@ -1215,7 +1403,10 @@ EOF
     "${preflight_containment[@]}" /usr/bin/bash -c ':' >/dev/null 2>"$case_dir/containment-preflight.stderr"
   probe_status=$?
   set -e
-  (( probe_status == 0 )) || fail 'Bubblewrap containment preflight or mandatory user namespace was rejected'
+  if (( probe_status != 0 )); then
+    [[ -s "$case_dir/containment-preflight.stderr" ]] && /usr/bin/cat -- "$case_dir/containment-preflight.stderr" >&2
+    fail 'Bubblewrap containment preflight or mandatory user namespace was rejected'
+  fi
   [[ -f "$containment_probe_dir/.namespace-write-probe" && ! -e "$outside" ]] || fail 'containment did not prove fixture-only writes'
 }
 
@@ -1305,6 +1496,8 @@ assert_runtime_execution_identity() {
   verify_exact_staged_shell_source "$containment_entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || fail 'namespace entry changed before runtime execution'
   verify_exact_staged_shell_source "$case_dir/bin/docker" "$bash_bin" "#!$bash_bin" "$fake_docker_sha256" || fail 'fake Docker changed before runtime execution'
   verify_exact_staged_shell_source "$case_dir/bin/timeout" "$bash_bin" "#!$bash_bin" "$fake_timeout_sha256" || fail 'fake timeout changed before runtime execution'
+  verify_exact_staged_shell_source "$case_dir/bin/node" "$bash_bin" "#!$bash_bin" "$fake_node_sha256" || fail 'fake Node changed before runtime execution'
+  verify_exact_staged_shell_source "$case_dir/bin/bash" "$bash_bin" "#!$bash_bin" "$fake_bash_sha256" || fail 'fake Bash changed before runtime execution'
   for command_name in trusted-stat trusted-realpath grep mktemp rm tr wc base64; do
     verify_exact_staged_shell_source "$case_dir/bin/$command_name" "$bash_bin" "#!$bash_bin" "$fake_safe_sha256" || fail "runtime safe command changed before execution: $command_name"
   done
@@ -1353,7 +1546,7 @@ run_validator() {
     fi
     execution_containment+=("$token")
   done
-  ro_probes="$containment_entry:$validator_under_test:$case_dir/bin:$config:$case_dir/cloudflare.yml:$case_dir/data:$case_repo/compose.yaml"
+  ro_probes="$containment_entry:$validator_under_test:$case_dir/bin:$config:$case_dir/cloudflare.yml:$case_dir/data:$case_repo/compose.yaml:$case_repo/infra"
   for token in "${runtime_secret_ro_probes[@]}"; do ro_probes+=":$token"; done
   if /usr/bin/env -i \
     HOME="$containment_probe_dir" \
@@ -1362,6 +1555,9 @@ run_validator() {
     REPO_ROOT="$case_repo" \
     COMPOSE_ENV_FILE="$config" \
     VALIDATION_MODE="$validation_mode" \
+    POSTGRES_IMAGE="$ambient_postgres_image" \
+    POSTGRES_UID="$ambient_postgres_uid" \
+    POSTGRES_GID="$ambient_postgres_gid" \
     FAKE_STAT_TARGET="$fake_stat_target" \
     FAKE_DOCKER_LOG="$fake_docker_log" \
     FAKE_DOCKER_BINARY="$case_dir/bin/docker" \
@@ -1370,14 +1566,28 @@ run_validator() {
     FAKE_EXPECTED_COMPOSE_ENV="$config" \
     FAKE_EXPECTED_COMPOSE_FILE="$case_repo/compose.yaml" \
     FAKE_RUNNER_URL="$fake_runner_url" \
+    FAKE_RUNNER_CLIENT_URL="$fake_runner_client_url" \
+    FAKE_RUNNER_CLIENT_SUBNET="$fake_runner_client_subnet" \
+    FAKE_RUNNER_CLIENT_INTERNAL="$fake_runner_client_internal" \
+    FAKE_RUNNER_GATEWAY_SOURCE="$fake_runner_gateway_source" \
     FAKE_RUNNER_SUBNET="$fake_runner_subnet" \
     FAKE_RUNNER_BRIDGE="$fake_runner_bridge" \
     FAKE_APP_IMAGE="$fake_app_image" \
     FAKE_LONG_RESTART="$fake_long_restart" \
+    FAKE_CLOUDFLARED_RESTART="$fake_cloudflared_restart" \
     FAKE_ONESHOT_RESTART="$fake_oneshot_restart" \
+    FAKE_POSTGRES_IMAGE="$ambient_postgres_image" \
+    FAKE_POSTGRES_CONFIG_USER="$fake_postgres_config_user" \
+    FAKE_POSTGRES_PASSWD_ENTRY="$fake_postgres_passwd_entry" \
     FAKE_POSTGRES_FSYNC="$fake_postgres_fsync" \
     FAKE_POSTGRES_SYNC_COMMIT="$fake_postgres_sync_commit" \
     FAKE_POSTGRES_FULL_PAGE_WRITES="$fake_postgres_full_page_writes" \
+    FAKE_EXPECTED_OBJECT_PREPARER="$case_repo/infra/ops/prepare-object-storage.mjs" \
+    FAKE_EXPECTED_POSTGRES_PREPARER="$case_repo/infra/ops/prepare-postgres-control-socket.sh" \
+    FAKE_EXPECTED_DATABASE_VALIDATOR="$case_repo/infra/ops/validate-database-secrets.mjs" \
+    FAKE_EXPECTED_SECRETS_DIR="$secrets" \
+    FAKE_NODE_OBJECT_CHECK_STATUS="$fake_node_object_check_status" \
+    FAKE_BASH_PREPARER_CHECK_STATUS="$fake_bash_preparer_check_status" \
     FAKE_HOST_PORT="$fake_host_port" \
     FAKE_LIVE_FSYNC="$fake_live_fsync" \
     FAKE_LIVE_SYNC_COMMIT="$fake_live_sync_commit" \
@@ -1443,9 +1653,37 @@ expect_success() {
   echo "ok - $label"
 }
 
+expect_preprivileged_success() {
+  local label="$1"
+  local output
+  local status
+
+  set +e
+  output="$(run_validator pilot --pre-privileged 2>&1)"
+  status=$?
+  set -e
+
+  assert_canary_absent "$label" "$output"
+  if (( status != 0 )) || [[ "$output" != 'pre-privileged runtime validation passed' ]]; then
+    echo "FAIL: $label expected pre-privileged runtime validation success" >&2
+    printf 'status: %s\noutput:\n%s\n' "$status" "$output" >&2
+    exit 1
+  fi
+
+  local inspect_count identity_count
+  inspect_count="$(grep -Ec '^docker image inspect([[:space:]]|$)' "$fake_docker_log" || true)"
+  identity_count="$(grep -Ec '^docker run([[:space:]]|$)' "$fake_docker_log" || true)"
+  [[ "$inspect_count" == 1 && "$identity_count" == 1 ]] || {
+    echo "FAIL: $label must perform exactly one bounded image-user inspection and one isolated postgres identity lookup" >&2
+    exit 1
+  }
+
+  echo "ok - $label"
+}
+
 expect_failure() {
   local label="$1"
-  local expected="$2"
+  local expected_fatal="$2"
   local validation_mode="${3:-pilot}"
   local -a selector_args=("${@:4}")
   local output
@@ -1469,9 +1707,9 @@ expect_failure() {
   fi
 
   mapfile -t fatal_lines < <(printf '%s\n' "$output" | grep '^fatal:' || true)
-  if (( ${#fatal_lines[@]} != 1 )) || [[ "${fatal_lines[0]:-}" != "$expected" ]]; then
+  if (( ${#fatal_lines[@]} != 1 )) || [[ "${fatal_lines[0]:-}" != "$expected_fatal" ]]; then
     echo "FAIL: $label expected exactly one fatal line" >&2
-    printf 'expected: %s\nactual output:\n%s\n' "$expected" "$output" >&2
+    printf 'expected: %s\nactual output:\n%s\n' "$expected_fatal" "$output" >&2
     exit 1
   fi
 
@@ -1484,6 +1722,9 @@ run_fake_docker_contract() {
     FAKE_DOCKER_LOG="$fake_docker_log" \
     FAKE_EXPECTED_COMPOSE_ENV="$config" \
     FAKE_EXPECTED_COMPOSE_FILE="$repo_root/compose.yaml" \
+    FAKE_POSTGRES_IMAGE="$ambient_postgres_image" \
+    FAKE_POSTGRES_CONFIG_USER="$fake_postgres_config_user" \
+    FAKE_POSTGRES_PASSWD_ENTRY="$fake_postgres_passwd_entry" \
     FAKE_EXPECTED_POSTGRES_SQL="$postgres_probe_sql" \
     FAKE_LIVE_FSYNC=on \
     FAKE_LIVE_SYNC_COMMIT=on \
@@ -1508,7 +1749,8 @@ assert_containment_gate_mutations
 make_fixture exact-postgres-probe-fake
 postgres_probe_argv=(
   compose --env-file "$config" -f "$repo_root/compose.yaml" exec -T postgres
-  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|'
+  psql --host=/run/learncoding-postgres --username=learncoding --dbname=learncoding
+  --no-psqlrc --quiet --no-align --tuples-only '--field-separator=|'
   --command "$postgres_probe_sql"
 )
 run_fake_docker_contract "${postgres_probe_argv[@]}" >/dev/null || {
@@ -1517,15 +1759,18 @@ run_fake_docker_contract "${postgres_probe_argv[@]}" >/dev/null || {
 }
 expect_fake_probe_rejected extra-compose-command \
   compose --env-file "$config" -f "$repo_root/compose.yaml" --profile operations exec -T postgres \
-  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|' \
+  psql --host=/run/learncoding-postgres --username=learncoding --dbname=learncoding \
+  --no-psqlrc --quiet --no-align --tuples-only '--field-separator=|' \
   --command "$postgres_probe_sql"
 expect_fake_probe_rejected extra-psql-command \
   compose --env-file "$config" -f "$repo_root/compose.yaml" exec -T postgres \
-  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|' --list \
+  psql --host=/run/learncoding-postgres --username=learncoding --dbname=learncoding \
+  --no-psqlrc --quiet --no-align --tuples-only '--field-separator=|' --list \
   --command "$postgres_probe_sql"
 expect_fake_probe_rejected extra-sql-command \
   compose --env-file "$config" -f "$repo_root/compose.yaml" exec -T postgres \
-  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|' \
+  psql --host=/run/learncoding-postgres --username=learncoding --dbname=learncoding \
+  --no-psqlrc --quiet --no-align --tuples-only '--field-separator=|' \
   --command "$postgres_probe_sql SELECT 1;"
 
 outside_sentinel="$work/outside-runtime-case.sentinel"
@@ -1623,7 +1868,7 @@ while IFS='|' read -r label alternate_url; do
   fake_runner_url="$alternate_url"
   expect_failure \
     "runner URL $label" \
-    'fatal: runner URL must be exactly http://10.20.0.12:4100'
+    'fatal: runner URL must be exactly http://192.168.122.12:4100'
 done <<'EOF'
 other-rfc1918|http://10.20.0.13:4100
 other-rfc1918-172|http://172.29.40.12:4100
@@ -1632,12 +1877,32 @@ localhost|http://127.0.0.1:4100
 wildcard|http://0.0.0.0:4100
 hostname|http://runner.internal:4100
 public-https|https://runner.example.test
-wrong-port|http://10.20.0.12:4101
-userinfo|http://operator@10.20.0.12:4100
-path|http://10.20.0.12:4100/healthz
-query|http://10.20.0.12:4100?verbose=true
-fragment|http://10.20.0.12:4100#runner
+wrong-port|http://192.168.122.12:4101
+userinfo|http://operator@192.168.122.12:4100
+path|http://192.168.122.12:4100/healthz
+query|http://192.168.122.12:4100?verbose=true
+fragment|http://192.168.122.12:4100#runner
 EOF
+
+make_fixture wrong-runner-client-subnet
+fake_runner_client_subnet='172.29.44.0/24'
+expect_failure \
+  'wrong runner-client subnet' \
+  'fatal: runner-client subnet must be exactly 172.29.41.0/24'
+
+make_fixture non-internal-runner-client
+fake_runner_client_internal='false'
+expect_failure \
+  'non-internal runner-client network' \
+  'fatal: runner-client network must be internal'
+
+make_fixture wrong-runner-gateway-stop-grace
+fake_mutate_service=runner-egress-gateway
+fake_mutate_field=stop-grace
+fake_mutate_value=30s
+expect_failure \
+  'wrong runner gateway stop grace period' \
+  'fatal: rendered runner gateway stop budget must be exactly fifteen seconds'
 
 make_fixture wrong-runner-subnet
 fake_runner_subnet='172.29.41.0/24'
@@ -1651,25 +1916,33 @@ expect_failure \
   'wrong runner-egress bridge' \
   'fatal: runner-egress bridge must be exactly cdst-run0'
 
-all_rendered_services=(
+make_fixture wrong-runner-client-url
+fake_runner_client_url='http://192.168.122.12:4100'
+expect_failure \
+  'runner client bypass URL' \
+  'fatal: runner client URL must be exactly http://runner-egress-gateway:4100'
+
+pilot_rendered_services=(
   postgres app mail-worker reward-worker regrade-worker exam-finalization-worker
-  practice-runner-recovery-worker project-review-correction-worker scan-worker cloudflared
+  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker cloudflared runner-egress-gateway
+)
+internal_long_running_services=(
+  postgres app mail-worker reward-worker regrade-worker exam-finalization-worker
+  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker runner-egress-gateway
+)
+operations_services=(
+  database-role-bootstrap database-negative-probes database-boundary-verifier
   migrate lifecycle platform-seed admin-bootstrap
 )
-long_running_services=(
-  postgres app mail-worker reward-worker regrade-worker exam-finalization-worker
-  practice-runner-recovery-worker project-review-correction-worker scan-worker cloudflared
-)
-one_shot_services=(migrate lifecycle platform-seed admin-bootstrap)
+one_shot_services=("${operations_services[@]}")
 
-for service in "${all_rendered_services[@]}"; do
+for service in "${pilot_rendered_services[@]}"; do
   make_fixture "host-port-$service"
   fake_mutate_service="$service"
   fake_mutate_field=host-port
   expect_failure \
     "rendered Compose host port on $service" \
     'fatal: trusted Compose stack must not publish host ports'
-
   make_fixture "mutable-image-$service"
   fake_mutate_service="$service"
   fake_mutate_field=image
@@ -1679,14 +1952,42 @@ for service in "${all_rendered_services[@]}"; do
     'fatal: rendered Compose services must use immutable sha256 image references'
 done
 
-for service in "${long_running_services[@]}"; do
+for service in "${operations_services[@]}"; do
+  make_fixture "operations-host-port-$service"
+  fake_mutate_service="$service"
+  fake_mutate_field=host-port
+  expect_failure \
+    "rendered operations host port on $service" \
+    'fatal: trusted Compose stack must not publish host ports' \
+    operations
+  make_fixture "operations-mutable-image-$service"
+  fake_mutate_service="$service"
+  fake_mutate_field=image
+  fake_mutate_value='registry.example.test/codestead/mutable:latest'
+  expect_failure \
+    "rendered operations mutable image on $service" \
+    'fatal: rendered Compose services must use immutable sha256 image references' \
+    operations
+done
+
+for service in "${internal_long_running_services[@]}"; do
   make_fixture "wrong-long-restart-$service"
   fake_mutate_service="$service"
   fake_mutate_field=restart
   fake_mutate_value=always
   expect_failure \
     "wrong long-running restart class on $service" \
-    'fatal: rendered long-running services must restart unless-stopped'
+    'fatal: rendered internal long-running services must restart unless-stopped'
+done
+
+for cloudflared_restart_drift in always unless-stopped on-failure on-failure:4 on-failure:6 no; do
+  make_fixture "wrong-cloudflared-restart-$cloudflared_restart_drift"
+  fake_mutate_service=cloudflared
+  fake_mutate_field=restart
+  fake_mutate_value="$cloudflared_restart_drift"
+  expect_failure \
+    "wrong cloudflared restart class $cloudflared_restart_drift" \
+    'fatal: rendered cloudflared must use restart on-failure:5'
 done
 
 for service in "${one_shot_services[@]}"; do
@@ -1696,7 +1997,8 @@ for service in "${one_shot_services[@]}"; do
   fake_mutate_value=on-failure
   expect_failure \
     "wrong one-shot restart class on $service" \
-    'fatal: rendered one-shot services must use restart no'
+    'fatal: rendered one-shot services must use restart no' \
+    operations
 done
 
 for setting in fsync synchronous_commit full_page_writes; do
@@ -1714,24 +2016,123 @@ done
 make_fixture invalid-selector
 expect_failure \
   'unsupported runtime validation selector' \
-  'fatal: usage: validate-runtime.sh [--post-start]' \
+  'fatal: usage: validate-runtime.sh [--post-start|--pre-privileged]' \
   pilot \
   --unexpected
 
 make_fixture invalid-bare-post-start-selector
 expect_failure \
   'bare post-start selector' \
-  'fatal: usage: validate-runtime.sh [--post-start]' \
+  'fatal: usage: validate-runtime.sh [--post-start|--pre-privileged]' \
   pilot \
   post-start
 
 make_fixture post-start-extra-argument
 expect_failure \
   'post-start selector with an extra argument' \
-  'fatal: usage: validate-runtime.sh [--post-start]' \
+  'fatal: usage: validate-runtime.sh [--post-start|--pre-privileged]' \
   pilot \
   --post-start \
   extra
+
+make_fixture valid-pre-privileged
+expect_preprivileged_success 'valid root-owned privileged preparers and pinned PostgreSQL identity'
+
+make_fixture missing-object-storage-preparer
+rm "$case_repo/infra/ops/prepare-object-storage.mjs"
+expect_failure \
+  'missing object-storage preparer' \
+  'fatal: object storage preparer is missing or unsafe' \
+  pilot \
+  --pre-privileged
+
+make_fixture missing-postgres-storage-preparer
+rm "$case_repo/infra/ops/prepare-postgres-control-socket.sh"
+expect_failure \
+  'missing PostgreSQL storage preparer' \
+  'fatal: PostgreSQL storage preparer is missing or unsafe' \
+  pilot \
+  --pre-privileged
+
+make_fixture non-executable-postgres-storage-preparer
+chmod 0644 "$case_repo/infra/ops/prepare-postgres-control-socket.sh"
+expect_failure \
+  'non-executable PostgreSQL storage preparer' \
+  'fatal: PostgreSQL storage preparer is missing or unsafe' \
+  pilot \
+  --pre-privileged
+
+make_fixture wrong-object-storage-preparer-mode
+chmod 0600 "$case_repo/infra/ops/prepare-object-storage.mjs"
+expect_failure \
+  'wrong object-storage preparer mode' \
+  'fatal: object storage preparer must be root:root mode 644 with one link' \
+  pilot \
+  --pre-privileged
+
+make_fixture wrong-postgres-storage-preparer-mode
+chmod 0700 "$case_repo/infra/ops/prepare-postgres-control-socket.sh"
+expect_failure \
+  'wrong PostgreSQL storage preparer mode' \
+  'fatal: PostgreSQL storage preparer must be root:root mode 755 with one link' \
+  pilot \
+  --pre-privileged
+
+make_fixture writable-preparer-ancestry
+chmod 0720 "$case_repo/infra"
+expect_failure \
+  'group-writable privileged preparer ancestry' \
+  'fatal: privileged preparer ancestry must not be group/world writable' \
+  pilot \
+  --pre-privileged
+
+make_fixture invalid-object-storage-preparer-syntax
+fake_node_object_check_status=1
+expect_failure \
+  'invalid object-storage preparer syntax' \
+  'fatal: object storage preparer syntax validation failed' \
+  pilot \
+  --pre-privileged
+
+make_fixture invalid-postgres-storage-preparer-syntax
+fake_bash_preparer_check_status=1
+expect_failure \
+  'invalid PostgreSQL storage preparer syntax' \
+  'fatal: PostgreSQL storage preparer syntax validation failed' \
+  pilot \
+  --pre-privileged
+
+make_fixture noncanonical-postgres-uid
+ambient_postgres_uid=0999
+expect_failure \
+  'noncanonical PostgreSQL UID' \
+  'fatal: POSTGRES_UID must be a canonical positive integer' \
+  pilot \
+  --pre-privileged
+
+make_fixture postgres-image-identity-mismatch
+ambient_postgres_uid=998
+expect_failure \
+  'configured PostgreSQL identity differs from pinned image' \
+  'fatal: POSTGRES_UID/POSTGRES_GID do not match the pinned PostgreSQL image' \
+  pilot \
+  --pre-privileged
+
+make_fixture malformed-postgres-image-identity
+fake_postgres_passwd_entry='postgres:x:999:not-a-gid:PostgreSQL:/var/lib/postgresql:/bin/sh'
+expect_failure \
+  'malformed postgres identity from pinned image' \
+  'fatal: pinned PostgreSQL image postgres identity is invalid' \
+  pilot \
+  --pre-privileged
+
+make_fixture conflicting-postgres-config-user
+fake_postgres_config_user=root
+expect_failure \
+  'pinned PostgreSQL image has a conflicting Config.User' \
+  'fatal: pinned PostgreSQL image Config.User conflicts with its postgres identity' \
+  pilot \
+  --pre-privileged
 
 make_fixture valid-post-start
 expect_success 'valid post-start PostgreSQL durability fixture' pilot --post-start
@@ -1748,7 +2149,8 @@ fi
 postgres_event="$(grep -E '^docker .* exec([[:space:]]|$)' "$fake_docker_log")"
 current_postgres_probe_argv=(
   compose --env-file "$config" -f "$case_repo/compose.yaml" exec -T postgres
-  psql --username=learncoding --dbname=learncoding --no-align --tuples-only '--field-separator=|'
+  psql --host=/run/learncoding-postgres --username=learncoding --dbname=learncoding
+  --no-psqlrc --quiet --no-align --tuples-only '--field-separator=|'
   --command "$postgres_probe_sql"
 )
 expected_postgres_event=docker
@@ -1788,18 +2190,50 @@ for setting in fsync synchronous_commit full_page_writes; do
 done
 
 make_fixture valid-operations
+set_config REQUIRE_BOOTSTRAP_ADMIN_SECRET true
 add_bootstrap_secret
 expect_success 'caller operations mode overrides sourced pilot value' operations
+operations_render_argv=(
+  compose --env-file "$config" -f "$case_repo/compose.yaml" --profile operations config
+)
+expected_operations_render_event=docker
+for argument in "${operations_render_argv[@]}"; do
+  printf -v escaped_argument '%q' "$argument"
+  expected_operations_render_event+=" $escaped_argument"
+done
+operations_render_count="$(grep -Fxc -- "$expected_operations_render_event" "$fake_docker_log" || true)"
+[[ "$operations_render_count" == 1 ]] || fail 'operations validation must render exactly once with the explicit operations CLI profile'
 
 make_fixture valid-uploads
 set_config UPLOADS_ENABLED true
-set_config COMPOSE_PROFILES operations,uploads
+set_config COMPOSE_PROFILES uploads
 set_config CLAMAV_IMAGE "clamav/clamav:1.4.3_base@sha256:$digest_c"
 expect_success 'uploads profile accepts an immutable ClamAV digest without operations validation'
 
-make_fixture exact-profile-token
+make_fixture forbidden-operations-profile
+set_config COMPOSE_PROFILES operations
+expect_failure \
+  'operations profile cannot be activated by the Compose environment' \
+  'fatal: UPLOADS_ENABLED=false requires COMPOSE_PROFILES to be empty'
+
+make_fixture forbidden-profile-token
 set_config COMPOSE_PROFILES operations-notuploads
-expect_success 'profile matching does not use uploads as a substring'
+expect_failure \
+  'unreviewed profile token is rejected' \
+  'fatal: UPLOADS_ENABLED=false requires COMPOSE_PROFILES to be empty'
+
+make_fixture forbidden-mixed-uploads-profile
+set_config UPLOADS_ENABLED true
+set_config COMPOSE_PROFILES operations,uploads
+set_config CLAMAV_IMAGE "clamav/clamav:1.4.3_base@sha256:$digest_c"
+expect_failure \
+  'uploads cannot smuggle the operations profile through the environment' \
+  'fatal: UPLOADS_ENABLED=true requires COMPOSE_PROFILES=uploads exactly'
+
+make_fixture caller-ambient-profile-is-cleared
+export COMPOSE_PROFILES=operations
+expect_success 'caller ambient Compose profiles are not inherited by the validator sandbox'
+unset COMPOSE_PROFILES
 
 make_fixture valid-repeated-trailing-slashes
 set_config SECRETS_DIR "$case_dir//secrets///"
@@ -1923,6 +2357,27 @@ for missing_secret in lost_device_proof_key deletion_tombstone_key; do
     "fatal: required secret is missing: $secrets/$missing_secret"
 done
 
+for cloudflare_case in missing-tunnel-id extra-field malformed-account invalid-secret; do
+  make_fixture "cloudflare-$cloudflare_case"
+  case "$cloudflare_case" in
+    missing-tunnel-id)
+      printf '%s' '{"AccountTag":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","TunnelSecret":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="}' >"$secrets/cloudflare_tunnel_credentials.json"
+      ;;
+    extra-field)
+      printf '%s' '{"AccountTag":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","TunnelSecret":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","TunnelID":"11111111-1111-4111-8111-111111111111","extra":true}' >"$secrets/cloudflare_tunnel_credentials.json"
+      ;;
+    malformed-account)
+      printf '%s' '{"AccountTag":"not-an-account","TunnelSecret":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","TunnelID":"11111111-1111-4111-8111-111111111111"}' >"$secrets/cloudflare_tunnel_credentials.json"
+      ;;
+    invalid-secret)
+      printf '%s' '{"AccountTag":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","TunnelSecret":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB=","TunnelID":"11111111-1111-4111-8111-111111111111"}' >"$secrets/cloudflare_tunnel_credentials.json"
+      ;;
+  esac
+  expect_failure \
+    "invalid Cloudflare credential: $cloudflare_case" \
+    'fatal: cloudflare tunnel credentials'
+done
+
 make_fixture invalid-uploads-boolean
 set_config UPLOADS_ENABLED yes
 expect_failure \
@@ -1933,13 +2388,13 @@ make_fixture uploads-without-profile
 set_config UPLOADS_ENABLED true
 expect_failure \
   'uploads enabled without uploads profile' \
-  'fatal: UPLOADS_ENABLED=true requires the uploads profile'
+  'fatal: UPLOADS_ENABLED=true requires COMPOSE_PROFILES=uploads exactly'
 
 make_fixture disabled-with-uploads-profile
-set_config COMPOSE_PROFILES operations,uploads
+set_config COMPOSE_PROFILES uploads
 expect_failure \
   'uploads profile while uploads are disabled' \
-  'fatal: UPLOADS_ENABLED=false forbids the uploads profile'
+  'fatal: UPLOADS_ENABLED=false requires COMPOSE_PROFILES to be empty'
 
 make_fixture uploads-without-digest
 set_config UPLOADS_ENABLED true
@@ -1949,19 +2404,44 @@ expect_failure \
   'fatal: CLAMAV_IMAGE must be pinned by sha256 digest when uploads are enabled'
 
 make_fixture operations-without-bootstrap
+set_config REQUIRE_BOOTSTRAP_ADMIN_SECRET true
 expect_failure \
-  'operations validation without bootstrap password' \
+  'explicitly required bootstrap password is missing' \
   "fatal: required secret is missing: $secrets/bootstrap_admin_password" \
   operations
 
-make_fixture short-bootstrap
-printf '%s' 'short password' >"$secrets/bootstrap_admin_password"
-chown 0:"$secrets_gid" "$secrets/bootstrap_admin_password"
-chmod 0440 "$secrets/bootstrap_admin_password"
+make_fixture bootstrap-present-without-requirement
+add_bootstrap_secret
 expect_failure \
-  'operations validation with short bootstrap password' \
-  "fatal: bootstrap_admin_password must contain at least 16 non-whitespace characters" \
-  operations
+  'bootstrap password present without explicit requirement' \
+  'fatal: bootstrap_admin_password must be absent unless explicitly required'
+
+make_fixture empty-bootstrap
+set_config REQUIRE_BOOTSTRAP_ADMIN_SECRET true
+add_bootstrap_secret ''
+expect_failure \
+  'explicitly required bootstrap password is empty' \
+  "fatal: required secret is empty: $secrets/bootstrap_admin_password"
+
+make_fixture whitespace-bootstrap
+set_config REQUIRE_BOOTSTRAP_ADMIN_SECRET true
+add_bootstrap_secret $' \t\n '
+expect_failure \
+  'explicitly required bootstrap password is only whitespace' \
+  'fatal: bootstrap_admin_password must contain at least 16 non-whitespace characters'
+
+make_fixture short-bootstrap
+set_config REQUIRE_BOOTSTRAP_ADMIN_SECRET true
+add_bootstrap_secret 'short password'
+expect_failure \
+  'explicitly required bootstrap password is too short' \
+  'fatal: bootstrap_admin_password must contain at least 16 non-whitespace characters'
+
+make_fixture invalid-bootstrap-requirement
+set_config REQUIRE_BOOTSTRAP_ADMIN_SECRET yes
+expect_failure \
+  'non-literal bootstrap requirement flag' \
+  'fatal: REQUIRE_BOOTSTRAP_ADMIN_SECRET must be literal true or false'
 
 for image_variable in \
   APP_RUNTIME_IMAGE \
@@ -2016,5 +2496,7 @@ if grep -R -F -l --include='docker.log' "$secret_canary" "$work" >/dev/null 2>&1
   echo 'FAIL: fake-Docker event logs captured secret or database connection material' >&2
   exit 1
 fi
+
+bash "$repo_root/infra/tests/cloudflare-runtime-config.test.sh"
 
 echo 'runtime-config-tests-ok'

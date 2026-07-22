@@ -2,11 +2,28 @@
 
 import Link from "next/link";
 import { Send } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 
 import styles from "./auth.module.css";
 
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getClientHydrationSnapshot() {
+  return true;
+}
+
+function getServerHydrationSnapshot() {
+  return false;
+}
+
 export function AccessRequestForm() {
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +70,7 @@ export function AccessRequestForm() {
       <div className={styles.field}><label htmlFor="email">Email address</label><input id="email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required /></div>
       <div className={styles.field}><label htmlFor="reason">What would you like to learn? <small>(optional)</small></label><textarea id="reason" name="reason" maxLength={500} placeholder="For example: C++ for college, then DSA in C++." /></div>
       <label className={styles.check}><input name="adult" type="checkbox" required /> I confirm that I am 18 or older.</label>
-      <button className={`button button-primary ${styles.submit}`} disabled={busy} type="submit"><Send size={17} /> {busy ? "Sending…" : "Send request"}</button>
+      <button className={`button button-primary ${styles.submit}`} disabled={!hydrated || busy} type="submit"><Send size={17} /> {busy ? "Sending…" : "Send request"}</button>
       <p className={styles.footLink}>Already invited? <Link href="/login">Sign in</Link></p>
     </form>
   );

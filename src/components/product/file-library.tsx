@@ -36,6 +36,7 @@ export function FileLibrary() {
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadRequestRef = useRef<{ file: File; key: string } | null>(null);
 
   const fetchLibrary = useCallback(async (signal?: AbortSignal) => {
     const response = await fetch("/api/files", { cache: "no-store", signal });
@@ -69,11 +70,19 @@ export function FileLibrary() {
     }
     setBusy(true);
     try {
+      if (uploadRequestRef.current?.file !== file) {
+        uploadRequestRef.current = { file, key: globalThis.crypto.randomUUID() };
+      }
       const form = new FormData();
       form.set("file", file);
-      const response = await fetch("/api/files", { method: "POST", body: form });
+      const response = await fetch("/api/files", {
+        method: "POST",
+        headers: { "Idempotency-Key": uploadRequestRef.current.key },
+        body: form,
+      });
       const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "The file could not be stored.");
+      uploadRequestRef.current = null;
       if (inputRef.current) inputRef.current.value = "";
       setLibrary(await fetchLibrary());
       setMessage("File stored in quarantine. Download becomes available only after the safety scan passes.");
@@ -91,12 +100,15 @@ export function FileLibrary() {
     try {
       const response = await fetch(`/api/files/${encodeURIComponent(fileId)}`, { method: "DELETE" });
       if (!response.ok) {
-        const body = (await response.json()) as { error?: string };
+        const body = (await response.json()) as { code?: string; error?: string };
+        if (body.code === "FILE_DELETE_COMMIT_AMBIGUOUS") {
+          throw new Error("Deletion outcome is uncertain. Retry deleting this same file.");
+        }
         throw new Error(body.error ?? "The file could not be deleted.");
       }
       setPendingDelete(null);
       setLibrary(await fetchLibrary());
-      setMessage("File deleted and its quota reservation released.");
+      setMessage("File hidden, its quota released, and physical deletion scheduled for durable erasure.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The file could not be deleted.");
     } finally {
@@ -131,6 +143,7 @@ export function FileLibrary() {
               <input
                 accept=".c,.h,.cpp,.cc,.cxx,.hpp,.java,.py,.pyi,.js,.mjs,.ts,.tsx,.jsx,.html,.css,.json,.md,.txt,.csv,.sql,.pdf,.png,.jpg,.jpeg,.gif,.webp"
                 disabled={busy}
+                onChange={() => { uploadRequestRef.current = null; }}
                 ref={inputRef}
                 type="file"
               />

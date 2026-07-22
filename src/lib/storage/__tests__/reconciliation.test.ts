@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  OBJECT_STORAGE_MARKER_CONTENT,
+  OBJECT_STORAGE_MARKER_NAME,
+} from "../durable-object-store";
 
 import { NodeStorageReconciliationInspector } from "../reconciliation-filesystem";
 import {
@@ -346,6 +350,7 @@ describe("real filesystem storage inspection", () => {
   it("verifies content and reports missing, changed, invalid, deleted-retained, and unknown files without deleting", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "learncoding-reconcile-unit-"));
     temporaryRoots.push(root);
+    await writeFile(path.join(root, OBJECT_STORAGE_MARKER_NAME), OBJECT_STORAGE_MARKER_CONTENT);
     const owner = "a".repeat(64);
     const ids = [1, 2, 3, 4, 5, 6].map((suffix) =>
       "20000000-0000-4000-8000-" + String(suffix).padStart(12, "0"));

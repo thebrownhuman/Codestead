@@ -1,0 +1,12 @@
+[Unit]
+Description=Check whether Codestead ingress needs guarded recovery
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+Persistent=true
+Unit=learncoding-ingress-recovery.service
+
+[Install]
+WantedBy=timers.target

@@ -51,7 +51,7 @@ describe("API authorization and IDOR contract matrix", () => {
 
     expect(selfRows).toHaveLength(83);
     expect(report.identifierOwnershipContracts).toBe(36);
-    expect(report.supportingOwnershipProofs).toHaveLength(16);
+    expect(report.supportingOwnershipProofs).toHaveLength(17);
     expect(report.supportingOwnershipProofs.every((proof) => proof.anchors > 0)).toBe(true);
     expect(report.supportingOwnershipProofs.every((proof) => /^[0-9a-f]{64}$/.test(proof.sourceSha256))).toBe(true);
     expect(selfRows.every((row) => row.ownershipProof.length > 20)).toBe(true);

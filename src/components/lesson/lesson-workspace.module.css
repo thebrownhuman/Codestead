@@ -107,7 +107,7 @@
 .codeLab, .visualizer, .game { min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--surface-solid); box-shadow: var(--shadow-small); }
 .codeLanguageSelector { display: flex; min-height: 62px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb,var(--brand) 4%,var(--surface-solid)); }
 .codeLanguageSelector label { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 9px; color: var(--ink); font-size: .875rem; font-weight: 800; }
-.codeLanguageSelector select { min-width: 150px; max-width: 100%; min-height: 44px; padding: 8px 34px 8px 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font-family: inherit; font-size: 1rem; cursor: pointer; }
+.codeLanguageSelector select { min-width: 150px; max-width: 100%; min-height: 45px; padding: 8px 34px 8px 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font-family: inherit; font-size: 1rem; cursor: pointer; }
 .codeLanguageSelector select:disabled { cursor: not-allowed; opacity: .55; }
 .codeLanguageSelector small { color: var(--ink-soft); font-size: var(--text-xs,.75rem); }
 .codeLanguageSelector select:focus-visible { outline: 3px solid color-mix(in srgb,var(--brand) 42%,transparent); outline-offset: 2px; }
@@ -126,8 +126,10 @@
 .draftSync > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .draftSync button, .draftSync a { min-height: var(--control-min,44px); padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: var(--surface-solid); font: inherit; font-size: .75rem; cursor: pointer; text-decoration: none; }
 .draftSync[data-draft-status="offline"], .draftSync[data-draft-status="conflict"], .draftSync[data-draft-status="reauthenticate"], .draftSync[data-draft-status="exam-locked"] { background: color-mix(in srgb, var(--warning, #b56b00) 8%, var(--surface-solid)); }
-.editorLoading { display: flex; height: clamp(260px,38vh,340px); align-items: center; justify-content: center; gap: 7px; color: var(--ink-soft); background: #141a15; }
-.editorFallback { display: grid; height: clamp(260px,38vh,340px); grid-template-rows: auto minmax(0,1fr); background: #141a15; }
+.editorFrame { height: clamp(260px,38vh,340px); min-height: 260px; max-height: 340px; overflow: hidden; background: #141a15; }
+.editorFrame > * { height: 100%; }
+.editorLoading { display: flex; height: 100%; min-height: 260px; align-items: center; justify-content: center; gap: 7px; color: var(--ink-soft); background: #141a15; }
+.editorFallback { display: grid; height: 100%; min-height: 260px; grid-template-rows: auto minmax(0,1fr); background: #141a15; }
 .editorFallback p { display: flex; align-items: center; gap: 7px; margin: 0; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,.1); color: #e6c86e; font-size: .68rem; }
 .editorFallback textarea { width: 100%; min-height: 0; padding: 14px; border: 0; outline: 0; color: #d8e4d8; background: #141a15; font: 14px/1.55 var(--font-mono); resize: none; }
 .editorFallback textarea:read-only { cursor: wait; opacity: .72; }

@@ -66,12 +66,15 @@ describe("runtime image release assets", () => {
   });
 
   it("runs the vulnerability gate offline and without finding suppressions", () => {
-    const manager = read("runtime/manage-images.mjs");
-    expect(manager).toContain('"--skip-db-update"');
-    expect(manager).toContain('"--skip-java-db-update"');
-    expect(manager).toContain('"--offline-scan"');
-    expect(manager).toContain('"--severity", "HIGH,CRITICAL"');
-    expect(manager).toContain('"--exit-code", "1"');
-    expect(manager).not.toMatch(/ignore-unfixed|ignorefile|vex/i);
+    const operations = read("runtime/runtime-operations.mjs");
+    expect(operations).toContain('"--skip-db-update"');
+    expect(operations).toContain('"--skip-java-db-update"');
+    expect(operations).toContain('"--offline-scan"');
+    expect(operations).toContain('"--severity", "HIGH,CRITICAL"');
+    expect(operations).toContain('"--exit-code", "1"');
+    expect(operations).not.toContain('"--ignore-unfixed"');
+    expect(operations).toContain("ignore-unfixed: false");
+    expect(operations).toContain("ignore: []");
+    expect(operations).toContain("vex: []");
   });
 });

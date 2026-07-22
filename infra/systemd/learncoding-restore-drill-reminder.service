@@ -1,0 +1,30 @@
+[Unit]
+Description=Check Codestead supervised restore drill freshness
+Documentation=/opt/learncoding/docs/runbooks/backup-and-restore.md
+RequiresMountsFor=/mnt/learncoding-backups
+OnFailure=learncoding-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/bash /opt/learncoding/scripts/backup/check-restore-drill.sh
+Nice=10
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=full
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+UMask=0077
+TimeoutStartSec=5m
+TimeoutStopSec=2m

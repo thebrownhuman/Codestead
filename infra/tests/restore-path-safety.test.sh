@@ -37,6 +37,14 @@ if output="$(require_secure_regular_file "$work/secure-link" 600 "$owner_uid" 2>
 fi
 [[ -z "$output" ]] || fail "secure-file rejection emitted file details"
 
+ln "$secure_file" "$work/secure-hardlink"
+if require_secure_regular_file "$work/secure-hardlink" 600 "$owner_uid"; then
+  fail "hard-linked secure file was accepted"
+fi
+rm -f -- "$work/secure-hardlink"
+require_secure_regular_file "$secure_file" 600 "$owner_uid" \
+  || fail "secure file remained invalid after hard-link removal"
+
 chmod 0640 "$secure_file"
 if require_secure_regular_file "$secure_file" 600 "$owner_uid"; then
   fail "regular file with a non-exact mode was accepted"
@@ -263,15 +271,8 @@ read_success_marker "$marker" || fail "atomically replaced success marker could 
   || fail "post-replacement success-marker read did not observe the complete new state"
 
 before_failure_hash="$(sha256sum "$marker" | awk '{print $1}')"
-fake_bin="$work/fake-bin"
-mkdir "$fake_bin"
-cat >"$fake_bin/mv" <<'FAKE_MV'
-#!/usr/bin/env bash
-exit 73
-FAKE_MV
-chmod 0700 "$fake_bin/mv"
-if PATH="$fake_bin:$PATH" bash -Eeuo pipefail -c \
-  'source "$1"; write_success_marker "$2" "$3" "$4" "$5"' \
+if bash -Eeuo pipefail -c \
+  'source "$1"; mv() { return 73; }; write_success_marker "$2" "$3" "$4" "$5"' \
   _ "$common" "$marker" "learncoding-full-20260714T030405Z.tar.gz.age" \
   "20260714T030406Z" "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"; then
   fail "injected pre-rename failure was reported as success"
@@ -282,5 +283,127 @@ after_failure_hash="$(sha256sum "$marker" | awk '{print $1}')"
 if find "$work" -maxdepth 1 -name '.success.marker.tmp.*' -print -quit | grep -q .; then
   fail "pre-rename failure left a marker temporary behind"
 fi
+
+restore="$repo_root/scripts/backup/restore.sh"
+verifier="$repo_root/scripts/backup/verify-archive.sh"
+grep -Fq '"$SCRIPT_DIR/verify-archive.sh"' "$restore" \
+  || fail "restore entrypoint does not delegate archive inventory to verify-archive.sh"
+
+protected="$work/protected"
+mkdir -m 0700 -p \
+  "$protected/repository" \
+  "$protected/data/app-data" \
+  "$protected/backups" \
+  "$protected/plaintext-stage" \
+  "$protected/ephemeral" \
+  "$protected/emergency"
+dummy_archive="$work/dummy.tar.gz.age"
+dummy_identity="$work/dummy-age-identity"
+printf 'not-an-archive\n' >"$dummy_archive"
+printf 'AGE-SECRET-KEY-1TESTONLY\n' >"$dummy_identity"
+chmod 0600 "$dummy_archive" "$dummy_identity"
+restore_config="$work/restore.env"
+cat >"$restore_config" <<EOF
+REPO_ROOT=$protected/repository
+COMPOSE_ENV_FILE=$work/compose.env
+LEARN_DATA_ROOT=$protected/data
+BACKUP_ROOT=$protected/backups
+BACKUP_STAGE_ROOT=$protected/plaintext-stage
+BACKUP_EPHEMERAL_ROOT=$protected/ephemeral
+EMERGENCY_BACKUP_ROOT=$protected/emergency
+BACKUP_LOCK_FILE=$work/restore.lock
+EOF
+chmod 0600 "$restore_config"
+protected_destinations=(
+  "$protected/repository/restore-target"
+  "$protected/data/restore-target"
+  "$protected/data/app-data/restore-target"
+  "$protected/backups/restore-target"
+  "$protected/plaintext-stage/restore-target"
+  "$protected/ephemeral/restore-target"
+  "$protected/emergency/restore-target"
+)
+for protected_destination in "${protected_destinations[@]}"; do
+  if BACKUP_CONFIG_FILE="$restore_config" AGE_IDENTITY_FILE="$dummy_identity" \
+    bash "$restore" "$dummy_archive" --destination "$protected_destination" \
+    >/dev/null 2>&1; then
+    fail "restore accepted a destination beneath a protected root: $protected_destination"
+  fi
+  [[ ! -e "$protected_destination" && ! -L "$protected_destination" ]] \
+    || fail "restore created a destination beneath a protected root: $protected_destination"
+done
+
+fake_bin="$work/fake-bin"
+mkdir -m 0700 "$fake_bin"
+cat >"$fake_bin/age" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+: >"$VERIFIER_AGE_SENTINEL"
+exit 74
+EOF
+chmod 0700 "$fake_bin/age"
+verifier_age_sentinel="$work/verifier-age-invoked"
+run_verifier() {
+  PATH="$fake_bin:$PATH" VERIFIER_AGE_SENTINEL="$verifier_age_sentinel" \
+    BACKUP_CONFIG_FILE="$restore_config" \
+    bash "$verifier" "$dummy_archive" "$dummy_identity" "$@" \
+    >/dev/null 2>&1
+}
+
+external_stage_destination="$protected/plaintext-stage/verify-20260714T010203Z.ABC123"
+mkdir -m 0700 "$external_stage_destination"
+if run_verifier "$external_stage_destination"; then
+  fail "archive verifier accepted a normal destination beneath the staging root"
+fi
+[[ ! -e "$verifier_age_sentinel" ]] \
+  || fail "normal staging destination reached archive decryption"
+
+valid_internal_destination="$protected/plaintext-stage/verify.20260714T010203Z.ABC123"
+mkdir -m 0700 "$valid_internal_destination"
+if run_verifier "$valid_internal_destination" --internal-staging-candidate; then
+  fail "failing fake decrypt unexpectedly produced a valid archive"
+fi
+[[ -f "$verifier_age_sentinel" ]] \
+  || fail "safe internal verification destination never reached archive decryption"
+rm -f -- "$verifier_age_sentinel"
+
+valid_emergency_destination="$protected/plaintext-stage/emergency-verify.20260714T010203Z.XYZ789"
+mkdir -m 0700 "$valid_emergency_destination"
+run_verifier "$valid_emergency_destination" --internal-staging-candidate \
+  && fail "failing fake decrypt unexpectedly produced a valid emergency archive"
+[[ -f "$verifier_age_sentinel" ]] \
+  || fail "safe emergency verification destination never reached archive decryption"
+rm -f -- "$verifier_age_sentinel"
+
+mkdir -m 0700 "$protected/plaintext-stage/nested"
+hostile_internal_destinations=(
+  "$protected/plaintext-stage"
+  "$protected/plaintext-stage/restore.20260714T010203Z.ABC123"
+  "$protected/plaintext-stage/verify.20260230T010203Z.ABC123"
+  "$protected/plaintext-stage/verify.20260714T010203Z.ABC12"
+  "$protected/plaintext-stage/nested/verify.20260714T010203Z.ABC123"
+  "$protected/backups/verify.20260714T010203Z.ABC123"
+)
+for hostile_destination in "${hostile_internal_destinations[@]}"; do
+  [[ -e "$hostile_destination" ]] || mkdir -m 0700 "$hostile_destination"
+  if run_verifier "$hostile_destination" --internal-staging-candidate; then
+    fail "internal verifier accepted hostile destination: $hostile_destination"
+  fi
+  [[ ! -e "$verifier_age_sentinel" ]] \
+    || fail "hostile internal destination reached archive decryption: $hostile_destination"
+done
+
+wrong_mode_destination="$protected/plaintext-stage/verify.20260714T010203Z.MODE00"
+mkdir -m 0750 "$wrong_mode_destination"
+chmod 0750 "$wrong_mode_destination"
+run_verifier "$wrong_mode_destination" --internal-staging-candidate \
+  && fail "internal verifier accepted a group-readable destination"
+[[ ! -e "$verifier_age_sentinel" ]] \
+  || fail "wrong-mode internal destination reached archive decryption"
+
+grep -Fq -- '--internal-staging-candidate' "$repo_root/scripts/backup/backup.sh" \
+  || fail "full backup does not explicitly request internal candidate verification"
+grep -Fq -- '--internal-staging-candidate' "$repo_root/scripts/backup/emergency-backup.sh" \
+  || fail "emergency backup does not explicitly request internal candidate verification"
 
 echo "restore-path-safety-tests-ok"

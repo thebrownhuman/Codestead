@@ -164,6 +164,61 @@ describe("retention runtime orchestration", () => {
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("set status = 'expired'"))).toBe(true);
   });
 
+  it("uses an explicitly supplied erasure processor without changing the production default", async () => {
+    const processFileErasures = vi.fn(async () => ({
+      total: 2,
+      removed: 2,
+      alreadyAbsent: 0,
+      failed: 0,
+      pending: 0,
+      complete: true,
+    }));
+
+    await expect(runRetention({
+      idempotencyKey: "retention:test:injected-erasure",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    }, { processFileErasures })).resolves.toMatchObject({
+      objectFiles: { removed: 2, alreadyAbsent: 0, failed: 0 },
+    });
+
+    expect(processFileErasures).toHaveBeenCalledWith({
+      lifecycleRunId: "retention-run-1",
+      objectStorageRoot: "C:/retention-objects",
+    });
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
+  });
+
+  it("uses the explicitly supplied erasure processor when resuming a durable checkpoint", async () => {
+    mocks.state.claim = "resume_running";
+    const processFileErasures = vi.fn(async () => ({
+      total: 2,
+      removed: 0,
+      alreadyAbsent: 2,
+      failed: 0,
+      pending: 0,
+      complete: true,
+    }));
+
+    await expect(runRetention({
+      idempotencyKey: "retention:test:resume-injected-erasure",
+      dryRun: false,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    }, { processFileErasures })).resolves.toMatchObject({
+      runId: "existing-run",
+      objectFiles: { removed: 0, alreadyAbsent: 2, failed: 0 },
+    });
+
+    expect(processFileErasures).toHaveBeenCalledWith({
+      lifecycleRunId: "existing-run",
+      objectStorageRoot: "C:/retention-objects",
+    });
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["running", "RUN_IN_PROGRESS"],
     ["failed", "PREVIOUS_RUN_FAILED"],

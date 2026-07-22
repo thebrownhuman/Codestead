@@ -1,8 +1,23 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 # Architecture-specific digest for the reviewed linux/amd64 Intel NUC target.
 ARG NODE_IMAGE=node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737
+ARG SOURCE_REPOSITORY
+ARG SOURCE_REVISION
+ARG SOURCE_DATE_EPOCH
+ARG SOURCE_TREE
+ARG SOURCE_CONTEXT_SHA256
 
 FROM ${NODE_IMAGE} AS base
+ARG SOURCE_REPOSITORY
+ARG SOURCE_REVISION
+ARG SOURCE_DATE_EPOCH
+ARG SOURCE_TREE
+ARG SOURCE_CONTEXT_SHA256
+LABEL org.opencontainers.image.source=${SOURCE_REPOSITORY} \
+      org.opencontainers.image.revision=${SOURCE_REVISION} \
+      io.codestead.application.source-tree=${SOURCE_TREE} \
+      io.codestead.application.build-context-sha256=${SOURCE_CONTEXT_SHA256} \
+      io.codestead.application.platform=linux/amd64
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
@@ -61,9 +76,12 @@ ENV NODE_ENV=production
 COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node tsconfig.json ./tsconfig.json
 COPY --chown=node:node src ./src
+COPY --chown=node:node scripts/lib/worker-health.ts ./scripts/lib/worker-health.ts
+COPY --chown=node:node scripts/check-worker-health.ts ./scripts/check-worker-health.ts
 COPY --chown=node:node scripts/process-outbox.ts ./scripts/process-outbox.ts
 COPY --chown=node:node scripts/data-lifecycle.ts ./scripts/data-lifecycle.ts
 COPY --chown=node:node scripts/process-rewards.ts ./scripts/process-rewards.ts
+COPY --chown=node:node scripts/process-file-erasures.ts ./scripts/process-file-erasures.ts
 COPY --chmod=0555 infra/docker/entrypoint.sh /usr/local/bin/learncoding-entrypoint
 USER node
 ENTRYPOINT ["/usr/local/bin/learncoding-entrypoint"]
@@ -72,7 +90,12 @@ CMD ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"]
 FROM worker AS operations
 COPY --chown=node:node content ./content
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
+COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
+COPY --chown=node:node scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs
 COPY --chown=node:node scripts/backup/create-credential-probe.ts ./scripts/backup/create-credential-probe.ts
+COPY --chown=node:node scripts/lib/runner-power-rehearsal-cli.ts ./scripts/lib/runner-power-rehearsal-cli.ts
+COPY --chown=node:node scripts/runner-power-rehearsal.ts ./scripts/runner-power-rehearsal.ts
+COPY --chown=node:node scripts/verify-restored-backup.ts ./scripts/verify-restored-backup.ts
 COPY --chown=node:node scripts/seed-platform.ts ./scripts/seed-platform.ts
 CMD ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"]
 
@@ -97,6 +120,7 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --chown=node:node infra/runner-gateway/server.mjs ./runner-gateway/server.mjs
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public
 # Curriculum is read dynamically from process.cwd()/content.

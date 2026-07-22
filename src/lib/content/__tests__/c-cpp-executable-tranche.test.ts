@@ -66,7 +66,7 @@ describe("C and C++ executable tranche", () => {
     const { banks } = await loadTranche();
     const runtimeImages = JSON.parse(
       await readFile(
-        path.resolve("docs/evidence/container-security/runner/runtime-images.json"),
+        path.resolve("scripts/curriculum-runtime-pins.json"),
         "utf8",
       ),
     ) as { records: Array<{ language: string; digest: string }> };

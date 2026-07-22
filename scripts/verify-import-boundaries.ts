@@ -1,6 +1,8 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import ts from "typescript";
+
+import { verifyOrApplyDeterministicEvidence } from "./lib/deterministic-evidence";
 
 const root = process.cwd();
 const sourceRoot = path.join(root, "src");
@@ -94,22 +96,28 @@ async function main() {
       const [file, specifier] = key.split("\0");
       return { file, import: specifier, reason };
     });
-  const report = {
+  const passed = violations.length === 0 && staleExceptions.length === 0;
+  const buildEvidence = (generatedAt: string) => ({
     schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     scope: "TypeScript architectural import boundaries",
     filesChecked: files.length,
     importsChecked: importCount,
     violations,
     documentedExceptions: usedExceptions,
     staleExceptions,
-    passed: violations.length === 0 && staleExceptions.length === 0,
-  };
-  const evidenceDirectory = path.join(root, "docs", "evidence");
-  await mkdir(evidenceDirectory, { recursive: true });
-  await writeFile(path.join(evidenceDirectory, "architecture-import-boundaries-2026-07-12.json"), `${JSON.stringify(report, null, 2)}\n`);
+    passed,
+  });
+  await verifyOrApplyDeterministicEvidence({
+    argv: process.argv.slice(2),
+    root,
+    trustedDirectory: "exclusive-writer",
+    relativePath: path.join("docs", "evidence", "architecture-import-boundaries-2026-07-12.json"),
+    buildEvidence,
+    applyCommand: "npm run architecture:apply",
+  });
   console.log(`Import boundaries: ${files.length} files, ${importCount} imports, ${usedExceptions.length} documented exceptions, ${violations.length} violations, ${staleExceptions.length} stale exceptions.`);
-  if (!report.passed) {
+  if (!passed) {
     for (const issue of violations) console.error(`${issue.file}: ${issue.rule}: ${issue.import}`);
     for (const issue of staleExceptions) console.error(`${issue.file}: stale documented exception: ${issue.import}`);
     process.exitCode = 1;

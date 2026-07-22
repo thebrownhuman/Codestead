@@ -677,7 +677,9 @@ function CodeLabSession({
       onRetry={draft.retry}
       onUseServer={draft.useServerCopy}
     />
-    <MonacoEditor height="clamp(260px, 38vh, 340px)" language={starter.language} value={source} onChange={(value) => changeSource(value ?? "")} options={{ ariaLabel: "Practice source code editor", minimap: { enabled: false }, fontSize: 14, lineNumbersMinChars: 3, tabSize: 4, automaticLayout: true, scrollBeyondLastLine: false, accessibilitySupport: "auto", readOnly: running || draftBlocksEditing }} theme="vs-dark" />
+    <div className={styles.editorFrame}>
+      <MonacoEditor height="100%" language={starter.language} value={source} onChange={(value) => changeSource(value ?? "")} options={{ ariaLabel: "Practice source code editor", minimap: { enabled: false }, fontSize: 14, lineNumbersMinChars: 3, tabSize: 4, automaticLayout: true, scrollBeyondLastLine: false, accessibilitySupport: "auto", readOnly: running || draftBlocksEditing }} theme="vs-dark" />
+    </div>
     <div className={styles.stdinPanel}>
       <label htmlFor={stdinId}>
         <span>Program input <i>stdin</i></span>

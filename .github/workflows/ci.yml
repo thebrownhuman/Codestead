@@ -10,14 +10,24 @@ permissions:
 jobs:
   application:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 70
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.1
           cache: npm
       - run: npm ci
+      - run: npm run production-load:ci-registration
+      - run: npm run production-load:test-control:bundle
+      - run: npm run production-load:fixture-runtime:bundle
+      - run: npm run production-load:fixture-runtime:systemd
+      - run: CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:fixture-runtime:lifecycle
+      - run: sudo env "PATH=$PATH" CODESTEAD_REQUIRE_LINUX_ROOT=1 npm run production-load:test-control:runtime
+      - run: CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:peer-credentials
+      - run: CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:disposable-sandbox
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run security:dependencies:known
@@ -28,7 +38,9 @@ jobs:
       - run: npm run ai:eval -- --check
       - run: npm run test:auth-boundary
       - run: npm run test:coverage
+      - run: npm run content:brand:check
       - run: npm run content:validate
+      - run: npm run projects:catalog:validate
       - run: npm run dsa:parity:check
       - run: npm run c-cpp:executable:check
       - run: npm run java-python:executable:check
@@ -39,27 +51,230 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=moderate
       - run: node infra/tests/validate-static.mjs
+      - run: node --test infra/tests/database-least-privilege-static.test.mjs
+      - run: node --test infra/tests/runtime-validator-ingress-policy.test.mjs
+      - run: node --test infra/tests/production-load-peer-preflight.test.mjs infra/tests/production-load-postgres-socket.test.mjs infra/tests/production-load-systemd.test.mjs
+      - run: node --test infra/tests/runner-power-rehearsal-control.test.mjs
+      - run: node --test infra/tests/ingress-control-ci-registration.test.mjs infra/tests/ingress-systemd.test.mjs
+      - run: node infra/tests/runtime-validator-structure.test.mjs
+      - run: node infra/tests/runtime-validator-harness-contract.test.mjs
+      - run: node --test infra/tests/runner-egress-gateway.test.mjs infra/tests/runner-egress-gateway-stream-failures.test.mjs
+      - run: sudo apt-get update
+      - run: sudo apt-get install --yes bubblewrap nftables shellcheck
+      - run: shellcheck --severity=warning infra/ops/capture-recovery-evidence.sh infra/ops/install-compose-ci.sh infra/ops/release-production.sh infra/ops/rollback-production.sh infra/ops/smoke-production.sh infra/ops/validate-production-load-fixture-runtime.sh infra/ops/validate-production-load-test-control-runtime.sh infra/runner-vm/install-guest.sh infra/tests/compose-release-cli-contract.test.sh infra/tests/power-evidence.test.sh infra/tests/production-load-disposable-sandbox.test.sh infra/tests/production-load-fixture-lifecycle.test.sh infra/tests/production-load-peer-credentials.test.sh infra/tests/production-load-test-control-runtime.test.sh infra/tests/recovery-evidence-entry.test.sh infra/tests/recovery-evidence-main.test.sh infra/tests/release-production.test.sh infra/tests/rollback-production.test.sh infra/tests/runner-firewall.test.sh infra/tests/runner-firewall-packets.test.sh infra/tests/runner-guest-installer.test.sh infra/tests/runner-vm-provision.test.sh infra/tests/smoke-production.test.sh
+      # These immutable wrapper literals are independently SHA-pinned and consumed by the Python supervisor.
+      - run: shellcheck --severity=warning infra/tests/ingress-control-linux.test.sh
+      - run: shellcheck --severity=warning infra/ops/start-production-stack.sh infra/ops/recover-production-ingress.sh infra/tests/start-production-stack.test.sh infra/tests/start-production-stack-adversarial.test.sh infra/tests/ingress-recovery.test.sh
+      - run: shellcheck --severity=warning --exclude=SC2034 infra/ops/check-recovery.sh
+      # The recovery harness intentionally mutates a scalar/array candidate and creates disposable parent trees to prove containment rejections.
+      - run: shellcheck --severity=warning --exclude=SC2128,SC2174,SC2178 infra/tests/power-recovery-check.test.sh
       - run: bash -n scripts/backup/*.sh infra/docker/entrypoint.sh infra/ops/*.sh infra/runner/*.sh infra/tests/*.sh
+      - run: python3 infra/tests/runner-release-tree.test.py
+      - run: python3 infra/tests/release-tree-packaging.test.py
+      - run: python3 infra/tests/existing-container-baseline.test.py
+      - run: python3 infra/tests/capture-existing-containers.test.py
+      - run: sudo python3 infra/tests/capture-existing-containers-linux.test.py
+      - run: python3 infra/tests/test_production_load_browser_journey.py
+      - run: python3 infra/tests/test_production_load_control.py
+      - run: python3 infra/tests/test_production_load_peer_credentials.py
+      - run: sudo -n bash infra/tests/ingress-control-linux.test.sh
+      - run: sudo -n bash infra/tests/start-production-stack.test.sh
+      - run: sudo -n bash infra/tests/start-production-stack-adversarial.test.sh
+      - run: sudo -n bash infra/tests/ingress-recovery.test.sh
+      - run: bash infra/tests/runner-vm-provision.test.sh
+      - run: sudo bash infra/tests/runner-guest-installer.test.sh
+      - run: sudo bash infra/tests/runner-firewall.test.sh
+      - run: sudo bash infra/tests/runner-firewall-packets.test.sh
+      - run: python3 infra/tests/recovery-evidence-helper.test.py
+      - run: python3 infra/tests/recovery-evidence-provenance.test.py
+      - run: python3 infra/tests/recovery-evidence-storage-health.test.py
+      - run: python3 infra/tests/recovery-evidence-atomic.test.py
+      - run: python3 infra/tests/recovery-evidence-collection.test.py
+      - run: sudo bash infra/tests/power-evidence.test.sh
+      - run: sudo bash infra/tests/power-recovery-check.test.sh
+      - run: sudo bash infra/tests/systemd-recovery.test.sh
+      - run: bash infra/ops/install-compose-ci.sh
+      - run: bash infra/tests/smoke-production.test.sh
+      - run: bash infra/tests/release-production.test.sh
+      - run: bash infra/tests/rollback-production.test.sh
+      - run: REQUIRE_COMPOSE_MAJOR=5 bash infra/tests/compose-release-cli-contract.test.sh
       - run: bash infra/tests/runner-reconciliation.test.sh
+      - run: bash infra/tests/runtime-validator-network-fixture.test.sh
       - run: bash infra/tests/runtime-config.test.sh
       - run: docker compose --env-file infra/env/compose.env.example config --quiet
       - run: node infra/tests/validate-compose.mjs
       - run: docker build --pull=false --tag learncoding-app:ci .
       - run: docker build --pull=false --target regrade-worker --tag learncoding-regrade-worker:ci .
 
+  production-topology:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUNNER_ENVIRONMENT: ${{ runner.environment }}
+      CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"
+      CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install the reviewed system Docker Engine
+        run: |
+          set -Eeuo pipefail
+          expected_endpoint='unix:///var/run/docker.sock'
+          current_context="$(docker context show)"
+          current_endpoint="$(docker context inspect --format '{{.Endpoints.docker.Host}}' "$current_context")"
+          effective_endpoint="${DOCKER_HOST:-$current_endpoint}"
+          if [[ "$current_endpoint" != "$expected_endpoint" || "$effective_endpoint" != "$expected_endpoint" || ! -S /var/run/docker.sock ]]; then
+            echo "The topology job requires the disposable host system Docker socket." >&2
+            exit 1
+          fi
+          container_ids="$(docker ps -aq)"
+          if [[ -n "$container_ids" ]]; then
+            echo "The topology job refuses a host with pre-existing containers." >&2
+            exit 1
+          fi
+
+          readonly docker_package_version='5:29.6.1-1~ubuntu.24.04~noble'
+          readonly docker_gpg_sha256='1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570'
+          docker_gpg_key="$(mktemp)"
+          trap 'rm -f -- "$docker_gpg_key"' EXIT
+          curl --fail --silent --show-error --location \
+            https://download.docker.com/linux/ubuntu/gpg \
+            --output "$docker_gpg_key"
+          printf '%s  %s\n' "$docker_gpg_sha256" "$docker_gpg_key" | sha256sum --check --status
+
+          . /etc/os-release
+          [[ "$ID" == ubuntu && "$VERSION_CODENAME" == noble ]] || {
+            echo "The reviewed Docker package is pinned to Ubuntu 24.04 noble." >&2
+            exit 1
+          }
+          sudo install -m 0755 -d /etc/apt/keyrings
+          sudo install -m 0644 "$docker_gpg_key" /etc/apt/keyrings/docker.asc
+          printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\n' \
+            "$(dpkg --print-architecture)" "$VERSION_CODENAME" \
+            | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+
+          conflicting_packages=(
+            docker.io docker-doc docker-compose docker-compose-v2 podman-docker
+            containerd runc moby-engine moby-cli moby-buildx moby-compose
+          )
+          installed_conflicts=()
+          for package in "${conflicting_packages[@]}"; do
+            if dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null | grep -q '^ii '; then
+              installed_conflicts+=("$package")
+            fi
+          done
+          if ((${#installed_conflicts[@]} > 0)); then
+            sudo apt-get remove --yes "${installed_conflicts[@]}"
+          fi
+
+          sudo apt-get update
+          apt-cache madison docker-ce | awk '{print $3}' | grep -Fx -- "$docker_package_version" >/dev/null
+          apt-cache madison docker-ce-cli | awk '{print $3}' | grep -Fx -- "$docker_package_version" >/dev/null
+          sudo apt-get install --yes --no-install-recommends --allow-downgrades \
+            docker-ce=$docker_package_version \
+            docker-ce-cli=$docker_package_version \
+            containerd.io \
+            docker-buildx-plugin
+          sudo systemctl enable --now docker.service
+      - name: Install the reviewed Docker Compose plugin
+        uses: docker/setup-compose-action@112d3e30db3bf437d207fea57f22510569d1ab97 # v2.0.0
+        with:
+          version: v5.3.1
+      - name: Validate reviewed Docker versions and disposable daemon scope
+        run: |
+          set -Eeuo pipefail
+          [[ "$(docker version --format '{{.Client.Version}}')" == 29.6.1 ]]
+          [[ "$(docker version --format '{{.Server.Version}}')" == 29.6.1 ]]
+          compose_version="$(docker compose version --short)"
+          [[ "${compose_version#v}" == 5.3.1 ]]
+          current_context="$(docker context show)"
+          current_endpoint="$(docker context inspect --format '{{.Endpoints.docker.Host}}' "$current_context")"
+          [[ "$current_endpoint" == unix:///var/run/docker.sock ]]
+          [[ "${DOCKER_HOST:-$current_endpoint}" == unix:///var/run/docker.sock ]]
+          [[ -S /var/run/docker.sock ]]
+          container_ids="$(docker ps -aq)"
+          [[ -z "$container_ids" ]]
+      - name: Validate disposable production-topology registration
+        run: node infra/tests/production-topology-ci-registration.test.mjs
+      - name: Lint the topology harness in a pinned sandbox
+        run: |
+          bash -n infra/tests/production-topology.test.sh infra/tests/production-topology-early-cleanup.test.sh
+          bash infra/tests/production-topology-early-cleanup.test.sh
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --volume "$GITHUB_WORKSPACE:/repo:ro" \
+            koalaman/shellcheck@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d \
+            --severity=warning /repo/infra/tests/production-topology.test.sh /repo/infra/tests/production-topology-early-cleanup.test.sh
+      - name: Exercise the real pilot topology and restart persistence
+        run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/production-topology.test.sh
+
+  application-images:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      APP_IMAGE_TRIVY_CACHE_DIR: ${{ runner.temp }}/application-image-trivy-cache
+      APP_IMAGE_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+      APP_IMAGE_SOURCE_REVISION: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - run: npm ci
+      - name: Set up Docker with containerd image store
+        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - run: npm run app-images:test
+      - run: npm run app-images:build
+      - run: npm run app-images:inspect
+      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: 0.69.3
+      - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-db-only
+      - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-java-db-only
+      - run: npm run app-images:scan
+      - run: npm run app-images:record
+      - name: Upload application image release evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: application-image-release-evidence
+          path: |
+            dist/application-images/application-inspection.json
+            dist/application-images/application-images.env
+            dist/application-images/application-images.json
+            dist/application-images/application-security/**
+            dist/application-images/.application-security.failed-*/**
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
+
   backup-safety:
     # 60 minutes covers the complete unfiltered backup publication suite and adjacent gates.
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.1
           cache: npm
       - run: node infra/tests/backup-ci-registration.test.mjs
       - run: bash -n scripts/backup/*.sh infra/tests/*.sh
       - run: python3 -m py_compile scripts/backup/run-managed-deadline.py infra/tests/managed-deadline-stop-channel-linux.py
+      - run: sudo apt-get update
+      - run: sudo apt-get install --yes age
       - run: npm ci
       - run: bash infra/tests/backup-config.test.sh
       - run: bash infra/tests/restore-path-safety.test.sh
@@ -70,12 +285,21 @@ jobs:
       - run: bash infra/tests/backup-retention.test.sh
       - run: bash infra/tests/emergency-backup-atomicity.test.sh
       - run: bash infra/tests/backup-publication.test.sh
+      - run: sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash infra/tests/offsite-recovery.test.sh
+      - run: sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash infra/tests/offsite-retention.test.sh
+      - run: sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash infra/tests/recovery-kit.test.sh
+      - run: bash infra/tests/restore-chronology.test.sh
+      - run: node infra/tests/restore-drill-contract.test.mjs
+      - run: npm exec vitest run scripts/verify-restored-backup.test.ts
+      - run: sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash infra/tests/recovery-evidence-verifier.test.sh
+      - run: bash infra/tests/restore-drill-reminder.test.sh
+      - run: bash infra/tests/systemd-backup.test.sh
 
   backup-production-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/backup-production-e2e.test.sh
@@ -83,12 +307,19 @@ jobs:
   runner:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    env:
+      RUNTIME_TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1
+      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+      RUNTIME_SOURCE_REVISION: ${{ github.sha }}
     defaults:
       run:
         working-directory: services/runner
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.1
           cache: npm
@@ -98,7 +329,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Set up Docker with containerd image store
-        uses: docker/setup-docker-action@v5
+        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
         with:
           daemon-config: |
             {
@@ -107,27 +338,61 @@ jobs:
               }
             }
       - run: npm run runtime:build
+      - run: npm run runtime:inspect
       - run: npm run runtime:test
-      - run: npm audit --omit=dev --audit-level=high
+      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: 0.69.3
+      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only
+      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-java-db-only
+      - run: npm run runtime:scan
+      - run: npm run runtime:record
+      - run: npm audit --audit-level=high
+      - name: Upload runtime release evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: runner-runtime-release-evidence
+          path: |
+            services/runner/dist/runtime-inspection.json
+            services/runner/dist/runtime-images.env
+            services/runner/dist/runtime-images.json
+            services/runner/dist/runtime-security/**
+            services/runner/dist/.runtime-security.failed-*/**
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
 
   postgres-integration:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.1
           cache: npm
       - run: npm ci
       - run: npm run test:integration
+      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
+      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737
+      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh
 
   curriculum-runtime:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      RUNTIME_TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1
+      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+      RUNTIME_SOURCE_REVISION: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.1
           cache: npm
@@ -135,7 +400,7 @@ jobs:
       - run: npm ci
         working-directory: services/runner
       - name: Set up Docker with containerd image store
-        uses: docker/setup-docker-action@v5
+        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
         with:
           daemon-config: |
             {
@@ -147,25 +412,82 @@ jobs:
         working-directory: services/runner
       - run: npm run runtime:inspect
         working-directory: services/runner
+      - run: npm run runtime:test
+        working-directory: services/runner
+      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: 0.69.3
+      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only
+      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-java-db-only
+      - run: npm run runtime:scan
+        working-directory: services/runner
       - run: npm run runtime:record
         working-directory: services/runner
+      - run: npm run curriculum:runtime-pins:check
       - run: npx playwright install --with-deps chromium
       - run: npm run dsa:parity:verify
       - run: npm run c-cpp:executable:verify
       - run: npm run java-python:executable:verify
       - run: npm run ai-code:executable:verify
       - run: npm run web:executable:verify
+      - name: Upload curriculum runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: curriculum-runtime-release-evidence
+          path: |
+            services/runner/dist/runtime-inspection.json
+            services/runner/dist/runtime-images.env
+            services/runner/dist/runtime-images.json
+            services/runner/dist/runtime-security/**
+            services/runner/dist/.runtime-security.failed-*/**
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
 
-  browser:
+  auth-browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.1
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:browser:auth
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: chromium
+            browser: chromium
+          - project: firefox
+            browser: firefox
+          - project: webkit
+            browser: webkit
+          - project: tablet-safari
+            browser: webkit
+          - project: small-mobile
+            browser: webkit
+          - project: mobile-safari
+            browser: webkit
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
       - run: npm run sync:monaco
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --project=${{ matrix.project }}

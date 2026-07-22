@@ -7,10 +7,11 @@ const mocks = vi.hoisted(() => {
       lifecycleRunId: string;
       objectId: string;
       storageKey: string;
-      operation: "account_deletion" | "retention";
+      operation: "account_deletion" | "retention" | "user_file_delete";
     };
     status: string;
     attemptCount: number;
+    maxAttempts: number;
     lastErrorCode: string | null;
     leaseOwner: string | null;
   };
@@ -23,13 +24,19 @@ const mocks = vi.hoisted(() => {
       return { rows: [{ count: "0" }], rowCount: 1 };
     }
     if (sql.startsWith("with candidate as")) {
+      const userDelete = sql.includes("payload ->> 'operation' = 'user_file_delete'");
       const runId = String(values[1]);
-      const job = jobs.find((candidate) =>
-        candidate.payload.lifecycleRunId === runId
-        && ["queued", "failed"].includes(candidate.status));
+      const job = jobs.find((candidate) => {
+        const scopeMatches = userDelete
+          ? candidate.payload.operation === "user_file_delete"
+          : candidate.payload.lifecycleRunId === runId;
+        return scopeMatches
+          && candidate.attemptCount < candidate.maxAttempts
+          && ["queued", "failed"].includes(candidate.status);
+      });
       if (!job) return { rows: [], rowCount: 0 };
       job.status = "leased";
-      job.leaseOwner = String(values[3]);
+      job.leaseOwner = String(values[userDelete ? 2 : 3]);
       return { rows: [{ id: job.id, payload: job.payload }], rowCount: 1 };
     }
     if (sql.startsWith("update background_job") && sql.includes("status = 'succeeded'")) {
@@ -63,7 +70,27 @@ const mocks = vi.hoisted(() => {
         rowCount: 1,
       };
     }
+    if (sql.startsWith("select count(*)::int as exhausted")) {
+      return {
+        rows: [{
+          exhausted: jobs.filter((job) => (
+            job.payload.operation === "user_file_delete"
+            && job.status !== "succeeded"
+            && job.attemptCount >= job.maxAttempts
+          )).length,
+        }],
+        rowCount: 1,
+      };
+    }
     if (sql.startsWith("delete from background_job")) {
+      if (sql.includes("status = 'leased'") && sql.includes("lease_owner")) {
+        const index = jobs.findIndex(
+          (candidate) => candidate.id === values[0] && candidate.leaseOwner === values[1],
+        );
+        if (index < 0) return { rows: [], rowCount: 0 };
+        jobs.splice(index, 1);
+        return { rows: [], rowCount: 1 };
+      }
       const runId = String(values[1]);
       const before = jobs.length;
       for (let index = jobs.length - 1; index >= 0; index -= 1) {
@@ -93,6 +120,7 @@ import {
   enqueueFileErasures,
   FileErasureError,
   processFileErasures,
+  processUserFileErasures,
   purgeCompletedFileErasureJobs,
 } from "../file-erasure";
 
@@ -107,10 +135,11 @@ function addJob(index: number, storageKey = `owner/c2000000-0000-4000-8000-00000
       lifecycleRunId: RUN_ID,
       objectId: `c2000000-0000-4000-8000-00000000000${index}`,
       storageKey,
-      operation: "account_deletion",
+      operation: "account_deletion" as const,
     },
     status: "queued",
     attemptCount: 0,
+    maxAttempts: 100,
     lastErrorCode: null,
     leaseOwner: null,
   });
@@ -129,8 +158,9 @@ describe("durable file-erasure state machine", () => {
     mocks.unlink
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(Object.assign(new Error("already absent"), { code: "ENOENT" }));
+    const syncParentDirectory = vi.fn(async () => undefined);
 
-    await expect(processFileErasures({ lifecycleRunId: RUN_ID, objectStorageRoot: ROOT, unlinkFile: mocks.unlink, preparePath }))
+    await expect(processFileErasures({ lifecycleRunId: RUN_ID, objectStorageRoot: ROOT, unlinkFile: mocks.unlink, preparePath, syncParentDirectory }))
       .resolves.toEqual({
         total: 2,
         removed: 1,
@@ -141,20 +171,37 @@ describe("durable file-erasure state machine", () => {
       });
     expect(mocks.jobs.map((job) => job.status)).toEqual(["succeeded", "succeeded"]);
     expect(mocks.jobs.map((job) => job.attemptCount)).toEqual([1, 1]);
+    expect(syncParentDirectory).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not treat ENOENT before verified root and parent preparation as erasure success", async () => {
+    addJob(1);
+    const missingRoot = vi.fn(async () => {
+      throw Object.assign(new Error("unmounted root"), { code: "ENOENT" });
+    });
+    await expect(processFileErasures({
+      lifecycleRunId: RUN_ID,
+      objectStorageRoot: ROOT,
+      unlinkFile: mocks.unlink,
+      preparePath: missingRoot,
+      syncParentDirectory: vi.fn(async () => undefined),
+    })).rejects.toMatchObject({ code: "FILE_ERASURE_FAILED" });
+    expect(mocks.jobs[0]).toMatchObject({ status: "failed", attemptCount: 1 });
   });
 
   it("records a bounded failure, returns no completion report, and retries idempotently", async () => {
     addJob(1);
     mocks.unlink.mockRejectedValueOnce(Object.assign(new Error("permission denied at a secret path"), { code: "EACCES" }));
 
-    await expect(processFileErasures({ lifecycleRunId: RUN_ID, objectStorageRoot: ROOT, unlinkFile: mocks.unlink, preparePath }))
+    const syncParentDirectory = vi.fn(async () => undefined);
+    await expect(processFileErasures({ lifecycleRunId: RUN_ID, objectStorageRoot: ROOT, unlinkFile: mocks.unlink, preparePath, syncParentDirectory }))
       .rejects.toEqual(new FileErasureError("FILE_ERASURE_FAILED"));
     expect(mocks.jobs[0]).toMatchObject({ status: "failed", attemptCount: 1 });
     expect(mocks.jobs[0]?.lastErrorCode).toMatch(/^FILE_ERASURE_[0-9a-f]{12}$/);
     expect(mocks.jobs[0]?.lastErrorCode).not.toContain("secret path");
 
     mocks.unlink.mockResolvedValueOnce(undefined);
-    await expect(processFileErasures({ lifecycleRunId: RUN_ID, objectStorageRoot: ROOT, unlinkFile: mocks.unlink, preparePath }))
+    await expect(processFileErasures({ lifecycleRunId: RUN_ID, objectStorageRoot: ROOT, unlinkFile: mocks.unlink, preparePath, syncParentDirectory }))
       .resolves.toMatchObject({ complete: true, removed: 1 });
     expect(mocks.jobs[0]).toMatchObject({ status: "succeeded", attemptCount: 2 });
   });
@@ -165,6 +212,88 @@ describe("durable file-erasure state machine", () => {
       .rejects.toMatchObject({ code: "FILE_ERASURE_FAILED" });
     expect(mocks.unlink).not.toHaveBeenCalled();
     expect(mocks.jobs[0]).toMatchObject({ status: "failed", attemptCount: 1 });
+  });
+
+  it("does not publish success when unlink succeeds but parent sync fails, then repairs via verified ENOENT retry", async () => {
+    addJob(1);
+    const syncParentDirectory = vi.fn()
+      .mockRejectedValueOnce(new Error("directory fsync failed"))
+      .mockResolvedValueOnce(undefined);
+    mocks.unlink
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(Object.assign(new Error("already absent"), { code: "ENOENT" }));
+    await expect(processFileErasures({
+      lifecycleRunId: RUN_ID,
+      objectStorageRoot: ROOT,
+      unlinkFile: mocks.unlink,
+      preparePath,
+      syncParentDirectory,
+    })).rejects.toMatchObject({ code: "FILE_ERASURE_FAILED" });
+    expect(mocks.jobs[0]).toMatchObject({ status: "failed", attemptCount: 1 });
+    await expect(processFileErasures({
+      lifecycleRunId: RUN_ID,
+      objectStorageRoot: ROOT,
+      unlinkFile: mocks.unlink,
+      preparePath,
+      syncParentDirectory,
+    })).resolves.toMatchObject({ complete: true, alreadyAbsent: 1 });
+    expect(syncParentDirectory).toHaveBeenCalledTimes(2);
+  });
+
+  it("purges completed user-delete coordinates without stealing account or retention work", async () => {
+    addJob(1);
+    mocks.jobs.push({
+      id: "d1000000-0000-4000-8000-000000000002",
+      payload: {
+        lifecycleRunId: "",
+        objectId: "c2000000-0000-4000-8000-000000000002",
+        storageKey: "owner/c2000000-0000-4000-8000-000000000002",
+        operation: "user_file_delete",
+      },
+      status: "queued",
+      attemptCount: 0,
+      maxAttempts: 100,
+      lastErrorCode: null,
+      leaseOwner: null,
+    });
+    const eraseObject = vi.fn(async () => ({ alreadyAbsent: false }));
+    await expect(processUserFileErasures({
+      objectStorageRoot: ROOT,
+      limit: 1,
+      eraseObject,
+    })).resolves.toEqual({ processed: 1, removed: 1, alreadyAbsent: 0, failed: 0, exhausted: 0 });
+    expect(mocks.jobs[0]).toMatchObject({ status: "queued", attemptCount: 0 });
+    expect(mocks.jobs).toHaveLength(1);
+    expect(JSON.stringify(mocks.jobs)).not.toContain("user_file_delete");
+    expect(JSON.stringify(mocks.jobs)).not.toContain("owner/c2000000-0000-4000-8000-000000000002");
+    const purge = mocks.query.mock.calls.find(([sql]) => (
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase().startsWith("delete from background_job")
+      && String(sql).includes("lease_owner")
+    ));
+    expect(purge?.[1]).toEqual(["d1000000-0000-4000-8000-000000000002", expect.stringMatching(/^file-erasure:user-delete:/)]);
+    expect(eraseObject).toHaveBeenCalledWith("owner/c2000000-0000-4000-8000-000000000002");
+  });
+
+  it("reports exhausted user-delete jobs so worker health cannot silently turn green", async () => {
+    mocks.jobs.push({
+      id: "d1000000-0000-4000-8000-000000000003",
+      payload: {
+        lifecycleRunId: "",
+        objectId: "c2000000-0000-4000-8000-000000000003",
+        storageKey: "owner/c2000000-0000-4000-8000-000000000003",
+        operation: "user_file_delete",
+      },
+      status: "failed",
+      attemptCount: 8,
+      maxAttempts: 8,
+      lastErrorCode: "FILE_ERASURE_deadbeef0000",
+      leaseOwner: null,
+    });
+
+    await expect(processUserFileErasures({
+      objectStorageRoot: ROOT,
+      eraseObject: vi.fn(async () => ({ alreadyAbsent: false })),
+    })).resolves.toEqual({ processed: 0, removed: 0, alreadyAbsent: 0, failed: 0, exhausted: 1 });
   });
 
   it("enqueues only opaque lifecycle/object coordinates and purges keys at durable completion", async () => {

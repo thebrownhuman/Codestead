@@ -6,8 +6,9 @@ import { drizzle as createDrizzle } from "drizzle-orm/node-postgres";
 import { migrate as migrateDatabase } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
-const MIGRATION_LOCK_NAME = "codestead:production-migration:v1";
+const MIGRATION_LOCK_NAME = "codestead:database-administration:v1";
 const MAX_LOCK_TIMEOUT_MS = 120_000;
+const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
 const DEFAULT_UNLOCK_TIMEOUT_MS = 5_000;
 const TRY_LOCK_SQL = "select pg_try_advisory_lock(hashtextextended($1, 0)) acquired";
 const UNLOCK_SQL = "select pg_advisory_unlock(hashtextextended($1, 0)) released";
@@ -29,6 +30,20 @@ class MigrationUnlockTimeoutError extends Error {
   }
 }
 
+class MigrationUnlockError extends Error {
+  constructor() {
+    super("PostgreSQL did not release the production migration lock");
+    this.name = "MigrationUnlockError";
+  }
+}
+
+class MigrationCleanupTimeoutError extends Error {
+  constructor(phase = "session identity restoration") {
+    super(`Timed out during production migration ${phase}`);
+    this.name = "MigrationCleanupTimeoutError";
+  }
+}
+
 function normalizeLockTimeoutMs(timeoutMs) {
   if (!Number.isFinite(timeoutMs)) {
     throw new RangeError("Production migration lock timeout must be finite");
@@ -37,10 +52,17 @@ function normalizeLockTimeoutMs(timeoutMs) {
 }
 
 function normalizeUnlockTimeoutMs(timeoutMs) {
-  if (!Number.isFinite(timeoutMs)) {
-    throw new RangeError("Production migration unlock timeout must be finite");
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError("Production migration unlock timeout must be positive and finite");
   }
   return Math.min(timeoutMs, DEFAULT_UNLOCK_TIMEOUT_MS);
+}
+
+function normalizeCleanupTimeoutMs(timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError("Production migration cleanup timeout must be positive and finite");
+  }
+  return Math.min(timeoutMs, DEFAULT_CLEANUP_TIMEOUT_MS);
 }
 
 async function queryMigrationLock(client, remainingMs) {
@@ -78,9 +100,51 @@ async function queryMigrationUnlock(client, timeoutMs) {
   try {
     const result = await Promise.race([query, timeout]);
     if (monotonicNow() >= deadline) throw new MigrationUnlockTimeoutError();
+    if (result?.rows?.[0]?.released !== true) throw new MigrationUnlockError();
+    return;
+  } finally {
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
+}
+
+async function boundedMigrationCleanup(operation, timeoutMs, phase) {
+  const deadline = monotonicNow() + timeoutMs;
+  let timeoutHandle;
+  const task = Promise.resolve().then(operation);
+  const timeout = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(
+      () => reject(new MigrationCleanupTimeoutError(phase)),
+      timeoutMs,
+    );
+  });
+
+  try {
+    const result = await Promise.race([task, timeout]);
+    if (monotonicNow() >= deadline) throw new MigrationCleanupTimeoutError(phase);
     return result;
   } finally {
     if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
+}
+async function queryMigrationCleanup(client, sql, timeoutMs) {
+  return boundedMigrationCleanup(() => client.query(sql), timeoutMs, "session cleanup");
+}
+
+
+async function verifyMigrationIdentity(client, expectedCurrentUser, cleanupTimeoutMs) {
+  const result = cleanupTimeoutMs === undefined
+    ? await client.query("select current_user, session_user")
+    : await queryMigrationCleanup(
+      client,
+    "select current_user, session_user",
+      cleanupTimeoutMs,
+    );
+  const row = result?.rows?.[0];
+  if (
+    row?.current_user !== expectedCurrentUser ||
+    row?.session_user !== "learncoding_migrator"
+  ) {
+    throw new Error("production migration role identity verification failed");
   }
 }
 
@@ -127,10 +191,14 @@ export async function runProductionMigration(options) {
   const unlockTimeoutMs = normalizeUnlockTimeoutMs(
     options.unlockTimeoutMs ?? DEFAULT_UNLOCK_TIMEOUT_MS,
   );
+  const cleanupTimeoutMs = normalizeCleanupTimeoutMs(
+    options.cleanupTimeoutMs ?? DEFAULT_CLEANUP_TIMEOUT_MS,
+  );
   let client;
   let lockAcquired = false;
   let destroyClient = false;
 
+  let ownerRoleAssumed = false;
   try {
     client = await migrationPool.connect();
     try {
@@ -140,9 +208,24 @@ export async function runProductionMigration(options) {
       destroyClient = true;
       throw error;
     }
+    await verifyMigrationIdentity(client, "learncoding_migrator");
+    await client.query("SET ROLE learncoding_owner");
+    ownerRoleAssumed = true;
+    await verifyMigrationIdentity(client, "learncoding_owner");
     await migrate(drizzle(client), { migrationsFolder });
+  } catch (error) {
+    destroyClient = true;
+    throw error;
   } finally {
     try {
+      if (client && ownerRoleAssumed) {
+        await queryMigrationCleanup(client, "RESET ROLE", cleanupTimeoutMs);
+        await verifyMigrationIdentity(
+          client,
+          "learncoding_migrator",
+          cleanupTimeoutMs,
+        );
+      }
       if (client && lockAcquired) {
         await queryMigrationUnlock(client, unlockTimeoutMs);
       }
@@ -156,7 +239,11 @@ export async function runProductionMigration(options) {
           else client.release();
         }
       } finally {
-        await migrationPool.end();
+        await boundedMigrationCleanup(
+          () => migrationPool.end(),
+          cleanupTimeoutMs,
+          "pool shutdown",
+        );
       }
     }
   }

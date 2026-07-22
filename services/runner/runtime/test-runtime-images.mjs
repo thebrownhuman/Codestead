@@ -1,21 +1,70 @@
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { resolveLocalImageIdentity, validateLocalBuildIdentityRecord } from "./runtime-operations.mjs";
+
 const runtimeRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const repository = process.env.RUNTIME_REPOSITORY ?? "learncoding/runtime";
 const release = process.env.RUNTIME_RELEASE ?? "local";
-const images = {
+const configuredImages = {
   c: process.env.RUNNER_TEST_IMAGE_C ?? `${repository}-c:${release}`,
   cpp: process.env.RUNNER_TEST_IMAGE_CPP ?? `${repository}-cpp:${release}`,
   java: process.env.RUNNER_TEST_IMAGE_JAVA ?? `${repository}-java:${release}`,
   python: process.env.RUNNER_TEST_IMAGE_PYTHON ?? `${repository}-python:${release}`,
   javascript: process.env.RUNNER_TEST_IMAGE_JAVASCRIPT ?? `${repository}-javascript:${release}`,
 };
+const localBuildIdentities = validateLocalBuildIdentityRecord(
+  readFileSync(path.join(path.dirname(runtimeRoot), "dist", "runtime-local-build-identities.json"), "utf8"),
+  Object.keys(configuredImages).map((language) => ({
+    language,
+    tag: `${repository}-${language}:${release}`,
+  })),
+);
+
+function inspectImage(reference) {
+  const inspected = spawnSync("docker", [
+    "image", "inspect", "--platform", "linux/amd64", reference,
+  ], { encoding: "utf8" });
+  if (inspected.error || inspected.status !== 0) {
+    throw new Error(`Local runtime image is missing: ${reference}`);
+  }
+  const images = JSON.parse(inspected.stdout);
+  if (!Array.isArray(images) || images.length !== 1 || !images[0] || typeof images[0] !== "object") {
+    throw new Error(`Docker returned an invalid image inspection: ${reference}`);
+  }
+  return images[0];
+}
+
+function immutableLocalReference(language, configuredReference) {
+  const at = configuredReference.lastIndexOf("@");
+  const withoutDigest = at >= 0 ? configuredReference.slice(0, at) : configuredReference;
+  const slash = withoutDigest.lastIndexOf("/");
+  const colon = withoutDigest.lastIndexOf(":");
+  const repositoryName = colon > slash ? withoutDigest.slice(0, colon) : withoutDigest;
+  const identity = resolveLocalImageIdentity({
+    language,
+    tag: configuredReference,
+    repository: repositoryName,
+    inspectImage,
+    expectedIdentity: {
+      manifestDigest: localBuildIdentities[language].manifestDigest,
+      configDigest: localBuildIdentities[language].configDigest,
+    },
+  });
+  if (at >= 0 && configuredReference.slice(at + 1) !== identity.manifestDigest) {
+    throw new Error(`Configured runtime reference is stale for ${language}: ${configuredReference}`);
+  }
+  return identity.imageReference;
+}
+
+const images = Object.fromEntries(
+  Object.entries(configuredImages).map(([language, reference]) => [language, immutableLocalReference(language, reference)]),
+);
 
 const fixtures = {
   c: {

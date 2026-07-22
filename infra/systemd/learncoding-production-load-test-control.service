@@ -1,0 +1,66 @@
+[Unit]
+Description=Codestead production load disposable-fixture controller
+Documentation=file:/opt/learncoding/docs/runbooks/load-testing.md
+Requires=learncoding-compose.service learncoding-production-load-fixture-runtime.service
+After=learncoding-compose.service learncoding-production-load-fixture-runtime.service network-online.target local-fs.target
+Wants=network-online.target
+RequiresMountsFor=/opt/learncoding /etc/learncoding /var/lib/learncoding-production-load-evidence
+ConditionFileIsExecutable=/usr/bin/node
+ConditionFileIsExecutable=/usr/bin/python3.12
+AssertPathExists=/opt/learncoding/infra/runtime/production-load-test-control-service.mjs
+AssertPathExists=/opt/learncoding/infra/ops/production-load-peer-credentials.py
+OnFailure=learncoding-alert@%n.service
+StopWhenUnneeded=yes
+RefuseManualStart=yes
+StartLimitIntervalSec=15min
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=root
+Group=root
+SupplementaryGroups=learncoding-load-gate
+WorkingDirectory=/opt/learncoding
+EnvironmentFile=/etc/learncoding/production-load.env
+Environment=NODE_ENV=production
+Environment=LOAD_MODE=production
+Environment=LOAD_ALLOW_REMOTE=1
+Environment=LOAD_SCOPE=codestead-project-only
+Environment=LOAD_PROJECT=learncoding
+Environment=LOAD_DISPOSABLE_FAULTS_CONFIRMED=1
+Environment=LOAD_EVIDENCE_ROOT=/var/lib/learncoding-production-load-evidence
+Environment=LOAD_CONTROL_SOCKET=/run/learncoding/load-control.sock
+Environment=LOAD_ACTIVE_RELEASE_PATH=/etc/learncoding/active-release.env
+Environment=LOAD_MANIFEST_PATH=/etc/learncoding/production-load-manifest.json
+Environment=LOAD_FIXTURE_PROFILE=codestead-production-load-v1
+Environment=LOAD_FIXTURE_APPROVED=1
+Environment=LOAD_FIXTURE_ROOT=/var/lib/learncoding-production-load-fixtures
+Environment=LOAD_FIXTURE_RUNTIME_SOCKET=/run/learncoding-production-load-fixtures/runtime.sock
+ExecStartPre=/usr/bin/bash /opt/learncoding/infra/ops/validate-production-load-host-runtime.sh
+ExecStartPre=/usr/bin/bash /opt/learncoding/infra/ops/validate-production-load-test-control-runtime.sh
+ExecStartPre=/usr/bin/test -f /etc/learncoding/production-load-manifest.json
+ExecStart=/usr/bin/node /opt/learncoding/infra/runtime/production-load-test-control-service.mjs
+Restart=on-failure
+RestartSec=5s
+RuntimeMaxSec=5h30m
+TimeoutStartSec=10min
+TimeoutStopSec=2min
+KillSignal=SIGTERM
+FinalKillSignal=SIGKILL
+SendSIGKILL=yes
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/run/learncoding /run/learncoding-production-load-fixtures
+InaccessiblePaths=-/etc/learncoding/secrets -/var/lib/learncoding-production-load -/run/docker.sock -/run/libvirt -/dev/kvm

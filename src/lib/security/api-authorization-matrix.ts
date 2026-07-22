@@ -171,7 +171,7 @@ const IDENTIFIER_OWNERSHIP_ANCHORS = new Map<string, string>([
   ["POST /api/exams/[sessionId]/run", "userId: authz.session.user.id"],
   ["POST /api/exams/[sessionId]/submit", "submitExam(authz.session.user.id, sessionId)"],
   ["POST /api/exams/rechecks/[recheckId]/start", "startMasteryRecheck(authz.session.user.id, recheckId"],
-  ["DELETE /api/files/[id]", "eq(storedObject.ownerUserId, authz.session.user.id)"],
+  ["DELETE /api/files/[id]", "ownerUserId: authz.session.user.id"],
   ["GET /api/files/[id]", "eq(storedObject.ownerUserId, authz.session.user.id)"],
   ["POST /api/learning/attempts/[attemptId]/help", "userId: authz.session.user.id"],
   ["POST /api/learning/attempts/[attemptId]/submit", "learningService.submitAttempt(authz.session.user.id, attemptId"],
@@ -243,6 +243,15 @@ const SUPPORTING_OWNER_CONTRACTS = [
     file: "src/lib/appeals/project-review-service.ts",
     purpose: "project-review appeals",
     anchors: ["where pr.id = $1 and p.id = $2 and p.user_id = $3"],
+  },
+  {
+    file: "src/lib/storage/file-deletion.ts",
+    purpose: "owner-bound file tombstone, quota release, and durable erasure enqueue",
+    anchors: [
+      "where id = $1 and owner_user_id = $2",
+      "where id = $1 and owner_user_id = $2 and deleted_at is null",
+      "where user_id = $1 and idempotency_key = $2",
+    ],
   },
   {
     file: "src/lib/projects/revision-service.ts",

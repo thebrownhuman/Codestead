@@ -356,7 +356,7 @@ The executable baseline lives in:
 
 - `content/schema/authored-lesson.schema.json` and `src/lib/content/authored-schema.ts` for complete lesson records.
 - `content/schema/assessment-bank.schema.json` and `src/lib/content/authored-types.ts` for deterministic MCQ, trace, fill-gap, and code items.
-- `content/authored/` for versioned entries. Programming Foundations, Git/tooling, C, C++, Java, Python, HTML, CSS, JavaScript, React, and DSA now have one lesson/bank record per declared skill. All remain `draft`, declare AI assistance, have no reviewer, and are not formal-exam eligible. At this tranche boundary, 428 of 476 skills have complete draft records; the 48 AI-track skills still require them.
+- `content/authored/` for versioned entries. Programming Foundations, Git/tooling, C, C++, Java, Python, HTML, CSS, JavaScript, React, DSA, and AI now have one lesson/bank record per declared skill: 476/476 lessons and 476/476 deterministic assessment banks validate against the declared catalog. All remain `draft`, declare AI assistance, have no reviewer, and are not formal-exam eligible; deterministic completeness is not human editorial approval.
 
 `npm run content:validate` applies JSON Schema, semantic validation, and atomic-skill/source/version mapping. Learner assessment projection removes answers, rubrics, feedback, private notes, and hidden tests. A formal exam receives deterministic grading evidence only when both the bank and item are explicitly exam eligible and the bank has an attributable human reviewer in `approved` or `published` state; all other skills remain `pending-review`.
 

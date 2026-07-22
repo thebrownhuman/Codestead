@@ -162,7 +162,7 @@
         "engine": "isolated-runner",
         "language": "java",
         "version": "Java SE 21",
-        "imageDigest": "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+        "imageDigest": "sha256:bec0bd9af9f698dea650e80f26d79f412c8f4cc13aec335af58cd3bc6ec95a46",
         "entrypoint": "Main.java",
         "timeLimitMs": 2000,
         "memoryLimitMb": 256

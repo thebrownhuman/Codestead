@@ -165,7 +165,7 @@ The runner is an Ubuntu KVM guest on the same NUC:
 
 Inside the guest, every submission runs in an ephemeral, network-disabled sandbox with strict wall-clock, CPU, memory, process, filesystem, output, and source-size limits. C, C++, Java, Python, and JavaScript runtimes are pinned and verified. Workspaces are destroyed after each job. The service rejects replayed or expired signed requests and never accepts traffic from the public Internet.
 
-The host firewall/libvirt rules must allow only the Codestead host to call the guest API. The app uses the stable private guest address as `RUNNER_BASE_URL`. Formal exams and code execution are not enabled until an end-to-end runner smoke test passes from the application container.
+The host firewall/libvirt rules must allow only the fixed Codestead gateway source to call the guest API. The deployment-level `RUNNER_BASE_URL` is the private runner VM upstream consumed only by the secretless `runner-egress-gateway` as `RUNNER_GATEWAY_UPSTREAM`; the effective container `RUNNER_BASE_URL` for the app and runner-consuming workers is `http://runner-egress-gateway:4100`. Only that gateway joins `runner-egress`. Formal exams and code execution are not enabled until an end-to-end runner smoke test passes from the application container through the gateway.
 
 ## 8. Cloudflare exposure
 

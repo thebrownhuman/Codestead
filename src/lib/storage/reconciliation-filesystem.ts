@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { lstat, opendir, realpath, statfs } from "node:fs/promises";
 import path from "node:path";
+import { OBJECT_STORAGE_MARKER_NAME } from "./durable-object-store";
 
 import {
   StorageReconciliationError,
@@ -78,6 +79,7 @@ async function inspectUnknownEntries(
   let inspectionErrors = 0;
   const rootDirectory = await opendir(root);
   for await (const ownerEntry of rootDirectory) {
+    if (ownerEntry.name === OBJECT_STORAGE_MARKER_NAME) continue;
     const ownerPath = path.join(root, ownerEntry.name);
     if (!ownerEntry.isDirectory() || ownerEntry.isSymbolicLink()) {
       orphanEntries += 1;

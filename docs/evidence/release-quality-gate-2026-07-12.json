@@ -107,23 +107,23 @@
         "reports": [
           {
             "path": "docs/evidence/dsa-parity-runtime-2026-07-12.json",
-            "sha256": "5180598a8cb1fea35ea54944c154f342d4592041d5f36a3817eaf55a6dd20ebd"
+            "sha256": "24fc6b85a84b00bdcfaafa8c078e8c5f473b32ee993d407789ed4a52f473db62"
           },
           {
             "path": "docs/evidence/c-cpp-executable-runtime-2026-07-12.json",
-            "sha256": "91c9abb27000b48769ae0f524f3d67a2eaa25c224cc39ed25f5d42e5698b285c"
+            "sha256": "2e3fb58b489aaae616bc65400b288e7dc2876495866b0aff9db7555178a7796d"
           },
           {
             "path": "docs/evidence/java-python-executable-runtime-2026-07-12.json",
-            "sha256": "b22f8d80de27523a71054de582ef87d465bc64a0277b5ca4284b589681d3a519"
+            "sha256": "2d041c72eb7c4395ab74f4815946b7166849c5bc6eabaf96f9d6047e0249ae49"
           },
           {
             "path": "docs/evidence/ai-code-executable-runtime-2026-07-12.json",
-            "sha256": "46e7e51f4404b0c9d6d6e8f8d09305457d97d4b520cc57b479b62c7be39fe705"
+            "sha256": "6f3b4ca6a7c936be7456c3edc283bef51fc9d03ee2d3b414b69488c0b26bac9b"
           },
           {
             "path": "docs/evidence/web-executable-runtime-2026-07-12.json",
-            "sha256": "eb528dad87a9f30edf8639cafbc219fecf5bc74b58aa866a5d4fdf537780791e"
+            "sha256": "08f3ce460421c7783c7c4bb679e8bca937fbf78e566ce18e4e498595f4da1572"
           }
         ]
       }
@@ -518,5 +518,7 @@
     "All 1,074 curriculum cases pass locally, but the curriculum is human-unreviewed and has zero formal-exam-eligible items.",
     "All 11 retained local images have SPDX SBOMs and zero Trivy HIGH/CRITICAL findings; the reports are unsigned and not deployment-bound.",
     "The multi-browser result is engine/device emulation and does not replace physical-device or assistive-technology verification."
-  ]
+  ],
+  "integrityRefreshedAt": "2026-07-20T05:04:15.801Z",
+  "historicalSnapshot": true
 }

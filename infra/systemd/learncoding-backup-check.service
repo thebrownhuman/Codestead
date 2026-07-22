@@ -1,6 +1,7 @@
 [Unit]
 Description=Check LearnCoding backup freshness, checksums, and capacity
 Documentation=/opt/learncoding/docs/runbooks/backup-and-restore.md
+RequiresMountsFor=/srv/learncoding /mnt/learncoding-backups
 OnFailure=learncoding-alert@%n.service
 
 [Service]

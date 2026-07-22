@@ -23,6 +23,7 @@ services:
     <<: *codestead-managed
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE to a reviewed PostgreSQL 17 image tag or digest}
+    user: "${POSTGRES_UID:?Set POSTGRES_UID from the pinned PostgreSQL image}:${POSTGRES_GID:?Set POSTGRES_GID from the pinned PostgreSQL image}"
     command:
       - postgres
       - -c
@@ -31,7 +32,12 @@ services:
       - synchronous_commit=on
       - -c
       - full_page_writes=on
+      - -c
+      - unix_socket_directories=/run/learncoding-postgres
+      - -c
+      - unix_socket_permissions=0700
     restart: unless-stopped
+    stop_grace_period: 2m
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-learncoding}
       POSTGRES_USER: ${POSTGRES_USER:-learncoding}
@@ -41,10 +47,15 @@ services:
       - postgres_password
     group_add:
       - $SECRETS_GID
+    cap_drop:
+      - ALL
     volumes:
       - type: bind
         source: ${LEARN_DATA_ROOT:-/srv/learncoding}/postgres
         target: /var/lib/postgresql/data
+      - type: bind
+        source: /run/learncoding-postgres
+        target: /run/learncoding-postgres
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -54,7 +65,7 @@ services:
     networks:
       - data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      test: ["CMD-SHELL", "pg_isready -h /run/learncoding-postgres -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -65,7 +76,129 @@ services:
     pids_limit: 256
     logging: *default-logging
 
+  database-role-bootstrap:
+    profiles: ["operations"]
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
+    build:
+      context: .
+      target: operations
+    command: ["node", "/app/scripts/bootstrap-database-roles.mjs"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-learncoding}
+      POSTGRES_USER: ${POSTGRES_USER:-learncoding}
+      DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
+      DATABASE_APP_URL_FILE: /run/secrets/database_app_url
+      DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
+      DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+    secrets:
+      - source: database_bootstrap_url
+        target: database_bootstrap_url
+      - source: database_url
+        target: database_app_url
+      - source: database_migrator_url
+        target: database_migrator_url
+      - source: database_worker_url
+        target: database_worker_url
+      - source: database_ops_url
+        target: database_ops_url
+    group_add:
+      - $SECRETS_GID
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+    logging: *default-logging
+
+  database-negative-probes:
+    profiles: ["operations"]
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
+    build:
+      context: .
+      target: operations
+    command: ["node", "/app/scripts/verify-database-role-boundaries.mjs"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-learncoding}
+      DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
+      DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+    secrets:
+      - source: database_url
+        target: database_url
+      - source: database_migrator_url
+        target: database_migrator_url
+      - source: database_worker_url
+        target: database_worker_url
+      - source: database_ops_url
+        target: database_ops_url
+    group_add:
+      - $SECRETS_GID
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+    logging: *default-logging
+
+  database-boundary-verifier:
+    profiles: ["operations"]
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
+    build:
+      context: .
+      target: operations
+    command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-learncoding}
+      DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
+      DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+    secrets:
+      - source: database_url
+        target: database_url
+      - source: database_migrator_url
+        target: database_migrator_url
+      - source: database_worker_url
+        target: database_worker_url
+      - source: database_ops_url
+        target: database_ops_url
+    group_add:
+      - $SECRETS_GID
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+    logging: *default-logging
+
   migrate:
+    profiles: ["operations"]
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${APP_TOOLING_IMAGE:?Set APP_TOOLING_IMAGE to a reviewed immutable tooling image digest}
     build:
@@ -74,7 +207,8 @@ services:
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
     secrets:
-      - database_url
+      - source: database_migrator_url
+        target: database_url
     group_add:
       - $SECRETS_GID
     depends_on:
@@ -94,10 +228,12 @@ services:
   app:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${APP_RUNTIME_IMAGE:?Set APP_RUNTIME_IMAGE to a reviewed immutable runtime image digest}
+    user: "1000:1000"
     build:
       context: .
       target: runtime
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       AUTH_REQUIRED: "true"
@@ -114,7 +250,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET_FILE: /run/secrets/google_client_secret
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
-      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       RUNNER_MAX_CONCURRENCY: "2"
       UPLOADS_ENABLED: ${UPLOADS_ENABLED:-false}
@@ -124,7 +260,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SENTRY_DSN: ${SENTRY_DSN:-}
     secrets:
-      - database_url
+      - source: database_url
+        target: database_url
       - better_auth_secret
       - lost_device_proof_key
       - deletion_tombstone_key
@@ -138,14 +275,22 @@ services:
         source: ${LEARN_DATA_ROOT:-/srv/learncoding}/next-cache
         target: /app/.next/cache
       - type: bind
-        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
-        target: /var/lib/learncoding
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data/objects
+        target: /var/lib/learncoding/objects
+        read_only: false
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      runner-egress-gateway:
+        condition: service_healthy
     networks:
-      - frontend
-      - data
+      frontend:
+        interface_name: frontend
+        gw_priority: 100
+      data:
+        interface_name: data
+      runner-client:
+        interface_name: runner-client
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=128m
@@ -160,6 +305,40 @@ services:
     pids_limit: 256
     logging: *default-logging
 
+  runner-egress-gateway:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_RUNTIME_IMAGE:?Set APP_RUNTIME_IMAGE to a reviewed immutable runtime image digest}
+    entrypoint: []
+    command: ["node", "/app/runner-gateway/server.mjs"]
+    user: "1000:1000"
+    restart: unless-stopped
+    stop_grace_period: 15s
+    environment:
+      RUNNER_GATEWAY_UPSTREAM: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_GATEWAY_LISTEN_HOST: "172.29.41.2"
+      RUNNER_GATEWAY_LISTEN_PORT: "4100"
+    networks:
+      runner-client:
+        interface_name: runner-client
+        ipv4_address: 172.29.41.2
+      runner-egress:
+        interface_name: runner-egress
+        ipv4_address: 172.29.40.2
+        gw_priority: 100
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=8m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://172.29.41.2:4100/__codestead_runner_gateway_health', { redirect: 'manual' }).then((response) => { if (response.status !== 204) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 32
+    logging: *default-logging
+
   mail-worker:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${APP_WORKER_IMAGE:?Set APP_WORKER_IMAGE to a reviewed immutable worker image digest}
@@ -167,6 +346,7 @@ services:
       context: .
       target: worker
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
@@ -180,8 +360,12 @@ services:
       GMAIL_REFRESH_TOKEN_FILE: /run/secrets/gmail_refresh_token
       OUTBOX_POLL_SECONDS: ${OUTBOX_POLL_SECONDS:-60}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: mail-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "600"
+      WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - database_url
+      - source: database_worker_url
+        target: database_url
       - lost_device_proof_key
       - gmail_client_id
       - gmail_client_secret
@@ -189,14 +373,20 @@ services:
     group_add:
       - $SECRETS_GID
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     networks:
       - data
       - mail-egress
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
     mem_limit: 512m
     cpus: 0.5
     pids_limit: 64
@@ -210,24 +400,35 @@ services:
       target: worker
     command: ["node", "--import", "tsx", "/app/scripts/process-rewards.ts"]
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       REWARD_POLL_SECONDS: ${REWARD_POLL_SECONDS:-5}
       REWARD_BATCH_SIZE: ${REWARD_BATCH_SIZE:-20}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: reward-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "120"
+      WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - database_url
+      - source: database_worker_url
+        target: database_url
     group_add:
       - $SECRETS_GID
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     networks:
       - data
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 1m
     mem_limit: 256m
     cpus: 0.25
     pids_limit: 64
@@ -240,29 +441,42 @@ services:
       context: .
       target: regrade-worker
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
-      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       REGRADE_POLL_SECONDS: ${REGRADE_POLL_SECONDS:-10}
       REGRADE_BATCH_SIZE: ${REGRADE_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: regrade-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "600"
+      WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - database_url
+      - source: database_worker_url
+        target: database_url
       - runner_shared_secret
     group_add:
       - $SECRETS_GID
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     networks:
-      - data
-      - runner-egress
+      data:
+        interface_name: data
+      runner-client:
+        interface_name: runner-client
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
     mem_limit: 512m
     cpus: 0.5
     pids_limit: 64
@@ -276,29 +490,42 @@ services:
       target: regrade-worker
     command: ["node", "--import", "tsx", "/app/scripts/process-exam-finalizations.ts"]
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
-      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       EXAM_FINALIZATION_POLL_SECONDS: ${EXAM_FINALIZATION_POLL_SECONDS:-5}
       EXAM_FINALIZATION_BATCH_SIZE: ${EXAM_FINALIZATION_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: exam-finalization-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "600"
+      WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - database_url
+      - source: database_worker_url
+        target: database_url
       - runner_shared_secret
     group_add:
       - $SECRETS_GID
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     networks:
-      - data
-      - runner-egress
+      data:
+        interface_name: data
+      runner-client:
+        interface_name: runner-client
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
     mem_limit: 512m
     cpus: 0.5
     pids_limit: 64
@@ -312,28 +539,41 @@ services:
       target: regrade-worker
     command: ["node", "--import", "tsx", "/app/scripts/process-practice-runner-recoveries.ts"]
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
-      RUNNER_BASE_URL: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
+      RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       PRACTICE_RECOVERY_POLL_SECONDS: ${PRACTICE_RECOVERY_POLL_SECONDS:-5}
       PRACTICE_RECOVERY_BATCH_SIZE: ${PRACTICE_RECOVERY_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: practice-runner-recovery-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "600"
+      WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - database_url
+      - source: database_worker_url
+        target: database_url
       - runner_shared_secret
     group_add:
       - $SECRETS_GID
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     networks:
-      - data
-      - runner-egress
+      data:
+        interface_name: data
+      runner-client:
+        interface_name: runner-client
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
     mem_limit: 384m
     cpus: 0.5
     pids_limit: 64
@@ -346,25 +586,36 @@ services:
       context: .
       target: project-review-correction-worker
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       PROJECT_REVIEW_CORRECTION_POLL_SECONDS: ${PROJECT_REVIEW_CORRECTION_POLL_SECONDS:-10}
       PROJECT_REVIEW_CORRECTION_BATCH_SIZE: ${PROJECT_REVIEW_CORRECTION_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: project-review-correction-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "600"
+      WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - database_url
+      - source: database_worker_url
+        target: database_url
     group_add:
       - $SECRETS_GID
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     networks:
       - data
       - github-egress
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
     mem_limit: 512m
     cpus: 0.5
     pids_limit: 64
@@ -419,14 +670,17 @@ services:
     profiles: ["uploads"]
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${APP_SCANNER_WORKER_IMAGE:?Set APP_SCANNER_WORKER_IMAGE to a reviewed immutable scanner worker image digest}
+    user: "1000:1000"
     build:
       context: .
       target: scanner-worker
     restart: unless-stopped
+    stop_grace_period: 1m
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
+      UPLOADS_ENABLED: "true"
       CLAMD_HOST: clamav
       CLAMD_PORT: "3310"
       CLAMD_TIMEOUT_SECONDS: ${CLAMD_TIMEOUT_SECONDS:-120}
@@ -436,19 +690,24 @@ services:
       UPLOAD_SCAN_MAX_ATTEMPTS: ${UPLOAD_SCAN_MAX_ATTEMPTS:-8}
       UPLOAD_SCAN_RETRY_BASE_SECONDS: ${UPLOAD_SCAN_RETRY_BASE_SECONDS:-5}
       UPLOAD_SCAN_RETRY_MAX_SECONDS: ${UPLOAD_SCAN_RETRY_MAX_SECONDS:-900}
+
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: scan-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "1800"
+      WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - database_url
+      - source: database_worker_url
+        target: database_url
     group_add:
       - $SECRETS_GID
     volumes:
       - type: bind
-        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
-        target: /var/lib/learncoding
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data/objects
+        target: /var/lib/learncoding/objects
         read_only: true
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       clamav:
         condition: service_healthy
     networks:
@@ -457,8 +716,64 @@ services:
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 3m
     mem_limit: 512m
     cpus: 0.5
+    pids_limit: 64
+    logging: *default-logging
+
+  file-erasure-worker:
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_WORKER_IMAGE:?Set APP_WORKER_IMAGE to a reviewed immutable worker image digest}
+    user: "1000:1000"
+    build:
+      context: .
+      target: worker
+    command: ["node", "--import", "tsx", "/app/scripts/process-file-erasures.ts"]
+    restart: unless-stopped
+    stop_grace_period: 1m
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
+      FILE_ERASURE_POLL_SECONDS: ${FILE_ERASURE_POLL_SECONDS:-10}
+      FILE_ERASURE_BATCH_SIZE: ${FILE_ERASURE_BATCH_SIZE:-25}
+      FILE_ERASURE_LEASE_SECONDS: ${FILE_ERASURE_LEASE_SECONDS:-300}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_HEALTH_ID: file-erasure-worker
+      WORKER_HEALTH_MAX_AGE_SECONDS: "1800"
+      WORKER_HEALTH_MAX_FAILURES: "2"
+    secrets:
+      - source: database_worker_url
+        target: database_url
+    group_add:
+      - $SECRETS_GID
+    volumes:
+      - type: bind
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data/objects
+        target: /var/lib/learncoding/objects
+        read_only: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    healthcheck:
+      test: ["CMD", "node", "--import", "tsx", "/app/scripts/check-worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 3m
+    mem_limit: 256m
+    cpus: 0.25
     pids_limit: 64
     logging: *default-logging
 
@@ -466,6 +781,7 @@ services:
     profiles: ["operations"]
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
+    user: "1000:1000"
     build:
       context: .
       target: operations
@@ -484,13 +800,15 @@ services:
       DATABASE_URL_FILE: /run/secrets/database_url
       OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
     secrets:
-      - database_url
+      - source: database_ops_url
+        target: database_url
     group_add:
       - $SECRETS_GID
     volumes:
       - type: bind
-        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data
-        target: /var/lib/learncoding
+        source: ${LEARN_DATA_ROOT:-/srv/learncoding}/app-data/objects
+        target: /var/lib/learncoding/objects
+        read_only: false
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -516,7 +834,8 @@ services:
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
     secrets:
-      - database_url
+      - source: database_ops_url
+        target: database_url
     group_add:
       - $SECRETS_GID
     depends_on:
@@ -549,7 +868,8 @@ services:
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       APP_NAME: ${APP_NAME:-Codestead}
     secrets:
-      - database_url
+      - source: database_ops_url
+        target: database_url
       - better_auth_secret
       - bootstrap_admin_password
     group_add:
@@ -571,7 +891,8 @@ services:
     platform: ${DEPLOY_PLATFORM:-linux/amd64}
     image: ${CLOUDFLARED_IMAGE:?Set CLOUDFLARED_IMAGE to a reviewed cloudflared tag or digest}
     command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate --metrics 0.0.0.0:20241 run
-    restart: unless-stopped
+    restart: on-failure:5
+    stop_grace_period: 30s
     configs:
       - source: cloudflared_config
         target: /etc/cloudflared/config.yml
@@ -605,8 +926,23 @@ networks:
     driver: bridge
   mail-egress:
     driver: bridge
+  runner-client:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.41.0/24
+          gateway: 172.29.41.1
+          ip_range: 172.29.41.128/25
   runner-egress:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: cdst-run0
+    ipam:
+      config:
+        - subnet: 172.29.40.0/24
+          gateway: 172.29.40.1
+          ip_range: 172.29.40.128/25
   github-egress:
     driver: bridge
   data:
@@ -630,6 +966,14 @@ secrets:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/postgres_password
   database_url:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_url
+  database_bootstrap_url:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_bootstrap_url
+  database_migrator_url:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_migrator_url
+  database_worker_url:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_worker_url
+  database_ops_url:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_ops_url
   better_auth_secret:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/better_auth_secret
   bootstrap_admin_password:

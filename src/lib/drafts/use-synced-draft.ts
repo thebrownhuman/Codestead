@@ -909,7 +909,7 @@ export function useSyncedDraft({
       if (runtimeRef.current === runtime) runtimeRef.current = null;
       if (generationRef.current === generation) generationRef.current += 1;
     };
-  }, [draftKey, initializeRuntime, loadRetryTick, namespace]);
+  }, [draftKey, initializeRuntime, loadRetryTick, namespace, retireRuntime]);
 
   useEffect(() => {
     const accelerate = () => {

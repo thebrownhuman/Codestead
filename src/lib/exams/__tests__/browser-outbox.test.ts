@@ -381,6 +381,49 @@ describe("useDurableExamOutbox", () => {
     second.unmount();
     secondRepository.close();
   });
+  it("replays a response-lost autosave byte-for-byte after a full controller remount", async () => {
+    const answer = "committed before process loss";
+    const persisted = answerRecord({
+      answer,
+      baseRevision: 0,
+      clientMutationId: firstMutationId,
+    });
+    const harness = repositoryHarness();
+    harness.answers.set(persisted.storageKey, persisted);
+    const bodies: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const bodyText = String(init?.body);
+      bodies.push(bodyText);
+      return autosaveAcknowledgement(JSON.parse(bodyText) as Record<string, unknown>, true);
+    }));
+    const serverSavedAt = new Date().toISOString();
+    const view = renderHook(() => useDurableExamOutbox({
+      namespace,
+      session: activeSession({
+        answers: {
+          "written-1": {
+            revision: 1,
+            answer: { text: answer },
+            savedAt: serverSavedAt,
+          },
+        },
+      }),
+      repository: harness.repository,
+    }));
+
+    await waitForHydration(view.result);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toBe(JSON.stringify({
+      clientMutationId: firstMutationId,
+      itemId: "written-1",
+      baseRevision: 0,
+      answer: { text: answer },
+    }));
+    await waitFor(() => expect(harness.answers.size).toBe(0));
+    expect(view.result.current.saveState).toBe("server-saved");
+    view.unmount();
+  });
+
 
   it("retries response loss with a byte-equivalent body and compare-deletes the replay", async () => {
     vi.useFakeTimers();

@@ -65,8 +65,10 @@ function activeExamFromCatalog(body: unknown): ActiveExam | null | undefined {
 }
 
 export function ExamLockdownOverlay({
+  enabled = true,
   navigate = navigateWindow,
 }: {
+  enabled?: boolean;
   navigate?: (destination: string) => void;
 } = {}) {
   const pathname = usePathname();
@@ -148,6 +150,7 @@ export function ExamLockdownOverlay({
   }, [namespace]);
 
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     let cancelled = false;
     const check = () => {
@@ -180,7 +183,7 @@ export function ExamLockdownOverlay({
       controller.abort();
       window.clearInterval(interval);
     };
-  }, [handleSessionDenial, namespace, prepareClosedBookEntry, refresh]);
+  }, [enabled, handleSessionDenial, namespace, prepareClosedBookEntry, refresh]);
 
   const active = lockState?.exam ?? null;
   const alreadyInExam = active && pathname === `/exams/${active.sessionId}`;

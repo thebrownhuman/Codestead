@@ -14,10 +14,14 @@ compose_unit="$repo_root/infra/systemd/learncoding-compose.service"
 retention_unit="$repo_root/infra/systemd/learncoding-retention.service"
 recovery_service="$repo_root/infra/systemd/learncoding-recovery-check.service"
 recovery_timer="$repo_root/infra/systemd/learncoding-recovery-check.timer"
+ingress_recovery_service="$repo_root/infra/systemd/learncoding-ingress-recovery.service"
+ingress_recovery_timer="$repo_root/infra/systemd/learncoding-ingress-recovery.timer"
+ingress_control_tmpfiles="$repo_root/infra/tmpfiles.d/learncoding-ingress-control.conf"
+release_lock_tmpfiles="$repo_root/infra/tmpfiles.d/learncoding-release-lock.conf"
 firewall_service="$repo_root/infra/systemd/learncoding-runner-firewall.service"
 installer="$repo_root/infra/ops/install-systemd.sh"
 installer_shebang='#!/usr/bin/env bash'
-installer_reviewed_sha256='7d5b66bdd81e339a8fe455c5d746f13369bc5c6ed0d5ceea99158f6f0ba5d01b'
+installer_reviewed_sha256='9966762fd9c6d2184d0d88d52a58eb3289211295aae0cc5292c0d524c532e727'
 package_json="$repo_root/package.json"
 failures=()
 
@@ -424,6 +428,55 @@ expect_directive() {
   fi
 }
 
+expect_directive_sequence() {
+  local file="$1"
+  local expected_section="$2"
+  local key="$3"
+  local label="$4"
+  shift 4
+  local -a expected=("$@")
+  local -a actual=()
+  local section=
+  local line
+  local parsed_key
+  local parsed_value
+  local index
+
+  if ! systemd_syntax_is_canonical "$file"; then
+    fail "$label"
+    return
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    if [[ -z "$line" || "$line" == \#* || "$line" == \;* ]]; then
+      continue
+    fi
+    case "$line" in
+      '[Unit]') section=Unit; continue ;;
+      '[Service]') section=Service; continue ;;
+      '[Install]') section=Install; continue ;;
+      '[Timer]') section=Timer; continue ;;
+    esac
+    parsed_key="${line%%=*}"
+    parsed_value="${line#*=}"
+    if [[ "$section" == "$expected_section" && "$parsed_key" == "$key" ]]; then
+      actual+=("$parsed_value")
+    fi
+  done <"$file"
+
+  if (( ${#actual[@]} != ${#expected[@]} )); then
+    fail "$label"
+    return
+  fi
+  for index in "${!expected[@]}"; do
+    if [[ "${actual[$index]}" != "${expected[$index]}" ]]; then
+      fail "$label"
+      return
+    fi
+  done
+}
+
 expect_mutation_rejected() {
   local file="$1"
   local expected_section="$2"
@@ -518,13 +571,21 @@ expect_canonical_systemd_file() {
 
 expect_canonical_systemd_file "$compose_unit"
 expect_canonical_systemd_file "$retention_unit"
+expect_canonical_systemd_file "$ingress_recovery_service"
 for canonical_timer in \
   "$repo_root/infra/systemd/learncoding-backup.timer" \
   "$repo_root/infra/systemd/learncoding-backup-check.timer" \
-  "$repo_root/infra/systemd/learncoding-retention.timer"; do
+  "$repo_root/infra/systemd/learncoding-retention.timer" \
+  "$ingress_recovery_timer"; do
   expect_canonical_systemd_file "$canonical_timer"
 done
 
+expect_directive \
+  "$compose_unit" \
+  Unit \
+  Documentation \
+  'file:/opt/learncoding/docs/deployment.md' \
+  'Compose documentation must use a valid absolute file URL'
 expect_directive \
   "$compose_unit" \
   Unit \
@@ -535,41 +596,35 @@ expect_directive_tokens \
   "$compose_unit" Unit After \
   'Compose startup ordering must include Docker, network-online, local filesystems, libvirt, and the runner firewall' \
   docker.service network-online.target local-fs.target libvirtd.service learncoding-runner-firewall.service
-expect_directive "$compose_unit" Unit Requires docker.service 'Compose startup must require Docker'
-expect_directive_tokens \
-  "$compose_unit" Unit Wants \
-  'Compose startup must want network-online, libvirt, and the runner firewall' \
-  network-online.target libvirtd.service learncoding-runner-firewall.service
 expect_directive \
-  "$compose_unit" \
-  Service \
-  ExecStartPre \
-  '/usr/bin/bash /opt/learncoding/infra/ops/validate-runtime.sh' \
-  'Compose startup must retain runtime preflight'
+  "$compose_unit" Unit Requires \
+  'docker.service learncoding-runner-firewall.service' \
+  'Compose startup must require Docker and fail closed when the runner firewall fails'
+expect_directive \
+  "$compose_unit" Unit Wants \
+  'network-online.target libvirtd.service' \
+  'Compose startup must want network-online and libvirt without weakening the required runner firewall'
+if grep -Eq '^ExecStartPre=|^ExecStartPost=' "$compose_unit"; then
+  fail 'Compose startup must not split the guarded transaction across pre/post directives'
+fi
 expect_directive \
   "$compose_unit" \
   Service \
   ExecStart \
-  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
-  'Compose startup must use explicit inputs without building or pulling'
-expect_directive \
-  "$compose_unit" \
-  Service \
-  ExecStartPost \
-  '/usr/bin/bash /opt/learncoding/infra/ops/smoke-production.sh --startup-wait 600' \
-  'Compose startup must run the bounded production smoke check'
+  '/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/start-production-stack.sh --startup-wait 600' \
+  'Compose startup must invoke only the fixed-PATH guarded transaction'
 expect_directive \
   "$compose_unit" \
   Service \
   ExecReload \
-  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans' \
-  'Compose reload must use explicit inputs without building or pulling'
+  '/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/start-production-stack.sh --startup-wait 600' \
+  'Compose reload must invoke only the fixed-PATH guarded transaction'
 expect_directive \
   "$compose_unit" \
   Service \
   ExecStop \
-  '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans' \
-  'Compose stop must preserve durable volumes'
+  '/usr/bin/env -i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/sbin:/usr/bin:/sbin:/bin DOCKER_CONFIG=/nonexistent DOCKER_HOST=unix:///var/run/docker.sock COMPOSE_PROJECT_NAME=learncoding COMPOSE_PROFILES= /usr/bin/docker compose --project-name learncoding --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans' \
+  'Compose stop must preserve durable volumes and ignore hostile inherited Docker or Compose authority'
 expect_directive "$compose_unit" Service Type oneshot 'Compose unit must remain Type=oneshot'
 expect_directive "$compose_unit" Service RemainAfterExit yes 'Compose unit must remain active after startup'
 expect_directive "$compose_unit" Service Restart on-failure 'Compose startup must retry transient failures'
@@ -644,9 +699,11 @@ expect_sequence() {
 postgres_section="$(sed -n '/^  postgres:/,/^  migrate:/p' "$compose" | tr -d '\r')"
 mapfile -t postgres_command < <(command_items <<<"$postgres_section")
 expect_sequence \
-  'PostgreSQL command must contain only the three enabled durability settings' \
+  'PostgreSQL command must contain only the three durability and two private control-socket settings' \
   postgres_command \
-  postgres -c fsync=on -c synchronous_commit=on -c full_page_writes=on
+  postgres -c fsync=on -c synchronous_commit=on -c full_page_writes=on \
+  -c unix_socket_directories=/run/learncoding-postgres \
+  -c unix_socket_permissions=0700
 
 lifecycle_section="$(sed -n '/^  lifecycle:/,/^  platform-seed:/p' "$compose" | tr -d '\r')"
 mapfile -t lifecycle_command < <(command_items <<<"$lifecycle_section")
@@ -662,7 +719,8 @@ expect_contains \
 for timer in \
   "$repo_root/infra/systemd/learncoding-backup.timer" \
   "$repo_root/infra/systemd/learncoding-backup-check.timer" \
-  "$repo_root/infra/systemd/learncoding-retention.timer"; do
+  "$repo_root/infra/systemd/learncoding-retention.timer" \
+  "$ingress_recovery_timer"; do
   if [[ ! -f "$timer" ]]; then
     fail "Required persistent timer is missing: ${timer#"$repo_root/"}"
     continue
@@ -709,6 +767,58 @@ if expect_required_file "$recovery_timer"; then
     'Recovery timer must explicitly activate the recovery service'
   expect_directive "$recovery_timer" Install WantedBy timers.target 'Recovery timer must be installable at boot'
 fi
+if expect_required_file "$ingress_recovery_service"; then
+  expect_canonical_systemd_file "$ingress_recovery_service"
+  expect_directive \
+    "$ingress_recovery_service" Unit After 'docker.service local-fs.target' \
+    'Ingress recovery must wait for Docker and local filesystems'
+  expect_directive \
+    "$ingress_recovery_service" Unit Wants docker.service \
+    'Ingress recovery must want Docker so unavailable Docker defers without a dependency failure'
+  if directive_contains_tokens "$ingress_recovery_service" Unit Requires docker.service; then
+    fail 'Ingress recovery must not require Docker'
+  fi
+  expect_directive \
+    "$ingress_recovery_service" Unit RequiresMountsFor \
+    '/opt/learncoding /etc/learncoding /var/lib/learncoding' \
+    'Ingress recovery must require only its code, configuration, and persistent state mounts'
+  expect_directive \
+    "$ingress_recovery_service" Unit OnFailure 'learncoding-alert@%n.service' \
+    'Ingress recovery failure must trigger the existing alert unit'
+  expect_directive "$ingress_recovery_service" Service Type oneshot 'Ingress recovery must be a oneshot'
+  expect_directive "$ingress_recovery_service" Service User root 'Ingress recovery must run explicitly as root'
+  expect_directive "$ingress_recovery_service" Service Group root 'Ingress recovery must use the root group'
+  expect_directive \
+    "$ingress_recovery_service" Service ExecStart \
+    '/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/recover-production-ingress.sh' \
+    'Ingress recovery must invoke the fixed-PATH reviewed recovery authority'
+  expect_directive \
+    "$ingress_recovery_service" Service TimeoutStartSec 90s \
+    'Ingress recovery must remain bounded to ninety seconds'
+fi
+if expect_required_file "$ingress_recovery_timer"; then
+  expect_canonical_systemd_file "$ingress_recovery_timer"
+  expect_directive "$ingress_recovery_timer" Timer OnBootSec 1min 'Ingress recovery must first run one minute after boot'
+  expect_directive "$ingress_recovery_timer" Timer OnUnitActiveSec 1min 'Ingress recovery must repeat once per minute'
+  expect_directive "$ingress_recovery_timer" Timer AccuracySec 5s 'Ingress recovery timer must use five-second accuracy'
+  expect_directive "$ingress_recovery_timer" Timer Persistent true 'Ingress recovery timer must be persistent'
+  expect_directive \
+    "$ingress_recovery_timer" Timer Unit learncoding-ingress-recovery.service \
+    'Ingress recovery timer must explicitly activate the ingress recovery service'
+  expect_directive "$ingress_recovery_timer" Install WantedBy timers.target 'Ingress recovery timer must be installable at boot'
+fi
+if expect_required_file "$ingress_control_tmpfiles"; then
+  ingress_control_definition="$(tr -d '\r' <"$ingress_control_tmpfiles")"
+  if [[ "$ingress_control_definition" != 'd /var/lib/learncoding/ingress-control 0700 root root - -' ]]; then
+    fail 'Ingress control tmpfiles definition must create only the root-private persistent state directory'
+  fi
+fi
+if expect_required_file "$release_lock_tmpfiles"; then
+  release_lock_definition="$(tr -d '\r' <"$release_lock_tmpfiles")"
+  if [[ "$release_lock_definition" != 'f /run/lock/codestead-release.lock 0600 root root - -' ]]; then
+    fail 'Release lock tmpfiles definition must provision exactly one root-private lock file'
+  fi
+fi
 
 tmp_base="$(cd /tmp && pwd -P)"
 parser_work="$(mktemp -d "$tmp_base/systemd-recovery-parser.XXXXXX")"
@@ -732,9 +842,25 @@ installer_root="$parser_work/installer-root"
 installer_fake_bin="$parser_work/installer-bin"
 installer_events="$parser_work/installer-events.log"
 installer_under_test="$parser_work/install-systemd.sh"
-mkdir -m 0700 -p "$installer_root/infra/systemd" "$installer_fake_bin"
+mkdir -m 0700 -p \
+  "$installer_root/infra/systemd" \
+  "$installer_root/infra/sysusers.d" \
+  "$installer_root/infra/tmpfiles.d" \
+  "$installer_root/infra/ops" \
+  "$installer_root/infra/runtime" \
+  "$installer_fake_bin"
 cp "$compose" "$installer_root/compose.yaml"
 cp "$repo_root"/infra/systemd/* "$installer_root/infra/systemd/"
+cp "$repo_root"/infra/sysusers.d/* "$installer_root/infra/sysusers.d/"
+cp "$repo_root"/infra/tmpfiles.d/* "$installer_root/infra/tmpfiles.d/"
+cp "$repo_root/infra/runtime/production-load-network-attestation" "$installer_root/infra/runtime/production-load-network-attestation"
+printf '%s\n' \
+  '#!/usr/bin/bash' \
+  'set -Eeuo pipefail' \
+  '[[ "$#" == 0 ]] || exit 64' \
+  'printf "runtime-validator\\n" >>"$INSTALLER_EVENTS"' \
+  >"$installer_root/infra/ops/validate-production-load-host-runtime.sh"
+chmod 0555 "$installer_root/infra/ops/validate-production-load-host-runtime.sh"
 
 installer_root_guard='[[ "${EUID:-$(id -u)}" -eq 0 ]] || { echo "run as root" >&2; exit 1; }'
 installer_stage="$parser_work/install-systemd.reviewed.stage.sh"
@@ -772,7 +898,7 @@ fi
 if tail -n +2 "$installer_stage" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; then
   abort_contract 'Systemd installer contains an uninstrumented shell file read'
 fi
-installer_fake_commands=(basename install systemctl)
+installer_fake_commands=(basename install systemctl systemd-sysusers systemd-tmpfiles)
 make_path_sealed_copy "$installer_stage" "$installer_under_test" "$bash_bin" "$installer_shebang" "$installer_reviewed_sha256" \
   "$installer_fake_bin" "${installer_fake_commands[@]}" || abort_contract 'could not create reviewed Systemd installer test copy'
 grep -Fxq 'PATH=' "$installer_under_test" && grep -Fxq 'readonly PATH' "$installer_under_test" ||
@@ -792,33 +918,78 @@ command_name="${0##*/}"
   printf '\n'
 } >>"$INSTALLER_EVENTS"
 
-unit_source_is_exact() {
-  local source="$1"
+artifact_source_is_exact() {
+  local source="$1" kind="$2"
   local name="${source##*/}"
-  [[ "$source" == "$INSTALLER_ROOT/infra/systemd/$name" && -f "$source" && ! -L "$source" &&
-    "$name" =~ ^learncoding-[A-Za-z0-9@_.-]+\.(service|timer)$ ]]
+  [[ -f "$source" && ! -L "$source" ]] || return 1
+  case "$kind" in
+    systemd) [[ "$source" == "$INSTALLER_ROOT/infra/systemd/$name" && "$name" =~ ^learncoding-[A-Za-z0-9@_.-]+\.(service|timer|path)$ ]] ;;
+    sysusers) [[ "$source" == "$INSTALLER_ROOT/infra/sysusers.d/$name" && "$name" == learncoding-production-load.conf ]] ;;
+    tmpfiles)
+      [[ "$source" == "$INSTALLER_ROOT/infra/tmpfiles.d/$name" &&
+        ( "$name" == learncoding-production-load.conf || "$name" == learncoding-ingress-control.conf ||
+          "$name" == learncoding-release-lock.conf ) ]]
+      ;;
+    runtime) [[ "$source" == "$INSTALLER_ROOT/infra/runtime/production-load-network-attestation" && "$name" == production-load-network-attestation ]] ;;
+    *) return 1 ;;
+  esac
+}
+
+artifact_kind() {
+  case "$1" in
+    "$INSTALLER_ROOT"/infra/systemd/*) printf '%s' systemd ;;
+    "$INSTALLER_ROOT"/infra/sysusers.d/*) printf '%s' sysusers ;;
+    "$INSTALLER_ROOT"/infra/tmpfiles.d/*) printf '%s' tmpfiles ;;
+    "$INSTALLER_ROOT"/infra/runtime/production-load-network-attestation) printf '%s' runtime ;;
+    *) return 1 ;;
+  esac
 }
 
 case "$command_name" in
   basename)
     [[ "$#" == 2 && "$1" == -- ]] || exit 64
-    unit_source_is_exact "$2" || exit 97
+    kind="$(artifact_kind "$2")" || exit 97
+    artifact_source_is_exact "$2" "$kind" || exit 97
     printf '%s\n' "${2##*/}"
     ;;
   install)
-    [[ "$#" == 8 && "$1" == -o && "$2" == root && "$3" == -g && "$4" == root &&
-      "$5" == -m && "$6" == 0644 ]] || exit 64
-    unit_source_is_exact "$7" || exit 97
-    [[ "$8" == "/etc/systemd/system/${7##*/}" ]] || exit 97
+    if [[ "$#" == 8 && "$1" == -d && "$2" == -o && "$3" == root && "$4" == -g &&
+      "$5" == root && "$6" == -m && "$7" == 0755 && "$8" == /etc/learncoding ]]; then
+      :
+    else
+      [[ "$#" == 8 && "$1" == -o && "$2" == root && "$3" == -g && "$4" == root && "$5" == -m ]] || exit 64
+      kind="$(artifact_kind "$7")" || exit 97
+      artifact_source_is_exact "$7" "$kind" || exit 97
+      case "$kind:$6" in
+        systemd:0644) destination=/etc/systemd/system ;;
+        sysusers:0644) destination=/etc/sysusers.d ;;
+        tmpfiles:0644) destination=/etc/tmpfiles.d ;;
+        runtime:0444) destination=/etc/learncoding ;;
+        *) exit 97 ;;
+      esac
+      [[ "$8" == "$destination/${7##*/}" ]] || exit 97
+    fi
+    ;;
+  systemd-sysusers)
+    [[ "$#" == 1 && "$1" == /etc/sysusers.d/learncoding-production-load.conf ]] || exit 64
+    ;;
+  systemd-tmpfiles)
+    [[ "$#" == 2 && "$1" == --create &&
+      ( "$2" == /etc/tmpfiles.d/learncoding-production-load.conf ||
+        "$2" == /etc/tmpfiles.d/learncoding-ingress-control.conf ||
+        "$2" == /etc/tmpfiles.d/learncoding-release-lock.conf ) ]] || exit 64
     ;;
   systemctl)
     if [[ "$#" == 1 && "$1" == daemon-reload ]]; then :
     elif [[ "$#" == 3 && "$1" == enable && "$2" == --now &&
       ( "$3" == learncoding-runner-firewall.service || "$3" == learncoding-compose.service ||
-        "$3" == learncoding-recovery-check.timer ) ]]; then :
-    elif [[ "$#" == 5 && "$1" == enable && "$2" == --now &&
+        "$3" == learncoding-recovery-check.timer ||
+        "$3" == learncoding-ingress-recovery.timer ||
+        "$3" == learncoding-production-load-recovery.path ) ]]; then :
+    elif [[ "$#" == 8 && "$1" == enable && "$2" == --now &&
       "$3" == learncoding-backup.timer && "$4" == learncoding-backup-check.timer &&
-      "$5" == learncoding-retention.timer ]]; then :
+      "$5" == learncoding-offsite-sync.timer && "$6" == learncoding-offsite-retention.timer &&
+      "$7" == learncoding-restore-drill-reminder.timer && "$8" == learncoding-retention.timer ]]; then :
     else
       exit 64
     fi
@@ -827,7 +998,7 @@ case "$command_name" in
 esac
 FAKE
 chmod 0555 "$installer_fake_bin/fake-installer-command"
-for command_name in basename install systemctl; do
+for command_name in basename install systemctl systemd-sysusers systemd-tmpfiles; do
   cp "$installer_fake_bin/fake-installer-command" "$installer_fake_bin/$command_name"
 done
 chmod 0555 "$installer_fake_bin"/*
@@ -844,7 +1015,8 @@ set +e
 for rejected_installer_action in \
   'disable --now learncoding-compose.service' \
   'mask learncoding-compose.service' \
-  'enable --now learncoding-restore-drill.service'; do
+  'enable --now learncoding-restore-drill.service' \
+  'enable --now learncoding-restore-drill.timer'; do
   read -r -a rejected_installer_argv <<<"$rejected_installer_action"
   "$env_bin" -i PATH="$installer_fake_bin" INSTALLER_EVENTS="$installer_events" \
     INSTALLER_ROOT="$installer_root" "$installer_fake_bin/systemctl" "${rejected_installer_argv[@]}" \
@@ -920,25 +1092,74 @@ verify_minimal_runtime_file() {
   mode_value=$((8#$mode)); (( (mode_value & 8#022) == 0 ))
 }
 
+resolve_minimal_runtime_mount_source() {
+  local requested="$1" resolved
+
+  verify_minimal_runtime_file "$requested" || return 1
+  resolved="$(/usr/bin/readlink -e -- "$requested")" || return 1
+  [[ "$resolved" == /* && "$resolved" != *'/../'* && "$resolved" != */.. ]] || return 1
+  [[ -f "$resolved" && ! -L "$resolved" ]] || return 1
+  verify_minimal_runtime_file "$resolved" || return 1
+  printf '%s' "$resolved"
+}
+
 prepare_minimal_runtime_mounts() {
-  local binary ldd_output line first second third dependency
+  local binary binary_source ldd_output line first second third dependency dependency_source
   local -A seen=()
   minimal_runtime_mounts=()
   verify_fixed_outer_binary /usr/bin/ldd true || return 1
+  verify_fixed_outer_binary /usr/bin/readlink true || return 1
   for binary in "$@"; do
-    verify_minimal_runtime_file "$binary" || return 1
-    if [[ -z "${seen[$binary]:-}" ]]; then minimal_runtime_mounts+=(--ro-bind "$binary" "$binary"); seen["$binary"]=1; fi
-    ldd_output="$(/usr/bin/ldd -- "$binary")" || return 1
+    binary_source="$(resolve_minimal_runtime_mount_source "$binary")" || return 1
+    if [[ -z "${seen[$binary]:-}" ]]; then
+      minimal_runtime_mounts+=(--ro-bind "$binary_source" "$binary"); seen["$binary"]="$binary_source"
+    else
+      [[ "${seen[$binary]}" == "$binary_source" ]] || return 1
+    fi
+    ldd_output="$(/usr/bin/ldd -- "$binary_source")" || return 1
     [[ "$ldd_output" != *'not found'* ]] || return 1
     while IFS= read -r line; do
       read -r first second third _ <<<"$line"; dependency=
       if [[ "${first:-}" == /* ]]; then dependency="$first"; elif [[ "${second:-}" == '=>' && "${third:-}" == /* ]]; then dependency="$third"; fi
       [[ -n "$dependency" ]] || continue
-      verify_minimal_runtime_file "$dependency" || return 1
-      if [[ -z "${seen[$dependency]:-}" ]]; then minimal_runtime_mounts+=(--ro-bind "$dependency" "$dependency"); seen["$dependency"]=1; fi
+      dependency_source="$(resolve_minimal_runtime_mount_source "$dependency")" || return 1
+      if [[ -z "${seen[$dependency]:-}" ]]; then
+        minimal_runtime_mounts+=(--ro-bind "$dependency_source" "$dependency"); seen["$dependency"]="$dependency_source"
+      else
+        [[ "${seen[$dependency]}" == "$dependency_source" ]] || return 1
+      fi
     done <<<"$ldd_output"
   done
 }
+
+assert_minimal_runtime_mount_sources_are_regular() {
+  local index token source destination
+
+  (( ${#minimal_runtime_mounts[@]} > 0 && ${#minimal_runtime_mounts[@]} % 3 == 0 )) || return 1
+  for ((index = 0; index < ${#minimal_runtime_mounts[@]}; index += 3)); do
+    token="${minimal_runtime_mounts[$index]}"
+    source="${minimal_runtime_mounts[$((index + 1))]}"
+    destination="${minimal_runtime_mounts[$((index + 2))]}"
+    [[ "$token" == --ro-bind && "$source" == /* && "$destination" == /* ]] || return 1
+    [[ -f "$source" && ! -L "$source" ]] || return 1
+  done
+}
+
+assert_symlinked_runtime_inputs_use_regular_mount_sources() {
+  local index token source destination
+
+  [[ -L /usr/bin/sh ]] || abort_contract 'Ubuntu systemd fixture no longer exposes the symlinked-shell regression input'
+  prepare_minimal_runtime_mounts /usr/bin/sh || abort_contract 'could not assemble the symlinked-shell runtime regression fixture'
+  assert_minimal_runtime_mount_sources_are_regular || {
+    for ((index = 0; index < ${#minimal_runtime_mounts[@]}; index += 3)); do
+      token="${minimal_runtime_mounts[$index]}" source="${minimal_runtime_mounts[$((index + 1))]}" destination="${minimal_runtime_mounts[$((index + 2))]}"
+      [[ "$token" == --ro-bind && -L "$source" ]] && abort_contract "minimal systemd runtime retained a symlink mount source: $source -> $destination"
+    done
+    abort_contract 'minimal systemd runtime mount vector is not composed of regular absolute read-only bind sources'
+  }
+}
+
+assert_symlinked_runtime_inputs_use_regular_mount_sources
 
 assert_resource_limit_mutations
 assert_exact_resource_limits "${resource_limit_args[@]}" || abort_contract 'canonical resource-limit vector is not exact'
@@ -1032,7 +1253,8 @@ EOF
   containment_entry="$entry"
   containment_entry_sha256="$(sha256_file "$entry")" || abort_contract 'could not hash namespace entry'
   verify_exact_staged_shell_source "$entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" || abort_contract 'namespace entry identity is not verified'
-  prepare_minimal_runtime_mounts /usr/bin/bash || abort_contract 'could not assemble the minimal installer runtime'
+  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/setpriv || abort_contract 'could not assemble the minimal installer runtime'
+  assert_minimal_runtime_mount_sources_are_regular || abort_contract 'minimal installer runtime retained a symlink mount source'
   containment_ro_mounts=(
     --ro-bind "$entry" "$entry"
     --ro-bind "$installer_under_test" "$installer_under_test"
@@ -1044,7 +1266,7 @@ EOF
   containment_command=(
     /usr/bin/timeout --signal=KILL --kill-after=5s 45s
     /usr/bin/prlimit "${resource_limit_args[@]}" --
-    /usr/bin/setpriv --clear-groups --no-new-privs --bounding-set=-all --inh-caps=-all --ambient-caps=-all
+    /usr/bin/setpriv --clear-groups
     /usr/bin/bwrap --die-with-parent --new-session --unshare-user --uid 0 --gid 0
     --unshare-pid --unshare-net --unshare-ipc --unshare-uts --disable-userns --cap-drop ALL --as-pid-1
     --tmpfs /
@@ -1053,6 +1275,7 @@ EOF
     "${containment_rw_mounts[@]}"
     --proc /proc --dev /dev --remount-ro / --chdir "$containment_probe_dir" --
     /usr/bin/bash "$entry"
+    /usr/bin/setpriv --no-new-privs
   )
   preflight_ro_probes="$entry:$installer_under_test:$installer_fake_bin:$installer_root"
   set +e
@@ -1075,7 +1298,8 @@ assert_installer_execution_identity() {
   verify_fixed_outer_binary /usr/bin/bwrap true || abort_contract 'Bubblewrap changed before installer execution'
   verify_fixed_outer_binary /usr/bin/ldd true || abort_contract 'ldd changed before installer execution'
   assert_exact_resource_limits "${resource_limit_args[@]}" || abort_contract 'resource-limit vector changed before installer execution'
-  prepare_minimal_runtime_mounts /usr/bin/bash || abort_contract 'minimal installer runtime changed before execution'
+  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/setpriv || abort_contract 'minimal installer runtime changed before execution'
+  assert_minimal_runtime_mount_sources_are_regular || abort_contract 'minimal installer runtime source contract changed before execution'
 }
 
 assert_containment_gate_mutations
@@ -1101,7 +1325,30 @@ set -e
 if (( installer_status != 0 )); then
   fail "Systemd installer did not execute inside the strict fake root: $(<"$parser_work/installer.stderr")"
 else
-  expected_installer_events=()
+  expected_installer_events=('runtime-validator')
+  for definition in "$installer_root"/infra/sysusers.d/*; do
+    printf -v basename_event 'basename -- %q' "$definition"
+    expected_installer_events+=("$basename_event")
+    printf -v install_event 'install -o root -g root -m 0644 %q %q' \
+      "$definition" "/etc/sysusers.d/${definition##*/}"
+    expected_installer_events+=("$install_event")
+  done
+  expected_installer_events+=('systemd-sysusers /etc/sysusers.d/learncoding-production-load.conf')
+  for definition in "$installer_root"/infra/tmpfiles.d/*; do
+    printf -v basename_event 'basename -- %q' "$definition"
+    expected_installer_events+=("$basename_event")
+    printf -v install_event 'install -o root -g root -m 0644 %q %q' \
+      "$definition" "/etc/tmpfiles.d/${definition##*/}"
+    expected_installer_events+=("$install_event")
+  done
+  expected_installer_events+=('systemd-tmpfiles --create /etc/tmpfiles.d/learncoding-release-lock.conf')
+  expected_installer_events+=('systemd-tmpfiles --create /etc/tmpfiles.d/learncoding-production-load.conf')
+  expected_installer_events+=('systemd-tmpfiles --create /etc/tmpfiles.d/learncoding-ingress-control.conf')
+  expected_installer_events+=('install -d -o root -g root -m 0755 /etc/learncoding')
+  printf -v install_event 'install -o root -g root -m 0444 %q %q' \
+    "$installer_root/infra/runtime/production-load-network-attestation" \
+    /etc/learncoding/production-load-network-attestation
+  expected_installer_events+=("$install_event")
   for unit in "$installer_root"/infra/systemd/*; do
     printf -v basename_event 'basename -- %q' "$unit"
     expected_installer_events+=("$basename_event")
@@ -1114,7 +1361,9 @@ else
     'systemctl enable --now learncoding-runner-firewall.service'
     'systemctl enable --now learncoding-compose.service'
     'systemctl enable --now learncoding-recovery-check.timer'
-    'systemctl enable --now learncoding-backup.timer learncoding-backup-check.timer learncoding-retention.timer'
+    'systemctl enable --now learncoding-ingress-recovery.timer'
+    'systemctl enable --now learncoding-backup.timer learncoding-backup-check.timer learncoding-offsite-sync.timer learncoding-offsite-retention.timer learncoding-restore-drill-reminder.timer learncoding-retention.timer'
+    'systemctl enable --now learncoding-production-load-recovery.path'
   )
   mapfile -t actual_installer_events <"$installer_events"
   expect_sequence \
@@ -1134,9 +1383,14 @@ required_enable_units=(
   learncoding-runner-firewall.service
   learncoding-compose.service
   learncoding-recovery-check.timer
+  learncoding-ingress-recovery.timer
   learncoding-backup.timer
   learncoding-backup-check.timer
   learncoding-retention.timer
+  learncoding-offsite-sync.timer
+  learncoding-offsite-retention.timer
+  learncoding-restore-drill-reminder.timer
+  learncoding-production-load-recovery.path
 )
 actual_enable_units=()
 while IFS= read -r enable_line || [[ -n "$enable_line" ]]; do

@@ -25,10 +25,23 @@ const pilotServices = [
   "project-review-correction-worker",
   "regrade-worker",
   "reward-worker",
+  "runner-egress-gateway",
+  "file-erasure-worker",
 ];
-const operationServices = ["admin-bootstrap", "lifecycle", "migrate", "platform-seed"];
+const operationServices = [
+  "admin-bootstrap",
+  "database-boundary-verifier",
+  "database-negative-probes",
+  "database-role-bootstrap",
+  "lifecycle",
+  "migrate",
+  "platform-seed",
+];
 const uploadServices = ["clamav", "scan-worker"];
-const longRunningServices = [...pilotServices, ...uploadServices];
+const internalLongRunningServices = [
+  ...pilotServices.filter((name) => name !== "cloudflared"),
+  ...uploadServices,
+];
 const oneShotServices = operationServices;
 const databaseMutatingServices = [
   "app",
@@ -39,6 +52,7 @@ const databaseMutatingServices = [
   "regrade-worker",
   "reward-worker",
   "scan-worker",
+  "file-erasure-worker",
 ];
 
 const applicationImages = {
@@ -145,8 +159,12 @@ expect(
     "synchronous_commit=on",
     "-c",
     "full_page_writes=on",
+    "-c",
+    "unix_socket_directories=/run/learncoding-postgres",
+    "-c",
+    "unix_socket_permissions=0700",
   ]),
-  "postgres command must contain only the three enabled durability settings",
+  "postgres command must contain only the reviewed durability and control-socket settings",
 );
 expect(
   String(config.services?.postgres?.environment?.POSTGRES_INITDB_ARGS ?? "")
@@ -183,30 +201,51 @@ for (const [name, service] of Object.entries(config.services ?? {})) {
     expect(volume.source !== "/", `${name} must not mount the host root`);
   }
 }
-for (const name of longRunningServices) {
+for (const name of ["app", "scan-worker", "file-erasure-worker", "lifecycle"]) {
+  expect(
+    config.services?.[name]?.user === "1000:1000",
+    `${name} must pin the reviewed object-writer uid/gid`,
+  );
+}
+for (const name of internalLongRunningServices) {
   expect(config.services?.[name]?.restart === "unless-stopped", `${name} must restart unless stopped`);
 }
+expect(
+  config.services?.cloudflared?.restart === "on-failure:5",
+  "cloudflared must be the sole bounded restart-policy exception",
+);
 for (const name of oneShotServices) {
   expect(config.services?.[name]?.restart === "no", `${name} must remain a non-restarting one-shot`);
 }
-expect(config.services?.postgres?.stop_grace_period === "2m", "postgres must receive a two-minute stop budget");
+expect(
+  config.services?.postgres?.stop_grace_period === "2m0s",
+  "postgres must receive a two-minute stop budget",
+);
 for (const name of databaseMutatingServices) {
-  expect(config.services?.[name]?.stop_grace_period === "1m", `${name} must receive a one-minute stop budget`);
+  expect(
+    config.services?.[name]?.stop_grace_period === "1m0s",
+    `${name} must receive a one-minute stop budget`,
+  );
 }
 expect(config.services?.cloudflared?.stop_grace_period === "30s", "cloudflared must receive a 30-second stop budget");
 
 const expectedNetworks = {
   postgres: ["data"],
   migrate: ["data"],
-  app: ["data", "frontend", "runner-egress"],
+  "database-role-bootstrap": ["data"],
+  "database-negative-probes": ["data"],
+  "database-boundary-verifier": ["data"],
+  app: ["data", "frontend", "runner-client"],
   "mail-worker": ["data", "mail-egress"],
   "reward-worker": ["data"],
-  "regrade-worker": ["data", "runner-egress"],
-  "exam-finalization-worker": ["data", "runner-egress"],
-  "practice-runner-recovery-worker": ["data", "runner-egress"],
+  "regrade-worker": ["data", "runner-client"],
+  "exam-finalization-worker": ["data", "runner-client"],
+  "practice-runner-recovery-worker": ["data", "runner-client"],
+  "runner-egress-gateway": ["runner-client", "runner-egress"],
   "project-review-correction-worker": ["data", "github-egress"],
   clamav: ["scanner", "signature-egress"],
   "scan-worker": ["data", "scanner"],
+  "file-erasure-worker": ["data"],
   lifecycle: ["data"],
   "platform-seed": ["data"],
   "admin-bootstrap": ["data"],
@@ -221,6 +260,7 @@ expect(
     "frontend",
     "github-egress",
     "mail-egress",
+    "runner-client",
     "runner-egress",
     "scanner",
     "signature-egress",
@@ -229,6 +269,14 @@ expect(
 );
 expect(config.networks?.data?.internal === true, "database network must be internal");
 expect(config.networks?.scanner?.internal === true, "scanner network must be internal");
+expect(config.networks?.["runner-client"]?.internal === true, "runner client network must be internal");
+expect(
+  same(
+    (config.networks?.["runner-client"]?.ipam?.config ?? []).map((entry) => entry.subnet),
+    ["172.29.41.0/24"],
+  ),
+  "runner-client must have only the reviewed 172.29.41.0/24 subnet",
+);
 expect(config.networks?.["runner-egress"]?.driver === "bridge", "runner-egress must use the bridge driver");
 expect(
   same(
@@ -246,17 +294,74 @@ const actualRunnerConsumers = Object.entries(config.services ?? {})
   .map(([name]) => name);
 expect(
   same(actualRunnerConsumers, [
+    "runner-egress-gateway",
+  ]),
+  "runner-egress must be attached only to the secretless runner gateway",
+);
+const actualRunnerClientConsumers = Object.entries(config.services ?? {})
+  .filter(([, service]) => Object.hasOwn(service.networks ?? {}, "runner-client"))
+  .map(([name]) => name);
+expect(
+  same(actualRunnerClientConsumers, [
     "app",
     "exam-finalization-worker",
     "practice-runner-recovery-worker",
     "regrade-worker",
+    "runner-egress-gateway",
   ]),
-  "runner-egress consumers must be limited to the four reviewed runner clients",
+  "runner-client consumers must be limited to the four runner clients and their gateway",
 );
+for (const name of [
+  "app",
+  "exam-finalization-worker",
+  "practice-runner-recovery-worker",
+  "regrade-worker",
+]) {
+  expect(
+    config.services?.[name]?.environment?.RUNNER_BASE_URL === "http://runner-egress-gateway:4100",
+    `${name} must address the internal runner gateway`,
+  );
+}
+const gateway = config.services?.["runner-egress-gateway"];
+expect(
+  gateway?.environment?.RUNNER_GATEWAY_UPSTREAM === "http://192.168.122.12:4100",
+  "runner gateway must target only the fixed private runner address",
+);
+expect((gateway?.secrets ?? []).length === 0, "runner gateway must receive no secrets");
+expect(gateway?.image === applicationImages.APP_RUNTIME_IMAGE, "runner gateway must reuse the reviewed runtime image");
+expect(gateway?.user === "1000:1000", "runner gateway must run as the unprivileged node identity");
+expect(Array.isArray(gateway?.entrypoint) && gateway.entrypoint.length === 0, "runner gateway must clear the app-only secret-loading entrypoint");
+expect(gateway?.networks?.["runner-egress"]?.ipv4_address === "172.29.40.2", "runner gateway must use its reviewed fixed egress address");
+expect(gateway?.networks?.["runner-egress"]?.interface_name === "runner-egress", "runner gateway egress interface must be deterministic");
+expect(gateway?.networks?.["runner-egress"]?.gw_priority === 100, "runner gateway must use runner-egress as its only default egress");
+expect(gateway?.networks?.["runner-client"]?.ipv4_address === "172.29.41.2", "runner gateway must use its reviewed fixed client address");
+expect(gateway?.networks?.["runner-client"]?.interface_name === "runner-client", "runner gateway client interface must be deterministic");
+expect(config.services?.app?.networks?.frontend?.interface_name === "frontend", "app frontend interface must be deterministic");
+expect(config.services?.app?.networks?.frontend?.gw_priority === 100, "app provider/default egress must remain on frontend");
+expect(config.services?.app?.networks?.["runner-client"]?.interface_name === "runner-client", "app runner-client interface must be deterministic");
 
 const expectedSecretSources = {
   postgres: ["postgres_password"],
-  migrate: ["database_url"],
+  "database-role-bootstrap": [
+    "database_bootstrap_url",
+    "database_migrator_url",
+    "database_ops_url",
+    "database_url",
+    "database_worker_url",
+  ],
+  "database-negative-probes": [
+    "database_migrator_url",
+    "database_ops_url",
+    "database_url",
+    "database_worker_url",
+  ],
+  "database-boundary-verifier": [
+    "database_migrator_url",
+    "database_ops_url",
+    "database_url",
+    "database_worker_url",
+  ],
+  migrate: ["database_migrator_url"],
   app: [
     "better_auth_secret",
     "credential_master_key",
@@ -267,22 +372,23 @@ const expectedSecretSources = {
     "runner_shared_secret",
   ],
   "mail-worker": [
-    "database_url",
+    "database_worker_url",
     "gmail_client_id",
     "gmail_client_secret",
     "gmail_refresh_token",
     "lost_device_proof_key",
   ],
-  "reward-worker": ["database_url"],
-  "regrade-worker": ["database_url", "runner_shared_secret"],
-  "exam-finalization-worker": ["database_url", "runner_shared_secret"],
-  "practice-runner-recovery-worker": ["database_url", "runner_shared_secret"],
-  "project-review-correction-worker": ["database_url"],
+  "reward-worker": ["database_worker_url"],
+  "regrade-worker": ["database_worker_url", "runner_shared_secret"],
+  "exam-finalization-worker": ["database_worker_url", "runner_shared_secret"],
+  "practice-runner-recovery-worker": ["database_worker_url", "runner_shared_secret"],
+  "project-review-correction-worker": ["database_worker_url"],
   clamav: [],
-  "scan-worker": ["database_url"],
-  lifecycle: ["database_url"],
-  "platform-seed": ["database_url"],
-  "admin-bootstrap": ["better_auth_secret", "bootstrap_admin_password", "database_url"],
+  "scan-worker": ["database_worker_url"],
+  "file-erasure-worker": ["database_worker_url"],
+  lifecycle: ["database_ops_url"],
+  "platform-seed": ["database_ops_url"],
+  "admin-bootstrap": ["better_auth_secret", "bootstrap_admin_password", "database_ops_url"],
   cloudflared: ["cloudflare_tunnel_credentials"],
 };
 for (const [name, sources] of Object.entries(expectedSecretSources)) {
@@ -296,6 +402,10 @@ expect(
     "cloudflare_tunnel_credentials",
     "credential_master_key",
     "database_url",
+    "database_bootstrap_url",
+    "database_migrator_url",
+    "database_ops_url",
+    "database_worker_url",
     "deletion_tombstone_key",
     "gmail_client_id",
     "gmail_client_secret",
@@ -315,11 +425,17 @@ expect(
 const volumeSignature = (volume) =>
   `${volume.type}:${volume.source}:${volume.target}:${volume.read_only === true ? "ro" : "rw"}`;
 const expectedVolumes = {
-  postgres: ["bind:/srv/learncoding/postgres:/var/lib/postgresql/data:rw"],
+  postgres: [
+    "bind:/run/learncoding-postgres:/run/learncoding-postgres:rw",
+    "bind:/srv/learncoding/postgres:/var/lib/postgresql/data:rw",
+  ],
   migrate: [],
+  "database-role-bootstrap": [],
+  "database-negative-probes": [],
+  "database-boundary-verifier": [],
   app: [
     "bind:/srv/learncoding/next-cache:/app/.next/cache:rw",
-    "bind:/srv/learncoding/app-data:/var/lib/learncoding:rw",
+    "bind:/srv/learncoding/app-data/objects:/var/lib/learncoding/objects:rw",
   ],
   "mail-worker": [],
   "reward-worker": [],
@@ -328,8 +444,9 @@ const expectedVolumes = {
   "practice-runner-recovery-worker": [],
   "project-review-correction-worker": [],
   clamav: ["volume:clamav-signatures:/var/lib/clamav:rw"],
-  "scan-worker": ["bind:/srv/learncoding/app-data:/var/lib/learncoding:ro"],
-  lifecycle: ["bind:/srv/learncoding/app-data:/var/lib/learncoding:rw"],
+  "scan-worker": ["bind:/srv/learncoding/app-data/objects:/var/lib/learncoding/objects:ro"],
+  "file-erasure-worker": ["bind:/srv/learncoding/app-data/objects:/var/lib/learncoding/objects:rw"],
+  lifecycle: ["bind:/srv/learncoding/app-data/objects:/var/lib/learncoding/objects:rw"],
   "platform-seed": [],
   "admin-bootstrap": [],
   cloudflared: [],
@@ -344,7 +461,7 @@ const expectedCapAdd = {
 };
 for (const name of expectedInventories.combined) {
   expect(
-    same(config.services?.[name]?.cap_drop ?? [], name === "postgres" ? [] : ["ALL"]),
+    same(config.services?.[name]?.cap_drop ?? [], ["ALL"]),
     `${name} capability drop allowlist drifted`,
   );
   expect(
@@ -358,7 +475,11 @@ const dependencySignature = (service) =>
 const expectedDependencies = {
   postgres: [],
   migrate: ["postgres:service_healthy"],
-  app: ["postgres:service_healthy"],
+  "database-role-bootstrap": ["postgres:service_healthy"],
+  "database-negative-probes": ["postgres:service_healthy"],
+  "database-boundary-verifier": ["postgres:service_healthy"],
+  app: ["postgres:service_healthy", "runner-egress-gateway:service_healthy"],
+  "runner-egress-gateway": [],
   "mail-worker": ["postgres:service_healthy"],
   "reward-worker": ["postgres:service_healthy"],
   "regrade-worker": ["postgres:service_healthy"],
@@ -367,6 +488,7 @@ const expectedDependencies = {
   "project-review-correction-worker": ["postgres:service_healthy"],
   clamav: [],
   "scan-worker": ["clamav:service_healthy", "postgres:service_healthy"],
+  "file-erasure-worker": ["postgres:service_healthy"],
   lifecycle: ["migrate:service_completed_successfully"],
   "platform-seed": ["migrate:service_completed_successfully"],
   "admin-bootstrap": ["migrate:service_completed_successfully"],
@@ -379,6 +501,9 @@ for (const [name, dependencies] of Object.entries(expectedDependencies)) {
 const expectedBuildTargets = {
   postgres: null,
   migrate: "tooling",
+  "database-role-bootstrap": "operations",
+  "database-negative-probes": "operations",
+  "database-boundary-verifier": "operations",
   app: "runtime",
   "mail-worker": "worker",
   "reward-worker": "worker",
@@ -388,6 +513,7 @@ const expectedBuildTargets = {
   "project-review-correction-worker": "project-review-correction-worker",
   clamav: null,
   "scan-worker": "scanner-worker",
+  "file-erasure-worker": "worker",
   lifecycle: "operations",
   "platform-seed": "operations",
   "admin-bootstrap": "operations",
@@ -400,6 +526,9 @@ for (const [name, target] of Object.entries(expectedBuildTargets)) {
 const expectedImages = {
   app: applicationImages.APP_RUNTIME_IMAGE,
   migrate: applicationImages.APP_TOOLING_IMAGE,
+  "database-role-bootstrap": applicationImages.APP_OPERATIONS_IMAGE,
+  "database-negative-probes": applicationImages.APP_OPERATIONS_IMAGE,
+  "database-boundary-verifier": applicationImages.APP_OPERATIONS_IMAGE,
   "mail-worker": applicationImages.APP_WORKER_IMAGE,
   "reward-worker": applicationImages.APP_WORKER_IMAGE,
   "regrade-worker": applicationImages.APP_REGRADE_WORKER_IMAGE,
@@ -407,6 +536,7 @@ const expectedImages = {
   "practice-runner-recovery-worker": applicationImages.APP_REGRADE_WORKER_IMAGE,
   "project-review-correction-worker": applicationImages.APP_PROJECT_REVIEW_WORKER_IMAGE,
   "scan-worker": applicationImages.APP_SCANNER_WORKER_IMAGE,
+  "file-erasure-worker": applicationImages.APP_WORKER_IMAGE,
   lifecycle: applicationImages.APP_OPERATIONS_IMAGE,
   "platform-seed": applicationImages.APP_OPERATIONS_IMAGE,
   "admin-bootstrap": applicationImages.APP_OPERATIONS_IMAGE,
@@ -417,6 +547,9 @@ for (const [name, image] of Object.entries(expectedImages)) {
 expect(inactiveClamav?.services?.clamav?.image === "clamav/clamav:pilot-disabled", "ClamAV inactive fallback drifted");
 
 const operationCommands = {
+  "database-role-bootstrap": ["node", "/app/scripts/bootstrap-database-roles.mjs"],
+  "database-negative-probes": ["node", "/app/scripts/verify-database-role-boundaries.mjs"],
+  "database-boundary-verifier": ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"],
   lifecycle: [
     "node",
     "--import",
@@ -430,11 +563,42 @@ const operationCommands = {
   "platform-seed": ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"],
   "admin-bootstrap": ["node", "--import", "tsx", "/app/scripts/bootstrap-admin.ts"],
 };
-for (const name of ["lifecycle", "platform-seed", "admin-bootstrap"]) {
+for (const name of Object.keys(operationCommands)) {
   expect(config.services?.[name]?.restart === "no", `${name} must remain a one-shot service`);
   expect(orderedSame(config.services?.[name]?.command ?? [], operationCommands[name]), `${name} command drifted`);
 }
 expect(config.services?.migrate?.restart === "no", "migrate must remain a one-shot service");
+const databaseBoundaryEnvironments = {
+  "database-role-bootstrap": {
+    DATABASE_APP_URL_FILE: "/run/secrets/database_app_url",
+    DATABASE_BOOTSTRAP_URL_FILE: "/run/secrets/database_bootstrap_url",
+    DATABASE_MIGRATOR_URL_FILE: "/run/secrets/database_migrator_url",
+    DATABASE_OPS_URL_FILE: "/run/secrets/database_ops_url",
+    DATABASE_WORKER_URL_FILE: "/run/secrets/database_worker_url",
+    POSTGRES_DB: "learncoding",
+    POSTGRES_USER: "learncoding",
+  },
+  "database-negative-probes": {
+    DATABASE_MIGRATOR_URL_FILE: "/run/secrets/database_migrator_url",
+    DATABASE_OPS_URL_FILE: "/run/secrets/database_ops_url",
+    DATABASE_URL_FILE: "/run/secrets/database_url",
+    DATABASE_WORKER_URL_FILE: "/run/secrets/database_worker_url",
+    POSTGRES_DB: "learncoding",
+  },
+  "database-boundary-verifier": {
+    DATABASE_MIGRATOR_URL_FILE: "/run/secrets/database_migrator_url",
+    DATABASE_OPS_URL_FILE: "/run/secrets/database_ops_url",
+    DATABASE_URL_FILE: "/run/secrets/database_url",
+    DATABASE_WORKER_URL_FILE: "/run/secrets/database_worker_url",
+    POSTGRES_DB: "learncoding",
+  },
+};
+for (const [name, expectedEnvironment] of Object.entries(databaseBoundaryEnvironments)) {
+  expect(
+    orderedSame(config.services?.[name]?.environment ?? {}, expectedEnvironment),
+    `${name} environment allowlist drifted`,
+  );
+}
 expect(
   same(keys(config.services?.["platform-seed"]?.environment), ["DATABASE_URL_FILE"]),
   "platform-seed environment allowlist drifted",

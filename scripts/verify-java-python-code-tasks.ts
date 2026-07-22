@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -11,11 +11,17 @@ import {
   type JavaPythonCodeTask,
 } from "./content-seeds/java-python-code-tasks";
 import {
+  projectRuntimeIdentityEvidence,
+  validateLocalRuntimeIdentity,
+  type LocalRuntimeIdentityEvidence,
+} from "./lib/local-runtime-identity";
+import { verifyOrApplyDeterministicEvidence } from "./lib/deterministic-evidence";
+import {
   executePinnedCurriculumReference,
   normalizeProgramOutput,
   PINNED_CURRICULUM_RUNTIMES,
   pinnedDockerAvailable,
-  pinnedImageId,
+
   type PinnedCurriculumLanguage,
 } from "./pinned-curriculum-runtime";
 
@@ -96,33 +102,53 @@ async function main(): Promise<void> {
   if (issues.length) throw new Error(`Java/Python authored runtime structure failed:\n${issues.join("\n")}`);
 
   const structureOnly = process.argv.includes("--structure-only");
-  const limitArgument = process.argv.find((argument) => argument.startsWith("--limit="));
-  const limit = limitArgument ? Number.parseInt(limitArgument.split("=")[1]!, 10) : matched.length;
-  if (!Number.isInteger(limit) || limit < 1) throw new Error("--limit must be a positive integer.");
-  const selected = matched.slice(0, limit);
-  const workerArgument = process.argv.find((argument) => argument.startsWith("--workers="));
-  const workerCount = workerArgument ? Number.parseInt(workerArgument.split("=")[1]!, 10) : 2;
-  if (!Number.isInteger(workerCount) || workerCount < 1 || workerCount > 8) {
-    throw new Error("--workers must be from 1 through 8.");
+  const limitArguments = process.argv.filter((argument) => /^--limit/.test(argument));
+  if (limitArguments.length > 1 || (limitArguments[0] !== undefined && !/^--limit=[1-9]\d*$/.test(limitArguments[0]))) {
+    throw new Error("--limit must be provided once as a positive integer.");
   }
+  const limit = limitArguments[0] ? Number.parseInt(limitArguments[0].slice("--limit=".length), 10) : matched.length;
+  const selected = matched.slice(0, limit);
+  const workerArguments = process.argv.filter((argument) => /^--workers/.test(argument));
+  if (workerArguments.length > 1 || (workerArguments[0] !== undefined && !/^--workers=[1-8]$/.test(workerArguments[0]))) {
+    throw new Error("--workers must be provided once from 1 through 8.");
+  }
+  const workerCount = workerArguments[0] ? Number.parseInt(workerArguments[0].slice("--workers=".length), 10) : 2;
 
-  const imageEvidence = Object.fromEntries(
-    (["java", "python"] as const).map((language) => {
-      const actual = pinnedImageId(language);
-      const expected = PINNED_CURRICULUM_RUNTIMES[language].imageDigest;
-      return [language, {
-        tag: PINNED_CURRICULUM_RUNTIMES[language].tag,
-        expected,
-        actual,
-        matches: actual === expected,
-      }];
-    }),
+  let runtimeIdentities: Readonly<Record<string, LocalRuntimeIdentityEvidence>> = {};
+  let imageEvidence: Readonly<Record<string, unknown>> = Object.fromEntries(
+    (["java", "python"] as const).map((language) => [language, {
+      tag: PINNED_CURRICULUM_RUNTIMES[language].tag,
+      manifestDigest: PINNED_CURRICULUM_RUNTIMES[language].imageDigest,
+      configDigest: null,
+      immutableReference: null,
+      tagDescriptorDigest: null,
+      tagImageId: null,
+      exactReferenceDescriptorDigest: null,
+      exactReferenceImageId: null,
+      independentlyValidated: false,
+    }]),
   );
   if (!structureOnly && !pinnedDockerAvailable()) {
     throw new Error("Docker is unavailable; --structure-only is permitted only when runtime execution is intentionally deferred.");
   }
-  if (!structureOnly && Object.values(imageEvidence).some((entry) => !entry.matches)) {
-    throw new Error(`Pinned Java/Python runtime image mismatch: ${JSON.stringify(imageEvidence)}`);
+  if (!structureOnly) {
+    const runtimeManifest = JSON.parse(await readFile(
+      path.join(root, "services", "runner", "dist", "runtime-local-build-identities.json"),
+      "utf8",
+    )) as unknown;
+    runtimeIdentities = validateLocalRuntimeIdentity({
+      manifest: runtimeManifest,
+      expectations: (["java", "python"] as const).map((language) => ({
+        language,
+        tag: PINNED_CURRICULUM_RUNTIMES[language].tag,
+        declaredContentDigest: PINNED_CURRICULUM_RUNTIMES[language].imageDigest,
+      })),
+    });
+    imageEvidence = Object.fromEntries((["java", "python"] as const).map((language) => {
+      const runtimeIdentity = runtimeIdentities[language];
+      if (!runtimeIdentity) throw new Error(`Validated local runtime identity is missing for ${language}.`);
+      return [language, projectRuntimeIdentityEvidence(runtimeIdentity)];
+    }));
   }
 
   const jobs = selected.flatMap(({ skillId, item }) => item.tests.map((test) => ({ skillId, item, test })));
@@ -146,8 +172,12 @@ async function main(): Promise<void> {
       const started = Date.now();
       try {
         if (item.runtime.engine !== "isolated-runner") throw new Error("runtime changed after validation");
+        const language = asPinnedLanguage(item.runtime.language);
+        const runtimeIdentity = runtimeIdentities[language];
+        if (!runtimeIdentity) throw new Error(`Validated local runtime identity is missing for ${language}.`);
         const executed = await executePinnedCurriculumReference({
-          language: asPinnedLanguage(item.runtime.language),
+          language,
+          imageReference: runtimeIdentity.immutableReference,
           source: item.answer.referenceSolution,
           stdin: test.stdin,
           timeLimitMs: item.runtime.timeLimitMs,
@@ -190,9 +220,9 @@ async function main(): Promise<void> {
   results.sort((left, right) => left.itemId.localeCompare(right.itemId) || left.testId.localeCompare(right.testId));
   const failures = results.filter((result) => result.status === "failed");
   const fullRuntimeRun = !structureOnly && selected.length === matched.length;
-  const report = {
+  const buildEvidence = (generatedAt: string) => ({
     schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     scope: "Programming Foundations, Java 21 and Python 3.14 authored code-task pinned-runtime evidence",
     status: failures.length === 0 && fullRuntimeRun ? "verified" : structureOnly ? "structure-only" : "failed-or-partial",
     counts: {
@@ -213,18 +243,25 @@ async function main(): Promise<void> {
       "All items remain AI-assisted drafts with null human reviewer and zero formal-exam eligibility.",
       "Local Docker image IDs prove this workstation run only; production KVM/NUC deployment and CVE clearance remain separate gates.",
     ],
-  };
-  const reportPath = path.join(
+  });
+  const reportName = structureOnly
+    ? "java-python-executable-structure-2026-07-12.json"
+    : fullRuntimeRun
+      ? "java-python-executable-runtime-2026-07-12.json"
+      : "java-python-executable-sample-2026-07-12.json";
+  await verifyOrApplyDeterministicEvidence({
+    argv: process.argv.slice(2),
     root,
-    "docs",
-    "evidence",
-    structureOnly
-      ? "java-python-executable-structure-2026-07-12.json"
+    trustedDirectory: "exclusive-writer",
+    relativePath: path.join("docs", "evidence", reportName),
+    buildEvidence,
+    applyCommand: structureOnly
+      ? "npm run java-python:executable:structure:apply"
       : fullRuntimeRun
-        ? "java-python-executable-runtime-2026-07-12.json"
-        : "java-python-executable-sample-2026-07-12.json",
-  );
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+        ? "npm run java-python:executable:evidence:apply"
+        : `npm run java-python:executable:evidence:apply -- --limit=${selected.length}`,
+    allowArgument: (argument) => argument === "--structure-only" || /^--limit=[1-9]\d*$/.test(argument) || /^--workers=[1-8]$/.test(argument),
+  });
   console.log(`Foundations/Java/Python ${structureOnly ? "structure" : "runtime"} verification: ${matched.length} tasks, ${results.length} cases, ${failures.length} failures, full=${fullRuntimeRun}.`);
   if (failures.length || (process.argv.includes("--check") && !structureOnly && !fullRuntimeRun)) {
     process.exitCode = 1;

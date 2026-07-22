@@ -21,7 +21,7 @@ Migration [`0030_goofy_roxanne_simpson.sql`](../drizzle/0030_goofy_roxanne_simps
 - Disposable PostgreSQL: the complete migration chain applied twice; [`project-review-correction.integration.test.ts`](../integration/project-review-correction.integration.test.ts) passed **5/5 tests in 1.76 s**.
 - Full `npm.cmd run typecheck`: passed.
 - Focused ESLint over the changed correction, lifecycle, route, worker, UI, and integration files: passed.
-- The reviewed privacy inventory still names all **89** declared PostgreSQL tables.
+- The reviewed privacy inventory still names all **90** declared PostgreSQL tables.
 
 The PostgreSQL tests cover human overturn linkage, exact-SHA/no-AI/no-execution provenance, non-null model-call and source-appeal immutability, original preservation, effective supersession, concurrent single leasing, same-host stale-attempt fencing after expiry/reclaim, exact and mismatched replay, non-admin rejection, evidence/event hash validation, ordinary update/delete rejection, authorized account-deletion ordering, learner-export administrator-ID canary/redaction, safe analyzer failure, explicit retry, interrupted-worker lease recovery, bounded dead-lettering, administrator notice, and stale-correction suppression.
 

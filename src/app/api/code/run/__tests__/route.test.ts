@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
   return {
     admitRunnerJob: vi.fn(),
     beginRunnerDispatch: vi.fn(),
+    holdRunnerDispatchForPowerRehearsal: vi.fn(),
     recordRunnerDispatch: vi.fn(),
     refreshRunnerAdmission: vi.fn(),
     settleRunnerJob: vi.fn(),
@@ -43,11 +44,17 @@ vi.mock("@/lib/runner/admission", async (importOriginal) => {
     settleRunnerJob: mocks.settleRunnerJob,
   };
 });
+vi.mock("@/lib/runner/power-rehearsal-hold", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/runner/power-rehearsal-hold")>();
+  return { ...actual, holdRunnerDispatchForPowerRehearsal: mocks.holdRunnerDispatchForPowerRehearsal };
+});
+
 
 import { GET, POST } from "../route";
 import { RunnerAdmissionError } from "@/lib/runner/admission";
 import { RunnerIndeterminateError, runtimeByLanguage } from "@/lib/runner/client";
 import { practiceAdmissionRequestHash } from "@/lib/runner/practice-dispatch";
+import { RunnerPowerRehearsalError } from "@/lib/runner/power-rehearsal-hold";
 
 const CLIENT_REQUEST_ID = "10000000-0000-4000-8000-000000000001";
 const SOURCE = "name = input()\nprint(f'Hello, {name}!')\n";
@@ -121,6 +128,7 @@ describe("general practice code runner route", () => {
     vi.clearAllMocks();
     mocks.admitRunnerJob.mockResolvedValue(ADMISSION);
     mocks.beginRunnerDispatch.mockResolvedValue({ replayed: false, remoteJobId: null });
+    mocks.holdRunnerDispatchForPowerRehearsal.mockResolvedValue({ held: false });
     mocks.recordRunnerDispatch.mockResolvedValue({ replayed: false });
     mocks.refreshRunnerAdmission.mockResolvedValue({
       ...ADMISSION,
@@ -582,6 +590,90 @@ describe("general practice code runner route", () => {
     });
   });
 
+  it("persists the exact dispatch snapshot before durably holding an armed power-rehearsal request", async () => {
+    mocks.holdRunnerDispatchForPowerRehearsal.mockResolvedValueOnce({
+      held: true,
+      eventId: "40000000-0000-4000-8000-000000000001",
+      slot: 1,
+      filled: false,
+      replayed: false,
+      expired: false,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      requestId: CLIENT_REQUEST_ID,
+      submissionId: ADMISSION.submissionId,
+      status: "rehearsal_held",
+      code: "RUNNER_POWER_REHEARSAL_HELD",
+      retryable: true,
+      indeterminate: false,
+      replayed: false,
+      officialMasteryEvidence: false,
+    }));
+    expect(mocks.holdRunnerDispatchForPowerRehearsal).toHaveBeenCalledWith({
+      userId: ADMISSION.userId,
+      requestId: ADMISSION.requestId,
+      submissionId: ADMISSION.submissionId,
+      runnerJobId: ADMISSION.runnerJobId,
+    });
+    expect(mocks.beginRunnerDispatch).toHaveBeenCalledWith({
+      admission: ADMISSION,
+      dispatchRequest: expect.objectContaining({
+        submissionId: ADMISSION.submissionId,
+        language: "python",
+        mode: "RUN",
+      }),
+    });
+    expect(mocks.beginRunnerDispatch.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.holdRunnerDispatchForPowerRehearsal.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.submit).not.toHaveBeenCalled();
+    expect(mocks.waitForJob).not.toHaveBeenCalled();
+    expect(mocks.recordRunnerDispatch).not.toHaveBeenCalled();
+    expect(mocks.settleRunnerJob).not.toHaveBeenCalled();
+  });
+
+  it("never terminalizes a job when rehearsal-hold persistence is uncertain", async () => {
+    mocks.holdRunnerDispatchForPowerRehearsal.mockRejectedValueOnce(
+      new RunnerPowerRehearsalError("HOLD_PERSISTENCE_INDETERMINATE", true),
+    );
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      requestId: CLIENT_REQUEST_ID,
+      submissionId: ADMISSION.submissionId,
+      code: "RUNNER_REHEARSAL_HOLD_INDETERMINATE",
+      retryable: true,
+      indeterminate: true,
+    });
+    expect(mocks.submit).not.toHaveBeenCalled();
+    expect(mocks.settleRunnerJob).not.toHaveBeenCalled();
+  });
+  it("never terminalizes a new admission when dispatch-snapshot commit acknowledgement is uncertain", async () => {
+    mocks.beginRunnerDispatch.mockRejectedValueOnce(new Error("snapshot commit acknowledgement lost"));
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      requestId: CLIENT_REQUEST_ID,
+      submissionId: ADMISSION.submissionId,
+      code: "RUNNER_LOCAL_PERSISTENCE_INDETERMINATE",
+      retryable: true,
+      indeterminate: true,
+    });
+    expect(mocks.holdRunnerDispatchForPowerRehearsal).not.toHaveBeenCalled();
+    expect(mocks.submit).not.toHaveBeenCalled();
+    expect(mocks.waitForJob).not.toHaveBeenCalled();
+    expect(mocks.settleRunnerJob).not.toHaveBeenCalled();
+  });
+
+
   it("stops polling when dispatch discovers that the ledger is already terminal", async () => {
     mocks.submit.mockResolvedValueOnce(completedJob({
       jobId: "late-runner-job",
@@ -663,6 +755,7 @@ describe("general practice code runner route", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.submit).not.toHaveBeenCalled();
+    expect(mocks.holdRunnerDispatchForPowerRehearsal).not.toHaveBeenCalled();
     expect(mocks.waitForJob).toHaveBeenCalledWith(
       "known-remote-job",
       expect.objectContaining({ language: "python", mode: "RUN" }),

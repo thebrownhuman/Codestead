@@ -1,0 +1,19 @@
+[Unit]
+Description=Codestead bounded fail-closed ingress recovery
+Documentation=/opt/learncoding/docs/runbooks/power-loss-recovery.md
+After=docker.service local-fs.target
+Wants=docker.service
+RequiresMountsFor=/opt/learncoding /etc/learncoding /var/lib/learncoding
+OnFailure=learncoding-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/learncoding
+EnvironmentFile=/etc/learncoding/compose.env
+ExecStart=/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/recover-production-ingress.sh
+TimeoutStartSec=90s
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const state = {
-    mode: "success" as "success" | "admin_denied" | "missing_learner" | "already_deleted" | "run_running" | "run_checkpoint" | "provider_in_flight" | "runner_in_flight",
+    mode: "success" as "success" | "admin_denied" | "missing_learner" | "already_deleted" | "run_running" | "run_checkpoint" | "provider_in_flight" | "runner_in_flight" | "rehearsal_in_flight",
   };
   const query = vi.fn(async (statement: string) => {
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
@@ -47,7 +47,10 @@ const mocks = vi.hoisted(() => {
       return { rows: [{ blocked: state.mode === "provider_in_flight" }], rowCount: 1 };
     }
     if (sql.startsWith("select exists (") && sql.includes("from code_submission")) {
-      return { rows: [{ blocked: state.mode === "runner_in_flight" }], rowCount: 1 };
+      return {
+        rows: [{ blocked: ["runner_in_flight", "rehearsal_in_flight"].includes(state.mode) }],
+        rowCount: 1,
+      };
     }
     if (sql.startsWith("insert into data_lifecycle_run")) {
       return ["run_running", "run_checkpoint"].includes(state.mode) ? { rows: [], rowCount: 0 } : { rows: [{ id: "run-1" }], rowCount: 1 };
@@ -173,6 +176,11 @@ describe("account deletion runtime orchestration", () => {
     expect(statements.findIndex((sql) => sql.includes("delete from learner_draft_mutation")))
       .toBeLessThan(statements.findIndex((sql) => sql.includes("delete from learner_draft where")));
     expect(statements).toContain("delete from code_submission where user_id = $1");
+    expect(statements).toContain(
+      "delete from runner_power_rehearsal_event where (learner_one_id = $1 or learner_two_id = $1) and state in ('released','aborted')",
+    );
+    expect(statements.findIndex((sql) => sql.includes("delete from runner_power_rehearsal_event")))
+      .toBeLessThan(statements.findIndex((sql) => sql.includes("delete from code_submission")));
     expect(statements.findIndex((sql) => sql.includes("delete from code_submission")))
       .toBeLessThan(statements.findIndex((sql) => sql.includes("name = 'Deleted learner'")));
     expect(statements.findIndex((sql) => sql.includes("delete from project_revision_object")))
@@ -209,6 +217,36 @@ describe("account deletion runtime orchestration", () => {
       "account-delete:learner-1",
     ]);
     expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("commit");
+  });
+
+  it("uses an explicitly supplied erasure processor without changing the production default", async () => {
+    const processFileErasures = vi.fn(async () => ({
+      total: 1,
+      removed: 0,
+      alreadyAbsent: 1,
+      failed: 0,
+      pending: 0,
+      complete: true,
+    }));
+    mocks.fileErasureSummary.mockResolvedValueOnce({
+      total: 1,
+      removed: 0,
+      alreadyAbsent: 1,
+      failed: 0,
+      pending: 0,
+      complete: true,
+    });
+
+    await expect(deleteLearnerAccount(input, { processFileErasures })).resolves.toMatchObject({
+      deletedObjectFiles: 0,
+      alreadyAbsentObjectFiles: 1,
+    });
+
+    expect(processFileErasures).toHaveBeenCalledWith({
+      lifecycleRunId: "run-1",
+      objectStorageRoot: "C:/safe-objects",
+    });
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
   });
 
   it("treats an absent object as already erased but fails closed for another filesystem error", async () => {
@@ -254,6 +292,18 @@ describe("account deletion runtime orchestration", () => {
       code: "RUNNER_OPERATION_IN_PROGRESS",
     });
     expect(mocks.unlink).not.toHaveBeenCalled();
+    expect(mocks.query.mock.calls.some(([sql]) => String(sql).startsWith("insert into data_lifecycle_run")))
+      .toBe(false);
+  });
+
+  it("rejects an active physical rehearsal before claiming deletion or erasing files", async () => {
+    mocks.state.mode = "rehearsal_in_flight";
+    await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+      code: "RUNNER_OPERATION_IN_PROGRESS",
+    });
+    expect(mocks.unlink).not.toHaveBeenCalled();
+    expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("runner_power_rehearsal_event")))
+      .toBe(true);
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).startsWith("insert into data_lifecycle_run")))
       .toBe(false);
   });

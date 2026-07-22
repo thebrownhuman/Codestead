@@ -1,11 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, realpath, unlink } from "node:fs/promises";
-import path from "node:path";
+import { unlink } from "node:fs/promises";
 
 import type { PoolClient, QueryResult } from "pg";
 
 import { pool } from "@/lib/db/client";
-import { resolveStoredObjectPath } from "@/lib/storage/upload-scanner";
+import { NodeDurableObjectStore } from "@/lib/storage/durable-object-store";
 
 const JOB_TYPE = "storage.file_erasure.v1";
 const ALREADY_ABSENT = "FILE_ALREADY_ABSENT";
@@ -21,10 +20,10 @@ export type FileErasureObject = Readonly<{
 type ClaimedJob = Readonly<{
   id: string;
   payload: {
-    lifecycleRunId: string;
+    lifecycleRunId?: string;
     objectId: string;
     storageKey: string;
-    operation: "account_deletion" | "retention";
+    operation: "account_deletion" | "retention" | "user_file_delete";
   };
 }>;
 
@@ -50,38 +49,6 @@ function safeFailureCode(error: unknown) {
     ? `${error.name}:${(error as NodeJS.ErrnoException).code ?? "unknown"}`
     : "UnknownError";
   return `FILE_ERASURE_${createHash("sha256").update(discriminator).digest("hex").slice(0, 12)}`;
-}
-
-async function resolveSafeErasurePath(root: string, storageKey: string) {
-  // Validate the immutable key shape before touching the filesystem.
-  const candidate = resolveStoredObjectPath(root, storageKey);
-  let rootReal: string;
-  try {
-    rootReal = await realpath(root);
-  } catch (error) {
-    // An unmounted/missing root is an outage, not evidence that every object
-    // has already been erased.
-    throw new Error("Object storage root is unavailable.", { cause: error });
-  }
-  const parent = path.dirname(candidate);
-  const [parentReal, parentEntry, objectEntry] = await Promise.all([
-    realpath(parent),
-    lstat(parent),
-    lstat(candidate),
-  ]);
-  const relativeParent = path.relative(rootReal, parentReal);
-  if (
-    path.isAbsolute(relativeParent)
-    || relativeParent === ".."
-    || relativeParent.startsWith(`..${path.sep}`)
-    || parentEntry.isSymbolicLink()
-    || !parentEntry.isDirectory()
-    || objectEntry.isSymbolicLink()
-    || !objectEntry.isFile()
-  ) {
-    throw new Error("Object storage path failed erasure safety checks.");
-  }
-  return candidate;
 }
 
 /**
@@ -152,6 +119,8 @@ async function claimNextJob(
        select id
          from background_job
         where type = $1 and payload ->> 'lifecycleRunId' = $2
+          and payload ->> 'operation' in ('account_deletion', 'retention')
+          and attempt_count < max_attempts and run_after <= $3
           and (
             status in ('queued', 'failed')
             or (status in ('leased', 'running') and lease_expires_at <= $3)
@@ -167,6 +136,36 @@ async function claimNextJob(
       where job.id = candidate.id
       returning job.id, job.payload`,
     [JOB_TYPE, input.lifecycleRunId, input.now, input.workerId, leaseExpiresAt],
+  );
+  return result.rows[0] ?? null;
+}
+
+async function claimNextUserDeleteJob(
+  client: Queryable,
+  input: { workerId: string; now: Date; leaseMs: number },
+) {
+  const leaseExpiresAt = new Date(input.now.getTime() + input.leaseMs);
+  const result = await client.query<ClaimedJob>(
+    `with candidate as (
+       select id
+         from background_job
+        where type = $1 and payload ->> 'operation' = 'user_file_delete'
+          and attempt_count < max_attempts and run_after <= $2
+          and (
+            status in ('queued', 'failed')
+            or (status in ('leased', 'running') and lease_expires_at <= $2)
+          )
+        order by created_at asc, id asc
+        for update skip locked
+        limit 1
+     )
+     update background_job job
+        set status = 'leased', lease_owner = $3, lease_expires_at = $4,
+            completed_at = null, updated_at = $2
+       from candidate
+      where job.id = candidate.id
+      returning job.id, job.payload`,
+    [JOB_TYPE, input.now, input.workerId, leaseExpiresAt],
   );
   return result.rows[0] ?? null;
 }
@@ -224,6 +223,8 @@ export async function processFileErasures(input: {
   unlinkFile?: typeof unlink;
   /** Test seam; production always performs realpath/lstat containment checks. */
   preparePath?: (root: string, storageKey: string) => Promise<string>;
+  /** Test seam; production sync is performed through a pinned directory handle. */
+  syncParentDirectory?: (root: string, storageKey: string) => Promise<void>;
 }): Promise<FileErasureSummary> {
   const startedAt = input.now ?? new Date();
   const leaseMs = input.leaseMs ?? DEFAULT_LEASE_MS;
@@ -231,6 +232,7 @@ export async function processFileErasures(input: {
     throw new Error("A valid file-erasure timestamp and lease are required.");
   }
   const workerId = `file-erasure:${randomUUID()}`;
+  const durableStore = new NodeDurableObjectStore({ root: input.objectStorageRoot });
   const client = await pool.connect();
   let locked = false;
   try {
@@ -247,15 +249,26 @@ export async function processFileErasures(input: {
       if (!job) break;
       try {
         let resultCode: string | null = null;
-        try {
-          const candidate = await (input.preparePath ?? resolveSafeErasurePath)(
+        if (input.preparePath || input.unlinkFile || input.syncParentDirectory) {
+          if (!input.preparePath || !input.unlinkFile || !input.syncParentDirectory) {
+            throw new Error("A complete file-erasure test seam is required.");
+          }
+          // Root/parent preparation is intentionally outside the ENOENT catch:
+          // only absence of the already-verified final file is terminal success.
+          const candidate = await input.preparePath(
             input.objectStorageRoot,
             job.payload.storageKey,
           );
-          await (input.unlinkFile ?? unlink)(candidate);
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code === "ENOENT") resultCode = ALREADY_ABSENT;
-          else throw error;
+          try {
+            await input.unlinkFile(candidate);
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") resultCode = ALREADY_ABSENT;
+            else throw error;
+          }
+          await input.syncParentDirectory(input.objectStorageRoot, job.payload.storageKey);
+        } else {
+          const erased = await durableStore.erase(job.payload.storageKey);
+          if (erased.alreadyAbsent) resultCode = ALREADY_ABSENT;
         }
         const completed = await client.query(
           `update background_job
@@ -271,9 +284,10 @@ export async function processFileErasures(input: {
           `update background_job
               set status = 'failed', attempt_count = attempt_count + 1,
                   lease_owner = null, lease_expires_at = null,
-                  last_error_code = $3, completed_at = null, updated_at = $4
+                  last_error_code = $3, completed_at = null, updated_at = $4,
+                  run_after = $5
             where id = $1 and status = 'leased' and lease_owner = $2`,
-          [job.id, workerId, safeFailureCode(error), new Date()],
+          [job.id, workerId, safeFailureCode(error), new Date(), new Date(Date.now() + 30_000)],
         ).catch(() => undefined);
         if (error instanceof FileErasureError) throw error;
         throw new FileErasureError("FILE_ERASURE_FAILED");
@@ -287,6 +301,84 @@ export async function processFileErasures(input: {
       await client.query("select pg_advisory_unlock(hashtext($1))", [`file-erasure:${input.lifecycleRunId}`])
         .catch(() => undefined);
     }
+    client.release();
+  }
+}
+
+export async function processUserFileErasures(input: {
+  objectStorageRoot: string;
+  limit?: number;
+  now?: Date;
+  leaseMs?: number;
+  eraseObject?: (storageKey: string) => Promise<{ alreadyAbsent: boolean }>;
+}): Promise<{ processed: number; removed: number; alreadyAbsent: number; failed: number; exhausted: number }> {
+  const startedAt = input.now ?? new Date();
+  const leaseMs = input.leaseMs ?? DEFAULT_LEASE_MS;
+  const limit = input.limit ?? 25;
+  if (
+    !Number.isFinite(startedAt.getTime())
+    || !Number.isSafeInteger(leaseMs)
+    || leaseMs < 1_000
+    || !Number.isSafeInteger(limit)
+    || limit < 1
+    || limit > 100
+  ) throw new Error("Valid bounded user-file-erasure worker settings are required.");
+  const workerId = `file-erasure:user-delete:${randomUUID()}`;
+  const store = new NodeDurableObjectStore({ root: input.objectStorageRoot });
+  if (!input.eraseObject) await store.assertReady();
+  const eraseObject = input.eraseObject ?? ((storageKey: string) => store.erase(storageKey));
+  const client = await pool.connect();
+  let processed = 0;
+  let removed = 0;
+  let alreadyAbsent = 0;
+  let failed = 0;
+  try {
+    while (processed < limit) {
+      const now = new Date();
+      const job = await claimNextUserDeleteJob(client, { workerId, now, leaseMs });
+      if (!job) break;
+      processed += 1;
+      try {
+        const result = await eraseObject(job.payload.storageKey);
+        const completed = await client.query(
+          `delete from background_job
+            where id = $1 and status = 'leased' and lease_owner = $2`,
+          [job.id, workerId],
+        );
+        if ((completed.rowCount ?? 0) !== 1) throw new FileErasureError("FILE_ERASURE_INCOMPLETE");
+        if (result.alreadyAbsent) alreadyAbsent += 1;
+        else removed += 1;
+      } catch (error) {
+        failed += 1;
+        const failedAt = new Date();
+        await client.query(
+          `update background_job
+              set status = 'failed', attempt_count = attempt_count + 1,
+                  lease_owner = null, lease_expires_at = null,
+                  last_error_code = $3, completed_at = null, updated_at = $4,
+                  run_after = $5
+            where id = $1 and status = 'leased' and lease_owner = $2`,
+          [job.id, workerId, safeFailureCode(error), failedAt, new Date(failedAt.getTime() + 30_000)],
+        ).catch(() => undefined);
+      }
+    }
+    const backlog = await client.query<{ exhausted: number }>(
+      `select count(*)::int as exhausted
+         from background_job
+        where type = $1
+          and payload ->> 'operation' = 'user_file_delete'
+          and status <> 'succeeded'
+          and attempt_count >= max_attempts`,
+      [JOB_TYPE],
+    );
+    return {
+      processed,
+      removed,
+      alreadyAbsent,
+      failed,
+      exhausted: Number(backlog.rows[0]?.exhausted ?? 0),
+    };
+  } finally {
     client.release();
   }
 }

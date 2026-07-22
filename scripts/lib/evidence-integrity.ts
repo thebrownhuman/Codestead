@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { TextDecoder } from "node:util";
 
 export type EvidenceIntegrityIssueKind =
   | "BROKEN_LINK"
@@ -58,6 +59,55 @@ const repositoryRootFiles = new Set([
 ]);
 
 const sha256Pattern = /^[0-9a-f]{64}$/i;
+
+const byteExactExtensions = new Set([
+  ".gif",
+  ".ico",
+  ".jpeg",
+  ".jpg",
+  ".pdf",
+  ".png",
+  ".sh",
+  ".sql",
+  ".webp",
+  ".woff",
+  ".woff2",
+  ".yaml",
+  ".yml",
+]);
+
+function sha256(value: Uint8Array) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function isByteExactPath(target: string) {
+  return path.basename(target) === "Dockerfile"
+    || byteExactExtensions.has(path.extname(target).toLowerCase());
+}
+
+function canonicalCrLfDigest(target: string, bytes: Buffer): string | null {
+  if (isByteExactPath(target)) return null;
+  let sawCrLf = false;
+  for (let index = 0; index < bytes.length; index += 1) {
+    const value = bytes[index];
+    if (value === 0) return null;
+    if (value === 13) {
+      if (bytes[index + 1] !== 10) return null;
+      sawCrLf = true;
+      index += 1;
+    } else if (value === 10) {
+      return null;
+    }
+  }
+  if (!sawCrLf) return null;
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+  return sha256(Buffer.from(text.replaceAll("\r\n", "\n"), "utf8"));
+}
 
 async function filesUnder(root: string, target: string, extension?: string): Promise<string[]> {
   const absolute = path.resolve(root, target);
@@ -118,8 +168,14 @@ async function exists(target: string) {
   }
 }
 
-async function digest(target: string) {
-  return createHash("sha256").update(await readFile(target)).digest("hex");
+async function digests(target: string) {
+  const bytes = await readFile(target);
+  const raw = sha256(bytes);
+  const canonical = canonicalCrLfDigest(target, bytes);
+  return {
+    accepted: canonical ? new Set([raw, canonical]) : new Set([raw]),
+    reported: canonical ?? raw,
+  };
 }
 
 async function verifyMarkdown(
@@ -202,12 +258,12 @@ async function verifyEvidence(
       issues.push({ kind: "MISSING_EVIDENCE_PATH", source, detail: candidate });
       return;
     }
-    const actual = await digest(target);
-    if (actual !== expected.toLowerCase()) {
+    const actual = await digests(target);
+    if (!actual.accepted.has(expected.toLowerCase())) {
       issues.push({
         kind: "STALE_HASH",
         source,
-        detail: `${candidate} expected=${expected.toLowerCase()} actual=${actual}`,
+        detail: `${candidate} expected=${expected.toLowerCase()} actual=${actual.reported}`,
       });
     }
   }

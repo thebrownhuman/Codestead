@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -100,6 +101,28 @@ describe("public auth form failure recovery", () => {
     expect(email).toHaveValue("learner@example.test");
     expect(reason).toHaveValue("C++ and data structures");
     expect(adult).toBeChecked();
+  });
+
+  it("blocks native password-recovery submission until the client is hydrated", () => {
+    const document = new DOMParser().parseFromString(
+      renderToStaticMarkup(<ForgotPasswordForm />),
+      "text/html",
+    );
+
+    expect(
+      document.querySelector('button[type="submit"]')?.hasAttribute("disabled"),
+    ).toBe(true);
+  });
+
+  it("blocks native access-request submission until the client is hydrated", () => {
+    const document = new DOMParser().parseFromString(
+      renderToStaticMarkup(<AccessRequestForm />),
+      "text/html",
+    );
+
+    expect(
+      document.querySelector('button[type="submit"]')?.hasAttribute("disabled"),
+    ).toBe(true);
   });
 
   it("recovers from a rejected password-reset request and retains the email", async () => {

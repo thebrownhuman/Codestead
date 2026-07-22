@@ -1,5 +1,5 @@
 import path from "node:path";
-import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
 import { eq } from "drizzle-orm";
@@ -13,10 +13,12 @@ import {
   processFileErasures,
   purgeCompletedFileErasureJobs,
 } from "@/lib/data-lifecycle/file-erasure";
+import { resolveStoredObjectPath } from "@/lib/storage/upload-scanner";
+import { ownerStorageSegment } from "@/lib/storage/upload-service";
 
 const USER_ID = "file-erasure-integration-user";
 const PUBLIC_ID = "e1000000-0000-4000-8000-000000000001";
-const OWNER = "file-erasure-owner";
+const OWNER = ownerStorageSegment(USER_ID);
 const RUN_ID = "e2000000-0000-4000-8000-000000000001";
 const RUN_ID_2 = "e2000000-0000-4000-8000-000000000002";
 const OBJECT_1 = "e3000000-0000-4000-8000-000000000001";
@@ -80,9 +82,25 @@ async function seedObject(objectId: string, body: string) {
   return { storageKey, filePath };
 }
 
+function processIntegrationFileErasures(
+  input: Parameters<typeof processFileErasures>[0],
+) {
+  return processFileErasures({
+    ...input,
+    preparePath: async (objectRoot, storageKey) => resolveStoredObjectPath(objectRoot, storageKey),
+    unlinkFile: unlink,
+    // This cross-platform suite proves the real queue/processor/DB transitions.
+    // Linux procfd identity checks and directory fsync are exercised separately.
+    syncParentDirectory: async (objectRoot, storageKey) => {
+      await access(path.dirname(resolveStoredObjectPath(objectRoot, storageKey)));
+    },
+  });
+}
+
 beforeEach(async () => {
   await truncateApplicationTables();
   root = await mkdtemp(path.join(tmpdir(), "learncoding-file-erasure-it-"));
+  expect(OWNER).toMatch(/^[0-9a-f]{64}$/);
   await mkdir(path.join(root, OWNER), { recursive: true });
   await db.insert(user).values({
     id: USER_ID,
@@ -132,7 +150,9 @@ describe("durable PostgreSQL file-erasure queue", () => {
     const runBeforeWorker = await db.select().from(dataLifecycleRun).where(eq(dataLifecycleRun.id, RUN_ID));
     expect(runBeforeWorker[0]).toMatchObject({ status: "running", completedAt: null });
 
-    const finished = await processFileErasures({ lifecycleRunId: RUN_ID, objectStorageRoot: root });
+    const finished = await processIntegrationFileErasures({
+      lifecycleRunId: RUN_ID, objectStorageRoot: root,
+    });
     expect(finished).toMatchObject({ removed: 1, alreadyAbsent: 0, complete: true });
     await expect(access(object.filePath)).rejects.toMatchObject({ code: "ENOENT" });
 
@@ -178,8 +198,12 @@ describe("durable PostgreSQL file-erasure queue", () => {
     }
 
     const [drainerA, drainerB] = await Promise.all([
-      processFileErasures({ lifecycleRunId: RUN_ID_2, objectStorageRoot: root }),
-      processFileErasures({ lifecycleRunId: RUN_ID_2, objectStorageRoot: root }),
+      processIntegrationFileErasures({
+        lifecycleRunId: RUN_ID_2, objectStorageRoot: root,
+      }),
+      processIntegrationFileErasures({
+        lifecycleRunId: RUN_ID_2, objectStorageRoot: root,
+      }),
     ]);
     expect(drainerA).toMatchObject({ total: 2, removed: 2, complete: true });
     expect(drainerB).toMatchObject({ total: 2, removed: 2, complete: true });

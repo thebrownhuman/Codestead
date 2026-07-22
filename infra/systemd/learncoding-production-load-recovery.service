@@ -1,0 +1,58 @@
+[Unit]
+Description=Recover one interrupted Codestead production load fault
+Documentation=file:/opt/learncoding/docs/runbooks/load-testing.md
+Requires=learncoding-compose.service
+After=learncoding-compose.service local-fs.target libvirtd.service
+Wants=libvirtd.service
+RequiresMountsFor=/opt/learncoding /etc/learncoding /var/lib/learncoding-production-load /var/lib/learncoding-production-load-evidence
+ConditionFileIsExecutable=/usr/bin/node
+AssertPathExists=/opt/learncoding/node_modules/tsx/package.json
+OnFailure=learncoding-alert@%n.service
+RefuseManualStart=yes
+StartLimitIntervalSec=15min
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=root
+Group=root
+WorkingDirectory=/opt/learncoding
+EnvironmentFile=/etc/learncoding/production-load.env
+Environment=NODE_ENV=production
+Environment=LOAD_MODE=production
+Environment=LOAD_ALLOW_REMOTE=1
+Environment=LOAD_SCOPE=codestead-project-only
+Environment=LOAD_PROJECT=learncoding
+Environment=LOAD_DISPOSABLE_FAULTS_CONFIRMED=1
+Environment=LOAD_EVIDENCE_ROOT=/var/lib/learncoding-production-load-evidence
+Environment=LOAD_CONTROL_SOCKET=/run/learncoding/load-control.sock
+Environment=LOAD_ACTIVE_RELEASE_PATH=/etc/learncoding/active-release.env
+Environment=LOAD_JOURNAL_ROOT=/var/lib/learncoding-production-load
+Environment=LOAD_MANIFEST_PATH=/etc/learncoding/production-load-manifest.json
+ExecStartPre=/usr/bin/bash /opt/learncoding/infra/ops/validate-production-load-host-runtime.sh
+ExecStartPre=/usr/bin/test -f /etc/learncoding/production-load-manifest.json
+ExecStartPre=/usr/bin/test -f /var/lib/learncoding-production-load/production-load-fault-journal.json
+ExecStart=/usr/bin/node --import tsx /opt/learncoding/scripts/start-production-load-control-service.ts --recover-only
+Restart=on-failure
+RestartSec=30s
+RuntimeMaxSec=10min
+TimeoutStartSec=2min
+TimeoutStopSec=2min
+KillSignal=SIGTERM
+FinalKillSignal=SIGKILL
+SendSIGKILL=yes
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/learncoding-production-load

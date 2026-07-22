@@ -20,13 +20,15 @@ require_command() {
 
 require_secure_regular_file() {
   local path="${1:-}" expected_mode="${2:-}" expected_owner="${3:-}"
-  local actual_mode actual_owner
+  local actual_mode actual_owner actual_links
 
   [[ -n "$path" && "$expected_mode" =~ ^[0-7]{3,4}$ && "$expected_owner" =~ ^[0-9]+$ ]] || return 1
   [[ -f "$path" && ! -L "$path" ]] || return 1
   actual_mode="$(stat -c '%a' -- "$path" 2>/dev/null)" || return 1
   actual_owner="$(stat -c '%u' -- "$path" 2>/dev/null)" || return 1
-  [[ "$actual_mode" == "${expected_mode#0}" && "$actual_owner" == "$expected_owner" ]]
+  actual_links="$(stat -c '%h' -- "$path" 2>/dev/null)" || return 1
+  [[ "$actual_mode" == "${expected_mode#0}" && "$actual_owner" == "$expected_owner" \
+    && "$actual_links" == 1 ]]
 }
 
 path_is_within() {
@@ -257,6 +259,14 @@ load_backup_config() {
   : "${BACKUP_LOCK_FILE:=/run/lock/learncoding-backup.lock}"
   : "${BACKUP_STAGE_ROOT:=/var/tmp/learncoding-backup}"
   : "${MAX_BACKUP_AGE_HOURS:=36}"
+  : "${MAX_OFFSITE_AGE_HOURS:=36}"
+  : "${MAX_RESTORE_DRILL_AGE_HOURS:=2160}"
+  : "${RESTORE_DRILL_SOURCE:=offsite}"
+  : "${RCLONE_REMOTE:=gdrive:Codestead/backups}"
+  : "${RCLONE_CONFIG:=/etc/learncoding/rclone.conf}"
+  : "${RCLONE_OPERATION_TIMEOUT_SECONDS:=120}"
+  : "${RCLONE_OPERATION_GRACE_SECONDS:=5}"
+  : "${RCLONE_OUTPUT_LIMIT_BYTES:=1048576}"
   : "${FILESYSTEM_WARN_PERCENT:=70}"
   : "${FILESYSTEM_CRITICAL_PERCENT:=85}"
   : "${ALERT_HOOK:=/etc/learncoding/alert-hook}"
@@ -264,6 +274,14 @@ load_backup_config() {
     || die "filesystem capacity thresholds must be whole percentages"
   (( FILESYSTEM_WARN_PERCENT >= 1 && FILESYSTEM_WARN_PERCENT < FILESYSTEM_CRITICAL_PERCENT && FILESYSTEM_CRITICAL_PERCENT <= 99 )) \
     || die "filesystem capacity thresholds must satisfy 1 <= warning < critical <= 99"
+  [[ "$MAX_OFFSITE_AGE_HOURS" =~ ^[1-9][0-9]*$ \
+    && "$MAX_RESTORE_DRILL_AGE_HOURS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_OPERATION_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_OPERATION_GRACE_SECONDS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_OUTPUT_LIMIT_BYTES" =~ ^[1-9][0-9]*$ ]] \
+    || die "offsite/drill age, deadline, grace, and output limits must be positive integers"
+  [[ ${#MAX_RESTORE_DRILL_AGE_HOURS} -le 4 ]] && ((MAX_RESTORE_DRILL_AGE_HOURS <= 2160)) \
+    || die "restore drill age limit must not exceed 2160 hours"
 }
 
 compose_cmd() {
@@ -346,7 +364,7 @@ SQL
     --env "BACKUP_REPORT_KEY=$key" \
     --env "BACKUP_REPORT_OUTCOME=$outcome" \
     postgres sh -ceu \
-      'exec psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 --set=report_key="$BACKUP_REPORT_KEY" --set=report_outcome="$BACKUP_REPORT_OUTCOME"')"; then
+      'exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 --set=report_key="$BACKUP_REPORT_KEY" --set=report_outcome="$BACKUP_REPORT_OUTCOME"')"; then
     log "backup status report could not reach the application outbox"
     return 1
   fi
@@ -415,4 +433,50 @@ verify_ciphertext_checksum() {
   [[ "$expected_name" == "$(basename -- "$archive")" ]] || return 1
   actual_hash="$(sha256sum "$archive" | awk '{print $1}')"
   [[ "$actual_hash" == "$expected_hash" ]]
+}
+
+require_secure_rclone_config() {
+  [[ "${RCLONE_CONFIG:-}" == /* ]] || return 1
+  require_secure_regular_file "$RCLONE_CONFIG" 600 0
+}
+
+validate_rclone_remote() {
+  local value="${RCLONE_REMOTE:-}"
+  [[ -n "$value" && "$value" != *$'\n'* && "$value" != *$'\r'* \
+    && "$value" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*:[^[:space:]].*$ \
+    && "$value" != */ ]]
+}
+
+run_managed_backup_command() {
+  local script_dir managed_deadline
+  script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)" || return 125
+  managed_deadline="$script_dir/run-managed-deadline.py"
+  [[ -f "$managed_deadline" && ! -L "$managed_deadline" ]] || return 125
+  python3 "$managed_deadline" --expected-parent-pid "$BASHPID" \
+    "$RCLONE_OPERATION_TIMEOUT_SECONDS" "$RCLONE_OPERATION_GRACE_SECONDS" -- "$@"
+}
+
+run_rclone() {
+  require_secure_rclone_config || return 125
+  validate_rclone_remote || return 125
+  run_managed_backup_command rclone "$@" --config "$RCLONE_CONFIG" \
+    --contimeout 15s --timeout 60s --retries 1 --low-level-retries 1
+}
+
+run_rclone_capture() {
+  local output="${1:-}" maximum_bytes="${2:-}" size
+  shift 2 || return 125
+  [[ "$output" == /* && "$maximum_bytes" =~ ^[1-9][0-9]*$ ]] || return 125
+  [[ ! -e "$output" && ! -L "$output" ]] || return 125
+  if ! run_rclone "$@" >"$output"; then
+    rm -f -- "$output"
+    return 1
+  fi
+  [[ -f "$output" && ! -L "$output" ]] || return 1
+  chmod 0600 -- "$output" || return 1
+  size="$(stat -c '%s' -- "$output")" || return 1
+  if ((size > maximum_bytes)); then
+    rm -f -- "$output"
+    return 1
+  fi
 }

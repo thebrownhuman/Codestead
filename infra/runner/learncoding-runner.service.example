@@ -4,6 +4,8 @@ Documentation=/opt/learncoding/docs/runbooks/runner-isolation.md
 After=docker.service network-online.target
 Requires=docker.service
 Wants=network-online.target
+StartLimitIntervalSec=1min
+StartLimitBurst=5
 
 [Service]
 Type=simple

@@ -218,8 +218,6 @@ test.describe("authored learning UI", () => {
       appealSubmitted: false,
       appeal: null,
     };
-    let revision = 0;
-
     await page.route(`**/api/exams/${sessionId}`, async (route) => {
       await route.fulfill({ contentType: "application/json", status: 200, body: JSON.stringify({ exam }) });
     });
@@ -227,8 +225,24 @@ test.describe("authored learning UI", () => {
       await route.fulfill({ contentType: "application/json", status: 200, body: JSON.stringify({ accepted: true }) });
     });
     await page.route(`**/api/exams/${sessionId}/autosave`, async (route) => {
-      revision += 1;
-      await route.fulfill({ contentType: "application/json", status: 200, body: JSON.stringify({ saved: { revision } }) });
+      const request = route.request().postDataJSON() as {
+        answer: unknown;
+        baseRevision: number;
+        clientMutationId: string;
+      };
+      await route.fulfill({
+        contentType: "application/json",
+        status: 200,
+        body: JSON.stringify({
+          saved: {
+            answer: request.answer,
+            clientMutationId: request.clientMutationId,
+            replayed: false,
+            revision: request.baseRevision + 1,
+            savedAt: new Date().toISOString(),
+          },
+        }),
+      });
     });
     await page.route(`**/api/exams/${sessionId}/run`, async (route) => {
       const finishedAt = new Date().toISOString();

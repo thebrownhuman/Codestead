@@ -207,7 +207,7 @@ function retainedNodeItem(item: CodeAssessmentItem, javascriptDigest: string): C
 async function main(): Promise<void> {
   const [courses, runtimeImages] = await Promise.all([
     Promise.all(courseIds.map((id) => loadJson<CourseManifest>(path.join(contentRoot, "courses", `${id}.json`)))),
-    loadJson<RuntimeImages>(path.join(root, "services", "runner", "dist", "runtime-images.json")),
+    loadJson<RuntimeImages>(path.join(root, "scripts", "curriculum-runtime-pins.json")),
   ]);
   const javascriptDigest = runtimeImages.records.find((record) => record.language === "javascript")?.digest;
   if (!javascriptDigest || !/^sha256:[a-f0-9]{64}$/.test(javascriptDigest)) {

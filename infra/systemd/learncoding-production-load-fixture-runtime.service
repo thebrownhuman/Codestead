@@ -1,0 +1,45 @@
+[Unit]
+Description=Codestead isolated production-load disposable fixture runtime
+Documentation=file:/opt/learncoding/docs/runbooks/load-testing.md
+Requires=docker.service
+After=docker.service local-fs.target
+RequiresMountsFor=/opt/learncoding /etc/learncoding /run/learncoding-production-load-fixtures
+AssertPathExists=/opt/learncoding/infra/runtime/production-load-fixture-runtime.mjs
+AssertPathExists=/etc/learncoding/production-load-network-attestation
+OnFailure=learncoding-alert@%n.service
+StopWhenUnneeded=yes
+RefuseManualStart=yes
+StartLimitIntervalSec=15min
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=root
+Group=root
+WorkingDirectory=/opt/learncoding
+ExecStartPre=/usr/bin/bash /opt/learncoding/infra/ops/validate-production-load-fixture-runtime.sh
+ExecStart=/usr/bin/docker run --rm --name learncoding-production-load-fixture-runtime --pull never --label com.codestead.runtime=production-load-fixture-v1 --network none --read-only --user 65532:65532 --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 128 --memory 256m --cpus 1 --add-host production-load-postgres:127.0.0.1 --add-host production-load-app:127.0.0.1 --env NODE_ENV=production --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=65532,gid=65532 --tmpfs /var/lib/learncoding-production-load-fixtures:rw,noexec,nosuid,nodev,size=32m,mode=0700,uid=65532,gid=65532 --volume /run/learncoding-production-load-fixtures:/run/learncoding-production-load-fixtures:rw --volume /opt/learncoding/infra/runtime/production-load-fixture-runtime.mjs:/opt/codestead/production-load-fixture-runtime.mjs:ro --volume /etc/learncoding/production-load-network-attestation:/run/secrets/production_load_network_attestation:ro node:22.22.0-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94 /usr/local/bin/node /opt/codestead/production-load-fixture-runtime.mjs
+Restart=on-failure
+RestartSec=5s
+RuntimeMaxSec=5h30m
+TimeoutStartSec=2min
+TimeoutStopSec=1min
+KillSignal=SIGTERM
+FinalKillSignal=SIGKILL
+SendSIGKILL=yes
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/run/learncoding-production-load-fixtures
+InaccessiblePaths=-/etc/learncoding/secrets -/var/lib/learncoding-production-load -/run/libvirt -/dev/kvm

@@ -12,9 +12,11 @@ perl_bin=/usr/bin/perl
 node_bin=/usr/bin/node
 checker="$repo_root/infra/ops/check-recovery.sh"
 checker_helper="$repo_root/infra/ops/recovery-checker.py"
+checker_baseline_module="$repo_root/infra/ops/existing_container_baseline.py"
 checker_shebang='#!/usr/bin/env bash'
-checker_reviewed_sha256='0f1898a9db9cc9de40d903d88bcb5a2bf5e8e09753e443e60d750a43a57410dc'
-checker_helper_reviewed_sha256='89fd761ddb27ff41dccc8cbafbfe9abde1be893f7fb056c616cd5e0778fa6b16'
+checker_reviewed_sha256='a686429336e44304b024b75adf3ab42b5a0f95a0a642bda5995e664e6c872668'
+checker_helper_reviewed_sha256='6a41fedb360b27b9afd2cb8b8e2e82c470be65b2cf180c969b21104fb4c7eb52'
+checker_baseline_module_reviewed_sha256='62be75b9e8be5f2b5baf002eb57133d152135ad95c3c3f952f22af317dc045d2'
 tmp_base="$(cd /tmp && pwd -P)"
 work="$(mktemp -d "$tmp_base/power-recovery-check.XXXXXX")"
 work="$(cd "$work" && pwd -P)"
@@ -38,6 +40,11 @@ fi
 if [[ ! -f "$checker_helper" ]]; then
   echo 'power recovery checker contract failed:' >&2
   echo '- missing descriptor-safe recovery checker helper: infra/ops/recovery-checker.py' >&2
+  exit 1
+fi
+if [[ ! -f "$checker_baseline_module" ]]; then
+  echo 'power recovery checker contract failed:' >&2
+  echo '- missing protected container baseline module: infra/ops/existing_container_baseline.py' >&2
   exit 1
 fi
 
@@ -69,6 +76,12 @@ checker_helper_digest_line="$("$sha256_bin" -- "$checker_helper")" ||
   fail 'could not hash the recovery checker helper'
 [[ "${checker_helper_digest_line%% *}" == "$checker_helper_reviewed_sha256" ]] ||
   fail 'recovery checker helper bytes do not match the reviewed SHA'
+[[ "$checker_baseline_module_reviewed_sha256" =~ ^[0-9a-f]{64}$ ]] ||
+  fail 'container baseline module reviewed SHA is not finalized'
+checker_baseline_module_digest_line="$("$sha256_bin" -- "$checker_baseline_module")" ||
+  fail 'could not hash the container baseline module'
+[[ "${checker_baseline_module_digest_line%% *}" == "$checker_baseline_module_reviewed_sha256" ]] ||
+  fail 'container baseline module bytes do not match the reviewed SHA'
 run_helper_unit_tests() {
   local staged_helper="$1"
   CHECKER_HELPER="$staged_helper" RECOVERY_HELPER_TEST_ROOT="$work/helper-unit" "$python_bin" - <<'PY'
@@ -83,6 +96,7 @@ import stat
 import sys
 
 helper_path = pathlib.Path(os.environ["CHECKER_HELPER"])
+sys.path.insert(0, str(helper_path.parent))
 spec = importlib.util.spec_from_file_location("recovery_checker", helper_path)
 assert spec is not None and spec.loader is not None
 helper = importlib.util.module_from_spec(spec)
@@ -90,6 +104,19 @@ sys.modules[spec.name] = helper
 spec.loader.exec_module(helper)
 
 expected = helper.EXPECTED_COMPOSE_SERVICES
+assert list(expected.items()) == [
+    ("postgres", "healthy"),
+    ("app", "healthy"),
+    ("runner-egress-gateway", "healthy"),
+    ("mail-worker", "healthy"),
+    ("reward-worker", "healthy"),
+    ("regrade-worker", "healthy"),
+    ("exam-finalization-worker", "healthy"),
+    ("practice-runner-recovery-worker", "healthy"),
+    ("project-review-correction-worker", "healthy"),
+    ("file-erasure-worker", "healthy"),
+    ("cloudflared", "healthy"),
+]
 def compose_line(service, *, project="learncoding", name=None, state="running", health=None, extra=None):
     value = {
         "ID": f"id-{service}",
@@ -284,6 +311,24 @@ for status_code, headers, candidate_body, supplied_challenge, started, now in ru
         pass
     else:
         raise AssertionError("runner response mutant was accepted")
+
+runner_gid_environment = "RECOVERY_CHECK_TEST_RUNNER_SECRET_GID"
+os.environ.pop(runner_gid_environment, None)
+assert helper._runner_secret_expected_gid(test_mode=False) == 2000
+assert helper._runner_secret_expected_gid(test_mode=True) == 2000
+os.environ[runner_gid_environment] = "65534"
+assert helper._runner_secret_expected_gid(test_mode=True) == 65534
+assert helper._runner_secret_expected_gid(test_mode=False) == 2000
+for malformed_gid in ("-1", "2000", "065534", "65535", "65534x"):
+    os.environ[runner_gid_environment] = malformed_gid
+    try:
+        helper._runner_secret_expected_gid(test_mode=True)
+    except helper.ContractError:
+        pass
+    else:
+        raise AssertionError(f"unsafe test runner-secret GID was accepted: {malformed_gid!r}")
+    assert helper._runner_secret_expected_gid(test_mode=False) == 2000
+os.environ.pop(runner_gid_environment, None)
 
 root = pathlib.Path(os.environ["RECOVERY_HELPER_TEST_ROOT"])
 shutil.rmtree(root, ignore_errors=True)
@@ -924,7 +969,7 @@ EOF
   rm -f -- "$work/reviewed-source-symlink.sh"
   ln -s "$safe_source" "$work/reviewed-source-symlink.sh"
   if [[ -L "$work/reviewed-source-symlink.sh" ]]; then
-    stage_and_make_path_sealed_copy "$work/reviewed-source-symlink.sh" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" &&
+    stage_and_make_path_sealed_copy "$work/reviewed-source-symlink.sh" "$transformed" "$interpreter" "$expected_shebang" "$safe_sha256" 2>/dev/null &&
       fail 'reviewed source identity accepted a symlink'
   fi
   rm -f -- "$work/reviewed-source-symlink.sh"
@@ -985,6 +1030,11 @@ stage_live_source_once "$checker_helper" "$checker_helper_stage" ||
   fail 'could not open the recovery checker helper exactly once with O_NOFOLLOW'
 [[ "$(sha256_file "$checker_helper_stage")" == "$checker_helper_reviewed_sha256" ]] ||
   fail 'recovery checker helper staged bytes are not reviewed'
+checker_baseline_module_stage="$work/existing_container_baseline.py"
+stage_live_source_once "$checker_baseline_module" "$checker_baseline_module_stage" ||
+  fail 'could not open the container baseline module exactly once with O_NOFOLLOW'
+[[ "$(sha256_file "$checker_baseline_module_stage")" == "$checker_baseline_module_reviewed_sha256" ]] ||
+  fail 'container baseline module staged bytes are not reviewed'
 IFS= read -r helper_first_line <"$checker_helper_stage" || fail 'recovery checker helper is empty'
 [[ "$helper_first_line" == '#!/usr/bin/python3' ]] || fail 'recovery checker helper interpreter is not fixed'
 ! grep -q $'\r' "$checker_helper_stage" || fail 'recovery checker helper contains CRLF bytes'
@@ -1033,8 +1083,14 @@ if tail -n +2 "$checker_stage" | grep -Eq '(^|[^<])<[[:space:]]*([^<(&]|$)'; the
 fi
 grep -Fq 'RECOVERY_CHECK_TEST_ROOT' "$checker_stage" || fail 'recovery checker is missing the single narrow test-root seam'
 grep -Fq '/etc/learncoding/existing-containers.txt' "$checker_stage" || fail 'recovery checker changed the protected production baseline path'
-grep -Fq 'exec "${launcher[@]}" "$python" "$helper" "${helper_arguments[@]}"' "$checker_stage" ||
+grep -Fq 'exec "${launcher[@]}" "$python" -B "$helper" "${helper_arguments[@]}"' "$checker_stage" ||
   fail 'recovery checker must atomically replace the shell with the Python supervisor'
+grep -Fq "production_baseline_cache_dir='/opt/learncoding/infra/ops/__pycache__'" "$checker_stage" ||
+  fail 'recovery checker must reject cached baseline helper bytecode'
+grep -Fq 'existing_container_baseline.*.pyc' "$checker_stage" ||
+  fail 'recovery checker must reject versioned baseline helper bytecode'
+grep -Fq 'exec "$python" -B "$helper"' "$checker_stage" ||
+  fail 'recovery checker must disable Python bytecode writes in test mode'
 if grep -Eq '(^|[[:space:]])(&|wait|trap)([[:space:]]|$)|child_pid' "$checker_stage"; then
   fail 'recovery checker retains a background-child signal race'
 fi
@@ -1043,6 +1099,7 @@ host_root="$work/host-root"
 fake_bin="$work/bin"
 state_root="$work/state"
 events="$work/events.log"
+diagnostic_file="$state_root/diagnostic"
 scenario_file="$state_root/scenario"
 clock_file="$state_root/clock"
 runner_body_file="$state_root/runner-body"
@@ -1054,6 +1111,18 @@ runner_expired_signature_file="$state_root/runner-expired-signature"
 curl_root="$state_root/curl"
 descendant_sentinel="$curl_root/escaped-descendant"
 baseline="$host_root/etc/learncoding/existing-containers.txt"
+existing_alpha_inspection="$state_root/existing-alpha.inspect.json"
+existing_bravo_inspection="$state_root/existing-bravo.inspect.json"
+existing_bravo_stopped_inspection="$state_root/existing-bravo-stopped.inspect.json"
+existing_bravo_id_drift_inspection="$state_root/existing-bravo-id-drift.inspect.json"
+existing_bravo_image_drift_inspection="$state_root/existing-bravo-image-drift.inspect.json"
+existing_bravo_config_drift_inspection="$state_root/existing-bravo-config-drift.inspect.json"
+existing_bravo_restart_drift_inspection="$state_root/existing-bravo-restart-drift.inspect.json"
+existing_bravo_health_drift_inspection="$state_root/existing-bravo-health-drift.inspect.json"
+existing_bravo_paused_inspection="$state_root/existing-bravo-paused.inspect.json"
+existing_bravo_restarting_inspection="$state_root/existing-bravo-restarting.inspect.json"
+existing_bravo_dead_inspection="$state_root/existing-bravo-dead.inspect.json"
+existing_bravo_status_drift_inspection="$state_root/existing-bravo-status-drift.inspect.json"
 compose_env_path="$host_root/etc/learncoding/compose.env"
 compose_file_path="$host_root/opt/learncoding/compose.yaml"
 compose_env_reviewed="$state_root/compose.env.reviewed"
@@ -1062,9 +1131,13 @@ runner_secret_file="$host_root/etc/learncoding/secrets/runner_shared_secret"
 postgres_sql="SELECT name, setting FROM pg_settings WHERE name IN ('data_checksums', 'fsync', 'synchronous_commit', 'full_page_writes');"
 mkdir -m 0700 -p "$fake_bin" "$state_root" "$curl_root" "$host_root/etc/learncoding/secrets" \
   "$host_root/opt/learncoding"
+: >"$diagnostic_file"
+printf '%s' preflight >"$scenario_file"
+chmod 0600 "$scenario_file"
 chmod 0700 "$host_root" "$host_root/etc" "$host_root/etc/learncoding" \
   "$host_root/etc/learncoding/secrets" "$host_root/opt" "$host_root/opt/learncoding"
-printf '%s\n' legacy-alpha legacy-bravo >"$baseline"
+PYTHONDONTWRITEBYTECODE=1 "$python_bin" \
+  "$repo_root/infra/tests/fixtures/create-existing-container-baseline.py" "$state_root" "$baseline"
 chown 0:0 "$baseline"
 chmod 0600 "$baseline"
 printf '%s\n' \
@@ -1194,8 +1267,9 @@ PY
 }
 
 emit_compose_services() {
-  local -a services=(postgres app cloudflared mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker)
+  local -a services=(postgres app runner-egress-gateway mail-worker reward-worker regrade-worker \
+    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker \
+    file-erasure-worker cloudflared)
   local service
   for service in "${services[@]}"; do
     [[ "$scenario" != compose-model-missing || "$service" != reward-worker ]] || continue
@@ -1240,10 +1314,12 @@ PY
 
 emit_compose_status() {
   local service state health project name emitted_service ignored compose_object
-  local -a services=(postgres app cloudflared mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker)
+  local -a services=(postgres app runner-egress-gateway mail-worker reward-worker regrade-worker \
+    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker \
+    file-erasure-worker cloudflared)
   for service in "${services[@]}"; do
     [[ "$scenario" != app-incomplete || "$service" != app ]] || continue
+    [[ "$scenario" != file-erasure-incomplete || "$service" != file-erasure-worker ]] || continue
     [[ "$scenario" != worker-incomplete || "$service" != reward-worker ]] || continue
     [[ "$scenario" != cloudflared-incomplete || "$service" != cloudflared ]] || continue
     state=running
@@ -1253,10 +1329,11 @@ emit_compose_status() {
     emitted_service="$service"
     ignored=fixture
     case "$service" in
-      postgres|app|cloudflared) health=healthy ;;
+      postgres|app|runner-egress-gateway|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|cloudflared) health=healthy ;;
     esac
     [[ "$scenario" != app-malformed || "$service" != app ]] || state=mystery
     [[ "$scenario" != worker-malformed || "$service" != mail-worker ]] || state=mystery
+    [[ "$scenario" != worker-heartbeat-unhealthy || "$service" != mail-worker ]] || health=unhealthy
     [[ "$scenario" != cloudflared-malformed || "$service" != cloudflared ]] || state=mystery
     [[ "$scenario" != postgres-container-unhealthy || "$service" != postgres ]] || health=unhealthy
     [[ "$scenario" != app-wrong-project || "$service" != app ]] || project=foreign-project
@@ -1321,8 +1398,9 @@ case "$command_name" in
         if [[ "$scenario" == libvirt-down && "$unit" == libvirtd.service ]]; then exit 3; fi
         if [[ "$scenario" == firewall-down && "$unit" == learncoding-runner-firewall.service ]]; then exit 3; fi
         if [[ "$scenario" == timer-incomplete && "$unit" == *.timer ]]; then exit 3; fi
+        if [[ "$scenario" == ingress-recovery-timer-disabled && "$unit" == learncoding-ingress-recovery.timer ]]; then exit 3; fi
         case "$unit" in
-          docker.service|libvirtd.service|learncoding-runner-firewall.service|learncoding-compose.service|learncoding-backup.timer|learncoding-backup-check.timer|learncoding-retention.timer|learncoding-recovery-check.timer)
+          docker.service|libvirtd.service|learncoding-runner-firewall.service|learncoding-compose.service|learncoding-backup.timer|learncoding-backup-check.timer|learncoding-offsite-sync.timer|learncoding-offsite-retention.timer|learncoding-restore-drill-reminder.timer|learncoding-retention.timer|learncoding-recovery-check.timer|learncoding-ingress-recovery.timer)
             printf '%s\n' active ;;
           *) exit 64 ;;
         esac
@@ -1331,8 +1409,9 @@ case "$command_name" in
         [[ "$#" == 2 ]] || exit 64
         if [[ "$scenario" == timer-incomplete && "$unit" == learncoding-retention.timer ]]; then printf '%s\n' disabled; exit 1; fi
         if [[ "$scenario" == timer-malformed && "$unit" == learncoding-retention.timer ]]; then printf '%s\n' 'enabled unexpected'; exit 0; fi
+        if [[ "$scenario" == ingress-recovery-timer-disabled && "$unit" == learncoding-ingress-recovery.timer ]]; then printf '%s\n' disabled; exit 1; fi
         case "$unit" in
-          learncoding-backup.timer|learncoding-backup-check.timer|learncoding-retention.timer|learncoding-recovery-check.timer)
+          learncoding-backup.timer|learncoding-backup-check.timer|learncoding-offsite-sync.timer|learncoding-offsite-retention.timer|learncoding-restore-drill-reminder.timer|learncoding-retention.timer|learncoding-recovery-check.timer|learncoding-ingress-recovery.timer)
             printf '%s\n' enabled ;;
           *) exit 64 ;;
         esac
@@ -1514,13 +1593,39 @@ case "$command_name" in
       emit_compose_status
       exit 0
     fi
+    if [[ "$#" == 4 && "$1" == inspect && "$2" == --type && "$3" == container &&
+      ( "$4" == legacy-alpha || "$4" == legacy-bravo ) ]]; then
+      inspection_label="${4#legacy-}"
+      if [[ "$inspection_label" == bravo ]]; then
+        if [[ "$delayed" == true ]]; then
+          inspection_label=bravo-stopped
+        else
+          case "$scenario" in
+            existing-stopped) inspection_label=bravo-stopped ;;
+            existing-id-drift) inspection_label=bravo-id-drift ;;
+            existing-image-drift) inspection_label=bravo-image-drift ;;
+            existing-config-drift) inspection_label=bravo-config-drift ;;
+            existing-restart-drift) inspection_label=bravo-restart-drift ;;
+            existing-health-drift) inspection_label=bravo-health-drift ;;
+            existing-paused) inspection_label=bravo-paused ;;
+            existing-restarting) inspection_label=bravo-restarting ;;
+            existing-dead) inspection_label=bravo-dead ;;
+            existing-status-drift) inspection_label=bravo-status-drift ;;
+          esac
+        fi
+      fi
+      inspection_path="$FAKE_STATE_ROOT/existing-$inspection_label.inspect.json"
+      [[ -f "$inspection_path" && ! -L "$inspection_path" ]] || exit 64
+      printf '%s' "$(<"$inspection_path")"
+      exit 0
+    fi
     if [[ "$#" == 3 && "$1" == ps && "$2" == --format && "$3" == '{{.Names}}' ]]; then
       [[ "$delayed" == false ]] || { printf '%s\n' legacy-alpha; exit 0; }
       printf '%s\n' legacy-alpha
       [[ "$scenario" == existing-stopped ]] || printf '%s\n' legacy-bravo
-      printf '%s\n' learncoding-postgres learncoding-app learncoding-mail-worker learncoding-reward-worker \
+      printf '%s\n' learncoding-postgres learncoding-app learncoding-runner-egress-gateway learncoding-mail-worker learncoding-reward-worker \
         learncoding-regrade-worker learncoding-exam-finalization-worker learncoding-practice-runner-recovery-worker \
-        learncoding-project-review-correction-worker learncoding-cloudflared
+        learncoding-project-review-correction-worker learncoding-file-erasure-worker learncoding-cloudflared
       exit 0
     fi
     exit 64
@@ -1548,7 +1653,8 @@ case "$command_name" in
     [[ "$output_flag" == --output && "$header_flag" == --dump-header && \
       "$write_flag" == --write-out && "$write_format" == '%{http_code}' && "$url_flag" == --url && \
       "$output" =~ ^/proc/self/fd/[0-9]+$ && "$headers" =~ ^/proc/self/fd/[0-9]+$ ]] || exit 64
-    if [[ "$scenario" == leader-exits-child-holds-http ]]; then
+    if [[ "$scenario" == leader-exits-child-holds-http && \
+      "$url" == https://pilot.example.test/health/ready ]]; then
       /usr/bin/python3 -c 'import os,time; pid=os.fork(); os._exit(0) if pid else (time.sleep(4), open(os.environ["FAKE_DESCENDANT_SENTINEL"], "w").write("escaped"))'
       exit 0
     fi
@@ -1945,7 +2051,7 @@ EOF
   [[ "$python_stdlib_owner" == 0 && "$python_stdlib_group" == 0 && "$python_stdlib_mode" =~ ^[0-7]{3,4}$ ]] ||
     fail 'Python standard library ownership is unsafe'
   (( (8#$python_stdlib_mode & 8#022) == 0 )) || fail 'Python standard library is group/world writable'
-  python_extension_output="$("$python_bin" -c 'import runpy, sys; from importlib.machinery import ExtensionFileLoader; runpy.run_path(sys.argv[1], run_name="_recovery_dependency_scan"); print("\n".join(sorted({module.__file__ for module in list(sys.modules.values()) if isinstance(getattr(module, "__loader__", None), ExtensionFileLoader) and isinstance(getattr(module, "__file__", None), str)})))' "$checker_helper_stage")" ||
+  python_extension_output="$(PYTHONPATH="$work" "$python_bin" -c 'import runpy, sys; from importlib.machinery import ExtensionFileLoader; runpy.run_path(sys.argv[1], run_name="_recovery_dependency_scan"); print("\n".join(sorted({module.__file__ for module in list(sys.modules.values()) if isinstance(getattr(module, "__loader__", None), ExtensionFileLoader) and isinstance(getattr(module, "__file__", None), str)})))' "$checker_helper_stage")" ||
     fail 'could not enumerate Python extension dependencies for the recovery checker'
   mapfile -t python_extension_modules <<<"$python_extension_output"
   (( ${#python_extension_modules[@]} > 0 )) || fail 'Python recovery runtime did not expose any extension modules'
@@ -1953,12 +2059,25 @@ EOF
     [[ "$extension" == "$python_stdlib"/* && -f "$extension" && ! -L "$extension" ]] ||
       fail 'Python recovery extension escaped the fixed standard library'
   done
-  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/python3 /usr/bin/timeout "${python_extension_modules[@]}" ||
+  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/python3 /usr/bin/timeout /usr/bin/setpriv "${python_extension_modules[@]}" ||
     fail 'could not assemble the minimal recovery-check runtime'
   containment_ro_mounts=(
     --ro-bind "$entry" "$entry"
     --ro-bind "$checker_under_test" "$checker_under_test"
     --ro-bind "$checker_helper_stage" "$checker_helper_stage"
+    --ro-bind "$checker_baseline_module_stage" "$checker_baseline_module_stage"
+    --ro-bind "$existing_alpha_inspection" "$existing_alpha_inspection"
+    --ro-bind "$existing_bravo_inspection" "$existing_bravo_inspection"
+    --ro-bind "$existing_bravo_stopped_inspection" "$existing_bravo_stopped_inspection"
+    --ro-bind "$existing_bravo_id_drift_inspection" "$existing_bravo_id_drift_inspection"
+    --ro-bind "$existing_bravo_image_drift_inspection" "$existing_bravo_image_drift_inspection"
+    --ro-bind "$existing_bravo_config_drift_inspection" "$existing_bravo_config_drift_inspection"
+    --ro-bind "$existing_bravo_restart_drift_inspection" "$existing_bravo_restart_drift_inspection"
+    --ro-bind "$existing_bravo_health_drift_inspection" "$existing_bravo_health_drift_inspection"
+    --ro-bind "$existing_bravo_paused_inspection" "$existing_bravo_paused_inspection"
+    --ro-bind "$existing_bravo_restarting_inspection" "$existing_bravo_restarting_inspection"
+    --ro-bind "$existing_bravo_dead_inspection" "$existing_bravo_dead_inspection"
+    --ro-bind "$existing_bravo_status_drift_inspection" "$existing_bravo_status_drift_inspection"
     --ro-bind "$fake_bin" "$fake_bin"
     --ro-bind "$python_stdlib" "$python_stdlib"
     --ro-bind "$scenario_file" "$scenario_file"
@@ -1978,13 +2097,16 @@ EOF
     --bind "$clock_file" "$clock_file"
     --bind "$curl_root" "$curl_root"
     --bind "$events" "$events"
+    --bind "$diagnostic_file" "$diagnostic_file"
+  )
+  recovery_compose_input_rw_mounts=(
     --bind "$compose_env_path" "$compose_env_path"
     --bind "$compose_file_path" "$compose_file_path"
   )
   containment_command=(
     /usr/bin/timeout --signal=KILL --kill-after=5s 45s
     /usr/bin/prlimit "${resource_limit_args[@]}" --
-    /usr/bin/setpriv --clear-groups --no-new-privs --bounding-set=-all --inh-caps=-all --ambient-caps=-all
+    /usr/bin/setpriv --clear-groups
     /usr/bin/bwrap --die-with-parent --new-session --unshare-user --uid 0 --gid 0
     --unshare-pid --unshare-net --unshare-ipc --unshare-uts --disable-userns
     --cap-drop ALL --as-pid-1
@@ -1995,15 +2117,21 @@ EOF
     "${containment_ro_mounts[@]}"
     "${containment_rw_mounts[@]}"
     --proc /proc --dev /dev --remount-ro / --chdir "$containment_probe_dir" --
+    /usr/bin/setpriv --no-new-privs
     /usr/bin/bash "$entry"
   )
-  preflight_ro_probes="$entry:$checker_under_test:$checker_helper_stage:$fake_bin:$python_stdlib:$scenario_file:$runner_body_file:$runner_signature_file:$runner_concurrency_body_file:$runner_concurrency_signature_file:$runner_expired_body_file:$runner_expired_signature_file:$compose_env_reviewed:$compose_file_reviewed:$host_root/etc:$host_root/opt"
+  preflight_ro_probes="$entry:$checker_under_test:$checker_helper_stage:$checker_baseline_module_stage:$fake_bin:$python_stdlib:$scenario_file:$runner_body_file:$runner_signature_file:$runner_concurrency_body_file:$runner_concurrency_signature_file:$runner_expired_body_file:$runner_expired_signature_file:$existing_alpha_inspection:$existing_bravo_inspection:$existing_bravo_stopped_inspection:$existing_bravo_id_drift_inspection:$existing_bravo_image_drift_inspection:$existing_bravo_config_drift_inspection:$existing_bravo_restart_drift_inspection:$existing_bravo_health_drift_inspection:$existing_bravo_paused_inspection:$existing_bravo_restarting_inspection:$existing_bravo_dead_inspection:$existing_bravo_status_drift_inspection:$compose_env_reviewed:$compose_file_reviewed:$host_root/etc:$host_root/opt"
   set +e
   /usr/bin/env -i PATH= HOME="$containment_probe_dir" CONTAINMENT_RO_PROBES="$preflight_ro_probes" \
     "${containment_command[@]}" /usr/bin/bash -c ':' >/dev/null 2>"$work/containment-preflight.stderr"
   probe_status=$?
   set -e
-  (( probe_status == 0 )) || fail 'Bubblewrap containment preflight or mandatory user namespace was rejected'
+  if (( probe_status != 0 )); then
+    while IFS= read -r diagnostic_line; do
+      printf 'containment preflight: %s\n' "$diagnostic_line" >&2
+    done <"$work/containment-preflight.stderr"
+    fail 'Bubblewrap containment preflight or mandatory user namespace was rejected'
+  fi
   [[ -f "$containment_probe_dir/.namespace-write-probe" && ! -e "$outside" ]] || fail 'containment did not prove fixture-only writes'
 }
 
@@ -2015,6 +2143,8 @@ assert_recovery_execution_identity() {
     fail 'transformed recovery checker changed before execution'
   [[ "$(sha256_file "$checker_helper_stage")" == "$checker_helper_reviewed_sha256" ]] ||
     fail 'staged recovery checker helper changed before execution'
+  [[ "$(sha256_file "$checker_baseline_module_stage")" == "$checker_baseline_module_reviewed_sha256" ]] ||
+    fail 'staged container baseline module changed before execution'
   verify_exact_staged_shell_source "$containment_entry" /usr/bin/bash '#!/usr/bin/bash' "$containment_entry_sha256" ||
     fail 'namespace entry changed before recovery checker execution'
   for command_name in "${checker_fake_commands[@]}"; do
@@ -2023,7 +2153,7 @@ assert_recovery_execution_identity() {
   done
   verify_fixed_outer_binary /usr/bin/bwrap true || fail 'Bubblewrap changed before recovery checker execution'
   assert_exact_resource_limits "${resource_limit_args[@]}" || fail 'recovery resource-limit vector changed before execution'
-  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/python3 /usr/bin/timeout "${python_extension_modules[@]}" ||
+  prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/python3 /usr/bin/timeout /usr/bin/setpriv "${python_extension_modules[@]}" ||
     fail 'recovery minimal runtime changed before execution'
 }
 
@@ -2037,8 +2167,9 @@ run_checker() {
   local watchdog_seconds=10
   local fake_signal_phase=
   local -a execution_containment=()
+  local -a execution_rw_mounts=("${recovery_execution_rw_mounts[@]}")
   local -a checker_invocation=(/usr/bin/bash "$checker_under_test")
-  local ro_probes="$containment_entry:$checker_under_test:$checker_helper_stage:$fake_bin:$python_stdlib:$scenario_file:$runner_body_file:$runner_signature_file:$runner_concurrency_body_file:$runner_concurrency_signature_file:$runner_expired_body_file:$runner_expired_signature_file:$compose_env_reviewed:$compose_file_reviewed:$host_root/etc:$host_root/opt"
+  local ro_probes="$containment_entry:$checker_under_test:$checker_helper_stage:$checker_baseline_module_stage:$fake_bin:$python_stdlib:$scenario_file:$runner_body_file:$runner_signature_file:$runner_concurrency_body_file:$runner_concurrency_signature_file:$runner_expired_body_file:$runner_expired_signature_file:$existing_alpha_inspection:$existing_bravo_inspection:$existing_bravo_stopped_inspection:$existing_bravo_id_drift_inspection:$existing_bravo_image_drift_inspection:$existing_bravo_config_drift_inspection:$existing_bravo_restart_drift_inspection:$existing_bravo_health_drift_inspection:$existing_bravo_paused_inspection:$existing_bravo_restarting_inspection:$existing_bravo_dead_inspection:$existing_bravo_status_drift_inspection:$compose_env_reviewed:$compose_file_reviewed:$host_root/etc:$host_root/opt"
   [[ "$scenario" != watchdog-hang ]] || watchdog_seconds=1
   if [[ "$scenario" == signal-hang ]]; then
     checker_invocation=(/usr/bin/timeout --foreground --signal=TERM --kill-after=5s 1s /usr/bin/bash "$checker_under_test")
@@ -2087,12 +2218,17 @@ raise SystemExit(98)
     signal-cleanup-repeated) fake_signal_phase=cleanup:repeated ;;
     signal-before-write) fake_signal_phase=before-write ;;
   esac
+  case "$scenario" in
+    compose-env-inplace|compose-env-change-restore|compose-yaml-inplace|compose-yaml-change-restore)
+      execution_rw_mounts+=("${recovery_compose_input_rw_mounts[@]}") ;;
+  esac
   printf '%s' "$scenario" >"$scenario_file"
   printf '%s' 0 >"$clock_file"
   rm -f -- "$descendant_sentinel"
+  : >"$diagnostic_file"
   : >"$events"
   for token in "${containment_command[@]}"; do
-    if [[ "$token" == --proc ]]; then execution_containment+=("${recovery_execution_rw_mounts[@]}"); fi
+    if [[ "$token" == --proc ]]; then execution_containment+=("${execution_rw_mounts[@]}"); fi
     execution_containment+=("$token")
   done
   set +e
@@ -2105,6 +2241,7 @@ raise SystemExit(98)
     TMPDIR="$curl_root" \
     RECOVERY_CHECK_TEST_ROOT="$host_root" \
     RECOVERY_CHECK_TEST_HELPER="$checker_helper_stage" \
+    RECOVERY_CHECK_TEST_RUNNER_SECRET_GID=65534 \
     RECOVERY_CHECK_TEST_COMMAND_ROOT="$fake_bin" \
     RECOVERY_CHECK_TEST_MONOTONIC_FILE="$clock_file" \
     RECOVERY_CHECK_TEST_EPOCH=1784116800 \
@@ -2119,6 +2256,7 @@ raise SystemExit(98)
     DOCKER_HOST='tcp://attacker.invalid:2375' DOCKER_CONTEXT=attacker \
     COMPOSE_PROFILES='uploads,operations' \
     FAKE_EVENTS="$events" \
+    FAKE_DIAGNOSTIC_FILE="$diagnostic_file" \
     FAKE_SCENARIO_FILE="$scenario_file" \
     FAKE_STATE_ROOT="$state_root" \
     FAKE_HOST_ROOT="$host_root" \
@@ -2176,9 +2314,10 @@ validate_json_contract() {
   local expected_health_map="$5"
   local expected_count="$6"
   local running_count="$7"
-  local line_count
+  local line_count node_status
   line_count="$(grep -cve '^[[:space:]]*$' "$output_file" || true)"
   [[ "$line_count" == 1 ]] || fail "checker must emit exactly one final JSON object: ${output_file##*/}"
+  set +e
   EXPECTED_RECOVERED="$expected_recovered" EXPECTED_TIMEOUT="$expected_timeout" \
     EXPECTED_ELAPSED="$expected_elapsed" EXPECTED_HEALTH_MAP="$expected_health_map" \
     EXPECTED_COUNT="$expected_count" RUNNING_COUNT="$running_count" \
@@ -2214,9 +2353,15 @@ const expectedHealth = Object.fromEntries((process.env.EXPECTED_HEALTH_MAP ?? ""
 }));
 if (JSON.stringify(Object.keys(expectedHealth).sort()) !== JSON.stringify([...healthKeys].sort())) process.exit(13);
 for (const key of healthKeys) {
-  if (value[key] !== expectedHealth[key]) process.exit(14);
+  if (value[key] !== expectedHealth[key]) {
+    console.error(`health mismatch ${key}: actual=${value[key]} expected=${expectedHealth[key]}`);
+    process.exit(14);
+  }
 }
 NODE
+  node_status=$?
+  set -e
+  (( node_status == 0 )) || fail "JSON contract validation failed with status $node_status: ${output_file##*/}"
 }
 
 assert_private_result() {
@@ -2257,10 +2402,29 @@ expect_result() {
   local running_count="$8"
   local prefix="$work/result-$scenario"
   run_checker "$scenario" "$prefix"
+  report_unexpected_result() {
+    local label="$1" file="$2" line
+    [[ -f "$file" ]] || return 0
+    while IFS= read -r line; do
+      printf '%s %s: %s\n' "$scenario" "$label" "$line" >&2
+    done <"$file"
+  }
   if [[ "$expected_status" == zero ]]; then
-    (( checker_status == 0 )) || fail "$scenario returned $checker_status, expected zero"
+    if (( checker_status != 0 )); then
+      report_unexpected_result stderr "$prefix.stderr"
+      report_unexpected_result stdout "$prefix.stdout"
+      report_unexpected_result events "$events"
+      report_unexpected_result diagnostic "$diagnostic_file"
+      fail "$scenario returned $checker_status, expected zero"
+    fi
   else
-    (( checker_status != 0 )) || fail "$scenario returned zero, expected nonzero"
+    if (( checker_status == 0 )); then
+      report_unexpected_result stderr "$prefix.stderr"
+      report_unexpected_result stdout "$prefix.stdout"
+      report_unexpected_result events "$events"
+      report_unexpected_result diagnostic "$diagnostic_file"
+      fail "$scenario returned zero, expected nonzero"
+    fi
   fi
   validate_json_contract "$prefix.stdout" "$expected_recovered" "$expected_timeout" "$expected_elapsed" \
     "$expected_health_map" "$expected_count" "$running_count"
@@ -2284,6 +2448,14 @@ all_true_health_map="$(health_map_with_false '')"
 all_false_health_map='appHealthy=false,cloudflaredHealthy=false,dockerHealthy=false,firewallHealthy=false,libvirtHealthy=false,postgresDurable=false,postgresHealthy=false,publicHttpsHealthy=false,runnerHealthy=false,timersHealthy=false,workersHealthy=false'
 
 expect_result immediate zero true false 0 "$all_true_health_map" 2 2
+for timer in \
+  learncoding-backup.timer learncoding-backup-check.timer \
+  learncoding-offsite-sync.timer learncoding-offsite-retention.timer \
+  learncoding-restore-drill-reminder.timer \
+  learncoding-retention.timer learncoding-recovery-check.timer; do
+  grep -Fxq "systemctl is-active $timer" "$events" || fail "recovery checker did not require active $timer"
+  grep -Fxq "systemctl is-enabled $timer" "$events" || fail "recovery checker did not require enabled $timer"
+done
 expect_result delayed zero true false 30 "$all_true_health_map" 2 2
 [[ "$(<"$clock_file")" == 30 ]] || fail 'delayed recovery did not use the virtual monotonic clock'
 
@@ -2327,6 +2499,8 @@ for scenario in \
   public-header-lf public-header-mixed public-header-control public-header-multiple public-header-truncated \
   public-hsts-zero public-hsts-excess public-csp-wrong public-content-type-jsonp \
   public-content-type-malformed public-content-type-duplicate existing-stopped \
+  existing-id-drift existing-image-drift existing-config-drift existing-restart-drift \
+  existing-health-drift existing-paused existing-restarting existing-dead existing-status-drift \
   runner-inactive runner-no-autostart runner-network-inactive runner-network-no-autostart \
   runner-network-wrong-bridge runner-network-not-persistent runner-network-route \
   runner-network-bridge-forward runner-network-open runner-network-ipv6 runner-network-trust-guest-rx-filters \
@@ -2341,11 +2515,11 @@ for scenario in \
   runner-body-lf runner-body-nul runner-body-oversize runner-header-oversize \
   postgres-unhealthy postgres-checksums-off postgres-fsync-off postgres-sync-off postgres-full-page-off \
   postgres-mount-type postgres-mount-source postgres-mount-readonly postgres-mount-duplicate \
-  postgres-container-unhealthy app-incomplete app-malformed app-wrong-project app-duplicate \
-  worker-incomplete worker-malformed cloudflared-incomplete cloudflared-malformed \
+  postgres-container-unhealthy file-erasure-incomplete app-incomplete app-malformed app-wrong-project app-duplicate \
+  worker-incomplete worker-malformed worker-heartbeat-unhealthy cloudflared-incomplete cloudflared-malformed \
   compose-malformed-json compose-nested compose-duplicate-key compose-nonfinite compose-numeric-overflow compose-extra compose-stopped-extra \
   compose-model-missing compose-model-duplicate compose-model-extra \
-  compose-wrong-name compose-wrong-service timer-incomplete timer-malformed timer-not-persistent; do
+  compose-wrong-name compose-wrong-service timer-incomplete timer-malformed timer-not-persistent ingress-recovery-timer-disabled; do
   expected_false=
   case "$scenario" in
     docker-down) expected_false=dockerHealthy ;;
@@ -2356,12 +2530,12 @@ for scenario in \
     postgres-unhealthy) expected_false=postgresHealthy ;;
     postgres-container-unhealthy) expected_false="$compose_failure_fields" ;;
     postgres-*) expected_false=postgresDurable ;;
-    app-*|worker-*|cloudflared-*|compose-*) expected_false="$compose_failure_fields" ;;
-    timer-*) expected_false=timersHealthy ;;
+    app-*|worker-*|file-erasure-*|cloudflared-*|compose-*) expected_false="$compose_failure_fields" ;;
+    timer-*|ingress-recovery-timer-disabled) expected_false=timersHealthy ;;
   esac
   expected_count=2
   running_count=2
-  [[ "$scenario" != existing-stopped ]] || running_count=1
+  [[ "$scenario" != existing-* ]] || running_count=1
   expect_result "$scenario" nonzero false true 900 "$(health_map_with_false "$expected_false")" \
     "$expected_count" "$running_count"
   if [[ "$scenario" == runner-replay ]]; then
@@ -2405,6 +2579,7 @@ expect_result protected-parent-writable nonzero false false 0 "$all_false_health
 chmod 0700 "$host_root/etc/learncoding"
 
 chown 65534:0 "$host_root/etc/learncoding"
+chmod 0755 "$host_root/etc/learncoding"
 expect_result protected-parent-owner nonzero false false 0 "$all_false_health_map" 0 0
 chown 0:0 "$host_root/etc/learncoding"
 chmod 0700 "$host_root/etc/learncoding"

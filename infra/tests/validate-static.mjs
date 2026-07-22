@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import {
+  parseGitIndexModes,
+  validateProductionExecutableModes,
+} from "./production-executable-modes.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const failures = [];
@@ -27,14 +32,16 @@ function sha256File(relative) {
 
 function sourceManipulatesHarnessPath(content) {
   const pathToken = /(^|[^A-Za-z0-9_])PATH([^A-Za-z0-9_]|$)/u;
-  const approvedHermeticChildEnvironment =
-    '  launcher=("$production_env" -i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)';
+  const approvedHermeticChildEnvironments = new Set([
+    '  launcher=("$production_env" -i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/bin:/bin)',
+    "  PATH=/usr/sbin:/usr/bin:/sbin:/bin \\",
+  ]);
   return content
     .split(/\r?\n/u)
     .some(
       (line) =>
         !/^\s*(?:#|$)/u.test(line) &&
-        line !== approvedHermeticChildEnvironment &&
+        !approvedHermeticChildEnvironments.has(line) &&
         pathToken.test(line),
     );
 }
@@ -62,6 +69,7 @@ function systemdDirectives(content) {
     ["[Service]", "Service"],
     ["[Install]", "Install"],
     ["[Timer]", "Timer"],
+    ["[Path]", "Path"],
   ]);
   const directives = [];
   let section = "";
@@ -155,15 +163,26 @@ const runtimeValidation = read("infra/ops/validate-runtime.sh");
 const liveHealthRoute = read("src/app/health/live/route.ts");
 const readyHealthRoute = read("src/app/health/ready/route.ts");
 const productionSmoke = read("infra/ops/smoke-production.sh");
+const releaseProduction = read("infra/ops/release-production.sh");
+const releaseProductionHarness = read("infra/tests/release-production.test.sh");
 read("infra/tests/smoke-production.test.sh");
 read("infra/tests/systemd-recovery.test.sh");
 const monitoringRunbook = read("docs/runbooks/logs-and-monitoring.md");
 const composeUnit = read("infra/systemd/learncoding-compose.service");
 const retentionUnit = read("infra/systemd/learncoding-retention.service");
+const ingressRecoveryService = read("infra/systemd/learncoding-ingress-recovery.service");
+const ingressRecoveryTimer = read("infra/systemd/learncoding-ingress-recovery.timer");
+const ingressControlTmpfiles = read("infra/tmpfiles.d/learncoding-ingress-control.conf");
+const ingressRecoveryScript = read("infra/ops/recover-production-ingress.sh");
+const ingressRecoveryHarness = read("infra/tests/ingress-recovery.test.sh");
+const ingressRecoveryDesign = read("docs/superpowers/specs/2026-07-20-ingress-quarantine-recovery-design.md");
+const ingressRecoveryPlan = read("docs/superpowers/plans/2026-07-20-ingress-quarantine-recovery.md");
 const persistentTimers = [
   ["infra/systemd/learncoding-backup.timer", read("infra/systemd/learncoding-backup.timer")],
   ["infra/systemd/learncoding-backup-check.timer", read("infra/systemd/learncoding-backup-check.timer")],
   ["infra/systemd/learncoding-retention.timer", read("infra/systemd/learncoding-retention.timer")],
+  ["infra/systemd/learncoding-restore-drill-reminder.timer", read("infra/systemd/learncoding-restore-drill-reminder.timer")],
+  ["infra/systemd/learncoding-ingress-recovery.timer", ingressRecoveryTimer],
 ];
 const packageJson = read("package.json");
 const composeValidator = read("infra/tests/validate-compose.mjs");
@@ -171,6 +190,8 @@ const retentionPolicy = read("src/lib/data-lifecycle/policy.ts");
 const retentionPolicyTest = read("src/lib/data-lifecycle/__tests__/policy.test.ts");
 const retentionRuntimeTest = read("src/lib/data-lifecycle/__tests__/retention-runtime.test.ts");
 const deploymentGuide = read("docs/deployment.md");
+const loadTestingRunbook = read("docs/runbooks/load-testing.md");
+const runnerIsolationGuide = read("docs/runbooks/runner-isolation.md");
 const updatesRunbook = read("docs/runbooks/updates-and-rollback.md");
 const lifecycleRunbook = read("docs/runbooks/data-lifecycle.md");
 const draftSyncGuide = read("docs/draft-sync.md");
@@ -182,18 +203,43 @@ const runnerProvisioner = read("infra/runner-vm/provision-host.sh");
 const runnerProvisionHelper = read("infra/runner-vm/codestead_runner_provision.py");
 const runnerProvisionContract = read("infra/runner-vm/runner-contract.json");
 const runnerGuestInstaller = read("infra/runner-vm/install-guest.sh");
+const runnerReleaseVerifier = read("infra/runner-vm/verify-release-tree.py");
+const runnerRuntimeRecordVerifier = read("infra/runner-vm/verify-runtime-record.mjs");
+const composeCiInstaller = read("infra/ops/install-compose-ci.sh");
 const runnerFirewall = read("infra/runner-vm/host-runner.nft");
+const runnerGuestFirewall = read("infra/runner-vm/guest-runner.nft");
 const runnerFirewallUnit = read("infra/systemd/learncoding-runner-firewall.service");
+const runnerGuestFirewallUnit = read("infra/systemd/learncoding-runner-guest-firewall.service");
 const recoveryChecker = read("infra/ops/check-recovery.sh");
+const existingContainerBaseline = read("infra/ops/existing_container_baseline.py");
+const captureExistingContainers = read("infra/ops/capture-existing-containers.py");
+const existingContainerFixture = read("infra/tests/fixtures/create-existing-container-baseline.py");
 const recoveryService = read("infra/systemd/learncoding-recovery-check.service");
 const recoveryTimer = read("infra/systemd/learncoding-recovery-check.timer");
+const productionLoadControlUnit = read("infra/systemd/learncoding-production-load-control.service");
+const productionLoadGateUnit = read("infra/systemd/learncoding-production-load-gate.service");
+const productionLoadRecoveryUnit = read("infra/systemd/learncoding-production-load-recovery.service");
+const productionLoadRecoveryPath = read("infra/systemd/learncoding-production-load-recovery.path");
+const productionLoadSysusers = read("infra/sysusers.d/learncoding-production-load.conf");
+const productionLoadTmpfiles = read("infra/tmpfiles.d/learncoding-production-load.conf");
+const productionLoadEnvironment = read("infra/env/production-load.env.example");
+const productionLoadHostRuntime = read("infra/ops/validate-production-load-host-runtime.sh");
+read("infra/tests/production-load-systemd.test.mjs");
+const productionLoadHostRuntimeHarness = read("infra/tests/production-load-host-runtime.test.sh");
 const recoveryEvidence = read("infra/ops/capture-recovery-evidence.sh");
+const recoveryEvidenceHelper = read("infra/ops/recovery-evidence.py");
 const systemdInstaller = read("infra/ops/install-systemd.sh");
 const provisionHarness = read("infra/tests/runner-vm-provision.test.sh");
 const recoveryHarness = read("infra/tests/power-recovery-check.test.sh");
 const runnerHarness = read("infra/tests/runner-reconciliation.test.sh");
 const systemdHarness = read("infra/tests/systemd-recovery.test.sh");
 const evidenceHarness = read("infra/tests/power-evidence.test.sh");
+const evidenceEntryHarness = read("infra/tests/recovery-evidence-entry.test.sh");
+const evidenceMainHarness = read("infra/tests/recovery-evidence-main.test.sh");
+const evidenceStorageHarness = read("infra/tests/recovery-evidence-storage-health.test.py");
+const runnerGuestInstallerHarness = read("infra/tests/runner-guest-installer.test.sh");
+const runnerReleaseVerifierHarness = read("infra/tests/runner-release-tree.test.py");
+const runnerFirewallPacketHarness = read("infra/tests/runner-firewall-packets.test.sh");
 const runtimeHarness = read("infra/tests/runtime-config.test.sh");
 
 for (const mutation of [
@@ -249,7 +295,6 @@ const shellHarnesses = [
   ["power recovery checker", recoveryHarness],
   ["runner reconciliation", runnerHarness],
   ["Systemd recovery", systemdHarness],
-  ["power evidence", evidenceHarness],
   ["runtime config", runtimeHarness],
 ];
 const requiredIdentityMutations = [
@@ -283,7 +328,6 @@ const requiredContainmentTokens = [
   "/usr/bin/prlimit",
   "/usr/bin/setpriv",
   "--no-new-privs",
-  "--bounding-set=-all",
   "CapEff:",
   "CapBnd:",
   "Groups:",
@@ -406,20 +450,44 @@ const reviewedSourceContracts = [
     "validator_reviewed_sha256",
     sha256File("infra/ops/validate-runtime.sh"),
   ],
+  [
+    "power recovery checker",
+    recoveryHarness,
+    "checker_reviewed_sha256",
+    sha256File("infra/ops/check-recovery.sh"),
+  ],
+  [
+    "existing-container baseline module",
+    recoveryHarness,
+    "checker_baseline_module_reviewed_sha256",
+    sha256File("infra/ops/existing_container_baseline.py"),
+  ],
 ];
 for (const [label, harness, variable, digest] of reviewedSourceContracts) {
   expect(/^[0-9a-f]{64}$/u.test(digest), `${label} production source must exist for its reviewed hash contract`);
   expect(harness.includes(`${variable}='${digest}'`), `${label} harness reviewed SHA must match the exact production bytes`);
 }
-for (const [label, harness, variable] of [
-  ["power recovery checker", recoveryHarness, "checker_reviewed_sha256"],
-  ["power evidence", evidenceHarness, "collector_reviewed_sha256"],
-]) {
-  expect(
-    harness.includes(`${variable}='PENDING_REVIEW_WHEN_LATER_TASK_ASSET_LANDS'`),
-    `${label} harness must fail closed on its missing later-task asset until its exact bytes are reviewed`,
-  );
-}
+expect(
+  /recovery-evidence-helper\.test\.py/.test(evidenceHarness) &&
+    /recovery-evidence-provenance\.test\.py/.test(evidenceHarness) &&
+    /recovery-evidence-storage-health\.test\.py/.test(evidenceHarness) &&
+    /recovery-evidence-atomic\.test\.py/.test(evidenceHarness) &&
+    /recovery-evidence-collection\.test\.py/.test(evidenceHarness) &&
+    /recovery-evidence-entry\.test\.sh/.test(evidenceHarness) &&
+    /recovery-evidence-main\.test\.sh/.test(evidenceHarness) &&
+    !/collector_reviewed_sha256|verify_exact_staged_shell_source/.test(evidenceHarness),
+  "power evidence gate must aggregate exact production-byte behavioral tests without transforming the collector",
+);
+expect(
+  /--ro-bind "\$collector" \/opt\/learncoding\/infra\/ops\/capture-recovery-evidence\.sh/.test(evidenceEntryHarness) &&
+    /--ro-bind "\$helper" \/opt\/learncoding\/infra\/ops\/recovery-evidence\.py/.test(evidenceEntryHarness) &&
+    /cp -- "\$collector"/.test(evidenceMainHarness) &&
+    /cp -- "\$helper"/.test(evidenceMainHarness) &&
+    /must-not-be-published/.test(evidenceMainHarness) &&
+    /SMART media error/.test(evidenceMainHarness) &&
+    /parse_smart_summary/.test(evidenceStorageHarness),
+  "recovery evidence tests must execute unmodified production entry/helper bytes and cover privacy-safe SMART failure",
+);
 
 for (const mutation of [
   "missing-flock",
@@ -505,7 +573,7 @@ expect(
   "tooling migrations must use production dependencies and invoke the advisory-locked migration script",
 );
 expect(
-  /codestead:production-migration:v1/.test(migrationScript) &&
+  /codestead:database-administration:v1/.test(migrationScript) &&
     /select pg_try_advisory_lock\(hashtextextended\(\$1, 0\)\) acquired/.test(migrationScript) &&
     /select pg_advisory_unlock\(hashtextextended\(\$1, 0\)\) released/.test(migrationScript) &&
     /migrationsFolder = options\.migrationsFolder \?\? "\/app\/drizzle"/.test(migrationScript),
@@ -520,6 +588,7 @@ expect(
   "operations image must include curriculum content plus the bootstrap and seed scripts",
 );
 expect(/FROM worker AS scanner-worker/.test(dockerfile) && /scripts\/scan-uploads\.ts/.test(dockerfile), "scanner worker image target is required");
+expect(/scripts\/process-file-erasures\.ts/.test(dockerfile), "generic worker image must ship the dedicated file-erasure worker");
 expect(/FROM worker AS regrade-worker/.test(dockerfile) && /scripts\/process-assessment-regrades\.ts/.test(dockerfile), "assessment regrade worker image target is required");
 expect(/FROM final-base AS worker[\s\S]*?scripts\/data-lifecycle\.ts/.test(dockerfile), "worker image must retain the lifecycle operations entrypoint");
 expect(
@@ -565,6 +634,15 @@ expect(
   "PostgreSQL must explicitly enable fsync, synchronous_commit, and full_page_writes",
 );
 expect(/internal: true/.test(compose), "database network must be internal");
+expect(
+  /runner-client:\s*\r?\n\s*driver: bridge\s*\r?\n\s*internal: true\s*\r?\n\s*ipam:\s*\r?\n\s*config:\s*\r?\n\s*- subnet: 172\.29\.41\.0\/24\s*\r?\n\s*gateway: 172\.29\.41\.1\s*\r?\n\s*ip_range: 172\.29\.41\.128\/25/.test(
+    compose,
+  ) &&
+    /runner-egress:\s*\r?\n\s*driver: bridge[\s\S]*?subnet: 172\.29\.40\.0\/24\s*\r?\n\s*gateway: 172\.29\.40\.1\s*\r?\n\s*ip_range: 172\.29\.40\.128\/25/.test(
+      compose,
+    ),
+  "runner network dynamic pools must reserve each static .2 gateway address",
+);
 expect(/condition: service_healthy/.test(compose), "migration must wait for PostgreSQL health");
 const migrateService = composeService("migrate");
 expect(/profiles:\s*\["operations"\]/.test(migrateService), "migrate must be isolated behind the operations profile");
@@ -589,10 +667,32 @@ expect(
   "ClamAV must use the harmless pilot-disabled fallback when inactive",
 );
 expect(/scan-worker:[\s\S]*?target: scanner-worker[\s\S]*?CLAMD_HOST: clamav/.test(compose), "scan worker must use the dedicated image target and clamd service");
-expect(/scan-worker:[\s\S]*?target: \/var\/lib\/learncoding[\s\S]*?read_only: true/.test(compose), "scan worker object storage mount must be read-only");
+const scanWorkerService = composeService("scan-worker");
+expect(
+  /profiles: \["uploads"\]/u.test(scanWorkerService) &&
+    /source: \$\{LEARN_DATA_ROOT:-\/srv\/learncoding\}\/app-data\/objects\s+target: \/var\/lib\/learncoding\/objects\s+read_only: true/u.test(scanWorkerService),
+  "scan worker must remain upload-profile-only with a read-only dedicated object root",
+);
+expect(
+  !/source: \$\{LEARN_DATA_ROOT:-\/srv\/learncoding\}\/app-data\s+target: \/var\/lib\/learncoding(?:\s|$)/u.test(scanWorkerService),
+  "scan worker must not mount the parent app-data directory",
+);
+const fileErasureWorkerService = composeService("file-erasure-worker");
+expect(
+  /target: worker/.test(fileErasureWorkerService) &&
+    /process-file-erasures\.ts/.test(fileErasureWorkerService) &&
+    /WORKER_HEALTH_ID: file-erasure-worker/.test(fileErasureWorkerService),
+  "dedicated always-on file-erasure worker and health identity are required",
+);
+expect(
+  !/profiles:/.test(fileErasureWorkerService) &&
+    !/CLAMD_|UPLOADS_ENABLED|scanner/.test(fileErasureWorkerService) &&
+    /source: \$\{LEARN_DATA_ROOT:-\/srv\/learncoding\}\/app-data\/objects\s+target: \/var\/lib\/learncoding\/objects\s+read_only: false/u.test(fileErasureWorkerService),
+  "file-erasure worker must be profile-independent, scanner-independent, and limited to the dedicated writable object root",
+);
 expect(/^  regrade-worker:/m.test(compose), "dedicated assessment regrade worker service is required");
 expect(/regrade-worker:[\s\S]*?target: regrade-worker[\s\S]*?RUNNER_SHARED_SECRET_FILE: \/run\/secrets\/runner_shared_secret[\s\S]*?REGRADE_BATCH_SIZE: \$\{REGRADE_BATCH_SIZE:-2\}/.test(compose), "regrade worker must use the dedicated target, runner secret, and two-job batch cap");
-expect(/regrade-worker:[\s\S]*?networks:[\s\S]*?- data[\s\S]*?- runner-egress/.test(compose), "regrade worker must have only database and runner network paths");
+expect(/regrade-worker:[\s\S]*?networks:[\s\S]*?data:[\s\S]*?runner-client:/.test(compose), "regrade worker must have only database and runner-client network paths");
 expect(/^  practice-runner-recovery-worker:/m.test(compose), "dedicated stale practice runner recovery is required");
 expect(/practice-runner-recovery-worker:[\s\S]*?process-practice-runner-recoveries\.ts[\s\S]*?RUNNER_SHARED_SECRET_FILE: \/run\/secrets\/runner_shared_secret[\s\S]*?PRACTICE_RECOVERY_BATCH_SIZE: \$\{PRACTICE_RECOVERY_BATCH_SIZE:-2\}/.test(compose), "practice recovery must use the exact-request worker, runner secret, and bounded batch");
 expect(/scanner:\s*\n\s*driver: bridge\s*\n\s*internal: true/.test(compose), "scanner transport network must be internal");
@@ -616,8 +716,14 @@ for (const [systemdPath, systemdContent] of [
   ["infra/systemd/learncoding-compose.service", composeUnit],
   ["infra/systemd/learncoding-retention.service", retentionUnit],
   ["infra/systemd/learncoding-runner-firewall.service", runnerFirewallUnit],
+  ["infra/systemd/learncoding-runner-guest-firewall.service", runnerGuestFirewallUnit],
   ["infra/systemd/learncoding-recovery-check.service", recoveryService],
   ["infra/systemd/learncoding-recovery-check.timer", recoveryTimer],
+  ["infra/systemd/learncoding-ingress-recovery.service", ingressRecoveryService],
+  ["infra/systemd/learncoding-production-load-control.service", productionLoadControlUnit],
+  ["infra/systemd/learncoding-production-load-gate.service", productionLoadGateUnit],
+  ["infra/systemd/learncoding-production-load-recovery.service", productionLoadRecoveryUnit],
+  ["infra/systemd/learncoding-production-load-recovery.path", productionLoadRecoveryPath],
   ...persistentTimers,
 ]) {
   expect(
@@ -627,9 +733,9 @@ for (const [systemdPath, systemdContent] of [
 }
 
 const expectedComposeUp =
-  "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml up -d --no-build --pull never --remove-orphans";
+  "/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/start-production-stack.sh --startup-wait 600";
 const expectedComposeStop =
-  "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans";
+  "/usr/bin/env -i HOME=/nonexistent LANG=C LC_ALL=C PATH=/usr/sbin:/usr/bin:/sbin:/bin DOCKER_CONFIG=/nonexistent DOCKER_HOST=unix:///var/run/docker.sock COMPOSE_PROJECT_NAME=learncoding COMPOSE_PROFILES= /usr/bin/docker compose --project-name learncoding --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans";
 const whitespaceMutationUnit = [
   composeUnit,
   " [Service]",
@@ -813,25 +919,29 @@ expect(
     ),
   "Compose systemd unit must retain Docker/local-fs ordering and fail closed when the runner firewall fails",
 );
+const composePreflightValues = (systemdDirectives(composeUnit) ?? [])
+  .filter((directive) => directive.section === "Service" && directive.key === "ExecStartPre")
+  .map((directive) => directive.value);
 expect(
-  hasSingleSystemdDirective(
-    composeUnit,
-    "Service",
-    "ExecStartPre",
-    "/usr/bin/bash /opt/learncoding/infra/ops/validate-runtime.sh",
-  ) &&
-    hasSingleSystemdDirective(
-      composeUnit,
-      "Service",
-      "ExecStartPost",
-      "/usr/bin/bash /opt/learncoding/infra/ops/smoke-production.sh --startup-wait 600",
-    ),
-  "Compose systemd unit must run preflight and the bounded startup smoke",
+  composePreflightValues.length === 0 &&
+    (systemdDirectives(composeUnit) ?? []).filter(
+      (directive) => directive.section === "Service" && directive.key === "ExecStartPost",
+    ).length === 0 &&
+    /object_storage_preparer_metadata/.test(runtimeValidation) &&
+    /"\$resolved_node_bin" --check "\$object_storage_preparer"/.test(runtimeValidation),
+  "Compose systemd must delegate the whole authenticated transaction to the guarded start authority",
+);
+const composeReloadValues = (systemdDirectives(composeUnit) ?? [])
+  .filter((directive) => directive.section === "Service" && directive.key === "ExecReload")
+  .map((directive) => directive.value);
+expect(
+  JSON.stringify(composeReloadValues) === JSON.stringify([expectedComposeUp]),
+  "Compose reload must invoke only the guarded start authority",
 );
 expect(
   hasSingleSystemdDirective(composeUnit, "Service", "ExecStart", expectedComposeUp) &&
-    hasSingleSystemdDirective(composeUnit, "Service", "ExecReload", expectedComposeUp),
-  "Compose systemd start and reload must use explicit inputs with no build or implicit pull",
+    JSON.stringify(composeReloadValues) === JSON.stringify([expectedComposeUp]),
+  "Compose systemd start and reload must use the fixed-PATH guarded transaction",
 );
 const composeExecLines = (systemdDirectives(composeUnit) ?? [])
   .filter((directive) => directive.key === "ExecStart" || directive.key === "ExecReload")
@@ -845,9 +955,9 @@ expect(
     composeUnit,
     "Service",
     "ExecStop",
-    "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml down --remove-orphans",
+    expectedComposeStop,
   ) && !composeUnit.includes("down -v"),
-  "Compose systemd stop must preserve durable volumes",
+  "Compose systemd stop must preserve durable volumes, use the reviewed env file for interpolation, and pin local Docker/project authority",
 );
 expect(
   hasSingleSystemdDirective(composeUnit, "Service", "Type", "oneshot") &&
@@ -895,13 +1005,242 @@ if (recoveryTimer) {
     "recovery timer must use the final boot, repeat, persistence, and service selectors",
   );
 }
+const ingressRecoveryRequires = (systemdDirectives(ingressRecoveryService) ?? []).filter(
+  (directive) => directive.section === "Unit" && directive.key === "Requires",
+);
+expect(
+  hasSingleSystemdDirective(ingressRecoveryService, "Unit", "After", "docker.service local-fs.target") &&
+    hasSingleSystemdDirective(ingressRecoveryService, "Unit", "Wants", "docker.service") &&
+    !ingressRecoveryRequires.some((directive) => directive.value.split(/\s+/u).includes("docker.service")) &&
+    hasSingleSystemdDirective(
+      ingressRecoveryService,
+      "Unit",
+      "RequiresMountsFor",
+      "/opt/learncoding /etc/learncoding /var/lib/learncoding",
+    ) &&
+    hasSingleSystemdDirective(ingressRecoveryService, "Unit", "OnFailure", "learncoding-alert@%n.service") &&
+    hasSingleSystemdDirective(ingressRecoveryService, "Service", "Type", "oneshot") &&
+    hasSingleSystemdDirective(ingressRecoveryService, "Service", "User", "root") &&
+    hasSingleSystemdDirective(ingressRecoveryService, "Service", "Group", "root") &&
+    hasSingleSystemdDirective(
+      ingressRecoveryService,
+      "Service",
+      "ExecStart",
+      "/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/bash /opt/learncoding/infra/ops/recover-production-ingress.sh",
+    ) &&
+    hasSingleSystemdDirective(ingressRecoveryService, "Service", "TimeoutStartSec", "90s"),
+  "ingress recovery must be a bounded root oneshot with an alerting Docker-unavailable path",
+);
+expect(
+  /DOCKER_HOST=unix:\/\/\/var\/run\/docker\.sock/u.test(ingressRecoveryScript) &&
+    /unset DOCKER_CONTEXT[\s\S]*?COMPOSE_PROJECT_NAME/u.test(ingressRecoveryScript) &&
+    /compose=\("\$docker_bin" compose --project-name learncoding/u.test(ingressRecoveryScript) &&
+    /readonly recovery_attempt_budget_seconds=60/u.test(ingressRecoveryScript) &&
+    /readonly recovery_cleanup_budget_seconds=10/u.test(ingressRecoveryScript) &&
+    /recovery_attempt_budget_seconds \+ recovery_cleanup_budget_seconds < systemd_deadline_seconds/u.test(
+      ingressRecoveryScript,
+    ) &&
+    /forced worst-case trace was \$\{traced_seconds\}s instead of 60s/u.test(ingressRecoveryHarness) &&
+    /five concurrent timer ticks did not reach the serialized decision point/u.test(ingressRecoveryHarness) &&
+    /persistent discovery uncertainty was silently accepted/u.test(ingressRecoveryHarness) &&
+    /Internal containers retain `unless-stopped`; the tunnel alone uses `on-failure:5`/u.test(
+      ingressRecoveryDesign,
+    ) &&
+    /Docker authority to `unix:\/\/\/var\/run\/docker\.sock` and Compose project `learncoding`/u.test(
+      ingressRecoveryPlan,
+    ),
+  "ingress recovery must bind local authority, prove concurrency and persistent uncertainty, and fit 60+10 inside 90 seconds",
+);
+expect(
+  hasSingleSystemdDirective(ingressRecoveryTimer, "Timer", "OnBootSec", "1min") &&
+    hasSingleSystemdDirective(ingressRecoveryTimer, "Timer", "OnUnitActiveSec", "1min") &&
+    hasSingleSystemdDirective(ingressRecoveryTimer, "Timer", "AccuracySec", "5s") &&
+    hasSingleSystemdDirective(ingressRecoveryTimer, "Timer", "Persistent", "true") &&
+    hasSingleSystemdDirective(
+      ingressRecoveryTimer,
+      "Timer",
+      "Unit",
+      "learncoding-ingress-recovery.service",
+    ) &&
+    hasSingleSystemdDirective(ingressRecoveryTimer, "Install", "WantedBy", "timers.target"),
+  "ingress recovery timer must retry once per minute with persistent bounded activation",
+);
+expect(
+  ingressControlTmpfiles.trim() === "d /var/lib/learncoding/ingress-control 0700 root root - -",
+  "ingress control state must be provisioned as a root-private persistent directory",
+);
+expect(
+  /systemctl start learncoding-production-load-gate\.service/.test(loadTestingRunbook) &&
+    /\/etc\/learncoding\/production-load\.env/.test(loadTestingRunbook) &&
+    /learncoding-production-load-recovery\.path/.test(loadTestingRunbook) &&
+    /Do not start `learncoding-production-load-control\.service` directly/.test(loadTestingRunbook) &&
+    !/npm run test:load:production/.test(loadTestingRunbook),
+  "production load runbook must use only the supervised manual gate and exact-journal boot recovery",
+);
+const loadCredentials = [
+  "database_url:/etc/learncoding/secrets/database_url",
+  "better_auth_secret:/etc/learncoding/secrets/better_auth_secret",
+];
+const productionLoadServiceValues = (source, section, key) =>
+  (systemdDirectives(source) ?? [])
+    .filter((directive) => directive.section === section && directive.key === key)
+    .map((directive) => directive.value);
+const productionLoadRuntimePreflight = "/usr/bin/bash /opt/learncoding/infra/ops/validate-production-load-host-runtime.sh";
+const productionLoadTsxManifest = "/opt/learncoding/node_modules/tsx/package.json";
+expect(
+  /node-floor v22\.22\.0/.test(productionLoadHostRuntimeHarness) &&
+    /below-floor v22\.21\.99/.test(productionLoadHostRuntimeHarness) &&
+    /malformed-version/.test(productionLoadHostRuntimeHarness) &&
+    /wrong-tsx/.test(productionLoadHostRuntimeHarness) &&
+    /loader-import-failure/.test(productionLoadHostRuntimeHarness) &&
+    /group-writable Node executable was accepted/.test(productionLoadHostRuntimeHarness) &&
+    /symlinked tsx manifest was accepted/.test(productionLoadHostRuntimeHarness) &&
+    /hard-linked Node executable was accepted/.test(productionLoadHostRuntimeHarness),
+  "production load host runtime must have deterministic boundary and unsafe-path rejection fixtures",
+);
+expect(
+  /readonly node_bin=\/usr\/bin\/node/.test(productionLoadHostRuntime) &&
+    /minimum_node_version=22\.22\.0/.test(productionLoadHostRuntime) &&
+    /readonly tsx_manifest=\/opt\/learncoding\/node_modules\/tsx\/package\.json/.test(productionLoadHostRuntime) &&
+    /expected_tsx_version=4\.23\.0/.test(productionLoadHostRuntime) &&
+    /stat -Lc/.test(productionLoadHostRuntime) &&
+    !/NODE_OPTIONS|npm_config|eval|source /.test(productionLoadHostRuntime),
+  "production load host runtime validator must pin fixed, secure Node >=22.22.0 and tsx 4.23.0 inputs",
+);
+for (const unit of [productionLoadControlUnit, productionLoadGateUnit, productionLoadRecoveryUnit]) {
+  expect(
+    hasSingleSystemdDirective(unit, "Unit", "ConditionFileIsExecutable", "/usr/bin/node") &&
+      hasSingleSystemdDirective(unit, "Unit", "AssertPathExists", productionLoadTsxManifest) &&
+      productionLoadServiceValues(unit, "Service", "ExecStartPre").includes(productionLoadRuntimePreflight),
+    "every host-Node production load unit must fail closed on the reviewed Node/tsx runtime",
+  );
+}
+expect(
+  hasSingleSystemdDirective(productionLoadControlUnit, "Service", "User", "root") &&
+    hasSingleSystemdDirective(productionLoadControlUnit, "Service", "Group", "learncoding-load-gate") &&
+    hasSingleSystemdDirective(productionLoadControlUnit, "Unit", "RefuseManualStart", "yes") &&
+    hasSingleSystemdDirective(productionLoadControlUnit, "Unit", "StopWhenUnneeded", "yes") &&
+    productionLoadServiceValues(productionLoadControlUnit, "Service", "ExecStartPre").includes(
+      "/usr/bin/test -f /etc/learncoding/production-load-manifest.json",
+    ) &&
+    hasSingleSystemdDirective(
+      productionLoadControlUnit,
+      "Service",
+      "ExecStart",
+      "/usr/bin/node --import tsx /opt/learncoding/scripts/start-production-load-control-service.ts",
+    ) &&
+    JSON.stringify(productionLoadServiceValues(productionLoadControlUnit, "Service", "LoadCredential")) ===
+      JSON.stringify(loadCredentials) &&
+    hasSingleSystemdDirective(productionLoadControlUnit, "Service", "RuntimeMaxSec", "5h30m") &&
+    hasSingleSystemdDirective(productionLoadControlUnit, "Service", "UMask", "0077") &&
+    hasSingleSystemdDirective(productionLoadControlUnit, "Service", "LimitCORE", "0") &&
+    !productionLoadControlUnit.includes("WantedBy="),
+  "production load control must be a bounded root daemon with systemd credentials, an exact manifest, and no boot enablement",
+);
+expect(
+  hasSingleSystemdDirective(productionLoadGateUnit, "Service", "User", "learncoding-load-gate") &&
+    hasSingleSystemdDirective(productionLoadGateUnit, "Service", "Group", "learncoding-load-gate") &&
+    hasSingleSystemdDirective(
+      productionLoadGateUnit,
+      "Unit",
+      "Requires",
+      "learncoding-production-load-control.service",
+    ) &&
+    hasSingleSystemdDirective(
+      productionLoadGateUnit,
+      "Service",
+      "ExecStart",
+      "/usr/bin/node --import tsx /opt/learncoding/scripts/load-smoke.ts",
+    ) &&
+    hasSingleSystemdDirective(productionLoadGateUnit, "Service", "RuntimeMaxSec", "5h") &&
+    hasSingleSystemdDirective(productionLoadGateUnit, "Service", "CapabilityBoundingSet", "") &&
+    hasSingleSystemdDirective(productionLoadGateUnit, "Service", "NoNewPrivileges", "yes") &&
+    productionLoadServiceValues(productionLoadGateUnit, "Service", "LoadCredential").length === 0 &&
+    /InaccessiblePaths=.*\/etc\/learncoding\/secrets.*\/run\/docker\.sock.*\/run\/libvirt.*\/dev\/kvm/.test(
+      productionLoadGateUnit,
+    ) &&
+    !productionLoadGateUnit.includes("WantedBy="),
+  "production load gate must be manual, bounded, unprivileged, and unable to read secrets or host-control sockets",
+);
+expect(
+  hasSingleSystemdDirective(productionLoadRecoveryUnit, "Service", "User", "root") &&
+    hasSingleSystemdDirective(productionLoadRecoveryUnit, "Service", "Group", "root") &&
+    hasSingleSystemdDirective(productionLoadRecoveryUnit, "Unit", "RefuseManualStart", "yes") &&
+    hasSingleSystemdDirective(
+      productionLoadRecoveryUnit,
+      "Service",
+      "ExecStart",
+      "/usr/bin/node --import tsx /opt/learncoding/scripts/start-production-load-control-service.ts --recover-only",
+    ) &&
+    productionLoadServiceValues(productionLoadRecoveryUnit, "Service", "LoadCredential").length === 0 &&
+    hasSingleSystemdDirective(
+      productionLoadRecoveryUnit,
+      "Unit",
+      "RequiresMountsFor",
+      "/opt/learncoding /etc/learncoding /var/lib/learncoding-production-load /var/lib/learncoding-production-load-evidence",
+    ) &&
+    productionLoadServiceValues(productionLoadRecoveryUnit, "Service", "ExecStartPre").includes(
+      "/usr/bin/test -f /var/lib/learncoding-production-load/production-load-fault-journal.json",
+    ) &&
+    !/LOAD_RECOVERY_ONLY|RuntimeDirectory=|ListenStream=|SocketMode=/.test(productionLoadRecoveryUnit) &&
+    hasSingleSystemdDirective(productionLoadRecoveryUnit, "Service", "RuntimeMaxSec", "10min") &&
+    !productionLoadRecoveryUnit.includes("WantedBy="),
+  "boot recovery must use the sole recovery-only argv, exact journal, bounded root service, and no listening socket",
+);
+expect(
+  hasSingleSystemdDirective(
+    productionLoadRecoveryPath,
+    "Path",
+    "PathExists",
+    "/var/lib/learncoding-production-load/production-load-fault-journal.json",
+  ) &&
+    hasSingleSystemdDirective(
+      productionLoadRecoveryPath,
+      "Path",
+      "Unit",
+      "learncoding-production-load-recovery.service",
+    ) &&
+    hasSingleSystemdDirective(productionLoadRecoveryPath, "Path", "MakeDirectory", "false") &&
+    hasSingleSystemdDirective(productionLoadRecoveryPath, "Install", "WantedBy", "multi-user.target") &&
+    !productionLoadRecoveryPath.includes("DirectoryNotEmpty=") &&
+    !productionLoadRecoveryPath.includes("[Timer]"),
+  "boot recovery must activate only for the exact active fault journal and target only recovery-only execution",
+);
+expect(
+  /^u learncoding-load-gate - "Codestead production load gate client" \/nonexistent \/usr\/sbin\/nologin$/m.test(
+    productionLoadSysusers,
+  ) &&
+    /^d \/run\/learncoding 0750 root learncoding-load-gate -$/m.test(productionLoadTmpfiles) &&
+    /^d \/var\/lib\/learncoding-production-load 0700 root root -$/m.test(productionLoadTmpfiles) &&
+    /^d \/var\/lib\/learncoding-production-load-evidence 0700 learncoding-load-gate learncoding-load-gate -$/m.test(
+      productionLoadTmpfiles,
+    ),
+  "production load sysusers/tmpfiles must establish a nologin client, fixed socket parent, root-private journal, and private evidence root",
+);
+const productionLoadEnvironmentNames = productionLoadEnvironment
+  .split(/\r?\n/u)
+  .filter((line) => line && !line.startsWith("#"))
+  .map((line) => line.slice(0, line.indexOf("=")));
+expect(
+  JSON.stringify(productionLoadEnvironmentNames) === JSON.stringify([
+    "LOAD_BASE_URL",
+    "LOAD_NUC_HOST_ID",
+    "LOAD_RUNNER_VM_ID",
+  ]) && !/(?:SECRET|TOKEN|PASSWORD|DATABASE_URL|COOKIE|KEY)=/i.test(productionLoadEnvironment),
+  "production load environment example may contain only the three dynamic non-secret identities",
+);
 const expectedEnabledUnits = [
   "learncoding-runner-firewall.service",
   "learncoding-compose.service",
   "learncoding-recovery-check.timer",
+  "learncoding-ingress-recovery.timer",
   "learncoding-backup.timer",
   "learncoding-backup-check.timer",
+  "learncoding-offsite-sync.timer",
+  "learncoding-offsite-retention.timer",
+  "learncoding-restore-drill-reminder.timer",
   "learncoding-retention.timer",
+  "learncoding-production-load-recovery.path",
 ];
 const actualEnabledUnits = enabledSystemdUnits(systemdInstaller);
 const canonicalInstallLines = systemdInstaller
@@ -923,8 +1262,21 @@ expect(
     expectedEnabledUnits.every(
       (unit) => actualEnabledUnits.filter((actualUnit) => actualUnit === unit).length === 1,
     ) &&
-    !actualEnabledUnits.includes("learncoding-restore-drill.service"),
-  "systemd installer must canonically enable exactly firewall, Compose, recovery, backup/check, and retention, once each, but not restore drill",
+    !actualEnabledUnits.includes("learncoding-restore-drill.service") &&
+    !actualEnabledUnits.includes("learncoding-production-load-control.service") &&
+    !actualEnabledUnits.includes("learncoding-production-load-gate.service") &&
+    !actualEnabledUnits.includes("learncoding-production-load-recovery.service"),
+  "systemd installer must enable only the reviewed automatic units plus exact-journal load recovery, never a manual load service",
+);
+expect(
+  /"\$repo_root\/infra\/ops\/validate-production-load-host-runtime\.sh"/.test(systemdInstaller),
+  "systemd installer must validate the fixed host Node and reviewed tsx tree before publishing units",
+);
+expect(
+  /systemd-sysusers \/etc\/sysusers\.d\/learncoding-production-load\.conf/.test(systemdInstaller) &&
+    /systemd-tmpfiles --create \/etc\/tmpfiles\.d\/learncoding-production-load\.conf/.test(systemdInstaller) &&
+    /systemd-tmpfiles --create \/etc\/tmpfiles\.d\/learncoding-ingress-control\.conf/.test(systemdInstaller),
+  "systemd installer must provision the reviewed production-load and ingress-control filesystem boundaries",
 );
 
 expect(
@@ -993,9 +1345,34 @@ expect(
   "deployment and update guides must link to the canonical v4 lifecycle procedure",
 );
 expect(
-  /systemctl daemon-reload/.test(deploymentGuide) &&
-    /systemctl enable --now learncoding-compose\.service/.test(deploymentGuide) &&
-    /systemctl enable --now learncoding-backup\.timer learncoding-backup-check\.timer learncoding-retention\.timer/.test(
+  /NODEJS_APT_VERSION=22\.23\.1-1nodesource1/.test(deploymentGuide) &&
+    /\/usr\/bin\/node --version/.test(deploymentGuide) &&
+    /npm ci --omit=dev --ignore-scripts --prefix \/opt\/learncoding/.test(deploymentGuide) &&
+    /validate-production-load-host-runtime\.sh/.test(deploymentGuide),
+  "deployment guide must install and validate the reviewed host Node and production-only tsx tree",
+);
+expect(
+  /sudo apt-get install --yes --no-install-recommends[\s\S]*qemu-kvm[\s\S]*libvirt-daemon-system[\s\S]*libvirt-clients[\s\S]*virtinst[\s\S]*cloud-image-utils/.test(
+    deploymentGuide,
+  ) &&
+    /sudo apt-get install --yes --no-install-recommends[\s\S]*dnsmasq-base/.test(
+      deploymentGuide,
+    ) &&
+    /sudo systemctl enable --now libvirtd\.service/.test(deploymentGuide) &&
+    /test "\$\(command -v dnsmasq\)" = \/usr\/sbin\/dnsmasq/.test(deploymentGuide) &&
+    /sudo test -c \/dev\/kvm/.test(deploymentGuide) &&
+    /sudo virsh --connect qemu:\/\/\/system list --all/.test(deploymentGuide),
+  "deployment guide must explicitly install and verify dnsmasq plus provide paste-ready libvirt/KVM activation and verification commands",
+);
+expect(
+  /REPO_ROOT=\/opt\/learncoding bash \/opt\/learncoding\/infra\/ops\/install-systemd\.sh --enable/.test(
+    deploymentGuide,
+  ) &&
+    /systemctl is-active --quiet learncoding-runner-firewall\.service/.test(deploymentGuide) &&
+    /systemctl is-active --quiet learncoding-compose\.service/.test(deploymentGuide) &&
+    /systemctl is-enabled --quiet learncoding-recovery-check\.timer/.test(deploymentGuide) &&
+    /systemctl is-enabled --quiet learncoding-ingress-recovery\.timer/.test(deploymentGuide) &&
+    /enables the eight reviewed recovery, backup, offsite-publication, restore-drill reminder, and retention timers/.test(
       deploymentGuide,
     ) &&
     /firmware setting \*\*Restore on AC Power Loss: Power On\*\*, separate libvirt autostart and guest-service evidence for the runner VM, and the later supervised hard-cut rehearsal/.test(
@@ -1007,17 +1384,47 @@ expect(
     /preserve every acknowledged server record marked `Saved to Codestead` and create no duplicate XP, mail, or evidence\./.test(
       deploymentGuide,
     ) &&
-    /Browser text still marked `Unsynced` is outside this Task 6 guarantee\./.test(deploymentGuide) &&
-    /Browser-local crash durability remains a separate implementation and verification plan\./.test(
+    /browser-durable outbox that persists locally before displaying `Saved locally`/.test(deploymentGuide) &&
+    /survive browser close\/reopen and synchronize exactly once after recovery/.test(deploymentGuide) &&
+    /Logout, session revocation, exam finalization, and administrator deletion must purge the scoped local records\./.test(
+      deploymentGuide,
+    ) &&
+    /cannot truthfully guarantee the final keystroke before browser persistence, an unacknowledged network request, or a hardware write falsely reported as durable/.test(
       deploymentGuide,
     ),
   "deployment guide must document the interim boot seam and unfinished external power-loss evidence",
 );
 expect(
-  /`learncoding-backup\.timer` and `learncoding-retention\.timer` use `OnCalendar=` with `Persistent=true`, so systemd catches up a missed calendar run after downtime\./.test(
+  /AccountTag.*lowercase 32-hex/.test(deploymentGuide) &&
+    /TunnelSecret.*canonical base64 for exactly 32 bytes/.test(deploymentGuide) &&
+    /TunnelID.*lowercase RFC 4122 UUID/.test(deploymentGuide) &&
+    /validator never prints them/.test(deploymentGuide) &&
+    /\/mnt\/learncoding-backups` with `rw,nodev,nosuid,noexec`/.test(deploymentGuide) &&
+    /different physical disk from `\/srv\/learncoding`/.test(deploymentGuide) &&
+    /\/etc\/learncoding\/active-release\.env/.test(deploymentGuide) &&
+    /\/etc\/learncoding\/managed-containers\.<MANAGED_INVENTORY_SHA256>\.tsv/.test(deploymentGuide) &&
+    /\/etc\/learncoding\/application-images\.<APPLICATION_IMAGE_RECORD_SHA256>\.json/.test(deploymentGuide) &&
+    /capture-recovery-evidence\.sh pre/.test(deploymentGuide) &&
+    /capture-recovery-evidence\.sh post/.test(deploymentGuide) &&
+    /sha256sum --check/.test(deploymentGuide) &&
+    /technical evidence only; they do not prove a physical cut occurred/.test(deploymentGuide) &&
+    /Never claim the hard-cut gate passed from CI/.test(deploymentGuide),
+  "deployment guide must document canonical tunnel credentials and the fail-closed physical recovery evidence procedure",
+);
+expect(
+  /runtime-images\.env` first and `dist\/runtime-images\.json` last/.test(runnerIsolationGuide) &&
+    /JSON file is the commit marker/.test(runnerIsolationGuide) &&
+    /RELEASE\.SHA256SUMS/.test(runnerIsolationGuide) &&
+    /learncoding-runner-guest-firewall\.service/.test(runnerIsolationGuide) &&
+    /learncoding-runner-firewall\.service/.test(runnerIsolationGuide) &&
+    /192\.168\.122\.12:4100/.test(runnerIsolationGuide),
+  "runner-isolation guide must bind the runtime commit pair, exact release tree, and dual firewall order",
+);
+expect(
+  /`learncoding-backup\.timer`, `learncoding-offsite-sync\.timer`, `learncoding-offsite-retention\.timer`, `learncoding-restore-drill-reminder\.timer`, and `learncoding-retention\.timer` use `OnCalendar=` with `Persistent=true`, so systemd catches up a missed calendar run after downtime\./.test(
     deploymentGuide,
   ) &&
-    /`learncoding-backup-check\.timer` uses `OnBootSec=` and `OnUnitActiveSec=`; after a reboot it schedules a fresh post-boot check rather than replaying a missed wall-clock event\./.test(
+    /`learncoding-backup-check\.timer`, `learncoding-recovery-check\.timer`, and `learncoding-ingress-recovery\.timer` use monotonic boot\/active intervals; after a reboot they schedule fresh post-boot checks rather than replaying a missed wall-clock event\./.test(
       deploymentGuide,
     ) &&
     !/All three timers use `Persistent=true`, so systemd catches up a missed run/.test(deploymentGuide),
@@ -1034,14 +1441,29 @@ read("scripts/seed-platform.ts");
 read("content/catalog.json");
 expect(!/RUNNER_SHARED_SECRET=[^$\n]{32,}/.test(compose), "Compose must not contain a literal runner secret");
 expect(/required_secrets=\([^)]*deletion_tombstone_key/.test(runtimeValidation), "runtime validation must require the deletion tombstone key");
+expect(
+  /cloudflare_credential_pattern/.test(runtimeValidation) &&
+    /AccountTag/.test(runtimeValidation) &&
+    /TunnelSecret/.test(runtimeValidation) &&
+    /TunnelID/.test(runtimeValidation) &&
+    /decoded_cloudflare_secret_bytes/.test(runtimeValidation) &&
+    /missing-tunnel-id/.test(runtimeHarness) &&
+    /extra-field/.test(runtimeHarness) &&
+    /malformed-account/.test(runtimeHarness) &&
+    /invalid-secret/.test(runtimeHarness),
+  "runtime validation must parse exact Cloudflare tunnel credentials and retain negative structure tests",
+);
 expect(/SOURCE_CODE_URL must be an HTTPS URL/.test(runtimeValidation), "runtime validation must reject a missing or non-HTTPS source-code URL");
 expect(
   /--post-start/.test(runtimeValidation) &&
     /\btimeout\b/.test(runtimeValidation) &&
-    /runner URL must be exactly http:\/\/192\.168\.122\.12:4100/.test(runtimeValidation) &&
+    /runner client URL must be exactly http:\/\/runner-egress-gateway:4100/.test(runtimeValidation) &&
+    /runner gateway upstream must be exactly http:\/\/192\.168\.122\.12:4100/.test(runtimeValidation) &&
+    /172\.29\.41\.0\/24/.test(runtimeValidation) &&
     /172\.29\.40\.0\/24/.test(runtimeValidation) &&
+    /172\.29\.40\.2/.test(runtimeValidation) &&
     /cdst-run0/.test(runtimeValidation),
-  "runtime validation must expose only the post-start selector and require the exact runner URL/network",
+  "runtime validation must expose only the post-start selector and require the exact gateway URLs, networks, and source",
 );
 
 if (runnerNetworkXml) {
@@ -1130,24 +1552,152 @@ if (runnerProvisioner) {
     "runner VM harness must cover bootstrap tampering, fake lifecycle, cut points, bounded output, and fail-closed XML drift",
   );
 }
-if (runnerGuestInstaller) {
+if (runnerReleaseVerifier) {
   expect(
-    /10\.20\.0\.12/.test(runnerGuestInstaller) && /RUNNER_MAX_CONCURRENCY=2/.test(runnerGuestInstaller),
-    "guest installer must retain the fixed private address and two-slot runner",
+    /os\.O_NOFOLLOW/.test(runnerReleaseVerifier) &&
+      /follow_symlinks=False/.test(runnerReleaseVerifier) &&
+      /st_uid != 0 or info\.st_gid != 0/.test(runnerReleaseVerifier) &&
+      /info\.st_nlink != 1/.test(runnerReleaseVerifier) &&
+      /release manifest must describe the exact complete file tree/.test(runnerReleaseVerifier) &&
+      /second_manifest != manifest_identity or second != first/.test(runnerReleaseVerifier) &&
+      /test_concurrent_mutate_and_restore_is_rejected/.test(runnerReleaseVerifierHarness),
+    "release-tree verifier must reject symlink/hardlink/ownership/exact-tree/race drift with a behavioral mutation test",
+  );
+}
+expect(
+  /compose_version=5\.1\.4/.test(composeCiInstaller) &&
+    /33b208d7e76639db742fae84b966cc01dacae58ca3fc4dabbc907045aefdf0c4/.test(composeCiInstaller) &&
+    /github\.com\/docker\/compose\/releases\/download\/v\$\{compose_version\}\/docker-compose-linux-x86_64/.test(composeCiInstaller) &&
+    /actual_sha256.*compose_sha256/s.test(composeCiInstaller) &&
+    /installed_version.*compose_version/s.test(composeCiInstaller),
+  "CI must install the reviewed Docker Compose v5 binary only after exact checksum verification",
+);
+expect(
+  /O_NOFOLLOW/.test(runnerRuntimeRecordVerifier) &&
+    /before\.uid !== 0/.test(runnerRuntimeRecordVerifier) &&
+    /before\.gid !== 0/.test(runnerRuntimeRecordVerifier) &&
+    /before\.nlink !== 1/.test(runnerRuntimeRecordVerifier) &&
+    /runtime-record-id=/.test(runnerRuntimeRecordVerifier) &&
+    /runtime image environment projection does not match its canonical record id/.test(runnerRuntimeRecordVerifier) &&
+    /runtime-env-mismatch/.test(runnerGuestInstallerHarness) &&
+    /runtime-record-id-mismatch/.test(runnerGuestInstallerHarness),
+  "guest runtime publication must bind a root-owned JSON commit marker to its exact environment projection",
+);
+if (runnerGuestInstaller) {
+  const dockerStartup = runnerGuestInstaller.indexOf("systemctl enable --now docker.service");
+  const runtimeBuild = runnerGuestInstaller.indexOf("run runtime:build");
+  expect(
+    /^#!\/usr\/bin\/bash -p$/mu.test(runnerGuestInstaller) &&
+      /VERSION_ID.*24\.04/.test(runnerGuestInstaller) &&
+      /192\.168\.122\.12/.test(runnerGuestInstaller) &&
+      /RUNNER_MAX_CONCURRENCY=2/.test(runnerGuestInstaller) &&
+      /RUNNER_RELEASE_MANIFEST_SHA256/.test(runnerGuestInstaller) &&
+      /verify-release-tree\.py/.test(runnerGuestInstaller) &&
+      /verify-runtime-record\.mjs/.test(runnerGuestInstaller) &&
+      /runtime-images\.json/.test(runnerGuestInstaller) &&
+      /\/usr\/bin\/python3\.12 "\$release_verifier" "\$release_root" "\$expected_manifest_sha256"/.test(runnerGuestInstaller) &&
+      /cmp -s -- .*tr -d '\\000'/s.test(runnerGuestInstaller) &&
+      !/\$'\\0'/.test(runnerGuestInstaller) &&
+      dockerStartup >= 0 &&
+      runtimeBuild > dockerStartup &&
+      /runtime:build/.test(runnerGuestInstaller) &&
+      /runtime:inspect/.test(runnerGuestInstaller) &&
+      /runtime:test/.test(runnerGuestInstaller) &&
+      /runtime:scan/.test(runnerGuestInstaller) &&
+      /runtime:record/.test(runnerGuestInstaller) &&
+      /RUNNER_IMAGE_C/.test(runnerGuestInstaller) &&
+      /RUNNER_IMAGE_CPP/.test(runnerGuestInstaller) &&
+      /RUNNER_IMAGE_JAVA/.test(runnerGuestInstaller) &&
+      /RUNNER_IMAGE_PYTHON/.test(runnerGuestInstaller) &&
+      /RUNNER_IMAGE_JAVASCRIPT/.test(runnerGuestInstaller),
+    "guest installer must verify the reviewed release, current fixed guest address, five exact images, and runtime gates",
   );
 }
 if (runnerFirewall) {
+  const allowRule = runnerFirewall.indexOf(
+    'iifname "cdst-run0" ip saddr 172.29.40.2 ip daddr 192.168.122.12 tcp dport 4100 accept',
+  );
+  const runnerSourceDrop = runnerFirewall.indexOf('iifname "cdst-run0" drop');
+  const dropRule = runnerFirewall.indexOf('ip daddr 192.168.122.12 tcp dport 4100 drop');
+  const establishedRule = runnerFirewall.indexOf('ct state established,related accept');
   expect(
-    /cdst-run0/.test(runnerFirewall) && /172\.29\.40\.0\/24/.test(runnerFirewall) && /10\.20\.0\.12/.test(runnerFirewall) && /4100/.test(runnerFirewall),
-    "runner firewall must scope cdst-run0/172.29.40.0/24 to the private runner port",
+    /table inet codestead_runner/.test(runnerFirewall) &&
+      /type filter hook forward priority filter \+ 10; policy accept;/.test(runnerFirewall) &&
+      establishedRule >= 0 &&
+      allowRule >= 0 &&
+      runnerSourceDrop > allowRule &&
+      dropRule > runnerSourceDrop &&
+      establishedRule > dropRule &&
+      !/flush ruleset/.test(runnerFirewall),
+    "runner firewall must allow only gateway source 172.29.40.2 on cdst-run0, drop every other runner-egress flow including established ones, then preserve unrelated established traffic",
+  );
+}
+if (runnerGuestFirewall) {
+  const guestInputPolicy = runnerGuestFirewall.indexOf(
+    "add chain inet codestead_runner_guest input { type filter hook input priority filter; policy drop; }",
+  );
+  const guestHostRunnerAllow = runnerGuestFirewall.indexOf(
+    "add rule inet codestead_runner_guest input ip saddr 192.168.122.1 tcp dport 4100 accept",
+  );
+  const guestAppAllow = runnerGuestFirewall.indexOf(
+    "add rule inet codestead_runner_guest input ip saddr 172.29.40.2 tcp dport 4100 accept",
+  );
+  expect(
+    /destroy table inet codestead_runner_guest/.test(runnerGuestFirewall) &&
+      guestInputPolicy >= 0 &&
+      guestHostRunnerAllow > guestInputPolicy &&
+      guestAppAllow > guestHostRunnerAllow &&
+      !/flush ruleset/.test(runnerGuestFirewall) &&
+      /an untrusted routed IPv4 client reached the runner API/.test(runnerFirewallPacketHarness) &&
+      /the runner gateway reached the runner API over an unreviewed IPv6 path/.test(runnerFirewallPacketHarness),
+    "guest firewall must default-deny ingress, allow only the host/gateway paths, and retain real routed IPv4/IPv6 packet tests",
+  );
+}
+if (runnerGuestFirewallUnit) {
+  expect(
+    hasSingleSystemdDirective(runnerGuestFirewallUnit, "Service", "Type", "oneshot") &&
+      hasSingleSystemdDirective(runnerGuestFirewallUnit, "Service", "User", "root") &&
+      hasSingleSystemdDirective(runnerGuestFirewallUnit, "Service", "RemainAfterExit", "yes") &&
+      hasSingleSystemdDirective(
+        runnerGuestFirewallUnit,
+        "Service",
+        "ExecStartPre",
+        "/usr/sbin/nft --check --file /opt/learncoding/infra/runner-vm/guest-runner.nft",
+      ) &&
+      hasSystemdDirectiveTokens(runnerGuestFirewallUnit, "Unit", "Before", [
+        "network-pre.target",
+        "learncoding-runner.service",
+      ]) &&
+      /CapabilityBoundingSet=CAP_NET_ADMIN/.test(runnerGuestFirewallUnit) &&
+      /ProtectSystem=strict/.test(runnerGuestFirewallUnit) &&
+      /learncoding-runner-guest-firewall\.service/.test(runnerGuestInstallerHarness),
+    "guest firewall unit must validate before apply, precede runner startup, and run with only NET_ADMIN",
   );
 }
 if (runnerFirewallUnit) {
-  expect(/nft/.test(runnerFirewallUnit), "runner firewall unit must install the reviewed nftables policy");
+  expect(
+    hasSingleSystemdDirective(runnerFirewallUnit, "Service", "Type", "oneshot") &&
+      hasSingleSystemdDirective(runnerFirewallUnit, "Service", "RemainAfterExit", "yes") &&
+      hasSingleSystemdDirective(
+        runnerFirewallUnit,
+        "Service",
+        "ExecStartPre",
+        "/usr/sbin/nft --check --file /opt/learncoding/infra/runner-vm/host-runner.nft",
+      ) &&
+      hasSystemdDirectiveTokens(runnerFirewallUnit, "Unit", "After", [
+        "network-online.target",
+        "libvirtd.service",
+      ]) &&
+      hasSystemdDirectiveTokens(runnerFirewallUnit, "Unit", "Before", ["learncoding-compose.service"]),
+    "runner firewall unit must validate the reviewed policy and order it before Compose",
+  );
 }
 if (recoveryChecker) {
   expect(
     /\/etc\/learncoding\/existing-containers\.txt/.test(recoveryChecker) &&
+      /production_baseline_helper='\/opt\/learncoding\/infra\/ops\/existing_container_baseline\.py'/.test(
+        recoveryChecker,
+      ) &&
       /RECOVERY_CHECK_TEST_ROOT/.test(recoveryChecker) &&
       /900/.test(recoveryChecker) &&
       /x-runner-response-signature/i.test(recoveryChecker) &&
@@ -1155,15 +1705,93 @@ if (recoveryChecker) {
     "recovery checker must use the protected baseline, 900-second bound, and signed two-slot runner health",
   );
 }
-if (recoveryEvidence) {
+expect(
+  recoveryChecker.includes(`production_baseline_helper_sha256='${sha256File("infra/ops/existing_container_baseline.py")}'`) &&
+    /production_baseline_cache_dir='\/opt\/learncoding\/infra\/ops\/__pycache__'/.test(recoveryChecker) &&
+    /existing_container_baseline\.\*\.pyc/.test(recoveryChecker) &&
+    /"\$python" -B "\$helper"/.test(recoveryChecker) &&
+    /identity_from_inspection/.test(existingContainerBaseline) &&
+    /serialize_baseline/.test(existingContainerBaseline) &&
+    /containerId/.test(existingContainerBaseline) &&
+    /PRIVATE_FIXTURE/.test(existingContainerFixture) &&
+    /existing-id-drift/.test(recoveryHarness) &&
+    /existing-image-drift/.test(recoveryHarness) &&
+    /existing-config-drift/.test(recoveryHarness) &&
+    /existing-restart-drift/.test(recoveryHarness) &&
+    /existing-health-drift/.test(recoveryHarness) &&
+    /existing-paused/.test(recoveryHarness) &&
+    /existing-restarting/.test(recoveryHarness) &&
+    /existing-dead/.test(recoveryHarness) &&
+    /existing-status-drift/.test(recoveryHarness) &&
+    /capture_records/.test(captureExistingContainers) &&
+    /--no-trunc/.test(captureExistingContainers) &&
+    /\{\{\.ID\}\}\\t\{\{\.Names\}\}/.test(captureExistingContainers) &&
+    /running container inventory changed during capture/.test(captureExistingContainers),
+  "pre-existing container recovery must bind exact instance identity, image, configuration, restart policy, and strict live state without publishing raw configuration",
+);
+expect(
+  /runtime_state_root="\$\{RUNTIME_STATE_ROOT:-\/etc\/learncoding\}"/.test(releaseProduction) &&
+    /active_release_state="\$runtime_state_root\/active-release\.env"/.test(releaseProduction) &&
+    /inventory_target="\$runtime_state_root\/managed-containers\.\$\{inventory_sha\}\.tsv"/.test(releaseProduction) &&
+    /application_target="\$runtime_state_root\/application-images\.\$\{application_sha\}\.json"/.test(releaseProduction) &&
+    /record_managed_runtime_state[\s\S]*?publish_runtime_state[\s\S]*?update_release_pointer/.test(
+      releaseProduction,
+    ) &&
+    /active release state was not atomically published/.test(releaseProductionHarness) &&
+    /hash-addressed managed inventory was not published/.test(releaseProductionHarness) &&
+    /hash-addressed application record was not published/.test(releaseProductionHarness) &&
+    /published active state is not retained in its release record/.test(releaseProductionHarness) &&
+    /managed inventory order or coverage is invalid/.test(releaseProductionHarness) &&
+    /RUNTIME_STATE_ROOT: Final = Path\("\/etc\/learncoding"\)/.test(recoveryEvidenceHelper) &&
+    /ACTIVE_RELEASE_PATH: Final = RUNTIME_STATE_ROOT \/ "active-release\.env"/.test(
+      recoveryEvidenceHelper,
+    ) &&
+    /def managed_inventory_path\(active: ActiveRelease\)/.test(recoveryEvidenceHelper) &&
+    /f"managed-containers\.\{active\.managed_inventory_sha256\}\.tsv"/.test(recoveryEvidenceHelper) &&
+    /def application_image_record_path\(active: ActiveRelease\)/.test(recoveryEvidenceHelper) &&
+    /f"application-images\.\{active\.application_image_record_sha256\}\.json"/.test(
+      recoveryEvidenceHelper,
+    ),
+  "successful releases must publish immutable hash-addressed runtime records before the sole active manifest commit marker",
+);
+if (recoveryEvidence && recoveryEvidenceHelper) {
+  const combinedEvidenceSource = `${recoveryEvidence}\n${recoveryEvidenceHelper}`;
   expect(
-    /\/var\/lib\/learncoding\/recovery-evidence/.test(recoveryEvidence) &&
-      /RECOVERY_EVIDENCE_TEST_ROOT/.test(recoveryEvidence) &&
-      !/\/var\/lib\/learncoding-runner|RUNNER_STATE_ROOT|journalctl[^\n]*learncoding-runner/i.test(recoveryEvidence) &&
+    /EVIDENCE_ROOT: Final = PurePosixPath\("\/var\/lib\/learncoding\/recovery-evidence"\)/.test(
+      recoveryEvidenceHelper,
+    ) &&
+      /readonly helper=\/opt\/learncoding\/infra\/ops\/recovery-evidence\.py/.test(recoveryEvidence) &&
+      /exec \/usr\/bin\/env -i/.test(recoveryEvidence) &&
+      /BACKUP_MARKER_PATH: Final = Path\("\/mnt\/learncoding-backups\/state\/local-last-success\.env"\)/.test(
+        recoveryEvidenceHelper,
+      ) &&
+      /parse_smart_summary/.test(recoveryEvidenceHelper) &&
+      /parse_managed_inventory/.test(recoveryEvidenceHelper) &&
+      !/RECOVERY_EVIDENCE_TEST_ROOT/.test(combinedEvidenceSource) &&
+      !/\/var\/lib\/learncoding-runner|RUNNER_STATE_ROOT|journalctl[^\n]*learncoding-runner/i.test(
+        combinedEvidenceSource,
+      ) &&
       !/\/etc\/learncoding\/secrets|\/secrets\/|runner_shared_secret|RUNNER_[A-Z0-9_]*SECRET/i.test(
-        recoveryEvidence,
+        combinedEvidenceSource,
       ),
-    "recovery evidence must stay below its fixed root and never reference runner state, journals, or secret paths",
+    "recovery evidence must use fixed protected inputs, exact managed inventory, and privacy-safe SMART without test-root, runner-state, journal, or secret access",
+  );
+  expect(
+    /RECOVERY_TARGET_SECONDS: Final = 900/.test(recoveryEvidenceHelper) &&
+      /def validate_post_recovery_timing\(/.test(recoveryEvidenceHelper) &&
+      /operatorObservedPowerRestoredAtUtc/.test(recoveryEvidenceHelper) &&
+      /operatorObservedPublicReadyAtUtc/.test(recoveryEvidenceHelper) &&
+      /publicReadinessSecondsFromPowerRestoration/.test(recoveryEvidenceHelper) &&
+      /collectorVerifiedPhysicalPowerCycle": False/.test(recoveryEvidenceHelper) &&
+      /uptime_at_capture_seconds=uptime_seconds \+ elapsed/.test(recoveryEvidenceHelper) &&
+      /phase == "post"/.test(recoveryEvidenceHelper) &&
+      /len\(sys\.argv\) != 5/.test(recoveryEvidenceHelper) &&
+      /post ABSOLUTE_EVENT_JSON_PATH POWER_RESTORED_UTC PUBLIC_READY_UTC/.test(
+        recoveryEvidence,
+      ) &&
+      /power_restored_at_utc=sys\.argv\[3\]/.test(recoveryEvidenceHelper) &&
+      /public_ready_at_utc=sys\.argv\[4\]/.test(recoveryEvidenceHelper),
+    "post recovery evidence must bind both manual UTC observations, reject clock-inconsistent or late recovery, and preserve the physical-verification boundary",
   );
 }
 
@@ -1246,13 +1874,15 @@ for (const required of [
   "infra/systemd/learncoding-backup-check.timer",
   "infra/systemd/learncoding-retention.timer",
   "infra/systemd/learncoding-restore-drill.service",
+  "infra/systemd/learncoding-restore-drill-reminder.service",
+  "infra/systemd/learncoding-restore-drill-reminder.timer",
 ]) read(required);
 
 expect(/compose\.yaml ps --all/.test(monitoringRunbook), "monitoring must include one-shot services in Compose status checks");
 expect(
-  /exactly nine long-running services must be `running`/i.test(monitoringRunbook) &&
-    /migrate[^\n]*`Exited \(0\)`/i.test(monitoringRunbook),
-  "monitoring must describe nine running pilot services and successful migration completion",
+  /exactly eleven long-running services[^\n]*must be `running`/i.test(monitoringRunbook) &&
+    /file-erasure-worker/i.test(monitoringRunbook),
+  "monitoring must describe all eleven running pilot services including durable erasure",
 );
 expect(
   /`clamav` and `scan-worker` must not appear[^\n]*pilot/i.test(monitoringRunbook),
@@ -1279,6 +1909,237 @@ for (const [name, pattern] of [
   ["Google API key", /\bAIza[0-9A-Za-z_-]{30,}\b/],
   ["age private identity", /AGE-SECRET-KEY-/],
 ]) expect(!pattern.test(scanned), `example configuration contains a ${name}`);
+
+const executableManifestRelative = "infra/release/production-executable-entrypoints.json";
+const executableManifestRaw = read(executableManifestRelative);
+let productionExecutables = [];
+try {
+  const manifest = JSON.parse(executableManifestRaw);
+  productionExecutables = manifest.requiredExecutables ?? [];
+  expect(manifest.schemaVersion === 1, "production executable manifest must use schema version 1");
+  expect(Array.isArray(productionExecutables), "production executable manifest must contain requiredExecutables");
+} catch {
+  failures.push("production executable manifest must be valid JSON");
+}
+
+if (Array.isArray(productionExecutables)) {
+  const uniqueProductionExecutables = new Set(productionExecutables);
+  expect(
+    uniqueProductionExecutables.size === productionExecutables.length,
+    "production executable manifest must not contain duplicate paths",
+  );
+  expect(
+    productionExecutables.every(
+      (relative) =>
+        typeof relative === "string" &&
+        relative.length > 0 &&
+        relative === relative.replaceAll("\\", "/") &&
+        !path.isAbsolute(relative) &&
+        !relative.split("/").includes(".."),
+    ),
+    "production executable manifest paths must be normalized workspace-relative paths",
+  );
+  expect(
+    productionExecutables.every((relative, index) => index === 0 || productionExecutables[index - 1] < relative),
+    "production executable manifest paths must be sorted",
+  );
+
+  const fixturePath = "infra/ops/example-entrypoint.sh";
+  expect(
+    validateProductionExecutableModes({
+      requiredPaths: [fixturePath],
+      indexModes: new Map([[fixturePath, "100755"]]),
+      worktreeRegularFiles: new Set([fixturePath]),
+    }).length === 0,
+    "production executable mode validator must accept a tracked 100755 regular file",
+  );
+  expect(
+    validateProductionExecutableModes({
+      requiredPaths: [fixturePath],
+      indexModes: new Map(),
+      worktreeRegularFiles: new Set([fixturePath]),
+    }).some((failure) => /not tracked in the Git index/u.test(failure)),
+    "production executable mode validator must reject untracked entrypoints",
+  );
+  expect(
+    validateProductionExecutableModes({
+      requiredPaths: [fixturePath],
+      indexModes: new Map([[fixturePath, "100755"]]),
+      worktreeRegularFiles: new Set(),
+    }).some((failure) => /missing or not a regular file/u.test(failure)),
+    "production executable mode validator must reject missing entrypoints",
+  );
+  expect(
+    validateProductionExecutableModes({
+      requiredPaths: [fixturePath],
+      indexModes: new Map([[fixturePath, "100644"]]),
+      worktreeRegularFiles: new Set([fixturePath]),
+    }).some((failure) => /expected 100755/u.test(failure)),
+    "production executable mode validator must reject non-executable Git index modes",
+  );
+
+  if (productionExecutables.length > 0) {
+    let indexModes = new Map();
+    try {
+      const indexOutput = execFileSync(
+        "git",
+        ["-C", root, "ls-files", "--stage", "-z", "--", ...productionExecutables],
+        { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 },
+      );
+      indexModes = parseGitIndexModes(indexOutput);
+    } catch {
+      failures.push("production executable Git index metadata could not be read safely");
+    }
+
+    const worktreeRegularFiles = new Set(
+      productionExecutables.filter((relative) => {
+        const candidate = path.join(root, relative);
+        try {
+          const stat = fs.lstatSync(candidate);
+          return stat.isFile() && !stat.isSymbolicLink();
+        } catch {
+          return false;
+        }
+      }),
+    );
+    failures.push(
+      ...validateProductionExecutableModes({
+        requiredPaths: productionExecutables,
+        indexModes,
+        worktreeRegularFiles,
+      }),
+    );
+  }
+}
+
+const powerLossRecoveryRunbook = read("docs/runbooks/power-loss-recovery.md");
+const runnerRolloutPlan = read("docs/superpowers/plans/2026-07-14-runner-nuc-rollout.md");
+const productionDeploymentDesign = read(
+  "docs/superpowers/specs/2026-07-14-nuc-production-deployment-design.md",
+);
+const firewallNetworkRunbook = read("docs/runbooks/firewall-and-network.md");
+const baselineCaptureIndex = deploymentGuide.indexOf(
+  "sudo /usr/bin/python3 -B /opt/learncoding/infra/ops/capture-existing-containers.py",
+);
+const recoveryEnableCheckIndex = deploymentGuide.indexOf(
+  "sudo systemctl is-enabled --quiet learncoding-recovery-check.timer",
+);
+
+expect(
+  /Documentation=\/opt\/learncoding\/docs\/runbooks\/power-loss-recovery\.md/.test(recoveryService) &&
+    /# Power-loss recovery runbook/.test(powerLossRecoveryRunbook) &&
+    /\/etc\/learncoding\/existing-containers\.txt/.test(powerLossRecoveryRunbook) &&
+    /virsh --connect qemu:\/\/\/system net-info default/.test(powerLossRecoveryRunbook) &&
+    /virsh --connect qemu:\/\/\/system dominfo codestead-runner/.test(powerLossRecoveryRunbook) &&
+    /192\.168\.122\.12/.test(powerLossRecoveryRunbook) &&
+    /capture-recovery-evidence\.sh pre/.test(powerLossRecoveryRunbook) &&
+    /capture-recovery-evidence\.sh post/.test(powerLossRecoveryRunbook) &&
+    /check-recovery\.sh/.test(powerLossRecoveryRunbook),
+  "power-loss recovery service must reference a complete operator runbook for baseline, default-network, checks, and evidence",
+);
+expect(
+  /EXT-PHYSICAL-AC-LOSS = NOT_RUN/.test(powerLossRecoveryRunbook) &&
+    /### Reviewed two-request hold controller/.test(powerLossRecoveryRunbook) &&
+    /runner-power-rehearsal-control\.sh arm/.test(powerLossRecoveryRunbook) &&
+    /runner-power-rehearsal-control\.sh status/.test(powerLossRecoveryRunbook) &&
+    /runner-power-rehearsal-control\.sh (?:release|abort)/.test(powerLossRecoveryRunbook) &&
+    /learner_draft_mutation/.test(powerLossRecoveryRunbook) &&
+    /reward_ledger/.test(powerLossRecoveryRunbook) &&
+    /audit_event/.test(powerLossRecoveryRunbook) &&
+    /email_outbox/.test(powerLossRecoveryRunbook) &&
+    /code_submission/.test(powerLossRecoveryRunbook) &&
+    /runner_job/.test(powerLossRecoveryRunbook) &&
+    /notification_preferences\.updated/.test(powerLossRecoveryRunbook) &&
+    /reset-password/.test(powerLossRecoveryRunbook) &&
+    /codestead-browser-outbox-v1/.test(powerLossRecoveryRunbook) &&
+    /object store `entries`/.test(powerLossRecoveryRunbook) &&
+    /requestId/.test(powerLossRecoveryRunbook) &&
+    /clientMutationId/.test(powerLossRecoveryRunbook) &&
+    /Saved locally on this browser\. Codestead will retry automatically\./.test(
+      powerLossRecoveryRunbook,
+    ) &&
+    /exact original body and `idempotencyKey`/.test(powerLossRecoveryRunbook) &&
+    /require zero lesson\/exam records/.test(
+      powerLossRecoveryRunbook,
+    ) &&
+    /Saved locally; Codestead will retry\./.test(powerLossRecoveryRunbook) &&
+    /Close every window.*reopen the same persistent profile/.test(powerLossRecoveryRunbook) &&
+    /public `\/health\/ready` endpoint/.test(powerLossRecoveryRunbook) &&
+    /Reconciliation must finish first\./.test(powerLossRecoveryRunbook) &&
+    /systemctl start learncoding-backup\.service/.test(powerLossRecoveryRunbook) &&
+    /"\$power_restored_utc"/.test(powerLossRecoveryRunbook) &&
+    /"\$public_ready_utc"/.test(powerLossRecoveryRunbook) &&
+    /collectorVerifiedPhysicalPowerCycle: false/.test(powerLossRecoveryRunbook) &&
+    /capture-recovery-evidence\.sh post[\s\S]*?"\$power_restored_utc"[\s\S]*?"\$public_ready_utc"/.test(
+      deploymentGuide,
+    ),
+  "physical AC-loss instructions must create every truthful marker, prove browser reopen and exact reconciliation, take the immediate backup, and pass both observed UTC values",
+);
+expect(
+  /libvirt `default` network/.test(runnerIsolationGuide) &&
+    /bridge `virbr0`/.test(runnerIsolationGuide) &&
+    /192\.168\.122\.12/.test(runnerIsolationGuide) &&
+    !/10\.20\.0\.12|10\.20\.0\.0\/24|virbr-cdst|network=codestead-runner/.test(runnerIsolationGuide),
+  "runner-isolation guide must name only the canonical default/virbr0/192.168.122.12 network",
+);
+expect(
+  /libvirt `default` network/.test(runnerRolloutPlan) &&
+    /bridge `virbr0`/.test(runnerRolloutPlan) &&
+    /192\.168\.122\.12/.test(runnerRolloutPlan) &&
+    !/10\.20\.0\.12|10\.20\.0\.0\/24|10\.20\.0\.1|virbr-cdst|network=codestead-runner|grep -Fq 'net-define'|default\/dedicated network/.test(
+      runnerRolloutPlan,
+    ),
+  "runner rollout instructions must not retain the superseded custom-network topology",
+);
+expect(
+  /internal runner-client.*secretless `runner-egress-gateway`.*`runner-egress`.*runner VM/s.test(
+    deploymentGuide,
+  ) &&
+    /deployment-level `RUNNER_BASE_URL`.*private runner VM upstream/s.test(deploymentGuide) &&
+    /effective container `RUNNER_BASE_URL`.*`http:\/\/runner-egress-gateway:4100`/s.test(
+      deploymentGuide,
+    ) &&
+    /eleven managed Compose container\/image identities/.test(deploymentGuide) &&
+    !/workers also join `runner-egress`/.test(deploymentGuide) &&
+    !/app's `RUNNER_BASE_URL` must be a private RFC 1918 address/.test(deploymentGuide),
+  "deployment guide must document the secretless runner gateway, distinguish deployment and container URLs, and count all eleven managed services",
+);
+expect(
+  /effective container `RUNNER_BASE_URL`.*`http:\/\/runner-egress-gateway:4100`/s.test(
+    productionDeploymentDesign,
+  ) &&
+    /deployment-level `RUNNER_BASE_URL`.*private runner VM upstream/s.test(
+      productionDeploymentDesign,
+    ) &&
+    !/app uses the stable private guest address as `RUNNER_BASE_URL`/.test(
+      productionDeploymentDesign,
+    ) &&
+    /secretless `runner-egress-gateway`/.test(runnerRolloutPlan) &&
+    !/Join only app and runner-consuming workers to it/.test(runnerRolloutPlan) &&
+    /update the deployment-level `RUNNER_BASE_URL`/.test(runnerIsolationGuide) &&
+    /gateway's private upstream/.test(runnerIsolationGuide) &&
+    !/change the app to the new private runner address/.test(runnerIsolationGuide),
+  "runner design, rollout, and incident guidance must preserve the internal-client to secretless-gateway boundary",
+);
+expect(
+  /libvirt `default` network/.test(firewallNetworkRunbook) &&
+    /bridge `virbr0`/.test(firewallNetworkRunbook) &&
+    /192\.168\.122\.12/.test(firewallNetworkRunbook) &&
+    /172\.29\.40\.2/.test(firewallNetworkRunbook) &&
+    /learncoding-runner-guest-firewall\.service/.test(firewallNetworkRunbook) &&
+    !/10\.20\.0\.11|10\.20\.0\.12|virbr-cdst|network=codestead-runner/.test(firewallNetworkRunbook),
+  "firewall runbook must use the reviewed host/guest nftables path and canonical runner addresses",
+);
+expect(
+  baselineCaptureIndex >= 0 &&
+    recoveryEnableCheckIndex > baselineCaptureIndex &&
+    /capture-existing-containers\.py[\s\S]*?--replace/.test(deploymentGuide) &&
+    /immutable Docker image ID/.test(deploymentGuide) &&
+    /SHA-256 fingerprint/.test(deploymentGuide) &&
+    /Raw environment values[\s\S]*?never written to the baseline/.test(deploymentGuide) &&
+    /sudo test -s \/etc\/learncoding\/existing-containers\.txt/.test(deploymentGuide),
+  "deployment must atomically capture a secret-free identity-bound existing-container baseline before recovery checks",
+);
 
 if (failures.length > 0) {
   console.error("Static deployment validation failed:");

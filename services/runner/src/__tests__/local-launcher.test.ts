@@ -98,6 +98,12 @@ describe("development-only local runner launcher", () => {
       ...base,
       imageEnv: { ...images, RUNNER_IMAGE_PYTHON: "" },
     })).toThrow(/RUNNER_IMAGE_PYTHON/);
+    expect(() => buildLocalRunnerEnvironment({
+      ...base,
+      inheritedEnv: {
+        RUNNER_IMAGE_PYTHON: `attacker.invalid/python@sha256:${"f".repeat(64)}`,
+      },
+    })).toThrow(/cannot override the canonical/i);
   });
 
   it("owns one state directory at a time and passes the real lock descriptor contract", () => {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "generatedAt": "2026-07-12T17:45:00.000Z",
-  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "revalidatedAt": "2026-07-19T22:38:32.478Z",
   "status": "passed",
   "scope": [
     "PRJ-005",
@@ -71,7 +71,8 @@
       "migrationsAppliedTwice": true,
       "file": "integration/project-review-correction.integration.test.ts",
       "testsPassed": 5,
-      "durationSeconds": 1.76
+      "durationSeconds": 1.33,
+      "fullSuite": "37 files / 204 tests passed"
     },
     "typecheck": "passed",
     "focusedLint": "passed",
@@ -79,13 +80,13 @@
   },
   "artifactSha256": {
     "src/lib/projects/review-correction-service.ts": "1790be14111a280823851b3557256684238384b62c067f4b5550c11979fa7b59",
-    "scripts/process-project-review-corrections.ts": "69583268a523fdfdb123e1f8dd3be7c40c5cd84c94ed2f67e87f51d3533bac05",
+    "scripts/process-project-review-corrections.ts": "f6580cab9d2c1b5cfd72e12c400c1a14586fe6071331714b3f31d6b9e879e588",
     "drizzle/0030_goofy_roxanne_simpson.sql": "7f3a9ee11a7af7041868265fa59264bd713609d2f2ec5f132f154549f5b45fc9",
     "drizzle/0031_easy_deathstrike.sql": "bba2a0a67f6e1f83ca5c4a1d5a2151cf6d74b3d050da5456f64bd3a3a263ef11",
     "drizzle/0033_project_review_ledger_fencing.sql": "971731ba79ee91b9005315c79b26f82f726188cedad91b2dcc70e8fda21a23cb",
     "integration/project-review-correction.integration.test.ts": "ee953e62d747e3d45cd09be703ccf454ea8aeee23f9bd320a2d084a7c3b59292",
-    "src/lib/data-lifecycle/export.ts": "41a26e6be621af2b84eea6d4c7477c512e6bb1095d690a115461b72c25a5bbe4",
-    "src/lib/data-lifecycle/deletion.ts": "dc19dccf56aa855e765875b01bf9fbec890933bbfdd4c62c6d9cf4f4beaa6340"
+    "src/lib/data-lifecycle/export.ts": "824614e202e3ab06892ede41d371bc98e68cd5d1fadd5d315e7733fff36ceb13",
+    "src/lib/data-lifecycle/deletion.ts": "d9d6e9d333d71f4d14eca5699eb32e806cfad90ef08cc62283db2dfcd3c5aab5"
   },
   "supersededDigests": [
     {
@@ -97,6 +98,16 @@
       "artifact": "src/lib/data-lifecycle/deletion.ts",
       "priorDigest": "12f35aef8f8834fd15d5a0c402a5bac85b4ab4318982f856022a72be5ca013d0",
       "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/data-lifecycle/export.ts",
+      "priorDigest": "41a26e6be621af2b84eea6d4c7477c512e6bb1095d690a115461b72c25a5bbe4",
+      "replacedAt": "2026-07-18T04:35:43.439Z"
+    },
+    {
+      "artifact": "scripts/process-project-review-corrections.ts",
+      "priorDigest": "69583268a523fdfdb123e1f8dd3be7c40c5cd84c94ed2f67e87f51d3533bac05",
+      "replacedAt": "2026-07-19T22:38:32.478Z"
     }
   ],
   "auditImpact": {

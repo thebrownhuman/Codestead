@@ -107,6 +107,7 @@ export interface RunnerResult {
   readonly requestHash: string;
   readonly sourceHash: string;
   readonly runtimeVersion: string;
+  /** OCI platform-manifest digest from the immutable image reference; never the image-config digest. */
   readonly imageDigest: string;
   readonly testBundleVersion?: string;
   readonly compile: CompileResult;
@@ -153,6 +154,7 @@ export interface RuntimeSpec {
   readonly language: Language;
   readonly version: string;
   readonly image: string;
+  /** OCI platform-manifest digest from the immutable image reference; never the image-config digest. */
   readonly imageDigest: string;
   readonly harnessPath: string;
   readonly allowedExtensions: readonly string[];

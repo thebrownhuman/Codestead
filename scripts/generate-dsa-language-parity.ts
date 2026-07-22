@@ -67,7 +67,7 @@ async function main() {
   const course = JSON.parse(await readFile(path.join(contentRoot, "courses", "dsa.json"), "utf8")) as CourseManifest;
   if (course.modules.map((module) => module.id).join("|") !== expectedModules.join("|")) throw new Error("DSA module order changed; parity contracts require explicit remapping.");
   if (course.modules.some((module) => module.skills.length !== 4)) throw new Error("Every declared DSA module must map exactly four reviewed parity contracts.");
-  const runtimeImages = JSON.parse(await readFile(path.join(root, "services", "runner", "dist", "runtime-images.json"), "utf8")) as { records: { language: string; digest: string }[] };
+  const runtimeImages = JSON.parse(await readFile(path.join(root, "scripts", "curriculum-runtime-pins.json"), "utf8")) as { records: { language: string; digest: string }[] };
   const digestByLanguage = new Map(runtimeImages.records.map((record) => [record.language, record.digest]));
   const kernelRoot = path.join(root, "scripts", "content-seeds", "dsa-parity-kernels");
   const cKernel = await readFile(path.join(kernelRoot, "c.txt"), "utf8");

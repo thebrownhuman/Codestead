@@ -1842,6 +1842,117 @@ export const runnerJob = pgTable(
   ],
 );
 
+/**
+ * Root-operated, two-request hold used only by the supervised physical
+ * power-loss rehearsal. Ordinary API dispatch claims the pre-authorized slot;
+ * the controller later releases the exact persisted jobs to normal recovery.
+ */
+export const runnerPowerRehearsalEvent = pgTable(
+  "runner_power_rehearsal_event",
+  {
+    id: uuid("id").primaryKey(),
+    controlKey: integer("control_key").default(1).notNull(),
+    state: text("state").default("armed").notNull(),
+    actorUserId: text("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    learnerOneId: text("learner_one_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    learnerTwoId: text("learner_two_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    reason: text("reason").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    slotOneRequestId: text("slot_one_request_id"),
+    slotOneSubmissionId: uuid("slot_one_submission_id")
+      .references(() => codeSubmission.id, { onDelete: "restrict" }),
+    slotOneRunnerJobId: uuid("slot_one_runner_job_id")
+      .references(() => runnerJob.id, { onDelete: "restrict" }),
+    slotTwoRequestId: text("slot_two_request_id"),
+    slotTwoSubmissionId: uuid("slot_two_submission_id")
+      .references(() => codeSubmission.id, { onDelete: "restrict" }),
+    slotTwoRunnerJobId: uuid("slot_two_runner_job_id")
+      .references(() => runnerJob.id, { onDelete: "restrict" }),
+    filledAt: timestamp("filled_at", { withTimezone: true }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    abortedAt: timestamp("aborted_at", { withTimezone: true }),
+    terminalCommandId: uuid("terminal_command_id"),
+    terminalCommandHash: char("terminal_command_hash", { length: 64 }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("runner_power_rehearsal_single_active_unique")
+      .on(table.controlKey)
+      .where(sql`${table.state} in ('armed','filled')`),
+    index("runner_power_rehearsal_learner_one_idx").on(table.learnerOneId, table.createdAt),
+    index("runner_power_rehearsal_learner_two_idx").on(table.learnerTwoId, table.createdAt),
+    check("runner_power_rehearsal_control_key_check", sql`${table.controlKey} = 1`),
+    check(
+      "runner_power_rehearsal_state_check",
+      sql`${table.state} in ('armed','filled','released','aborted')`,
+    ),
+    check(
+      "runner_power_rehearsal_distinct_learners_check",
+      sql`${table.learnerOneId} <> ${table.learnerTwoId}`,
+    ),
+    check(
+      "runner_power_rehearsal_reason_length_check",
+      sql`char_length(${table.reason}) between 20 and 500`,
+    ),
+    check(
+      "runner_power_rehearsal_expiry_window_check",
+      sql`${table.expiresAt} >= ${table.createdAt} + interval '5 minutes'
+        and ${table.expiresAt} <= ${table.createdAt} + interval '120 minutes'`,
+    ),
+    check(
+      "runner_power_rehearsal_slot_one_atomic_check",
+      sql`(${table.slotOneRequestId} is null and ${table.slotOneSubmissionId} is null and ${table.slotOneRunnerJobId} is null)
+        or (${table.slotOneRequestId} is not null and ${table.slotOneSubmissionId} is not null and ${table.slotOneRunnerJobId} is not null)`,
+    ),
+    check(
+      "runner_power_rehearsal_slot_two_atomic_check",
+      sql`(${table.slotTwoRequestId} is null and ${table.slotTwoSubmissionId} is null and ${table.slotTwoRunnerJobId} is null)
+        or (${table.slotTwoRequestId} is not null and ${table.slotTwoSubmissionId} is not null and ${table.slotTwoRunnerJobId} is not null)`,
+    ),
+    check(
+      "runner_power_rehearsal_distinct_slots_check",
+      sql`${table.slotOneRequestId} is null or ${table.slotTwoRequestId} is null or (
+        ${table.slotOneRequestId} <> ${table.slotTwoRequestId}
+        and ${table.slotOneSubmissionId} <> ${table.slotTwoSubmissionId}
+        and ${table.slotOneRunnerJobId} <> ${table.slotTwoRunnerJobId}
+      )`,
+    ),
+    check(
+      "runner_power_rehearsal_request_one_shape_check",
+      sql`${table.slotOneRequestId} is null or ${table.slotOneRequestId} ~ '^[0-9a-fA-F-]{36}$'`,
+    ),
+    check(
+      "runner_power_rehearsal_request_two_shape_check",
+      sql`${table.slotTwoRequestId} is null or ${table.slotTwoRequestId} ~ '^[0-9a-fA-F-]{36}$'`,
+    ),
+    check(
+      "runner_power_rehearsal_filled_state_check",
+      sql`${table.state} not in ('filled','released') or (
+        ${table.slotOneRequestId} is not null and ${table.slotTwoRequestId} is not null and ${table.filledAt} is not null
+      )`,
+    ),
+    check(
+      "runner_power_rehearsal_terminal_state_check",
+      sql`(
+        ${table.state} in ('armed','filled') and ${table.releasedAt} is null and ${table.abortedAt} is null
+          and ${table.terminalCommandId} is null and ${table.terminalCommandHash} is null
+      ) or (
+        ${table.state} = 'released' and ${table.releasedAt} is not null and ${table.abortedAt} is null
+          and ${table.terminalCommandId} is not null and ${table.terminalCommandHash} ~ '^[0-9a-f]{64}$'
+      ) or (
+        ${table.state} = 'aborted' and ${table.abortedAt} is not null and ${table.releasedAt} is null
+          and ${table.terminalCommandId} is not null and ${table.terminalCommandHash} ~ '^[0-9a-f]{64}$'
+      )`,
+    ),
+  ],
+);
+
 export const examSession = pgTable(
   "exam_session",
   {
@@ -2157,6 +2268,34 @@ export const storedObject = pgTable(
     check(
       "stored_object_retention_class_check",
       sql`${table.retentionClass} IN ('user_upload', 'ai_request_attachment', 'temporary')`,
+    ),
+  ],
+);
+
+/**
+ * Immutable owner-scoped receipt for crash-safe upload retries. PostgreSQL's
+ * UUID type canonicalizes textual case; the versioned request hash binds the
+ * key to the validated name/type/size/content tuple.
+ */
+export const uploadReceipt = pgTable(
+  "upload_receipt",
+  {
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    idempotencyKey: uuid("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    objectId: uuid("object_id")
+      .notNull()
+      .references(() => storedObject.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.ownerUserId, table.idempotencyKey] }),
+    uniqueIndex("upload_receipt_object_unique").on(table.objectId),
+    check(
+      "upload_receipt_request_hash_check",
+      sql`${table.requestHash} ~ '^v1:[0-9a-f]{64}$'`,
     ),
   ],
 );

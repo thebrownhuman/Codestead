@@ -155,7 +155,7 @@ export function createRunnerHttpServer(
       const body = await readBody(request, config.maxBodyBytes);
 
       if (method === "GET" && url.pathname === "/healthz") {
-        json(response, 200, service.health(), requestId);
+        json(response, 200, service.health(), requestId, authenticator);
         return;
       }
 

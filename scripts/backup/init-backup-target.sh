@@ -24,12 +24,12 @@ case "$mode" in
   --full)
     magic="$FULL_BACKUP_MAGIC"
     minimum_bytes="${MIN_FULL_TARGET_BYTES:-1500000000000}"
-    subdirectories=(full restore-reports)
+    subdirectories=(full recovery-kits restore-reports state)
     ;;
   --emergency)
     magic="$EMERGENCY_BACKUP_MAGIC"
     minimum_bytes="${MIN_EMERGENCY_TARGET_BYTES:-28000000000}"
-    subdirectories=(emergency)
+    subdirectories=(emergency recovery-kits)
     ;;
   *) usage ;;
 esac

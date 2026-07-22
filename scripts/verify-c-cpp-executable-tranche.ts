@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -15,6 +15,12 @@ import {
   C_CPP_NON_CODE_FACETS,
   type CCppLanguage,
 } from "./content-seeds/c-cpp-executable-tranche";
+import {
+  projectRuntimeIdentityEvidence,
+  validateLocalRuntimeIdentity,
+  type LocalRuntimeIdentityEvidence,
+} from "./lib/local-runtime-identity";
+import { verifyOrApplyDeterministicEvidence } from "./lib/deterministic-evidence";
 
 interface RuntimeImageRecord {
   readonly language: string;
@@ -96,14 +102,6 @@ function dockerAvailable(): boolean {
   return spawnSync("docker", ["info"], { stdio: "ignore", windowsHide: true }).status === 0;
 }
 
-function dockerImageId(tag: string): string | null {
-  const result = spawnSync(
-    "docker",
-    ["image", "inspect", tag, "--format", "{{.Id}}"],
-    { encoding: "utf8", windowsHide: true },
-  );
-  return result.status === 0 ? result.stdout.trim() : null;
-}
 
 function languageOf(item: CodeAssessmentItem): CCppLanguage {
   if (item.runtime.language === "c" || item.runtime.language === "cpp") {
@@ -129,7 +127,7 @@ function assertStandardOnly(item: CodeAssessmentItem): void {
   }
 }
 
-async function execute(item: CodeAssessmentItem, stdin: string): Promise<ExecutionResult> {
+async function execute(item: CodeAssessmentItem, stdin: string, imageReference: string): Promise<ExecutionResult> {
   const language = languageOf(item);
   const directory = mkdtempSync(path.join(os.tmpdir(), "lc-c-cpp-" + language + "-"));
   const file = path.join(directory, item.runtime.entrypoint);
@@ -153,7 +151,7 @@ async function execute(item: CodeAssessmentItem, stdin: string): Promise<Executi
     "--tmpfs", "/work:rw,exec,nosuid,nodev,size=16777216,uid=65532,gid=65532,mode=0700",
     "--user", "65532:65532", "--env", "HOME=/tmp", "--workdir", "/work",
     "--mount", "type=bind,src=" + directory + ",dst=/input,readonly",
-    imageTags[language], "/opt/runner/execute", "--mode", "run", "--language", language,
+    imageReference, "/opt/runner/execute", "--mode", "run", "--language", language,
     "--source-root", "/input", "--entrypoint", "/input/" + item.runtime.entrypoint,
   ];
   return await new Promise((resolve, reject) => {
@@ -212,7 +210,7 @@ async function main(): Promise<void> {
     repository.getCourse("c"),
     repository.getCourse("cpp"),
     repository.getAuthoredContentSet(),
-    readFile(path.join(runtimeEvidenceRoot, "runtime-images.json"), "utf8").then((value) => JSON.parse(value) as RuntimeImages),
+    readFile(path.join(root, "scripts", "curriculum-runtime-pins.json"), "utf8").then((value) => JSON.parse(value) as RuntimeImages),
     readFile(path.join(runtimeEvidenceRoot, "runtime-inspection.json"), "utf8").then((value) => JSON.parse(value) as RuntimeInspection),
   ]);
   if (!cCourse || !cppCourse) throw new Error("C or C++ course is missing.");
@@ -286,23 +284,31 @@ async function main(): Promise<void> {
   if (skillCoverage.length !== declaredSkills.length) throw new Error("Skill coverage report is incomplete.");
   if (banks.length !== declaredSkills.length) throw new Error("Unexpected C/C++ authored bank count.");
 
-  const limitArgument = process.argv.find((argument) => argument.startsWith("--limit="));
-  const limit = limitArgument ? Number.parseInt(limitArgument.split("=")[1]!, 10) : codeItems.length;
-  if (!Number.isInteger(limit) || limit < 1) throw new Error("--limit must be a positive integer.");
+  const limitArguments = process.argv.filter((argument) => /^--limit/.test(argument));
+  if (limitArguments.length > 1 || (limitArguments[0] !== undefined && !/^--limit=[1-9]\d*$/.test(limitArguments[0]))) {
+    throw new Error("--limit must be provided once as a positive integer.");
+  }
+  const limit = limitArguments[0] ? Number.parseInt(limitArguments[0].slice("--limit=".length), 10) : codeItems.length;
   const selected = codeItems.sort((left, right) => left.id.localeCompare(right.id)).slice(0, limit);
-  const workerArgument = process.argv.find((argument) => argument.startsWith("--workers="));
-  const workerCount = workerArgument ? Number.parseInt(workerArgument.split("=")[1]!, 10) : 2;
-  if (!Number.isInteger(workerCount) || workerCount < 1 || workerCount > 8) throw new Error("--workers must be from 1 through 8.");
-  const imageEvidence = Object.fromEntries(
+  const workerArguments = process.argv.filter((argument) => /^--workers/.test(argument));
+  if (workerArguments.length > 1 || (workerArguments[0] !== undefined && !/^--workers=[1-8]$/.test(workerArguments[0]))) {
+    throw new Error("--workers must be provided once from 1 through 8.");
+  }
+  const workerCount = workerArguments[0] ? Number.parseInt(workerArguments[0].slice("--workers=".length), 10) : 2;
+  let runtimeIdentities: Readonly<Record<string, LocalRuntimeIdentityEvidence>> = {};
+  let imageEvidence: Readonly<Record<string, unknown>> = Object.fromEntries(
     (["c", "cpp"] as const).map((language) => {
-      const expectedDigest = digestByLanguage.get(language) ?? "missing";
       const inspection = inspectionByLanguage.get(language);
-      const actualImageId = dockerImageId(imageTags[language]);
       return [language, {
         tag: imageTags[language],
-        expectedDigest,
-        actualImageId,
-        digestMatches: actualImageId === expectedDigest,
+        manifestDigest: digestByLanguage.get(language) ?? null,
+        configDigest: null,
+        immutableReference: null,
+        tagDescriptorDigest: null,
+        tagImageId: null,
+        exactReferenceDescriptorDigest: null,
+        exactReferenceImageId: null,
+        independentlyValidated: false,
         expectedCompilerVersion: expectedVersions[language],
         inspectedCompilerVersion: inspection?.version ?? null,
         compilerVersionMatches: inspection?.version === expectedVersions[language],
@@ -313,8 +319,36 @@ async function main(): Promise<void> {
   if (!structureOnly && !dockerAvailable()) {
     throw new Error("Docker is unavailable; --structure-only is permitted only when runtime execution is intentionally deferred.");
   }
-  if (!structureOnly && Object.values(imageEvidence).some((entry) => !entry.digestMatches || !entry.compilerVersionMatches)) {
-    throw new Error("Pinned C/C++ runtime evidence mismatch: " + JSON.stringify(imageEvidence));
+  if (!structureOnly) {
+    const runtimeManifest = JSON.parse(await readFile(
+      path.join(root, "services", "runner", "dist", "runtime-local-build-identities.json"),
+      "utf8",
+    )) as unknown;
+    runtimeIdentities = validateLocalRuntimeIdentity({
+      manifest: runtimeManifest,
+      expectations: (["c", "cpp"] as const).map((language) => ({
+        language,
+        tag: imageTags[language],
+        declaredContentDigest: digestByLanguage.get(language) ?? "missing",
+      })),
+    });
+    imageEvidence = Object.fromEntries((["c", "cpp"] as const).map((language) => {
+      const runtimeIdentity = runtimeIdentities[language];
+      if (!runtimeIdentity) throw new Error("Validated local runtime identity is missing for " + language + ".");
+      const inspection = inspectionByLanguage.get(language);
+      return [language, {
+        ...projectRuntimeIdentityEvidence(runtimeIdentity),
+        expectedCompilerVersion: expectedVersions[language],
+        inspectedCompilerVersion: inspection?.version ?? null,
+        compilerVersionMatches: inspection?.version === expectedVersions[language],
+        harness: inspection?.harness ?? null,
+      }];
+    }));
+    if ((["c", "cpp"] as const).some((language) =>
+      inspectionByLanguage.get(language)?.version !== expectedVersions[language]
+    )) {
+      throw new Error("Pinned C/C++ compiler version mismatch: " + JSON.stringify(imageEvidence));
+    }
   }
 
   const jobs = selected.flatMap((item) => item.tests.map((test) => ({ item, test })));
@@ -327,7 +361,9 @@ async function main(): Promise<void> {
       const { item, test } = jobs[index]!;
       const started = Date.now();
       try {
-        const execution = await execute(item, test.stdin);
+        const runtimeIdentity = runtimeIdentities[languageOf(item)];
+        if (!runtimeIdentity) throw new Error("Validated local runtime identity is missing for " + languageOf(item) + ".");
+        const execution = await execute(item, test.stdin, runtimeIdentity.immutableReference);
         if (execution.timedOut) throw new Error("timeout");
         if (execution.code !== 0) {
           throw new Error("runner exit " + execution.code + "; stderr=" + execution.stderr.slice(0, 500));
@@ -376,9 +412,9 @@ async function main(): Promise<void> {
     (sum, item) => sum + item.tests.filter((test) => test.visibility === "hidden" && test.category === "boundary").length,
     0,
   );
-  const report = {
+  const buildEvidence = (generatedAt: string) => ({
     schemaVersion: "1.0.0",
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     scope: "C23 and C++20 executable authored curriculum evidence",
     status: failures.length === 0 && fullRuntimeRun ? "verified" : structureOnly ? "structure-only" : "failed-or-partial",
     counts: {
@@ -430,14 +466,25 @@ async function main(): Promise<void> {
       "The verifier proves local digest-pinned Docker behavior, not production NUC deployment, KVM-strength isolation, backup recovery, or operational capacity.",
       "Exact-output cases establish deterministic behavior for each declared executable facet; they do not by themselves prove code style, explanation quality, absence of every undefined behavior, or complete skill mastery.",
     ],
-  };
+  });
   const reportName = structureOnly
     ? "c-cpp-executable-structure-2026-07-12.json"
     : fullRuntimeRun
       ? "c-cpp-executable-runtime-2026-07-12.json"
       : "c-cpp-executable-sample-2026-07-12.json";
-  const reportPath = path.join(root, "docs", "evidence", reportName);
-  await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+  await verifyOrApplyDeterministicEvidence({
+    argv: process.argv.slice(2),
+    root,
+    trustedDirectory: "exclusive-writer",
+    relativePath: path.join("docs", "evidence", reportName),
+    buildEvidence,
+    applyCommand: structureOnly
+      ? "npm run c-cpp:executable:structure:apply"
+      : fullRuntimeRun
+        ? "npm run c-cpp:executable:evidence:apply"
+        : `npm run c-cpp:executable:evidence:apply -- --limit=${selected.length}`,
+    allowArgument: (argument) => argument === "--structure-only" || /^--limit=[1-9]\d*$/.test(argument) || /^--workers=[1-8]$/.test(argument),
+  });
   console.log(
     "C/C++ executable verification: " + declaredSkills.length + " skills, " + codeItems.length +
       " executable, " + totalCases + " declared cases, " + results.length +

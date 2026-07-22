@@ -51,6 +51,16 @@ for values in \
   expect_config_failure "$work/invalid.env"
 done
 
+for invalid_restore_age in 0 2161 87601 999999999999999999999999999999999 invalid; do
+  printf '%s\n' "MAX_RESTORE_DRILL_AGE_HOURS=$invalid_restore_age" >"$work/invalid.env"
+  chmod 0600 "$work/invalid.env"
+  expect_config_failure "$work/invalid.env"
+done
+printf '%s\n' 'MAX_RESTORE_DRILL_AGE_HOURS=2160' >"$work/maximum-valid.env"
+chmod 0600 "$work/maximum-valid.env"
+BACKUP_CONFIG_FILE="$work/maximum-valid.env" bash -Eeuo pipefail -c \
+  'source "$1"; load_backup_config' _ "$common"
+
 touch "$work/writable.env"
 chmod 0666 "$work/writable.env"
 expect_config_failure "$work/writable.env"

@@ -39,12 +39,12 @@ describe("learner project file library", () => {
   });
 
   it("uploads with FormData, refreshes usage, and requires explicit delete confirmation", async () => {
-    const calls: Array<{ url: string; method: string; body?: BodyInit | null }> = [];
+    const calls: Array<{ url: string; method: string; body?: BodyInit | null; headers?: HeadersInit }> = [];
     let getCount = 0;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
-      calls.push({ url, method, body: init?.body });
+      calls.push({ url, method, body: init?.body, headers: init?.headers });
       if (url === "/api/files" && method === "GET") {
         getCount += 1;
         return json(getCount === 1 ? populated : {
@@ -65,7 +65,11 @@ describe("learner project file library", () => {
     await user.upload(input, new File(["print('hello')"], "hello.py", { type: "text/x-python" }));
     await user.click(screen.getByRole("button", { name: "Upload" }));
     await screen.findByText(/File stored in quarantine/i);
-    expect(calls.find((call) => call.method === "POST")?.body).toBeInstanceOf(FormData);
+    const uploadCall = calls.find((call) => call.method === "POST");
+    expect(uploadCall?.body).toBeInstanceOf(FormData);
+    expect(uploadCall).toMatchObject({
+      headers: { "Idempotency-Key": expect.stringMatching(/^[0-9a-f-]{36}$/i) },
+    });
 
     // Restore a visible file for the destructive-action confirmation check.
     getCount = 0;
@@ -86,8 +90,32 @@ describe("learner project file library", () => {
     await user.click(screen.getByRole("button", { name: "Delete solution.py" }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole("button", { name: "Confirm delete" }));
-    await screen.findByText(/quota reservation released/i);
+    await screen.findByText(/scheduled for durable erasure/i);
     expect(fetchMock).toHaveBeenCalledWith("/api/files/safe-1", { method: "DELETE" });
+  });
+
+  it("keeps the same deletion intent available when commit outcome is ambiguous", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method ?? "GET") === "DELETE") {
+        return json(
+          { code: "FILE_DELETE_COMMIT_AMBIGUOUS" },
+          { status: 500 },
+        );
+      }
+      return json(populated);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<FileLibrary />);
+    await screen.findByText("solution.py");
+
+    await user.click(screen.getByRole("button", { name: "Delete solution.py" }));
+    await user.click(screen.getByRole("button", { name: "Confirm delete" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Deletion outcome is uncertain. Retry deleting this same file.",
+    );
+    expect(screen.getByRole("button", { name: "Confirm delete" })).toBeEnabled();
   });
 
   it("keeps existing files usable while pilot uploads are disabled", async () => {

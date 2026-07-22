@@ -586,18 +586,32 @@ verify_minimal_runtime_file() {
   (( (mode_value & 8#022) == 0 ))
 }
 
+resolve_minimal_runtime_mount_source() {
+  local requested="$1" resolved
+
+  verify_minimal_runtime_file "$requested" || return 1
+  resolved="$(/usr/bin/readlink -e -- "$requested")" || return 1
+  [[ "$resolved" == /* && "$resolved" != *'/../'* && "$resolved" != */.. ]] || return 1
+  [[ -f "$resolved" && ! -L "$resolved" ]] || return 1
+  verify_minimal_runtime_file "$resolved" || return 1
+  printf '%s' "$resolved"
+}
+
 prepare_minimal_runtime_mounts() {
-  local binary ldd_output line first second third dependency
+  local binary binary_source ldd_output line first second third dependency dependency_source
   local -A seen=()
   minimal_runtime_mounts=()
   verify_fixed_outer_binary /usr/bin/ldd true || return 1
+  verify_fixed_outer_binary /usr/bin/readlink true || return 1
   for binary in "$@"; do
-    verify_minimal_runtime_file "$binary" || return 1
+    binary_source="$(resolve_minimal_runtime_mount_source "$binary")" || return 1
     if [[ -z "${seen[$binary]:-}" ]]; then
-      minimal_runtime_mounts+=(--ro-bind "$binary" "$binary")
-      seen["$binary"]=1
+      minimal_runtime_mounts+=(--ro-bind "$binary_source" "$binary")
+      seen["$binary"]="$binary_source"
+    else
+      [[ "${seen[$binary]}" == "$binary_source" ]] || return 1
     fi
-    ldd_output="$(/usr/bin/ldd -- "$binary")" || return 1
+    ldd_output="$(/usr/bin/ldd -- "$binary_source")" || return 1
     [[ "$ldd_output" != *'not found'* ]] || return 1
     while IFS= read -r line; do
       read -r first second third _ <<<"$line"
@@ -608,14 +622,45 @@ prepare_minimal_runtime_mounts() {
         dependency="$third"
       fi
       [[ -n "$dependency" ]] || continue
-      verify_minimal_runtime_file "$dependency" || return 1
+      dependency_source="$(resolve_minimal_runtime_mount_source "$dependency")" || return 1
       if [[ -z "${seen[$dependency]:-}" ]]; then
-        minimal_runtime_mounts+=(--ro-bind "$dependency" "$dependency")
-        seen["$dependency"]=1
+        minimal_runtime_mounts+=(--ro-bind "$dependency_source" "$dependency")
+        seen["$dependency"]="$dependency_source"
+      else
+        [[ "${seen[$dependency]}" == "$dependency_source" ]] || return 1
       fi
     done <<<"$ldd_output"
   done
 }
+
+assert_minimal_runtime_mount_sources_are_regular() {
+  local index token source destination
+
+  (( ${#minimal_runtime_mounts[@]} > 0 && ${#minimal_runtime_mounts[@]} % 3 == 0 )) || return 1
+  for ((index = 0; index < ${#minimal_runtime_mounts[@]}; index += 3)); do
+    token="${minimal_runtime_mounts[$index]}"
+    source="${minimal_runtime_mounts[$((index + 1))]}"
+    destination="${minimal_runtime_mounts[$((index + 2))]}"
+    [[ "$token" == --ro-bind && "$source" == /* && "$destination" == /* ]] || return 1
+    [[ -f "$source" && ! -L "$source" ]] || return 1
+  done
+}
+
+assert_symlinked_runtime_inputs_use_regular_mount_sources() {
+  local index token source destination
+
+  [[ -L /usr/bin/sh ]] || fail 'Ubuntu runner fixture no longer exposes the symlinked-shell regression input'
+  prepare_minimal_runtime_mounts /usr/bin/sh || fail 'could not assemble the symlinked-shell runtime regression fixture'
+  assert_minimal_runtime_mount_sources_are_regular || {
+    for ((index = 0; index < ${#minimal_runtime_mounts[@]}; index += 3)); do
+      token="${minimal_runtime_mounts[$index]}" source="${minimal_runtime_mounts[$((index + 1))]}" destination="${minimal_runtime_mounts[$((index + 2))]}"
+      [[ "$token" == --ro-bind && -L "$source" ]] && fail "minimal runtime retained a symlink mount source: $source -> $destination"
+    done
+    fail 'minimal runtime mount vector is not composed of regular absolute read-only bind sources'
+  }
+}
+
+assert_symlinked_runtime_inputs_use_regular_mount_sources
 
 assert_resource_limit_mutations
 assert_exact_resource_limits "${resource_limit_args[@]}" || fail 'canonical resource-limit vector is not exact'
@@ -755,6 +800,7 @@ EOF
 
   prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/sh /usr/bin/cat /usr/bin/mkdir /usr/bin/stat \
     /usr/bin/id /usr/bin/chmod /usr/bin/flock || return 1
+  assert_minimal_runtime_mount_sources_are_regular || return 1
   containment_ro_mounts=(
     --ro-bind "$entry" "$entry"
     --ro-bind "$launcher_under_test" "$launcher_under_test"
@@ -838,6 +884,7 @@ assert_containment_dependencies() {
   assert_exact_resource_limits "${resource_limit_args[@]}" || fail 'resource-limit vector changed before execution'
   prepare_minimal_runtime_mounts /usr/bin/bash /usr/bin/sh /usr/bin/cat /usr/bin/mkdir /usr/bin/stat \
     /usr/bin/id /usr/bin/chmod /usr/bin/flock || fail 'minimal runtime dependency set changed before execution'
+  assert_minimal_runtime_mount_sources_are_regular || fail 'minimal runtime mount source contract changed before execution'
 }
 
 assert_fixture_path() {

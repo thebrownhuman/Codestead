@@ -3,6 +3,9 @@ import { hostname } from "node:os";
 import { processAssessmentMasteryProjectionRepairBatch } from "../src/lib/assessment-corrections/mastery-repair";
 import { processAssessmentRegradeBatch } from "../src/lib/assessment-corrections/worker";
 import { pool } from "../src/lib/db/client";
+import { createWorkerHealthReporter } from "./lib/worker-health";
+
+let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
 
 async function main() {
   const pollSeconds = Number.parseInt(process.env.REGRADE_POLL_SECONDS ?? "10", 10);
@@ -15,6 +18,7 @@ async function main() {
   }
   const workerId = `regrade-${hostname().replace(/[^A-Za-z0-9._:-]/g, "-").slice(0, 60)}`;
   const once = process.argv.includes("--once");
+  healthReporter = createWorkerHealthReporter({ worker: "regrade-worker" });
   do {
     const report = await processAssessmentRegradeBatch({ workerId, limit: batchSize });
     const masteryRepairs = await processAssessmentMasteryProjectionRepairBatch({ limit: 20 });
@@ -29,6 +33,7 @@ async function main() {
         unresolved: masteryRepairs.unresolved,
       },
     }));
+    healthReporter.success();
     if (once) break;
     await new Promise((resolve) => setTimeout(resolve, report.processed ? 500 : pollSeconds * 1_000));
   } while (true);
@@ -36,6 +41,8 @@ async function main() {
 
 main()
   .catch((error) => {
+    healthReporter?.retry(error);
+    healthReporter?.terminalFailure(error);
     console.error(JSON.stringify({
       event: "assessment_regrade.worker_failed",
       code: error instanceof Error ? error.name : "UNKNOWN",

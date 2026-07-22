@@ -1,9 +1,20 @@
 .git
 .github
 .next
+/.next-*
 node_modules
 npm-debug.log*
 *.log
+
+# Generated or learner-controlled bytes never enter an application image build.
+/next-env.d.ts
+/public/monaco
+/dist
+/uploads
+
+# Workstation-only tooling and root scratch artifacts never enter direct Docker contexts.
+/.superpowers
+/.codex-*
 
 # Never send credentials or local deployment state to the build daemon.
 .env

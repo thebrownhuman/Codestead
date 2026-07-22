@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-07-17T17:01:45+05:30",
+  "revalidatedAt": "2026-07-20T05:04:15.801Z",
   "scope": "Local deterministic validation of backup status reporting into the application email outbox; no external email was sent.",
   "status": "passed",
   "shellContract": {
@@ -16,9 +16,14 @@
     "database": "disposable PostgreSQL 17 with the complete migration chain",
     "activeAdministrators": 1,
     "successCalls": 2,
-    "successAcknowledgements": ["queued", "existing"],
+    "successAcknowledgements": [
+      "queued",
+      "existing"
+    ],
     "failureCalls": 1,
-    "failureAcknowledgements": ["queued"],
+    "failureAcknowledgements": [
+      "queued"
+    ],
     "durableRows": 2,
     "template": "backup-status",
     "initialStatus": "pending",
@@ -46,19 +51,39 @@
   "sourceHashes": [
     {
       "path": "scripts/backup/common.sh",
-      "sha256": "e4c6443eefc5f54f77507f63a6f7212e1d026b286162cba5c5211bafcb47e86d"
+      "sha256": "e47ceeade59465752fc21905e4ee920636783fde1d029c6d2b79fb49da80f918"
     },
     {
       "path": "scripts/backup/backup.sh",
-      "sha256": "aa91a2398068af0a07b2efea1479fca00f41888430f254e07a394d00095d4aa1"
+      "sha256": "ea45d4a7d497f47f4de4fac5d3ac576c9247c7cb7f41a75258b42091a9084e6b"
     },
     {
       "path": "infra/tests/backup-config.test.sh",
-      "sha256": "b09f8e9c24928aa5ad606efc1d3d014992ea3a05c85a491a1eb23cb571df1156"
+      "sha256": "d515355d0d6d13fd850bbbde3b605b8a677d3633255577833831bcded296dc0d"
     },
     {
       "path": "docs/runbooks/backup-and-restore.md",
-      "sha256": "49de2fe7091443b4e25572cb80f13c431b2f63753d87470e1b28f5732cc50c53"
+      "sha256": "dce43df6138ee80bdc8e723fd46de428daf7446037bead6b5cc9534def50d30f"
+    },
+    {
+      "path": "integration/backup-status-outbox.integration.test.ts",
+      "sha256": "f3bb6061b271e4fdbdf09535c9b2c61121c09b9fe60d6d59f3986a9dd7f1d11e"
+    },
+    {
+      "path": "scripts/run-integration-tests.ts",
+      "sha256": "6563a8546d23ab66ebd871ab5ba75fb51b1f6f6983f42aedba0695d0d10182b1"
+    },
+    {
+      "path": "vitest.integration.config.ts",
+      "sha256": "547b3009a32b866ee974bc2e2b97257561f5a95ea34784a7924fc592dd635e63"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "ea545d2f830ce6b0493c06e0a78d167d20f5d41dc2dc2774a059104a52e2d4d4"
+    },
+    {
+      "path": "infra/tests/backup-ci-registration.test.mjs",
+      "sha256": "7a72e3a05cc82c51b70756a6916771307dde2cc7729ec005671581a6c4336d77"
     }
   ],
   "supersededDigests": [
@@ -81,6 +106,46 @@
       "artifact": "infra/tests/backup-config.test.sh",
       "priorDigest": "db57ed0f6552fc2d6f7affaf2aa8ce459cfd92528d2054d8dbb76a4471377b7f",
       "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "scripts/backup/common.sh",
+      "priorDigest": "e4c6443eefc5f54f77507f63a6f7212e1d026b286162cba5c5211bafcb47e86d",
+      "replacedAt": "2026-07-20T05:40:35+05:30"
+    },
+    {
+      "artifact": "scripts/backup/backup.sh",
+      "priorDigest": "aa91a2398068af0a07b2efea1479fca00f41888430f254e07a394d00095d4aa1",
+      "replacedAt": "2026-07-20T05:40:35+05:30"
+    },
+    {
+      "artifact": "docs/runbooks/backup-and-restore.md",
+      "priorDigest": "49de2fe7091443b4e25572cb80f13c431b2f63753d87470e1b28f5732cc50c53",
+      "replacedAt": "2026-07-20T05:40:35+05:30"
+    },
+    {
+      "artifact": "scripts/backup/common.sh",
+      "priorDigest": "f3df7f7290edd40cc882f88cf533b6ce4b357dfd520913af63a6b5440aa8c196",
+      "replacedAt": "2026-07-20T05:04:15.801Z"
+    },
+    {
+      "artifact": "scripts/backup/backup.sh",
+      "priorDigest": "07730f17fc3f98a04bc1ccc9176659154249fdaf93a82a3ee236174db3c101cb",
+      "replacedAt": "2026-07-20T05:04:15.801Z"
+    },
+    {
+      "artifact": "infra/tests/backup-config.test.sh",
+      "priorDigest": "b09f8e9c24928aa5ad606efc1d3d014992ea3a05c85a491a1eb23cb571df1156",
+      "replacedAt": "2026-07-20T05:04:15.801Z"
+    },
+    {
+      "artifact": "docs/runbooks/backup-and-restore.md",
+      "priorDigest": "327f34a392283b8fae6e776c9d3ad74b2e028d151a6696baecb89fad2ba85e0a",
+      "replacedAt": "2026-07-20T05:04:15.801Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "b2ff8df08ba1cc00f0f719a674d7394bc49e0e8786a575f3005604358abf1172",
+      "replacedAt": "2026-07-20T06:05:00.000Z"
     }
   ],
   "limitations": [

@@ -167,7 +167,7 @@
         "entrypoint": "main.js",
         "timeLimitMs": 2000,
         "memoryLimitMb": 128,
-        "imageDigest": "sha256:4e9ab2a994a43bdbd4525b8c57a76d95b6a6536394ffbaa8a2315811fec48931"
+        "imageDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a"
       },
       "tests": [
         {

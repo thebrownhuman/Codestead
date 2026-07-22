@@ -254,7 +254,7 @@ chmod 0600 -- "$combined_recipients"
 
 log "emergency backup phase=dumping"
 compose_cmd exec -T postgres sh -ceu \
-  'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl' \
+  'exec pg_dump --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl' \
   >"$stage/database.dump"
 [[ -s "$stage/database.dump" ]] || die "PostgreSQL dump is empty"
 
@@ -332,7 +332,8 @@ age --encrypt --recipients-file "$combined_recipients" \
 chmod 0600 -- "$temporary"
 
 verify_result="$(bash "$SCRIPT_DIR/verify-archive.sh" \
-  "$temporary" "$identity" "$verify_dir")" \
+  "$temporary" "$identity" "$verify_dir" \
+  --internal-staging-candidate)" \
   || die "emergency candidate decrypt verification failed"
 [[ "$verify_result" == archive_valid=true ]] \
   || die "emergency verifier returned an invalid acknowledgement"

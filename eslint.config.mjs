@@ -6,11 +6,18 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   globalIgnores([
+    ".superpowers/**",
     ".next/**",
     ".next-e2e-*/**",
     "coverage/**",
+    // Deterministic esbuild output is byte-compared to its linted TypeScript graph.
+    // Keep this exact artifact excluded; sibling runtime files remain linted.
+    "infra/runtime/production-load-test-control-service.mjs",
+    "infra/runtime/production-load-fixture-runtime.mjs",
     "playwright-report/**",
     "public/monaco/**",
     "services/runner/dist/**",
+    "test-artifacts/**",
+    "test-results/**",
   ])
 ]);

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-13T00:45:40+05:30",
-  "revalidatedAt": "2026-07-17T17:01:45+05:30",
+  "revalidatedAt": "2026-07-20T05:12:20.472Z",
   "scope": [
     "EXM-003",
     "EXM-006",
@@ -24,7 +24,7 @@
     "contracts": "src/app/api/exams/_lib/contracts.ts",
     "contractsSha256": "262dde867189e1c990dd48a983db7fe46a7c749dee2eec615509e56c0297b589",
     "examService": "src/app/api/exams/_lib/service.ts",
-    "examServiceSha256": "e11f966b69b96a65e62e5ab80eb9913986bbcd776b36e2171acd8caa5edc04a2",
+    "examServiceSha256": "893192f8964979c8421afb0998a3bb5c2f20aa2e846bd0bcddbcace070ff63ba",
     "runnerAdmission": "src/lib/runner/admission.ts",
     "runnerAdmissionSha256": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
     "runnerClient": "src/lib/runner/client.ts",
@@ -36,7 +36,7 @@
     "postgresJourney": "integration/exam-reliability.integration.test.ts",
     "postgresJourneySha256": "7e47064d52944651acf0920df558fc29aa9fb89eab3479e0e60456bc41cd64e4",
     "releaseAudit": "docs/release-audit.md",
-    "releaseAuditSha256": "93b9a5f77426adde17929501c9cae9e470aa0ae51d16e66070ceb4fd0fe7ee12",
+    "releaseAuditSha256": "28725af8f713c7d5cc759b82298fc905645ac139a10bc8cd3df897bb52d06afd",
     "runtimeCommand": "npm run worker:exam-finalization",
     "composeService": "exam-finalization-worker",
     "artifactSha256": {
@@ -47,13 +47,13 @@
       "src/app/api/exams/_lib/runner-replay-policy.ts": "4b48f4df04e5e68361c861c9e411a454f517292f10570d06dc1af45dcd897184",
       "src/app/api/exams/_lib/blueprint.ts": "35a6a07deec76955b8eaf0ff308e95b1fbf05408912527e112ce1f64477c9e07",
       "src/app/api/exams/_lib/contracts.ts": "262dde867189e1c990dd48a983db7fe46a7c749dee2eec615509e56c0297b589",
-      "src/app/api/exams/_lib/service.ts": "e11f966b69b96a65e62e5ab80eb9913986bbcd776b36e2171acd8caa5edc04a2",
+      "src/app/api/exams/_lib/service.ts": "893192f8964979c8421afb0998a3bb5c2f20aa2e846bd0bcddbcace070ff63ba",
       "src/lib/runner/admission.ts": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
       "src/lib/runner/client.ts": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
       "src/lib/db/postgres-errors.ts": "178a1f4c1b2298994f8a44f3ee5dcedd453ba2bcba419b5f81b445beaeb69891",
       "src/lib/exams/reexam-grant.ts": "5c8f016e799abded4f8e8d33a5b8cda5e13e00481b19caaf0864156a403a09c9",
       "integration/exam-reliability.integration.test.ts": "7e47064d52944651acf0920df558fc29aa9fb89eab3479e0e60456bc41cd64e4",
-      "docs/release-audit.md": "93b9a5f77426adde17929501c9cae9e470aa0ae51d16e66070ceb4fd0fe7ee12"
+      "docs/release-audit.md": "28725af8f713c7d5cc759b82298fc905645ac139a10bc8cd3df897bb52d06afd"
     }
   },
   "supersededDigests": [
@@ -126,6 +126,21 @@
       "artifact": "docs/release-audit.md",
       "priorDigest": "3ebae1e679f91b01de22d3a99577c8da6448d36f6d01bbf21f5b5d2f535ea385",
       "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "src/app/api/exams/_lib/service.ts",
+      "priorDigest": "e11f966b69b96a65e62e5ab80eb9913986bbcd776b36e2171acd8caa5edc04a2",
+      "replacedAt": "2026-07-18T04:35:43.439Z"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "93b9a5f77426adde17929501c9cae9e470aa0ae51d16e66070ceb4fd0fe7ee12",
+      "replacedAt": "2026-07-18T04:35:43.439Z"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "25adfd121c797ebb2223d161e05ea0a59765b987bc42de20681af0b700527a8b",
+      "replacedAt": "2026-07-20T05:12:20.472Z"
     }
   ],
   "verification": {
@@ -157,11 +172,12 @@
     },
     "postgres": {
       "files": 1,
-      "tests": 5,
-      "passed": 5,
+      "tests": 7,
+      "passed": 7,
       "failed": 0,
       "migrationsAppliedTwice": true,
-      "independentlyReproducedByRoot": true
+      "independentlyReproducedByRoot": true,
+      "fullSuite": "37 files / 204 tests passed"
     }
   },
   "proven": [

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { KeyRound, Mail } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
@@ -12,7 +12,24 @@ import {
 } from "@/lib/browser-durability/lifecycle";
 import styles from "./auth.module.css";
 
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getClientHydrationSnapshot() {
+  return true;
+}
+
+function getServerHydrationSnapshot() {
+  return false;
+}
+
 export function ForgotPasswordForm() {
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +76,7 @@ export function ForgotPasswordForm() {
         <label htmlFor="recovery-email">Email address</label>
         <input id="recovery-email" name="email" type="email" autoComplete="email" required />
       </div>
-      <button className={`button button-primary ${styles.submit}`} disabled={busy} type="submit">
+      <button className={`button button-primary ${styles.submit}`} disabled={!hydrated || busy} type="submit">
         <Mail size={17} /> {busy ? "Requesting…" : "Email a reset link"}
       </button>
       <p className={styles.footLink}><Link href="/login">Return to sign in</Link></p>

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,21 +8,48 @@ import { loadConfig } from "../dist/config.js";
 import { DockerJobExecutor } from "../dist/docker-executor.js";
 import { NodeProcessExecutor } from "../dist/process-executor.js";
 import { validateJobRequest } from "../dist/validation.js";
+import { resolveLocalImageIdentity, validateLocalBuildIdentityRecord } from "./runtime-operations.mjs";
 
 const repository = process.env.RUNTIME_REPOSITORY ?? "learncoding/runtime";
 const release = process.env.RUNTIME_RELEASE ?? "local";
 const runtimeRoot = path.dirname(fileURLToPath(import.meta.url));
 const passedChecks = [];
 const languages = ["c", "cpp", "java", "python", "javascript"];
+const localBuildIdentities = validateLocalBuildIdentityRecord(
+  readFileSync(path.join(path.dirname(runtimeRoot), "dist", "runtime-local-build-identities.json"), "utf8"),
+  languages.map((language) => ({
+    language,
+    tag: `${repository}-${language}:${release}`,
+  })),
+);
+
+function inspectImage(reference) {
+  const inspected = spawnSync("docker", [
+    "image", "inspect", "--platform", "linux/amd64", reference,
+  ], { encoding: "utf8" });
+  if (inspected.error || inspected.status !== 0) {
+    throw new Error(`Local runtime image is missing: ${reference}`);
+  }
+  const images = JSON.parse(inspected.stdout);
+  if (!Array.isArray(images) || images.length !== 1 || !images[0] || typeof images[0] !== "object") {
+    throw new Error(`Docker returned an invalid image inspection: ${reference}`);
+  }
+  return images[0];
+}
 
 function immutableLocalReference(language) {
   const repositoryName = `${repository}-${language}`;
   const tag = `${repositoryName}:${release}`;
-  const inspected = spawnSync("docker", ["image", "inspect", tag], { encoding: "utf8" });
-  if (inspected.status !== 0) throw new Error(`Local runtime image is missing: ${tag}`);
-  const id = JSON.parse(inspected.stdout)[0]?.Id;
-  if (!/^sha256:[a-f0-9]{64}$/.test(id)) throw new Error(`Invalid local image ID for ${tag}`);
-  return `${repositoryName}@${id}`;
+  return resolveLocalImageIdentity({
+    language,
+    tag,
+    repository: repositoryName,
+    inspectImage,
+    expectedIdentity: {
+      manifestDigest: localBuildIdentities[language].manifestDigest,
+      configDigest: localBuildIdentities[language].configDigest,
+    },
+  }).imageReference;
 }
 
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), "lc-real-executor-"));
@@ -120,7 +147,7 @@ try {
   mkdirSync(reportDirectory, { recursive: true });
   writeFileSync(
     path.join(reportDirectory, "runtime-executor-report.json"),
-    `${JSON.stringify({ generatedAt: new Date().toISOString(), passed: passedChecks }, null, 2)}\n`,
+    `${JSON.stringify({ generatedAt: new Date().toISOString(), refs, passed: passedChecks }, null, 2)}\n`,
   );
   rmSync(tempRoot, { recursive: true, force: true });
 }

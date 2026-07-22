@@ -24,7 +24,8 @@ describe("runner isolation quarantine runbook contract", () => {
     expect(runbook).toContain(
       '.queueDepth == 0 and .activeJobs == 0 and .concurrency == 2',
     );
-    expect(runbook).toContain("RUNNER_URL=http://10.20.0.12:4100");
+    expect(runbook).toContain("RUNNER_URL=http://192.168.122.12:4100");
+    expect(runbook).not.toContain("RUNNER_URL=http://10.20.0.12:4100");
     expect(runbook).toContain('fetch(`${process.env.RUNNER_URL}/metrics`');
     expect(runbook).toContain('gauge("runner_queue_depth") === 0');
     expect(runbook).toContain('gauge("runner_active_jobs") === 0');
@@ -59,5 +60,20 @@ describe("runner isolation quarantine runbook contract", () => {
     expect(runbook).toContain("becomes `quarantined`, receives no automatic retry");
     expect(runbook).toContain("`remoteRunnerJobId` when one was durably received");
     expect(runbook).toContain("It does not expose source, stdin, response streams, hidden tests, or request hashes");
+  });
+
+  it("provides exact immutable package transfer, install, and rollback commands", () => {
+    expect(runbook).toContain("RUNNER_GUEST='codestead-admin@192.168.122.12'");
+    expect(runbook).toContain("RUNNER_PACKAGE_REPORT=/var/lib/learncoding/runner-releases/package-report.json");
+    expect(runbook).toContain("tar --create --file=-");
+    expect(runbook).toContain("verify-release-tree.py");
+    expect(runbook).toContain('RUNNER_RELEASE_MANIFEST_SHA256="$RUNNER_MANIFEST_SHA256"');
+    expect(runbook).toContain("/opt/learncoding/infra/runner-vm/install-guest.sh");
+    expect(runbook).toContain("RUNNER_PREVIOUS=/opt/learncoding.previous.");
+    expect(runbook).toContain("systemctl stop learncoding-runner.service");
+    expect(runbook).toContain("keep code execution disabled");
+    expect(runbook).not.toContain("virsh undefine --remove-all-storage");
+    expect(runbook).not.toContain("docker compose down -v");
+    expect(runbook).not.toContain("git reset --hard");
   });
 });

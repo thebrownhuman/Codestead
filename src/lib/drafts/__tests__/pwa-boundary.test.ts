@@ -2,18 +2,37 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-function sourceFiles(root: string): string[] {
+const SOURCE_EXTENSION = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/;
+const TEST_FILE = /(?:^|\/)__tests__(?:\/|$)|\.(?:test|spec)\.[^/]+$/;
+
+function productionSourceFiles(root: string, workspaceRoot: string): string[] {
   if (!existsSync(root)) return [];
   return readdirSync(root).flatMap((entry) => {
     const absolute = path.join(root, entry);
+    const relative = path.relative(workspaceRoot, absolute).replaceAll("\\", "/");
+    if (relative === "public/monaco" || relative.startsWith("public/monaco/")) return [];
+    if (TEST_FILE.test(relative)) return [];
     return statSync(absolute).isDirectory()
-      ? sourceFiles(absolute)
-      : /\.(?:ts|tsx|js|jsx)$/.test(entry) ? [absolute] : [];
+      ? productionSourceFiles(absolute, workspaceRoot)
+      : SOURCE_EXTENSION.test(entry) ? [absolute] : [];
   });
 }
 
-describe("non-installable warm-session draft boundary", () => {
-  it("does not register a service worker, manifest, workbox, or install surface", () => {
+function expectProductionSourceNotToMatch(
+  files: readonly string[],
+  workspaceRoot: string,
+  pattern: RegExp,
+  boundary: string,
+) {
+  const offender = files.find((file) => pattern.test(readFileSync(file, "utf8")));
+  expect(
+    offender ? path.relative(workspaceRoot, offender).replaceAll("\\", "/") : undefined,
+    boundary,
+  ).toBeUndefined();
+}
+
+describe("page-context browser-durability boundary", () => {
+  it("does not add a PWA shell, install surface, background delivery, or authenticated Cache API", () => {
     const root = process.cwd();
     for (const relative of [
       "public/manifest.json",
@@ -24,12 +43,21 @@ describe("non-installable warm-session draft boundary", () => {
       "src/app/manifest.webmanifest",
     ]) expect(existsSync(path.join(root, relative)), relative).toBe(false);
 
-    const applicationSource = sourceFiles(path.join(root, "src", "app"))
-      .concat(sourceFiles(path.join(root, "src", "components")))
-      .map((file) => readFileSync(file, "utf8"))
-      .join("\n");
-    expect(applicationSource).not.toContain("serviceWorker.register");
-    expect(applicationSource).not.toMatch(/rel=["']manifest["']/i);
-    expect(readFileSync(path.join(root, "package.json"), "utf8")).not.toMatch(/workbox|next-pwa/i);
+    const productionSource = productionSourceFiles(path.join(root, "src"), root)
+      .concat(productionSourceFiles(path.join(root, "public"), root));
+    const boundaries: ReadonlyArray<readonly [RegExp, string]> = [
+      [/\bnavigator\s*\.\s*serviceWorker\b/i, "navigator.serviceWorker must remain absent"],
+      [/\bserviceWorker\s*\.\s*register\s*\(/i, "service-worker registration must remain absent"],
+      [/rel\s*=\s*["']manifest["']/i, "manifest link surfaces must remain absent"],
+      [/\bbeforeinstallprompt\b|\bappinstalled\b|navigator\s*\.\s*standalone\b/i, "install prompts must remain absent"],
+      [/\bSyncManager\b|\.\s*sync\s*\.\s*register\s*\(|background\s*[- ]\s*sync/i, "background sync must remain absent"],
+      [/\bCacheStorage\b|\b(?:globalThis\s*\.\s*)?caches\s*\.\s*(?:open|match|has|delete|keys)\s*\(/i, "authenticated Cache API use must remain absent"],
+    ];
+    for (const [pattern, boundary] of boundaries) {
+      expectProductionSourceNotToMatch(productionSource, root, pattern, boundary);
+    }
+
+    const packageJson = readFileSync(path.join(root, "package.json"), "utf8");
+    expect(packageJson).not.toMatch(/\bworkbox\b|\bnext-pwa\b/i);
   });
 });

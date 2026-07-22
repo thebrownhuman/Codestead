@@ -1,5 +1,5 @@
 import path from "node:path";
-import { access, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
 import { and, eq, sql } from "drizzle-orm";
@@ -74,6 +74,7 @@ import {
   providerOperationReceipt,
   quotaLedger,
   response,
+  runnerPowerRehearsalEvent,
   session,
   storedObject,
   twoFactor,
@@ -96,12 +97,15 @@ import {
   deleteLearnerAccount,
 } from "@/lib/data-lifecycle/deletion";
 import { createLearnerExport } from "@/lib/data-lifecycle/export";
+import { processFileErasures } from "@/lib/data-lifecycle/file-erasure";
 import { runRetention } from "@/lib/data-lifecycle/retention";
 import { revokeOneOwnedSession } from "@/lib/session-controls";
+import { ownerStorageSegment } from "@/lib/storage/upload-service";
 import {
   reserveStoredObject,
   StorageQuotaExceededError,
 } from "@/lib/storage/quota-store";
+import { resolveStoredObjectPath } from "@/lib/storage/upload-scanner";
 import {
   reconcileFallbackBudget,
   reserveFallbackBudget,
@@ -127,6 +131,18 @@ const EXAM_ATTEMPT_ID = "20000000-0000-4000-8000-000000000001";
 const EXAM_SESSION_ID = "20000000-0000-4000-8000-000000000002";
 const FAILED_EXAM_ATTEMPT_ID = "20000000-0000-4000-8000-000000000003";
 const FAILED_EXAM_SESSION_ID = "20000000-0000-4000-8000-000000000004";
+const integrationFileErasureDependencies = {
+  processFileErasures: (input: Parameters<typeof processFileErasures>[0]) => processFileErasures({
+    ...input,
+    preparePath: async (root, storageKey) => resolveStoredObjectPath(root, storageKey),
+    unlinkFile: unlink,
+    // This cross-platform suite proves queue/database orchestration. Linux
+    // procfd identity checks and directory fsync are exercised separately.
+    syncParentDirectory: async (root, storageKey) => {
+      await access(path.dirname(resolveStoredObjectPath(root, storageKey)));
+    },
+  }),
+} as const;
 
 const REVIEWED_LEARNING_FIXTURE_BANK = {
   $schema: "../content/schema/assessment-bank.schema.json",
@@ -1967,9 +1983,10 @@ describe("versioned category retention", () => {
       updatedAt: old,
     });
     const objectRoot = await mkdtemp(path.join(tmpdir(), "learncoding-retention-"));
-    const storageKey = `${USER_A}/75000000-0000-4000-8000-000000000001`;
-    const objectPath = path.join(objectRoot, USER_A, "75000000-0000-4000-8000-000000000001");
-    const softDeletedPath = path.join(objectRoot, USER_A, "75000000-0000-4000-8000-000000000002");
+    const ownerSegment = ownerStorageSegment(USER_A);
+    const storageKey = `${ownerSegment}/75000000-0000-4000-8000-000000000001`;
+    const objectPath = path.join(objectRoot, ownerSegment, "75000000-0000-4000-8000-000000000001");
+    const softDeletedPath = path.join(objectRoot, ownerSegment, "75000000-0000-4000-8000-000000000002");
     await mkdir(path.dirname(objectPath), { recursive: true });
     await writeFile(objectPath, "temporary fixture", "utf8");
     await writeFile(softDeletedPath, "soft-deleted fixture", "utf8");
@@ -1989,7 +2006,7 @@ describe("versioned category retention", () => {
     await db.insert(storedObject).values({
       id: "75000000-0000-4000-8000-000000000002",
       ownerUserId: USER_A,
-      storageKey: `${USER_A}/75000000-0000-4000-8000-000000000002`,
+      storageKey: `${ownerSegment}/75000000-0000-4000-8000-000000000002`,
       originalName: "soft-deleted.txt",
       mediaType: "text/plain",
       sizeBytes: 20,
@@ -2029,7 +2046,7 @@ describe("versioned category retention", () => {
         dryRun: false,
         now,
         objectStorageRoot: objectRoot,
-      });
+      }, integrationFileErasureDependencies);
       expect(applied.categories.rawChat.deleted).toBe(1);
       expect(applied.categories.rawCode.deleted).toBe(1);
       expect(applied.categories.aiRequestMetadata.deleted).toBe(1);
@@ -2325,6 +2342,30 @@ describe("bounded export and administrator-only account deletion", () => {
     })).rejects.toThrow(/learner is unavailable/i);
     await db.update(user).set({ status: "active" }).where(eq(user.id, USER_A));
 
+    const rehearsalLearnerId = "integration-rehearsal-learner";
+    await db.insert(user).values({
+      id: rehearsalLearnerId,
+      name: "Rehearsal learner",
+      email: "rehearsal-learner@integration.invalid",
+      emailVerified: true,
+      role: "learner",
+      status: "active",
+    });
+    await db.insert(runnerPowerRehearsalEvent).values({
+      id: "76000000-0000-4000-8000-000000000030",
+      state: "aborted",
+      actorUserId: USER_B,
+      learnerOneId: USER_A,
+      learnerTwoId: rehearsalLearnerId,
+      reason: "Completed disposable account-deletion rehearsal fixture.",
+      createdAt: new Date("2026-07-12T00:00:00.000Z"),
+      updatedAt: new Date("2026-07-12T00:01:00.000Z"),
+      expiresAt: new Date("2026-07-12T01:00:00.000Z"),
+      abortedAt: new Date("2026-07-12T00:01:00.000Z"),
+      terminalCommandId: "76000000-0000-4000-8000-000000000031",
+      terminalCommandHash: "a".repeat(64),
+    });
+
     await expect(deleteLearnerAccount({
       actorUserId: USER_A,
       learnerId: USER_A,
@@ -2333,8 +2374,9 @@ describe("bounded export and administrator-only account deletion", () => {
     })).rejects.toMatchObject({ code: "ADMIN_REQUIRED" });
 
     const objectRoot = await mkdtemp(path.join(tmpdir(), "learncoding-deletion-"));
-    const storageKey = `${USER_A}/76000000-0000-4000-8000-000000000009`;
-    const objectPath = path.join(objectRoot, USER_A, "76000000-0000-4000-8000-000000000009");
+    const ownerSegment = ownerStorageSegment(USER_A);
+    const storageKey = `${ownerSegment}/76000000-0000-4000-8000-000000000009`;
+    const objectPath = path.join(objectRoot, ownerSegment, "76000000-0000-4000-8000-000000000009");
     await mkdir(path.dirname(objectPath), { recursive: true });
     await writeFile(objectPath, "delete me", "utf8");
     await db.insert(storedObject).values({
@@ -2410,7 +2452,7 @@ describe("bounded export and administrator-only account deletion", () => {
       await expect(postgresFailure(db.delete(providerCredential).where(
         eq(providerCredential.id, adminCredentialId),
       ))).resolves.toMatchObject({ code: "23503" });
-      const report = await deleteLearnerAccount(deletionInput);
+      const report = await deleteLearnerAccount(deletionInput, integrationFileErasureDependencies);
       expect(report.primaryStoreDeletionComplete).toBe(true);
       expect(report.backupStatus).toBe("awaiting_retention_expiry");
       expect(report.backupRetentionUntil).toBe("2027-07-12T00:00:00.000Z");
@@ -2428,12 +2470,14 @@ describe("bounded export and administrator-only account deletion", () => {
       expect(await db.select().from(adminFallbackGrant).where(eq(adminFallbackGrant.learnerId, USER_A))).toHaveLength(0);
       expect(await db.select().from(providerOperationReceipt).where(eq(providerOperationReceipt.ownerUserId, USER_A))).toHaveLength(0);
       expect(report.deletedRows).toMatchObject({
+        runnerPowerRehearsalEvents: 1,
         assessmentCorrectionImpacts: 1,
         emptyAssessmentCorrections: 1,
         providerOperationReceipts: 1,
         fallbackReservations: 1,
         fallbackGrants: 2,
       });
+      expect(await db.select().from(runnerPowerRehearsalEvent)).toHaveLength(0);
       expect(await db.select().from(assessmentCorrection).where(eq(assessmentCorrection.id, learnerCorrectionId)))
         .toHaveLength(0);
       expect(await db.select().from(assessmentCorrection).where(eq(assessmentCorrection.id, unrelatedCorrectionId)))

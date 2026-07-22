@@ -41,7 +41,7 @@ grep -Fq 'verify-archive.sh' "$repo_root/scripts/backup/backup.sh" \
 if grep -Fq 'offsite-sync.sh' "$repo_root/scripts/backup/backup.sh"; then
   fail "backup publication still performs inline offsite synchronization"
 fi
-python - "$repo_root/scripts/backup/backup.sh" <<'PY'
+/usr/bin/python3 - "$repo_root/scripts/backup/backup.sh" <<'PY'
 import pathlib
 import re
 import sys
@@ -87,7 +87,7 @@ PY
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/bin" "$work/live-repo" "$work/live-data/app-data" \
-  "$work/live-backups" "$work/stages"
+  "$work/live-backups" "$work/stages" "$work/runtime"
 
 cat >"$work/bin/age" <<'EOF'
 #!/usr/bin/env bash
@@ -265,12 +265,12 @@ if [[ "${1:-}" == */run-managed-deadline.py ]]; then
     elif [[ "${TEST_MIGRATION_PARSE_TIMEOUT:-0}" == 1 \
       && "$joined_command" == *migration-row-parser* ]]; then
       printf '%s\n' observed >"${TEST_MIGRATION_TIMEOUT_OBSERVED:?}"
-      real_duration=5
+      real_duration=1
       real_grace=0.2
     elif [[ "${TEST_MIGRATION_PRODUCER_HANG:-0}" == 1 \
       && "$joined_command" == *__drizzle_migrations* ]]; then
       printf '%s\n' observed >"${TEST_MIGRATION_TIMEOUT_OBSERVED:?}"
-      real_duration=5
+      real_duration=1
       real_grace=0.2
     fi
     real_options=(--expected-parent-pid "$helper_expected_parent")
@@ -437,7 +437,7 @@ if [[ "${3:-}" == migration-row-parser \
     parser_error_temporary="$(/usr/bin/mktemp)"
     trap 'rm -f -- "$summary_temporary" "$parser_error_temporary"' EXIT
     parser_status=0
-    python "$@" >"$summary_temporary" 2>"$parser_error_temporary" \
+    /usr/bin/python3 "$@" >"$summary_temporary" 2>"$parser_error_temporary" \
       || parser_status=$?
     if ((parser_status != 0)); then
       cat -- "$parser_error_temporary" >"${TEST_MIGRATION_PARSER_ERROR:?}"
@@ -449,7 +449,7 @@ if [[ "${3:-}" == migration-row-parser \
     exit 0
   fi
 fi
-exec python "$@"
+exec /usr/bin/python3 "$@"
 EOF
 cat >"$work/bin/record-linux-process-identity" <<'EOF'
 #!/usr/bin/env bash
@@ -717,7 +717,7 @@ if [[ "${TEST_STAGE_CHMOD_FAIL:-0}" == 1 ]]; then
   for argument in "$@"; do
     if [[ "$argument" == */stage/full.* \
       || "$argument" == */stage/verify.* \
-      || "$argument" == */runtime/learncoding-backup.* ]]; then
+      || "$argument" == */runtime/b.* ]]; then
       exit 80
     fi
   done
@@ -760,7 +760,7 @@ if [[ "${TEST_SIDECAR_CREATE_FAIL:-0}" == 1 \
 fi
 if [[ -n "${TEST_STAGE_MKTEMP_FAIL_AT:-}" && " $* " == *" -d "* \
   && ( "$*" == *"/full."* || "$*" == *"/verify."* \
-    || "$*" == *"/learncoding-backup."* ) ]]; then
+    || "$*" == *"/b."* ) ]]; then
   count=0
   [[ ! -f "${TEST_STAGE_MKTEMP_STATE:?}" ]] \
     || count="$(<"$TEST_STAGE_MKTEMP_STATE")"
@@ -1129,7 +1129,7 @@ make_full_archive() {
       rm -rf -- "$nested_root"
       ;;
     nested-symlink|nested-device|nested-socket)
-      python - "$stage/repository.tar.gz" "$mutation" <<'PY'
+      /usr/bin/python3 - "$stage/repository.tar.gz" "$mutation" <<'PY'
 import io
 import tarfile
 import sys
@@ -1170,7 +1170,7 @@ with tarfile.open(output, "w:gz") as archive:
 PY
       ;;
     repository-file-wide-mode|repository-file-special-mode|repository-dir-wide-mode|repository-dir-special-mode)
-      python - "$stage/repository.tar.gz" "$mutation" <<'PY'
+      /usr/bin/python3 - "$stage/repository.tar.gz" "$mutation" <<'PY'
 import io
 import os
 import tarfile
@@ -1460,7 +1460,7 @@ tar --absolute-names -C "$type_stage" \
   -czf "$work/traversal-outer.tar.gz.age" traversal-source
 verify_failure "$work/traversal-outer.tar.gz.age" "$work/verify-traversal-outer"
 
-if python - "$type_stage/socket" 2>/dev/null <<'PY'
+if /usr/bin/python3 - "$type_stage/socket" 2>/dev/null <<'PY'
 import socket
 import sys
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -2549,7 +2549,7 @@ case "$command" in
         while :; do /usr/bin/sleep 0.05; done
       fi
       if [[ "${TEST_MIGRATION_LARGE_COUNT:-0}" =~ ^[1-9][0-9]*$ ]]; then
-        python - "$TEST_MIGRATION_LARGE_COUNT" <<'PY'
+        /usr/bin/python3 - "$TEST_MIGRATION_LARGE_COUNT" <<'PY'
 import sys
 row_hash = "b" * 64
 output = sys.stdout.buffer
@@ -2589,8 +2589,12 @@ chmod 0440 "$master_key"
 
 make_backup_case() {
   local case_name="$1" case_repo="${2:-$fixture_repo}"
-  local case_root marker old_name old_hash
+  local case_root case_ephemeral_root marker old_name old_hash
   case_root="$work/$case_name"
+  case_ephemeral_root="$case_root/runtime"
+  if [[ "${TEST_USE_REAL_MANAGED_DEADLINE:-0}" == 1 ]]; then
+    case_ephemeral_root="$work/runtime"
+  fi
   mkdir -p "$case_root/backups/full" "$case_root/backups/state" \
     "$case_root/data/app-data" "$case_root/stage" "$case_root/runtime"
   chmod 0700 "$case_root/backups/full" "$case_root/backups/state" \
@@ -2616,7 +2620,7 @@ REPO_ROOT=$case_repo
 COMPOSE_ENV_FILE=$compose_env
 LEARN_DATA_ROOT=$case_root/data
 BACKUP_STAGE_ROOT=$case_root/stage
-BACKUP_EPHEMERAL_ROOT=$case_root/runtime
+BACKUP_EPHEMERAL_ROOT=$case_ephemeral_root
 BACKUP_LOCK_FILE=$case_root/backup.lock
 AGE_RECIPIENT_FILE=$recipient
 CREDENTIAL_MASTER_KEY_FILE=$master_key
@@ -2643,7 +2647,8 @@ assert_recorded_process_dead() {
   for attempt in $(seq 1 100); do
     checked="$work/.group-absence.$BASHPID.$attempt"
     rm -f -- "$checked"
-    if assert-linux-group-absent "$identity_file" "$checked" 2>/dev/null; then
+    if "$work/bin/assert-linux-group-absent" "$identity_file" "$checked" \
+      2>/dev/null; then
       rm -f -- "$checked"
       return 0
     fi
@@ -2651,6 +2656,26 @@ assert_recorded_process_dead() {
     /usr/bin/sleep 0.02
   done
   fail "$label exact PID/PGID/start identity remained after its deadline"
+}
+
+configured_case_ephemeral_root() {
+  local case_root="$1"
+  if [[ "${TEST_USE_REAL_MANAGED_DEADLINE:-0}" == 1 ]]; then
+    printf '%s\n' "$work/runtime"
+  else
+    printf '%s\n' "$case_root/runtime"
+  fi
+}
+
+assert_case_protected_roots_empty() {
+  local label="$1" case_root="$2" runtime_root
+  runtime_root="$(configured_case_ephemeral_root "$case_root")"
+  if [[ -n "$(find -P "$case_root/stage" "$runtime_root" \
+    -mindepth 1 -print -quit)" ]]; then
+    find -P "$case_root/stage" "$runtime_root" -mindepth 1 -maxdepth 3 \
+      -print >&2
+    fail "$label left plaintext or protected runtime material"
+  fi
 }
 
 last_precommit_failure_case=""
@@ -2720,11 +2745,7 @@ assert_precommit_failure() {
   shift 2
   run_precommit_failure_case "$label" "$expect_resume" "$@"
   case_root="$last_precommit_failure_case"
-  if [[ -n "$(find "$case_root/stage" "$case_root/runtime" -mindepth 1 -print -quit)" ]]; then
-    sed -n '1,160p' "$case_root/log" >&2
-    find "$case_root/stage" "$case_root/runtime" -mindepth 1 -maxdepth 3 -print >&2
-    fail "$label failure left plaintext or ephemeral key material"
-  fi
+  assert_case_protected_roots_empty "$label failure" "$case_root"
 }
 
 assert_protected_entry() {
@@ -2829,7 +2850,7 @@ assert_monitor_loss_protected_retention() {
     || fail "monitor-loss did not retain exactly one protected runtime directory"
   ephemeral_dir="${runtime_entries[0]}"
   basename="${ephemeral_dir##*/}"
-  [[ "$basename" =~ ^learncoding-backup\.[0-9]{8}T[0-9]{6}Z\.[A-Za-z0-9]{6}$ ]] \
+  [[ "$basename" =~ ^b\.[A-Za-z0-9]{6}$ ]] \
     || fail "monitor-loss retained an unexpected runtime path: $basename"
   assert_protected_entry monitor-loss "$ephemeral_dir" directory 700
   assert_exact_protected_names monitor-loss "$ephemeral_dir" \
@@ -3954,6 +3975,7 @@ if [[ "$test_group" == quiesce-event-lifecycle ]]; then
       \( -name '*.control' -o -name '.managed-deadline-stop-*.sock' \) \
       -print -quit)" ]] \
       || fail "real controller success retained protected stop metadata"
+    assert_case_protected_roots_empty "real controller success" "$quiesce_success_case"
   fi
   if cmp -s "$quiesce_success_case/old-marker" \
     "$quiesce_success_case/backups/state/local-last-success.env"; then
@@ -4544,9 +4566,7 @@ if [[ "$test_group" == marker-writer-process-group ]]; then
     ! grep -Fq 'backup_monitor_containment_failed' "$marker_group_case/log" \
       || fail "marker deadline assertion was masked by monitor containment failure"
   fi
-  [[ -z "$(find "$marker_group_case/stage" "$marker_group_case/runtime" \
-    -mindepth 1 -print -quit)" ]] \
-    || fail "marker writer deadline failure left protected material"
+  assert_case_protected_roots_empty "marker writer deadline failure" "$marker_group_case"
   echo "backup-publication-marker-writer-process-group-tests-ok"
   exit 0
 fi
@@ -4598,6 +4618,9 @@ const produced = BigInt(fs.readFileSync(producerPath, "utf8").trim());
 const started = BigInt(fs.readFileSync(startedPath, "utf8").trim());
 const resumed = BigInt(fs.readFileSync(resumedPath, "utf8").trim());
 if (started < produced || resumed < started || resumed - started > 2_000_000_000n) {
+  console.error(
+    `migration parser timing evidence was invalid: produced=${produced} started=${started} resumed=${resumed}`,
+  );
   process.exit(1);
 }
 EOF
@@ -4613,9 +4636,7 @@ EOF
     ! grep -Fq 'backup_monitor_containment_failed' "$migration_deadline_case/log" \
       || fail "parser deadline assertion was masked by monitor containment failure"
   fi
-  [[ -z "$(find "$migration_deadline_case/stage" \
-    "$migration_deadline_case/runtime" -mindepth 1 -print -quit)" ]] \
-    || fail "migration parser deadline failure left protected material"
+  assert_case_protected_roots_empty "migration parser deadline failure" "$migration_deadline_case"
 
   if [[ "${TEST_USE_REAL_MANAGED_DEADLINE:-0}" == 1 ]]; then
     migration_producer_case="$(make_backup_case publication-migration-producer-deadline)"
@@ -4652,9 +4673,7 @@ EOF
       || fail "migration producer deadline failure changed the previous marker"
     grep -Fq 'resume:app' "$migration_producer_case/log" \
       || fail "migration producer deadline failure did not resume captured app"
-    [[ -z "$(find "$migration_producer_case/stage" \
-      "$migration_producer_case/runtime" -mindepth 1 -print -quit)" ]] \
-      || fail "migration producer deadline failure left protected material"
+    assert_case_protected_roots_empty "migration producer deadline failure" "$migration_producer_case"
     ! grep -Fq 'backup_monitor_containment_failed' "$migration_producer_case/log" \
       || fail "producer deadline assertion was masked by monitor containment failure"
   fi

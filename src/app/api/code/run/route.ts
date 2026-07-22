@@ -26,6 +26,10 @@ import {
   practiceAdmissionRequestHash,
   PRACTICE_LIMITS,
 } from "@/lib/runner/practice-dispatch";
+import {
+  holdRunnerDispatchForPowerRehearsal,
+  RunnerPowerRehearsalError,
+} from "@/lib/runner/power-rehearsal-hold";
 
 const bodySchema = z.object({
   language: z.enum(["c", "cpp", "java", "python", "javascript"]),
@@ -318,6 +322,8 @@ export async function POST(request: NextRequest) {
   // job response, a local DB/commit error cannot safely be converted into a
   // terminal failure. The same admission/request id must reconcile it.
   let remoteBoundaryCrossed = admission.status !== "queued" || admission.remoteJobId !== null;
+  // A lost COMMIT acknowledgement can mean the immutable snapshot is already durable.
+  let dispatchPersistenceIndeterminate = false;
   try {
     const runnerRequest = buildBoundPracticeRunnerRequest({
       admission,
@@ -329,9 +335,39 @@ export async function POST(request: NextRequest) {
       stdin: body.data.stdin,
       mode: body.data.mode,
     });
+    dispatchPersistenceIndeterminate = true;
     const dispatchBoundary = await beginRunnerDispatch({ admission, dispatchRequest: runnerRequest });
+    dispatchPersistenceIndeterminate = false;
     if (dispatchBoundary.replayed) {
       return storedPracticeResult(await refreshRunnerAdmission(admission));
+    }
+    if (!dispatchBoundary.remoteJobId) {
+      const rehearsalHold = await holdRunnerDispatchForPowerRehearsal({
+        userId: admission.userId,
+        requestId: admission.requestId,
+        submissionId: admission.submissionId,
+        runnerJobId: admission.runnerJobId,
+      });
+      if (rehearsalHold.held) {
+        return NextResponse.json({
+          requestId,
+          submissionId: admission.submissionId,
+          status: "rehearsal_held",
+          code: "RUNNER_POWER_REHEARSAL_HELD",
+          retryable: true,
+          indeterminate: false,
+          replayed: rehearsalHold.replayed,
+          rehearsal: {
+            slot: rehearsalHold.slot,
+            readyForCut: rehearsalHold.filled,
+            operatorWindowExpired: rehearsalHold.expired,
+          },
+          error: rehearsalHold.expired
+            ? "The supervised rehearsal window expired. This request remains safely held for an operator decision."
+            : "This request is durably held for the supervised power-recovery rehearsal.",
+          ...practiceOnlyEvidence,
+        }, { status: 202 });
+      }
     }
     const submitted = dispatchBoundary.remoteJobId
       ? await client.waitForJob(dispatchBoundary.remoteJobId, runnerRequest)
@@ -404,7 +440,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (
       error instanceof RunnerIndeterminateError
+      || (error instanceof RunnerPowerRehearsalError && error.indeterminate)
       || (error instanceof RunnerAdmissionError && error.code === "REMOTE_JOB_ID_MISMATCH")
+      || dispatchPersistenceIndeterminate
       || remoteBoundaryCrossed
     ) {
       return NextResponse.json(
@@ -412,8 +450,10 @@ export async function POST(request: NextRequest) {
           submissionId: admission.submissionId,
           requestId,
           status: "infrastructure_error",
-          code: error instanceof RunnerIndeterminateError || error instanceof RunnerAdmissionError
-            ? error.code
+          code: error instanceof RunnerPowerRehearsalError
+            ? "RUNNER_REHEARSAL_HOLD_INDETERMINATE"
+            : error instanceof RunnerIndeterminateError || error instanceof RunnerAdmissionError
+              ? error.code
             : "RUNNER_LOCAL_PERSISTENCE_INDETERMINATE",
           retryable: true,
           indeterminate: true,

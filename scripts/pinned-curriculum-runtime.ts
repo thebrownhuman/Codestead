@@ -1,20 +1,20 @@
+import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
 
 export type PinnedCurriculumLanguage = "java" | "python";
 
 export const PINNED_CURRICULUM_RUNTIMES = Object.freeze({
   java: {
     tag: "learncoding/runtime-java:local",
-    imageDigest: "sha256:6e7a783589913b879ed5cf4e12dc9d4186e34400c2dfd40d8eb6772af21f099c",
+    imageDigest: "sha256:bec0bd9af9f698dea650e80f26d79f412c8f4cc13aec335af58cd3bc6ec95a46",
     version: "Java SE 21",
     entrypoint: "Main.java",
   },
   python: {
     tag: "learncoding/runtime-python:local",
-    imageDigest: "sha256:22966dc5013d478f2df4f8df44bef5d08f5c32adc5375e16a44088b73a4b1657",
+    imageDigest: "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
     version: "Python 3.14",
     entrypoint: "main.py",
   },
@@ -29,21 +29,13 @@ export function pinnedDockerAvailable(): boolean {
   return spawnSync("docker", ["info"], { stdio: "ignore", windowsHide: true }).status === 0;
 }
 
-export function pinnedImageId(language: PinnedCurriculumLanguage): string | null {
-  const result = spawnSync(
-    "docker",
-    ["image", "inspect", PINNED_CURRICULUM_RUNTIMES[language].tag, "--format", "{{.Id}}"],
-    { encoding: "utf8", windowsHide: true },
-  );
-  return result.status === 0 ? result.stdout.trim() : null;
-}
-
 export function normalizeProgramOutput(value: string): string {
   return value.replaceAll("\r\n", "\n").trim();
 }
 
 export async function executePinnedCurriculumReference(input: {
   readonly language: PinnedCurriculumLanguage;
+  readonly imageReference: string;
   readonly source: string;
   readonly stdin: string;
   readonly timeLimitMs: number;
@@ -76,7 +68,7 @@ export async function executePinnedCurriculumReference(input: {
     "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m,uid=65532,gid=65532,mode=0700",
     "--tmpfs", "/work:rw,exec,nosuid,nodev,size=16777216,uid=65532,gid=65532,mode=0700",
     "--user", "65532:65532", "--env", "HOME=/tmp", "--workdir", "/work",
-    "--mount", `type=bind,src=${directory},dst=/input,readonly`, runtime.tag,
+    "--mount", `type=bind,src=${directory},dst=/input,readonly`, input.imageReference,
     "/opt/runner/execute", "--mode", "run", "--language", input.language,
     "--source-root", "/input", "--entrypoint", `/input/${runtime.entrypoint}`,
   ];

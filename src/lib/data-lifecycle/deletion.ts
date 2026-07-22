@@ -17,6 +17,11 @@ import { addUtcMonths, RETENTION_POLICY_VERSION } from "./policy";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DELETED_COMMUNITY_POST_TITLE = "Deleted post";
 const DELETED_COMMUNITY_BODY = "[deleted by account owner]";
+type AccountDeletionDependencies = Readonly<{
+  processFileErasures: typeof processFileErasures;
+}>;
+const defaultAccountDeletionDependencies: AccountDeletionDependencies = { processFileErasures };
+
 const DELETED_COMMUNITY_HASH = createHash("sha256")
   .update("learncoding:deleted-community-content:v1", "utf8")
   .digest("hex");
@@ -222,6 +227,10 @@ async function authorizeAndClaim(input: {
            left join runner_job j on j.submission_id = s.id
           where s.user_id = $1
             and (s.status in ('queued','leased','running') or j.status in ('queued','leased','running'))
+         union all
+         select 1 from runner_power_rehearsal_event rehearsal
+          where rehearsal.state in ('armed','filled')
+            and (rehearsal.learner_one_id = $1 or rehearsal.learner_two_id = $1)
        ) as blocked`,
       [input.learnerId],
     );
@@ -301,7 +310,7 @@ export async function deleteLearnerAccount(input: {
   reason: string;
   now?: Date;
   objectStorageRoot?: string;
-}): Promise<AccountDeletionReport> {
+}, dependencies: AccountDeletionDependencies = defaultAccountDeletionDependencies): Promise<AccountDeletionReport> {
   const now = input.now ?? new Date();
   if (!Number.isFinite(now.getTime())) throw new Error("A valid deletion timestamp is required.");
   if (!UUID_PATTERN.test(input.requestId)) throw new Error("requestId must be a UUID.");
@@ -341,6 +350,10 @@ export async function deleteLearnerAccount(input: {
              left join runner_job j on j.submission_id = s.id
             where s.user_id = $1
               and (s.status in ('queued','leased','running') or j.status in ('queued','leased','running'))
+           union all
+           select 1 from runner_power_rehearsal_event rehearsal
+            where rehearsal.state in ('armed','filled')
+              and (rehearsal.learner_one_id = $1 or rehearsal.learner_two_id = $1)
          ) as blocked`,
         [id],
       );
@@ -555,6 +568,12 @@ export async function deleteLearnerAccount(input: {
         [id],
       );
       deletedRows.learnerDrafts = await deleteCount(client, "delete from learner_draft where user_id = $1", [id]);
+      // Active rehearsals were rejected above. Remove terminal, learner-bound
+      // controller evidence before its RESTRICT submission/job references so
+      // account deletion cannot be wedged by a completed physical drill.
+      deletedRows.runnerPowerRehearsalEvents = await deleteCount(client,
+        "delete from runner_power_rehearsal_event where (learner_one_id = $1 or learner_two_id = $1) and state in ('released','aborted')", [id]);
+
       deletedRows.codeSubmissions = await deleteCount(client, "delete from code_submission where user_id = $1", [id]);
       // Daily-review items bind to attempts through an owner/activity/enrollment
       // composite foreign key. Erase the learner-owned allocation before its
@@ -713,7 +732,7 @@ export async function deleteLearnerAccount(input: {
 
       let fileSummary;
       try {
-        fileSummary = await processFileErasures({
+        fileSummary = await dependencies.processFileErasures({
           lifecycleRunId: claim.runId,
           objectStorageRoot: root,
         });

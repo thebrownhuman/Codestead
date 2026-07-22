@@ -3,6 +3,7 @@ Description=LearnCoding nightly encrypted backup
 Documentation=/opt/learncoding/docs/runbooks/backup-and-restore.md
 After=learncoding-compose.service
 Wants=learncoding-compose.service
+RequiresMountsFor=/srv/learncoding /mnt/learncoding-backups
 OnFailure=learncoding-alert@%n.service
 
 [Service]

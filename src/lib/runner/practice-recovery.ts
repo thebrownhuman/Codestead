@@ -78,6 +78,12 @@ async function loadRecoveryRow(client: PoolClient, jobId: string): Promise<Recov
         and s.submission_type in ('server_compile','server_run')
         and (s.status in ('queued','leased','running') or j.status in ('queued','leased','running'))
         and j.dispatch_request is not null
+        and not exists (
+          select 1 from runner_power_rehearsal_event rehearsal
+           where rehearsal.state in ('armed','filled')
+             and (rehearsal.slot_one_runner_job_id = j.id
+               or rehearsal.slot_two_runner_job_id = j.id)
+        )
         and j.recovery_state in ('ready','retry_wait','quarantined')`,
     [jobId],
   );
@@ -306,6 +312,12 @@ export async function processPracticeRunnerRecoveryBatch(input: {
         and (
           (j.recovery_state = 'ready' and coalesce(j.started_at,j.queued_at) <= $1)
           or (j.recovery_state = 'retry_wait' and j.recovery_next_attempt_at <= $2)
+        )
+        and not exists (
+          select 1 from runner_power_rehearsal_event rehearsal
+           where rehearsal.state in ('armed','filled')
+             and (rehearsal.slot_one_runner_job_id = j.id
+               or rehearsal.slot_two_runner_job_id = j.id)
         )
       order by coalesce(j.recovery_next_attempt_at,j.started_at,j.queued_at),j.id
       limit $3`,

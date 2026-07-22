@@ -16,7 +16,8 @@ The generic Better Auth administrator surface stays fail-closed. Both learner an
 Run the checks with:
 
 ```powershell
-npm.cmd run security:api-surface -- --output=docs/evidence/api-authorization-matrix-2026-07-12.json
+npm.cmd run security:api-surface
+npm.cmd run security:api-surface:apply
 npm.cmd run test:auth-boundary
 npx.cmd vitest run src/lib/security/__tests__/api-surface.test.ts src/lib/security/__tests__/api-authorization-matrix.test.ts src/lib/security/__tests__/better-auth-admin-policy.test.ts src/lib/http/__tests__/authz.test.ts
 npm.cmd run test:integration -- integration/runtime-authorization.integration.test.ts
@@ -24,7 +25,7 @@ npm.cmd run test:integration -- integration/runtime-authorization.integration.te
 
 The final command creates and destroys a disposable PostgreSQL container and therefore requires an available Docker daemon; it refuses any database whose name is not `learncoding_integration`.
 
-The generated evidence is [`docs/evidence/api-authorization-matrix-2026-07-12.json`](evidence/api-authorization-matrix-2026-07-12.json). The dated suffix is a stable artifact name, not proof of freshness; use the file's `generatedAt` value and rerun the generator. Source hashes make reviewed route or supporting-service changes visible on the next run.
+The generated evidence is [`docs/evidence/api-authorization-matrix-2026-07-12.json`](evidence/api-authorization-matrix-2026-07-12.json). The dated suffix is a stable artifact name, not proof of freshness. `npm.cmd run security:api-surface` verifies the committed bytes without rewriting them; `npm.cmd run security:api-surface:apply` is the intentional regeneration command. Source hashes make reviewed route or supporting-service changes visible on the next check.
 
 The endpoint boundary sweep has a separate mandatory Vitest configuration because it imports every route module only to exercise its early authorization exit. The same gate now also executes the real `requireAuth`/`requireAdmin` decision logic, including durable account status, per-session MFA and fresh database role checks. Counting every transitively imported service as uncovered unit code would make the coverage denominator describe module discovery rather than unit behavior. `npm run check` and CI run `test:auth-boundary` explicitly before the unchanged unit-coverage gate; no threshold is lowered and the security test is never skipped in release verification.
 

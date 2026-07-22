@@ -45,6 +45,25 @@ require_command() {
 single_line() {
   [[ -n "${1:-}" && "$1" != *$'\n'* && "$1" != *$'\r'* ]]
 }
+assert_ephemeral_runtime_clean() {
+  local root="$1" endpoint_probe
+  endpoint_probe="$root/b.XXXXXX/.managed-deadline-stop-00000000000000000000000000000000.sock"
+  [[ "$root" == /run/bpe ]] \
+    || fail "ephemeral runtime root is not the reviewed short path"
+  (( ${#endpoint_probe} == 78 && ${#endpoint_probe} < 108 )) \
+    || fail "managed-deadline AF_UNIX endpoint length is not deterministically safe"
+  [[ -d "$root" && ! -L "$root" \
+    && "$(realpath -e -- "$root")" == "$root" \
+    && "$(stat -c '%a:%u' -- "$root")" == 700:0 ]] \
+    || fail "ephemeral runtime root ownership or mode is unsafe"
+  [[ "$(findmnt -n -o SOURCE -T "$root")" == tmpfs \
+    && "$(findmnt -n -o FSTYPE -T "$root")" == tmpfs \
+    && "$(findmnt -n -o TARGET -T "$root")" == "$root" ]] \
+    || fail "ephemeral runtime root is not the exact private tmpfs"
+  [[ -z "$(find -P "$root" -mindepth 1 -print -quit)" ]] \
+    || fail "ephemeral runtime tmpfs retained protected material"
+}
+
 
 repository_state() {
   git -C "$1" status --porcelain=v1 --untracked-files=all \
@@ -626,9 +645,10 @@ run_inner() {
   local inner_token="$BACKUP_E2E_INNER_TOKEN"
   local config_root="$test_root/config" secrets_root="$test_root/config/secrets"
   local learn_data_root="$test_root/learn-data" backup_root="$test_root/backup-root"
-  local stage_root="$test_root/staging" ephemeral_root="$test_root/ephemeral"
+  local stage_root="$test_root/staging" ephemeral_root="/run/bpe"
   local lock_root="$test_root/locks" verify_root="$test_root/verified"
-  local app_extract_root="$test_root/app-extracted"
+  local app_extract_root="$test_root/app-extracted" restore_root="$test_root/restored-entrypoint"
+  local restore_app_root="$test_root/restored-app-data" recovery_root="$test_root/recovery-key"
   local docker_config_root="$test_root/docker-config" home_root="$test_root/home"
   local tmp_root="$test_root/tmp"
   local compose_env="$config_root/compose.env"
@@ -638,12 +658,12 @@ run_inner() {
   local age_recipient="$config_root/backup-age-recipient.txt"
   local controller_log="$test_root/controller.log"
   local expected_images="$test_root/expected-images"
-  local postgres_password database_url credential_master_key db_sentinel
+  local postgres_password database_url credential_master_key db_sentinel recovery_key
   local app_sentinel migration_hash migration_created_at migration_state_hash
   local cloudflare_account cloudflare_secret cloudflare_tunnel
   local git_commit postgres_id restore_database archive checksum marker actual_hash
   local sidecar_hash sidecar_name sidecar_extra completed_utc marker_archive marker_hash
-  local verify_result restored_value original_value data_checksums database_version
+  local verify_result restored_value original_value data_checksums database_version smoke_output
   local secret_file secret_line
   local service id details full_id running status health project working_dir service_label
   local extra network_id network_name manifest actual_images
@@ -707,7 +727,8 @@ run_inner() {
     "$learn_data_root/postgres" "$learn_data_root/next-cache" \
     "$learn_data_root/app-data" "$backup_root" "$backup_root/full" \
     "$backup_root/state" "$stage_root" "$ephemeral_root" "$verify_root" \
-    "$app_extract_root"
+    "$app_extract_root" "$restore_app_root" "$recovery_root"
+  assert_ephemeral_runtime_clean "$ephemeral_root"
   install -d -m 0755 "$lock_root"
   printf '%s\n' LEARNCODING_BACKUP_V1 >"$backup_root/.learncoding-backup-root"
   chmod 0600 "$backup_root/.learncoding-backup-root"
@@ -755,6 +776,9 @@ run_inner() {
   chown -R 0:2000 "$secrets_root"
   find "$secrets_root" -mindepth 1 -maxdepth 1 -type f -exec chmod 0440 {} +
   chmod 0700 "$secrets_root"
+  recovery_key="$recovery_root/credential_master_key"
+  install -m 0600 "$secrets_root/credential_master_key" "$recovery_key"
+  [[ "$(stat -c '%a:%u:%h' -- "$recovery_key")" == 600:0:1 ]] || fail "recovery key fixture is unsafe"
 
   if ! age-keygen -o "$age_identity" >/dev/null 2>&1; then
     fail "offline age identity generation failed"
@@ -980,6 +1004,10 @@ CREATE TABLE drizzle.__drizzle_migrations (
 );
 INSERT INTO drizzle.__drizzle_migrations (id, hash, created_at)
 VALUES (1, '$migration_hash', $migration_created_at);
+CREATE TABLE public."user" (id text PRIMARY KEY);
+CREATE TABLE public.course (id text PRIMARY KEY);
+CREATE TABLE public.lesson (id text PRIMARY KEY);
+CREATE TABLE public.enrollment (id text PRIMARY KEY);
 CREATE TABLE public.backup_e2e_sentinel (
   id integer PRIMARY KEY,
   value text NOT NULL
@@ -1107,10 +1135,10 @@ EOF
     || fail "success marker timestamp is not canonical"
 
   [[ -z "$(find "$stage_root" -mindepth 1 -print -quit)" \
-    && -z "$(find "$ephemeral_root" -mindepth 1 -print -quit)" \
     && -z "$(find "$backup_root/full" -maxdepth 1 -type f \
       \( -name '.*.tmp.*' -o -name '*.plaintext*' \) -print -quit)" ]] \
-    || fail "plaintext, ephemeral, staging, or temporary material remained"
+    || fail "plaintext, staging, or temporary material remained"
+  assert_ephemeral_runtime_clean "$ephemeral_root"
   [[ -z "$(docker ps -aq \
     --filter "label=com.docker.compose.project=$PRODUCTION_COMPOSE_PROJECT" \
     --filter "label=com.docker.compose.project.working_dir=$repo_root" \
@@ -1201,15 +1229,60 @@ if re.fullmatch(r"[0-9a-f]{64}", value["plaintextSha256"]) is None:
     raise SystemExit(1)
 PY
 
-  restore_database="restore_${run_id:0:16}"
-  [[ "$restore_database" =~ ^[a-z_][a-z0-9_]*$ ]] \
+  restore_database="learncoding_restore_${run_id:0:16}"
+  [[ "$restore_database" =~ ^learncoding_restore_[a-z0-9_]+$ ]] \
     || fail "restore database name is invalid"
-  docker exec "$postgres_id" createdb --username=learncoding "$restore_database" \
-    >/dev/null 2>&1 || fail "disposable restore database creation failed"
-  docker exec -i "$postgres_id" pg_restore --username=learncoding \
-    --dbname="$restore_database" --exit-on-error --no-owner --no-acl \
-    <"$verify_root/database.dump" >/dev/null 2>&1 \
-    || fail "real pg_restore rejected the database dump"
+  BACKUP_CONFIG_FILE="$backup_config" AGE_IDENTITY_FILE="$age_identity" \
+    bash "$repo_root/scripts/backup/restore.sh" "$archive" \
+      --destination "$restore_root" --restore-db "$restore_database" \
+      >/dev/null 2>&1 || fail "real restore entrypoint rejected the produced archive"
+  [[ -f "$restore_root/database.dump" && -f "$restore_root/credential-probe.json" \
+    && -f "$restore_root/app-data.tar.gz" ]] \
+    || fail "real restore entrypoint omitted required recovered members"
+
+  tar --extract --gzip --file "$restore_root/app-data.tar.gz" \
+    --directory "$restore_app_root" --no-same-owner --no-same-permissions \
+    >/dev/null 2>&1 || fail "restore-entrypoint application data extraction failed"
+  [[ -d "$restore_app_root/app-data" && ! -L "$restore_app_root/app-data" ]] \
+    || fail "restore-entrypoint application data root is unsafe"
+  find -P "$restore_app_root/app-data" -type d -exec chmod 0700 {} +
+  find -P "$restore_app_root/app-data" -type f -exec chmod 0600 {} +
+  : >"$restore_root/app-data-objects.sha256"
+  chmod 0600 "$restore_root/app-data-objects.sha256"
+  while IFS= read -r -d '' object; do
+    relative="${object#"$restore_app_root/app-data/"}"
+    [[ "$relative" =~ ^[A-Za-z0-9._/-]+$ && "$relative" != *..* ]] \
+      || fail "restored application object path is unsafe"
+    object_hash="$(sha256sum "$object")"
+    object_hash="${object_hash%% *}"
+    printf '%s  %s\n' "$object_hash" "$relative" \
+      >>"$restore_root/app-data-objects.sha256"
+  done < <(find -P "$restore_app_root/app-data" -type f -print0 | sort -z)
+
+  smoke_output="$test_root/restore-smoke.out"
+  docker run --rm --name "$resource_prefix-restore-smoke" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 128 --memory 512m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$restore_root,dst=/restore,readonly" \
+    --mount "type=bind,src=$restore_app_root/app-data,dst=/restore-app-data,readonly" \
+    --mount "type=bind,src=$recovery_root,dst=/recovery,readonly" \
+    --env "RESTORE_DATABASE_URL=postgresql://learncoding:${postgres_password}@127.0.0.1:5432/$restore_database" \
+    --env RESTORE_APP_DATA_ROOT=/restore-app-data \
+    --env RESTORE_APP_DATA_MANIFEST=/restore/app-data-objects.sha256 \
+    --env RESTORE_CREDENTIAL_PROBE=/restore/credential-probe.json \
+    --env CREDENTIAL_MASTER_KEY_FILE=/recovery/credential_master_key \
+    --entrypoint node "$operations_digest" \
+    --import tsx /app/scripts/verify-restored-backup.ts >"$smoke_output" \
+    || fail "real restored database/app-data/credential smoke failed"
+  [[ "$(wc -l <"$smoke_output" | tr -d ' ')" == 3 ]] \
+    || fail "restore smoke acknowledgement cardinality is invalid"
+  grep -Fxq database_schema_valid=true "$smoke_output" \
+    && grep -Fxq app_data_valid=true "$smoke_output" \
+    && grep -Fxq credential_recovery=true "$smoke_output" \
+    || fail "restore smoke acknowledgement is invalid"
   restored_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname="$restore_database" --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
@@ -1508,6 +1581,7 @@ docker run --rm --name "$resource_prefix-toolbox" \
   --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --pids-limit 512 --memory 1g --cpus 2 \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m \
+  --tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0 \
   --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
   --mount "type=bind,src=$repo_root,dst=$repo_root,readonly" \
   --mount "type=bind,src=$test_root,dst=$test_root" \

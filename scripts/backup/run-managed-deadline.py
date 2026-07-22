@@ -375,7 +375,7 @@ def group_members(pgid: int, guardian_pid: int) -> list[ProcessIdentity]:
             continue
         try:
             identity = proc_identity(pid)
-        except FileNotFoundError:
+        except (FileNotFoundError, ProcessLookupError):
             continue
         except (OSError, ValueError, ContainmentError) as error:
             raise ContainmentError(

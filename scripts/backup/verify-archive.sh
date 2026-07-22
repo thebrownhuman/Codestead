@@ -51,12 +51,19 @@ verification_fail() {
   exit 1
 }
 
-[[ $# -eq 3 ]] || verification_fail invocation
+internal_staging_candidate=0
+if [[ $# -eq 4 && "$4" == --internal-staging-candidate ]]; then
+  internal_staging_candidate=1
+elif [[ $# -ne 3 ]]; then
+  verification_fail invocation
+fi
 archive="$1"
 identity="$2"
 destination="$3"
 [[ "$archive" == /* && "$identity" == /* && "$destination" == /* ]] \
   || verification_fail paths
+[[ "$destination" != *$'\n'* && "$destination" != *$'\r'* ]] \
+  || verification_fail destination
 [[ -f "$archive" && ! -L "$archive" && -s "$archive" ]] \
   || verification_fail ciphertext
 require_secure_regular_file "$identity" 600 "$(id -u)" \
@@ -71,8 +78,10 @@ source "$config_file"
 : "${REPO_ROOT:=/opt/learncoding}"
 : "${LEARN_DATA_ROOT:=/srv/learncoding}"
 : "${BACKUP_ROOT:?BACKUP_ROOT is required}"
+: "${BACKUP_STAGE_ROOT:=/var/tmp/learncoding-backup}"
+: "${BACKUP_EPHEMERAL_ROOT:=/run}"
 
-for command_name in age find realpath sha256sum tar; do
+for command_name in age find realpath sha256sum stat tar; do
   command -v "$command_name" >/dev/null 2>&1 || verification_fail tooling
 done
 
@@ -81,7 +90,38 @@ destination_canonical="$(realpath -m -- "$destination" 2>/dev/null)" \
 [[ "$destination_canonical" == "$destination" ]] \
   || verification_fail destination
 
-protected_roots=("$REPO_ROOT" "$LEARN_DATA_ROOT" "$BACKUP_ROOT")
+internal_staging_destination_allowed=0
+if ((internal_staging_candidate == 1)); then
+  stage_root_canonical="$(realpath -e -- "$BACKUP_STAGE_ROOT" 2>/dev/null)" \
+    || verification_fail destination
+  [[ "$stage_root_canonical" == "$BACKUP_STAGE_ROOT" \
+    && -d "$BACKUP_STAGE_ROOT" && ! -L "$BACKUP_STAGE_ROOT" \
+    && "$(stat -c '%a' -- "$BACKUP_STAGE_ROOT" 2>/dev/null)" == 700 \
+    && "$(stat -c '%u' -- "$BACKUP_STAGE_ROOT" 2>/dev/null)" == "$(id -u)" ]] \
+    || verification_fail destination
+  [[ -d "$destination" && ! -L "$destination" \
+    && "$(dirname -- "$destination")" == "$stage_root_canonical" \
+    && "$(stat -c '%a' -- "$destination" 2>/dev/null)" == 700 \
+    && "$(stat -c '%u' -- "$destination" 2>/dev/null)" == "$(id -u)" \
+    && -z "$(find -P "$destination" -mindepth 1 -print -quit 2>/dev/null)" ]] \
+    || verification_fail destination
+  internal_staging_basename="$(basename -- "$destination")" \
+    || verification_fail destination
+  if [[ "$internal_staging_basename" =~ ^verify\.([0-9]{8}T[0-9]{6}Z)\.[A-Za-z0-9]{6}$ \
+    || "$internal_staging_basename" =~ ^emergency-verify\.([0-9]{8}T[0-9]{6}Z)\.[A-Za-z0-9]{6}$ ]]; then
+    internal_staging_timestamp="${BASH_REMATCH[1]}"
+  else
+    verification_fail destination
+  fi
+  _valid_compact_utc_timestamp "$internal_staging_timestamp" \
+    || verification_fail destination
+  internal_staging_destination_allowed=1
+fi
+
+protected_roots=(
+  "$REPO_ROOT" "$LEARN_DATA_ROOT" "$BACKUP_ROOT" "$BACKUP_STAGE_ROOT"
+  "$BACKUP_EPHEMERAL_ROOT"
+)
 if [[ -n "${EMERGENCY_BACKUP_ROOT:-}" ]]; then
   protected_roots+=("$EMERGENCY_BACKUP_ROOT")
 fi
@@ -89,6 +129,10 @@ for live_root in "${protected_roots[@]}"; do
   [[ "$live_root" == /* ]] || verification_fail configuration
   if path_is_within "$destination" "$live_root" \
     || path_is_within "$live_root" "$destination"; then
+    if [[ "$live_root" == "$BACKUP_STAGE_ROOT" \
+      && "$internal_staging_destination_allowed" == 1 ]]; then
+      continue
+    fi
     verification_fail destination
   fi
 done
