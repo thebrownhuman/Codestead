@@ -27,6 +27,7 @@ export async function requireAuth(
   options: {
     allowPending?: boolean;
     allowMfaChallenge?: boolean;
+    allowPasswordChange?: boolean;
     closedBookCapability?: ClosedBookCapability;
   } = {},
 ) {
@@ -41,10 +42,27 @@ export async function requireAuth(
   // (suspension, deletion, role) must be read from the database on every
   // protected request so a revoked account cannot keep acting for five minutes.
   const [account] = await db
-    .select({ status: user.status, role: user.role, twoFactorEnabled: user.twoFactorEnabled })
+    .select({
+      status: user.status,
+      role: user.role,
+      twoFactorEnabled: user.twoFactorEnabled,
+      mustChangePassword: user.mustChangePassword,
+    })
     .from(user)
     .where(eq(user.id, session.user.id))
     .limit(1);
+  if (account?.mustChangePassword === true && options.allowPasswordChange !== true) {
+    return {
+      session: null,
+      response: NextResponse.json(
+        {
+          error: "Change the temporary password before using this feature.",
+          code: "PASSWORD_CHANGE_REQUIRED",
+        },
+        { status: 403, headers: { "Cache-Control": "private, no-store" } },
+      ),
+    } as const;
+  }
   const mfaVerifiedAt = (session.session as { mfaVerifiedAt?: Date | string | null }).mfaVerifiedAt;
   const sessionMfaCompleted =
     mfaVerifiedAt instanceof Date

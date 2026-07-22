@@ -44,6 +44,7 @@ export async function POST() {
     isCurrentConsentAccepted(currentConsents, purpose)) &&
     isCurrentConsentAccepted(currentConsents, "provider:nvidia_nim");
   const missing = [
+    ...(authz.account.mustChangePassword === true ? ["password_change"] : []),
     ...(!profile?.selectedTracks.length ? ["profile"] : []),
     ...(!disclosureAccepted ? ["current_disclosure"] : []),
     ...(!(authz.account.twoFactorEnabled === true && factor?.verified === true) ? ["mfa"] : []),
@@ -60,7 +61,7 @@ export async function POST() {
       .where(eq(learnerProfile.userId, authz.session.user.id));
     await tx
       .update(user)
-      .set({ status: "active", mustChangePassword: false })
+      .set({ status: "active" })
       .where(eq(user.id, authz.session.user.id));
   });
       let planInitialization: {

@@ -1,41 +1,60 @@
-export type RawBetterAuthPostAction =
+export type RawBetterAuthAction =
   | "pass-through"
   | "deny"
+  | "google-social-sign-in"
   | "initial-totp-enrollment";
 
-const ALWAYS_DENIED_POST_PATHS = new Set([
-  "/two-factor/disable",
-  "/two-factor/get-totp-uri",
-  "/two-factor/generate-backup-codes",
-  "/unlink-account",
+const ALLOWED_GET_PATHS = new Set([
+  "/get-session",
+  "/verify-email",
+  "/callback/google",
+  "/error",
 ]);
 
-function normalizedAuthPath(requestUrl: string) {
-  const pathname = new URL(requestUrl).pathname;
-  let decodedPathname: string;
+const ALLOWED_POST_PATHS = new Set([
+  "/sign-in/email",
+  "/sign-out",
+  "/request-password-reset",
+  "/reset-password",
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
+]);
+
+function rawAuthPath(requestUrl: string) {
+  let pathname: string;
   try {
-    decodedPathname = decodeURIComponent(pathname);
+    pathname = new URL(requestUrl).pathname;
   } catch {
-    decodedPathname = pathname;
+    return null;
   }
-  const compactPathname = decodedPathname
-    .replace(/\/{2,}/g, "/")
-    .replace(/\/+$/, "");
-  const authPrefix = compactPathname.lastIndexOf("/api/auth");
-  return authPrefix === -1
-    ? compactPathname
-    : compactPathname.slice(authPrefix + "/api/auth".length);
+  const prefix = "/api/auth";
+  if (!pathname.startsWith(`${prefix}/`)) return null;
+  return pathname.slice(prefix.length);
 }
 
 /**
- * Classifies the small set of Better Auth POSTs that can change or reveal
- * authentication authority. Everything else remains Better Auth-owned.
+ * Better Auth exposes a much larger endpoint inventory than Codestead uses.
+ * This classifier is deliberately method-aware and default-deny: upgrading the
+ * dependency cannot expose a new route until the application explicitly adds
+ * and tests that exact method/path pair.
  */
-export function classifyRawBetterAuthPost(requestUrl: string): RawBetterAuthPostAction {
-  const path = normalizedAuthPath(requestUrl);
+export function classifyRawBetterAuthRequest(
+  method: string,
+  requestUrl: string,
+): RawBetterAuthAction {
+  const path = rawAuthPath(requestUrl);
+  if (!path) return "deny";
+
+  if (method === "GET") {
+    if (ALLOWED_GET_PATHS.has(path)) return "pass-through";
+    if (/^\/reset-password\/[A-Za-z0-9_-]+$/.test(path)) return "pass-through";
+    return "deny";
+  }
+
+  if (method !== "POST") return "deny";
   if (path === "/two-factor/enable") return "initial-totp-enrollment";
-  if (ALWAYS_DENIED_POST_PATHS.has(path)) return "deny";
-  return "pass-through";
+  if (path === "/sign-in/social") return "google-social-sign-in";
+  return ALLOWED_POST_PATHS.has(path) ? "pass-through" : "deny";
 }
 
 export function mayBeginInitialTotpEnrollment(input: {
