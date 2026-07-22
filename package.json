@@ -115,7 +115,7 @@
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.24.0",
-    "monaco-editor": "0.52.2",
+    "monaco-editor": "0.55.1",
     "nanoid": "^5.1.16",
     "next": "^16.2.10",
     "pg": "^8.22.0",
