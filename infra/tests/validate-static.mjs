@@ -1412,6 +1412,12 @@ expect(
   "deployment guide must document canonical tunnel credentials and the fail-closed physical recovery evidence procedure",
 );
 expect(
+  /sudo install -o root -g root -m 0640 [\\]\s*\n\s*[/]opt[/]learncoding[/]infra[/]cloudflare[/]config[.]example[.]yml [\\]\s*\n\s*[/]etc[/]learncoding[/]cloudflare[/]config[.]yml/.test(
+    deploymentGuide,
+  ),
+  "deployment guide must install the Cloudflare config from the reviewed absolute path as root:root mode 0640",
+);
+expect(
   /runtime-images\.env` first and `dist\/runtime-images\.json` last/.test(runnerIsolationGuide) &&
     /JSON file is the commit marker/.test(runnerIsolationGuide) &&
     /RELEASE\.SHA256SUMS/.test(runnerIsolationGuide) &&

@@ -67,12 +67,12 @@
     "src/lib/runner/admission.ts": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
     "src/lib/runner/client.ts": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
     "src/app/api/code/run/route.ts": "c84e1e6d8d90a6505ae6ce5363db943122ebc4d8bfd9ffa8afdde411357348c8",
-    "src/app/api/exams/_lib/service.ts": "893192f8964979c8421afb0998a3bb5c2f20aa2e846bd0bcddbcace070ff63ba",
+    "src/app/api/exams/_lib/service.ts": "e11f966b69b96a65e62e5ab80eb9913986bbcd776b36e2171acd8caa5edc04a2",
     "src/app/api/exams/_lib/finalization-worker.ts": "5a56bce1b838855df3fd489e98de213bd5fa84eeae9b5736fa1a594d712c5c5a",
     "src/lib/assessment-corrections/worker.ts": "5e4c27115fd1c02d74eafd161c5dbf4ed067e90d53a75b5db0d2a53e60197c68",
     "integration/runner-admission.integration.test.ts": "7f09ed1d4ced3b10ddcdd7bf84c96300c84e66275101c3d6dbcc4fb1462e13f9",
     "integration/assessment-correction.integration.test.ts": "0467f13f359e05d121cc62a408956e68b41e9d5e8342c9885bfb165bd5779978",
-    "src/lib/data-lifecycle/export.ts": "824614e202e3ab06892ede41d371bc98e68cd5d1fadd5d315e7733fff36ceb13"
+    "src/lib/data-lifecycle/export.ts": "e95fdfc268a2bc17742a1da6d21669dae5f4818ae6179c142b7a90f40434b3a4"
   },
   "supersededDigests": [
     {

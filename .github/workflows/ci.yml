@@ -51,6 +51,7 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=moderate
       - run: node infra/tests/validate-static.mjs
+      - run: node --test infra/tests/database-secret-ceremony.test.mjs
       - run: node --test infra/tests/database-least-privilege-static.test.mjs
       - run: node --test infra/tests/runtime-validator-ingress-policy.test.mjs
       - run: node --test infra/tests/production-load-peer-preflight.test.mjs infra/tests/production-load-postgres-socket.test.mjs infra/tests/production-load-systemd.test.mjs
@@ -61,7 +62,7 @@ jobs:
       - run: node --test infra/tests/runner-egress-gateway.test.mjs infra/tests/runner-egress-gateway-stream-failures.test.mjs
       - run: sudo apt-get update
       - run: sudo apt-get install --yes bubblewrap nftables shellcheck
-      - run: shellcheck --severity=warning infra/ops/capture-recovery-evidence.sh infra/ops/install-compose-ci.sh infra/ops/release-production.sh infra/ops/rollback-production.sh infra/ops/smoke-production.sh infra/ops/validate-production-load-fixture-runtime.sh infra/ops/validate-production-load-test-control-runtime.sh infra/runner-vm/install-guest.sh infra/tests/compose-release-cli-contract.test.sh infra/tests/power-evidence.test.sh infra/tests/production-load-disposable-sandbox.test.sh infra/tests/production-load-fixture-lifecycle.test.sh infra/tests/production-load-peer-credentials.test.sh infra/tests/production-load-test-control-runtime.test.sh infra/tests/recovery-evidence-entry.test.sh infra/tests/recovery-evidence-main.test.sh infra/tests/release-production.test.sh infra/tests/rollback-production.test.sh infra/tests/runner-firewall.test.sh infra/tests/runner-firewall-packets.test.sh infra/tests/runner-guest-installer.test.sh infra/tests/runner-vm-provision.test.sh infra/tests/smoke-production.test.sh
+      - run: shellcheck --severity=warning infra/ops/capture-recovery-evidence.sh infra/ops/create-database-secrets.sh infra/ops/install-compose-ci.sh infra/ops/release-production.sh infra/ops/rollback-production.sh infra/ops/smoke-production.sh infra/ops/validate-production-load-fixture-runtime.sh infra/ops/validate-production-load-test-control-runtime.sh infra/runner-vm/install-guest.sh infra/tests/compose-release-cli-contract.test.sh infra/tests/power-evidence.test.sh infra/tests/production-load-disposable-sandbox.test.sh infra/tests/production-load-fixture-lifecycle.test.sh infra/tests/production-load-peer-credentials.test.sh infra/tests/production-load-test-control-runtime.test.sh infra/tests/recovery-evidence-entry.test.sh infra/tests/recovery-evidence-main.test.sh infra/tests/release-production.test.sh infra/tests/rollback-production.test.sh infra/tests/runner-firewall.test.sh infra/tests/runner-firewall-packets.test.sh infra/tests/runner-guest-installer.test.sh infra/tests/runner-vm-provision.test.sh infra/tests/smoke-production.test.sh
       # These immutable wrapper literals are independently SHA-pinned and consumed by the Python supervisor.
       - run: shellcheck --severity=warning infra/tests/ingress-control-linux.test.sh
       - run: shellcheck --severity=warning infra/ops/start-production-stack.sh infra/ops/recover-production-ingress.sh infra/tests/start-production-stack.test.sh infra/tests/start-production-stack-adversarial.test.sh infra/tests/ingress-recovery.test.sh

@@ -141,11 +141,11 @@
     "drizzle/0024_fine_shadowcat.sql": "9bb044a47730b7a6c8f0df41f153f7ececc1b07e63c77ab1e6a90ecdae9d8e66",
     "drizzle/meta/0024_snapshot.json": "e09559779cc8c175280923edb59cc8208ec61969b7b4a5e2abd837cb94d5939e",
     "src/lib/drafts/repository.ts": "c2e32842c67d0688783d64b01eaec73645f1f4df1bb0a71ef3f1d9a364202013",
-    "src/lib/drafts/browser-cache.ts": "90c54820d1eb2de9ef9f7890851a6cc255140868057609fdc74154137c02a655",
+    "src/lib/drafts/browser-cache.ts": "3ddd748388f383cff5c47b8280755eedca98731e2c2560e1f28d2a4f572d1a8c",
     "src/lib/drafts/use-synced-draft.ts": "5ce6d04576e3c6b7d9046f3a88caae38b5497418ca8a992e2cf66c104c1ab93c",
     "src/lib/drafts/logout.ts": "c7515692d430c9024dafaa2ba8784fcaa12d1cc8ee437ffb949eaf54135a208c",
     "src/app/api/drafts/route.ts": "f2624118a0ca8fe8d52da7241371a12a34b98bb68f82b6a8729cf0d11adc68ba",
-    "src/components/lesson/lesson-workspace.tsx": "3068e1425f6351b0b53989470ddf83bb0ab67ce20e550e0ca1fd43427f80d287",
+    "src/components/lesson/lesson-workspace.tsx": "a793afd7ddfae26fb9d2637e9317d9e82a8cb0df46184426fc686a10752b90ce",
     "integration/learner-drafts.integration.test.ts": "ef15f3a605a8d02adb240a484be12ab8f259a6bca7b943acc147b9f71a9cc91f"
   },
   "supersededDigests": [

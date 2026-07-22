@@ -118,7 +118,7 @@ Host policy:
 - The runtime validator checks owner, group, exact permissions, presence, non-empty values, and the complete required inventory for the selected profile.
 - Secret values are never displayed by validation output.
 
-The required pilot inventory includes the PostgreSQL password, database URL, auth secret, lost-device proof key, deletion tombstone key, credential master key, runner shared secret, Gmail credentials when Gmail is enabled, optional Google OAuth secret when Google sign-in is enabled, and the new Cloudflare Tunnel credentials.
+The required pilot database inventory is `postgres_password` plus five URLs: `database_bootstrap_url` for fixed user `learncoding`, `database_url` for `learncoding_app`, `database_migrator_url` for `learncoding_migrator`, `database_worker_url` for `learncoding_worker`, and `database_ops_url` for `learncoding_ops`. The bootstrap URL shares only the bootstrap password; every restricted role has its own distinct URL-safe password, and all six files contain no trailing newline, whitespace, or control byte. The rest of the pilot inventory includes the auth secret, lost-device proof key, deletion tombstone key, credential master key, runner shared secret, Gmail credentials when Gmail is enabled, optional Google OAuth secret when Google sign-in is enabled, and the new Cloudflare Tunnel credentials.
 
 The NVIDIA NIM and 21st.dev credentials previously pasted into chat must be revoked and regenerated before production. They must not be reused.
 

@@ -85,7 +85,7 @@
     "drizzle/0031_easy_deathstrike.sql": "bba2a0a67f6e1f83ca5c4a1d5a2151cf6d74b3d050da5456f64bd3a3a263ef11",
     "drizzle/0033_project_review_ledger_fencing.sql": "971731ba79ee91b9005315c79b26f82f726188cedad91b2dcc70e8fda21a23cb",
     "integration/project-review-correction.integration.test.ts": "ee953e62d747e3d45cd09be703ccf454ea8aeee23f9bd320a2d084a7c3b59292",
-    "src/lib/data-lifecycle/export.ts": "824614e202e3ab06892ede41d371bc98e68cd5d1fadd5d315e7733fff36ceb13",
+    "src/lib/data-lifecycle/export.ts": "e95fdfc268a2bc17742a1da6d21669dae5f4818ae6179c142b7a90f40434b3a4",
     "src/lib/data-lifecycle/deletion.ts": "d9d6e9d333d71f4d14eca5699eb32e806cfad90ef08cc62283db2dfcd3c5aab5"
   },
   "supersededDigests": [

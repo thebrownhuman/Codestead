@@ -122,7 +122,9 @@ Copy the non-secret examples, then edit only the installed copies:
 ```bash
 sudo install -o root -g root -m 0640 infra/env/compose.env.example /etc/learncoding/compose.env
 sudo install -o root -g root -m 0600 infra/env/backup.env.example /etc/learncoding/backup.env
-sudo install -o root -g root -m 0644 infra/cloudflare/config.example.yml /etc/learncoding/cloudflare/config.yml
+sudo install -o root -g root -m 0640 \
+  /opt/learncoding/infra/cloudflare/config.example.yml \
+  /etc/learncoding/cloudflare/config.yml
 ```
 
 Set the real HTTPS origin, private runner address, and immutable image references in `compose.env`. `POSTGRES_IMAGE`, `CLOUDFLARED_IMAGE`, and all seven `APP_*_IMAGE` values must use a non-empty image name ending in `@sha256:` plus a reviewed 64-character digest. Keep `SECRETS_GID=2000`.
@@ -133,20 +135,17 @@ The reference NUC target is `linux/amd64`. Keep `DEPLOY_PLATFORM=linux/amd64`; t
 
 ## Create runtime secrets
 
-Read [the secret inventory](../infra/secrets/README.md) first. Generate independent values in a root shell with `umask 077`; the following keeps values out of terminal output and avoids URL-encoding ambiguity by making the database password hexadecimal.
+Read [the secret inventory](../infra/secrets/README.md) first. This ceremony is for initial creation only: it acquires a per-directory lock, refuses to overwrite any existing database secret, and rolls back every final created by a failed run. Run it from the installed release. It stages and validates the complete inventory before publication, generates independent URL-safe hexadecimal passwords for the fixed `learncoding`, `learncoding_app`, `learncoding_migrator`, `learncoding_worker`, and `learncoding_ops` roles, creates `postgres_password`, `database_bootstrap_url`, `database_url`, `database_migrator_url`, `database_worker_url`, and `database_ops_url` without trailing whitespace or control bytes, and applies the required `root:codestead-secrets` ownership and exact modes without printing a value.
 
 ```bash
+sudo -H bash /opt/learncoding/infra/ops/create-database-secrets.sh
 sudo -H bash
 umask 077
-openssl rand -hex 32 > /etc/learncoding/secrets/postgres_password
-db_password=$(</etc/learncoding/secrets/postgres_password)
-printf 'postgresql://learncoding:%s@postgres:5432/learncoding\n' "$db_password" > /etc/learncoding/secrets/database_url
-unset db_password
-openssl rand -base64 48 > /etc/learncoding/secrets/better_auth_secret
-openssl rand -base64 48 > /etc/learncoding/secrets/lost_device_proof_key
-openssl rand -base64 48 > /etc/learncoding/secrets/deletion_tombstone_key
-openssl rand -base64 32 > /etc/learncoding/secrets/credential_master_key
-openssl rand -base64 48 > /etc/learncoding/secrets/runner_shared_secret
+openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/better_auth_secret
+openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/lost_device_proof_key
+openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/deletion_tombstone_key
+openssl rand -base64 32 | tr -d '\n' > /etc/learncoding/secrets/credential_master_key
+openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/runner_shared_secret
 : > /etc/learncoding/secrets/google_client_secret
 : > /etc/learncoding/secrets/gmail_client_id
 : > /etc/learncoding/secrets/gmail_client_secret
@@ -172,7 +171,7 @@ For the initial administrator only, set `BOOTSTRAP_ADMIN_EMAIL` in `compose.env`
 ```bash
 sudo -H bash
 umask 077
-openssl rand -base64 24 > /etc/learncoding/secrets/bootstrap_admin_password
+openssl rand -base64 24 | tr -d '\n' > /etc/learncoding/secrets/bootstrap_admin_password
 chown root:codestead-secrets /etc/learncoding/secrets/bootstrap_admin_password
 chmod 0440 /etc/learncoding/secrets/bootstrap_admin_password
 exit
