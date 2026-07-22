@@ -140,6 +140,8 @@ type Controller = {
   eventIssue: ExamOutboxIssue | null;
   systemIssue: ExamOutboxIssue | null;
   hardAnswerMutations: Set<string>;
+  usedAnswerMutationIds: Set<string>;
+  recoveredAnswerMutations: Set<string>;
   sentAnswerBodies: Map<string, string>;
   pendingAnswerAcknowledgements: Map<string, PendingAnswerAcknowledgement>;
   inFlightAnswer: ExamAnswerOutboxRecord | null;
@@ -151,6 +153,7 @@ type Controller = {
   events: Map<string, ExamEventOutboxRecord>;
   failedEventWrites: Map<string, ExamEventOutboxRecord>;
   hardEventIds: Set<string>;
+  usedEventIds: Set<string>;
   sentEventBodies: Map<string, string>;
   eventDrain: Promise<void> | null;
   eventRetryIndex: number;
@@ -465,6 +468,25 @@ function matchesPossibleCommittedResponseLoss(
     && serverAnswer?.revision === acknowledgedRevision
     && responseEditorValue(item, serverAnswer.answer) === record.payload.answer;
 }
+function recoveredAnswerConflict(
+  controller: Controller,
+  record: ExamAnswerOutboxRecord,
+  item: PublicExamItem,
+  acknowledgedRevision: number,
+): ExamAnswerConflict | null {
+  const saved = controller.session.answers[record.payload.itemId];
+  if (!saved || saved.revision !== acknowledgedRevision) return null;
+  const serverAnswer = responseEditorValue(item, saved.answer);
+  if (serverAnswer === null) return null;
+  return {
+    itemId: record.payload.itemId,
+    clientMutationId: record.clientMutationId,
+    localAnswer: record.payload.answer,
+    serverAnswer,
+    serverRevision: saved.revision,
+    serverSavedAt: saved.savedAt,
+  };
+}
 
 
 function estimatedDeadline(session: ExamSessionView, receivedAt: number): number {
@@ -512,6 +534,8 @@ function createController(
     eventIssue: null,
     systemIssue: null,
     hardAnswerMutations: new Set(),
+    usedAnswerMutationIds: new Set(),
+    recoveredAnswerMutations: new Set(),
     sentAnswerBodies: new Map(),
     pendingAnswerAcknowledgements: new Map(),
     inFlightAnswer: null,
@@ -523,6 +547,7 @@ function createController(
     events: new Map(),
     failedEventWrites: new Map(),
     hardEventIds: new Set(),
+    usedEventIds: new Set(),
     sentEventBodies: new Map(),
     eventDrain: null,
     eventRetryIndex: 0,
@@ -722,11 +747,20 @@ function assertWorkAllowed(controller: Controller) {
   }
 }
 
+function reserveFreshUuid(used: Set<string>, lane: "answer" | "event") {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const candidate = crypto.randomUUID();
+    if (used.has(candidate)) continue;
+    used.add(candidate);
+    return candidate;
+  }
+  throw new Error(`Could not allocate a fresh durable ${lane} identity.`);
+}
+
 function buildAnswerRecord(
   controller: Controller,
   item: PublicExamItem,
   answer: string,
-  clientMutationId = crypto.randomUUID(),
   baseRevision = controller.revisions.get(item.id) ?? 0,
 ): ExamAnswerOutboxRecord {
   const record: ExamAnswerOutboxRecord = {
@@ -739,7 +773,7 @@ function buildAnswerRecord(
     namespace: controller.namespace,
     kind: "exam-answer",
     scope: controller.session.sessionId,
-    clientMutationId,
+    clientMutationId: reserveFreshUuid(controller.usedAnswerMutationIds, "answer"),
     updatedAt: new Date().toISOString(),
     payload: { itemId: item.id, answer, baseRevision },
   };
@@ -799,6 +833,7 @@ function prepareControllerUnloadEvent(
     sessionId: controller.session.sessionId,
     eventType: "navigation_attempt",
     metadata,
+    clientEventId: reserveFreshUuid(controller.usedEventIds, "event"),
   });
   try {
     if (typeof window !== "undefined") {
@@ -1168,7 +1203,10 @@ async function rebaseUnsentRecord(
 
   const itemId = record.payload.itemId;
   const prior = controller.writeChains.get(itemId) ?? Promise.resolve();
-  const durability = { record: null as ExamAnswerOutboxRecord | null };
+  const durability = {
+    priorMutationId: null as string | null,
+    record: null as ExamAnswerOutboxRecord | null,
+  };
   const operation = prior.catch(() => undefined).then(async () => {
     if (
       !live(controller, generation)
@@ -1191,6 +1229,7 @@ async function rebaseUnsentRecord(
       markAnswerDurabilityLost(controller, record);
       throw new HardOutboxError("The answer is no longer durable locally.");
     }
+    durability.priorMutationId = current.clientMutationId;
     if (current.payload.baseRevision >= baseRevision) return;
     if (controller.sentAnswerBodies.has(current.clientMutationId)) {
       controller.hardAnswerMutations.add(current.clientMutationId);
@@ -1205,6 +1244,7 @@ async function rebaseUnsentRecord(
 
     const rebased: ExamAnswerOutboxRecord = {
       ...current,
+      clientMutationId: reserveFreshUuid(controller.usedAnswerMutationIds, "answer"),
       updatedAt: new Date().toISOString(),
       payload: { ...current.payload, baseRevision },
     };
@@ -1235,10 +1275,17 @@ async function rebaseUnsentRecord(
       || controller.writeBarrier.terminalClosed
     ) throw new ClosedOutboxError("The queued local answer rebase is closed.");
     const durableRecord = durability.record;
+    const knownRecord = controller.records.get(itemId);
     if (
       durableRecord
-      && controller.records.get(itemId)?.clientMutationId === durableRecord.clientMutationId
-    ) controller.records.set(itemId, durableRecord);
+      && durability.priorMutationId !== null
+      && knownRecord?.clientMutationId === durability.priorMutationId
+    ) {
+      if (knownRecord.clientMutationId !== durableRecord.clientMutationId) {
+        reconcileDurableReplacement(controller, knownRecord, durableRecord);
+      }
+      controller.records.set(itemId, durableRecord);
+    }
     if (deadlineReached(controller)) fenceDeadline(controller, generation);
     return durableRecord ?? record;
   } finally {
@@ -1367,7 +1414,26 @@ async function runAnswerDrain(controller: Controller, generation: number) {
           && !controller.sentAnswerBodies.has(record.clientMutationId)
           && !matchesPossibleCommittedResponseLoss(controller, record, item, acknowledgedRevision)
         ) {
-          await rebaseUnsentRecord(controller, generation, record, acknowledgedRevision);
+          if (controller.recoveredAnswerMutations.has(record.clientMutationId)) {
+            const conflict = recoveredAnswerConflict(
+              controller,
+              record,
+              item,
+              acknowledgedRevision,
+            );
+            if (conflict) {
+              controller.conflicts.set(record.payload.itemId, conflict);
+            } else {
+              controller.hardAnswerMutations.add(record.clientMutationId);
+              setAnswerIssue(controller, record.payload.itemId, record.clientMutationId, {
+                kind: "protocol",
+                itemId: record.payload.itemId,
+                message: "Needs attention: recovered answer authority could not be verified.",
+              });
+            }
+          } else {
+            await rebaseUnsentRecord(controller, generation, record, acknowledgedRevision);
+          }
           controller.inFlightAnswer = null;
           controller.answerRetryable = false;
           controller.answerRetryIndex = 0;
@@ -1530,6 +1596,7 @@ async function persistAnswer(
       ) throw new ClosedOutboxError("The queued local answer rebase is closed.");
       const rebasedRecord: ExamAnswerOutboxRecord = {
         ...persistedRecord,
+        clientMutationId: reserveFreshUuid(controller.usedAnswerMutationIds, "answer"),
         updatedAt: new Date().toISOString(),
         payload: { ...persistedRecord.payload, baseRevision: acknowledgedRevision },
       };
@@ -1795,6 +1862,7 @@ function resetForInitialization(controller: Controller) {
   controller.eventIssue = null;
   controller.systemIssue = null;
   controller.hardAnswerMutations.clear();
+  controller.recoveredAnswerMutations.clear();
   controller.inFlightAnswer = null;
   controller.answerDrain = null;
   controller.answerRetryable = false;
@@ -1870,12 +1938,17 @@ async function initialize(controller: Controller, generation: number) {
     );
     if (!live(controller, generation)) return;
     for (const record of answers) {
+      controller.usedAnswerMutationIds.add(record.clientMutationId);
+      controller.recoveredAnswerMutations.add(record.clientMutationId);
       controller.records.set(record.payload.itemId, record);
       if (validateRecoveredAnswer(controller, record)) {
         controller.answers[record.payload.itemId] = record.payload.answer;
       }
     }
-    for (const record of events) controller.events.set(record.clientEventId, record);
+    for (const record of events) {
+      controller.usedEventIds.add(record.clientEventId);
+      controller.events.set(record.clientEventId, record);
+    }
     controller.hydrated = true;
     publish(controller);
     if (deadlineReached(controller)) {
@@ -1997,7 +2070,6 @@ async function resolveAnswerConflict(
         controller,
         item,
         conflict.localAnswer,
-        crypto.randomUUID(),
         conflict.serverRevision,
       );
       await persistAnswer(controller, replacement, false);
@@ -2212,6 +2284,7 @@ async function recordControllerEvent(
     sessionId: controller.session.sessionId,
     eventType,
     metadata,
+    clientEventId: reserveFreshUuid(controller.usedEventIds, "event"),
   });
   try {
     await trackSessionWrite(controller, putExamEventWithFence(controller, record));
