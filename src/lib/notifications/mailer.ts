@@ -83,5 +83,7 @@ export async function sendEmail(input: OutgoingEmail) {
   });
   if (!response.ok) throw new Error(`Gmail delivery failed (${response.status}).`);
   const body = (await response.json()) as { id?: string };
-  return { providerId: body.id ?? "gmail-unknown" };
+  const providerId = body.id?.trim();
+  if (!providerId) throw new Error("Gmail delivery returned no message ID.");
+  return { providerId };
 }
