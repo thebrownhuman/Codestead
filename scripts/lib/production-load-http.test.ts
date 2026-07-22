@@ -176,6 +176,8 @@ describe("production authenticated HTTP workload adapter", () => {
     ]);
     expect(requests.every((entry) =>
       new Headers(entry.init?.headers).get("cookie") === session.sessionHandle)).toBe(true);
+    expect(requests.filter((entry) => entry.init?.method !== undefined).every((entry) =>
+      new Headers(entry.init?.headers).get("origin") === "https://codestead.example.test")).toBe(true);
   });
 
   it("advances draft and exam revisions only from validated acknowledgements", async () => {
