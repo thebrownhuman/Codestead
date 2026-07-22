@@ -23,6 +23,40 @@ source "$common"
 load_backup_config
 [[ "$FILESYSTEM_WARN_PERCENT" == "70" ]]
 [[ "$FILESYSTEM_CRITICAL_PERCENT" == "85" ]]
+[[ "$MAX_OFFSITE_AGE_HOURS" == "30" ]]
+[[ "$RCLONE_CONTROL_TIMEOUT_SECONDS" == "120" ]]
+[[ "$RCLONE_MIN_BULK_BYTES_PER_SECOND" == "4194304" ]]
+[[ "$RCLONE_BULK_OVERHEAD_SECONDS" == "600" ]]
+[[ "$RCLONE_SERVICE_BUDGET_SECONDS" == "14400" ]]
+[[ "$RCLONE_SERVICE_RESERVE_SECONDS" == "600" ]]
+
+[[ "$(rclone_bulk_timeout_seconds 1)" == "601" ]]
+[[ "$(rclone_bulk_timeout_seconds 4194304)" == "601" ]]
+[[ "$(rclone_bulk_timeout_seconds 4194305)" == "602" ]]
+rclone_bulk_plan_fits_service_budget 4194304 2
+
+for invalid_policy in \
+  'RCLONE_CONTROL_TIMEOUT_SECONDS=0' \
+  'RCLONE_MIN_BULK_BYTES_PER_SECOND=0' \
+  'RCLONE_MIN_BULK_BYTES_PER_SECOND=invalid' \
+  'RCLONE_MIN_BULK_BYTES_PER_SECOND=999999999999999999999999999999999' \
+  'RCLONE_BULK_OVERHEAD_SECONDS=0' \
+  'RCLONE_SERVICE_RESERVE_SECONDS=0' \
+  'RCLONE_SERVICE_BUDGET_SECONDS=14401' \
+  $'RCLONE_BULK_OVERHEAD_SECONDS=7200\nRCLONE_SERVICE_RESERVE_SECONDS=1\nRCLONE_SERVICE_BUDGET_SECONDS=14400'; do
+  printf '%s\n' "$invalid_policy" >"$work/invalid-policy.env"
+  chmod 0600 "$work/invalid-policy.env"
+  expect_config_failure "$work/invalid-policy.env"
+done
+
+if rclone_bulk_plan_fits_service_budget 28940697601 2; then
+  echo "publication accepted archive whose upload and readback exceed the service budget" >&2
+  exit 1
+fi
+if rclone_bulk_plan_fits_service_budget invalid 2; then
+  echo "bulk budget accepted an invalid archive size" >&2
+  exit 1
+fi
 
 ln -s "$work/default.env" "$work/symlink.env"
 expect_config_failure "$work/symlink.env"

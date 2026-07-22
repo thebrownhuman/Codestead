@@ -29,7 +29,7 @@ require_exact "$systemd/learncoding-backup.timer" 'OnCalendar=*-*-* 02:15:00'
 require_exact "$systemd/learncoding-offsite-sync.timer" 'OnCalendar=*-*-* 04:15:00 UTC'
 require_exact "$systemd/learncoding-offsite-retention.timer" 'OnCalendar=*-*-* 05:15:00 UTC'
 require_exact "$systemd/learncoding-restore-drill-reminder.timer" 'OnCalendar=*-*-* 06:15:00 UTC'
-require_exact "$systemd/learncoding-backup-check.timer" 'OnUnitActiveSec=6h'
+require_exact "$systemd/learncoding-backup-check.timer" 'OnUnitActiveSec=1h'
 for timer in "$systemd"/learncoding-{backup,backup-check,offsite-sync,offsite-retention,restore-drill-reminder}.timer; do
   require_exact "$timer" 'Persistent=true'
 done
@@ -50,11 +50,57 @@ for service in "$systemd"/learncoding-{offsite-sync,offsite-retention,restore-dr
   require_exact "$service" 'RequiresMountsFor=/mnt/learncoding-backups'
 done
 require_exact "$repo_root/infra/env/backup.env.example" 'CHECK_OFFSITE=1'
-require_exact "$repo_root/infra/env/backup.env.example" 'MAX_OFFSITE_AGE_HOURS=6'
+require_exact "$repo_root/infra/env/backup.env.example" 'MAX_OFFSITE_AGE_HOURS=30'
+require_exact "$repo_root/infra/env/backup.env.example" 'RCLONE_CONTROL_TIMEOUT_SECONDS=120'
+require_exact "$repo_root/infra/env/backup.env.example" 'RCLONE_MIN_BULK_BYTES_PER_SECOND=4194304'
+require_exact "$repo_root/infra/env/backup.env.example" 'RCLONE_BULK_OVERHEAD_SECONDS=600'
+require_exact "$repo_root/infra/env/backup.env.example" 'RCLONE_SERVICE_BUDGET_SECONDS=14400'
+require_exact "$repo_root/infra/env/backup.env.example" 'RCLONE_SERVICE_RESERVE_SECONDS=600'
 require_exact "$repo_root/infra/env/backup.env.example" 'MAX_RESTORE_DRILL_AGE_HOURS=2160'
-if grep -Eq '^(CHECK_OFFSITE=0|MAX_OFFSITE_AGE_HOURS=36)$' "$repo_root/infra/env/backup.env.example"; then
+if grep -Eq '^(CHECK_OFFSITE=0|MAX_OFFSITE_AGE_HOURS=(6|36))$' "$repo_root/infra/env/backup.env.example"; then
   fail "production backup defaults permit an unmonitored or stale offsite recovery point"
 fi
+
+BACKUP_POLICY_ENV="$repo_root/infra/env/backup.env.example" \
+BACKUP_CHECK_TIMER="$systemd/learncoding-backup-check.timer" python3 - <<'PY' \
+  || fail 'daily publication freshness policy or its mutation resistance drifted'
+import os
+from pathlib import Path
+
+env_text = Path(os.environ["BACKUP_POLICY_ENV"]).read_text(encoding="utf-8")
+timer_text = Path(os.environ["BACKUP_CHECK_TIMER"]).read_text(encoding="utf-8")
+required = (
+    "MAX_OFFSITE_AGE_HOURS=30",
+    "RCLONE_CONTROL_TIMEOUT_SECONDS=120",
+    "RCLONE_MIN_BULK_BYTES_PER_SECOND=4194304",
+    "RCLONE_BULK_OVERHEAD_SECONDS=600",
+    "RCLONE_SERVICE_BUDGET_SECONDS=14400",
+    "RCLONE_SERVICE_RESERVE_SECONDS=600",
+)
+
+def validate(env: str, timer: str) -> bool:
+    return all(env.count(line) == 1 for line in required) and timer.count("OnUnitActiveSec=1h") == 1
+
+if not validate(env_text, timer_text):
+    raise SystemExit("canonical policy rejected")
+mutations = (
+    (env_text.replace(required[0], "MAX_OFFSITE_AGE_HOURS=6", 1), timer_text),
+    (env_text.replace(required[4], "RCLONE_SERVICE_BUDGET_SECONDS=18000", 1), timer_text),
+    (env_text, timer_text.replace("OnUnitActiveSec=1h", "OnUnitActiveSec=6h", 1)),
+)
+if any(validate(env, timer) for env, timer in mutations):
+    raise SystemExit("policy mutation accepted")
+
+threshold = 30
+publications = (0, 24, 48)
+for hour in range(49):
+    latest = max(point for point in publications if point <= hour)
+    if hour - latest > threshold:
+        raise SystemExit("healthy daily publication became stale during 48-hour simulation")
+first_missed_alert = next(hour for hour in range(49) if hour > threshold)
+if first_missed_alert != 31:
+    raise SystemExit("missed daily publication was not detected at the first hourly poll after threshold")
+PY
 for service in "$systemd"/learncoding-{offsite-sync,offsite-retention}.service; do
   for directive in \
     NoNewPrivileges=true PrivateDevices=true PrivateTmp=true ProtectClock=true \
