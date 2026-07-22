@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
     maxAttempts: number;
     lastErrorCode: string | null;
     leaseOwner: string | null;
+    createdAt: Date;
   };
   const jobs: Job[] = [];
   const query = vi.fn(async (statement: string, values: unknown[] = []) => {
@@ -25,18 +26,25 @@ const mocks = vi.hoisted(() => {
     }
     if (sql.startsWith("with candidate as")) {
       const userDelete = sql.includes("payload ->> 'operation' = 'user_file_delete'");
+      const global = sql.includes("'user_file_delete'")
+        && sql.includes("'account_deletion'")
+        && sql.includes("'retention'");
       const runId = String(values[1]);
-      const job = jobs.find((candidate) => {
+      const job = [...jobs].sort((left, right) => (
+        left.createdAt.getTime() - right.createdAt.getTime() || left.id.localeCompare(right.id)
+      )).find((candidate) => {
         const scopeMatches = userDelete
           ? candidate.payload.operation === "user_file_delete"
-          : candidate.payload.lifecycleRunId === runId;
+          : global
+            ? true
+            : candidate.payload.lifecycleRunId === runId;
         return scopeMatches
           && candidate.attemptCount < candidate.maxAttempts
           && ["queued", "failed"].includes(candidate.status);
       });
       if (!job) return { rows: [], rowCount: 0 };
       job.status = "leased";
-      job.leaseOwner = String(values[userDelete ? 2 : 3]);
+      job.leaseOwner = String(values[userDelete || global ? 2 : 3]);
       return { rows: [{ id: job.id, payload: job.payload }], rowCount: 1 };
     }
     if (sql.startsWith("update background_job") && sql.includes("status = 'succeeded'")) {
@@ -81,6 +89,12 @@ const mocks = vi.hoisted(() => {
         }],
         rowCount: 1,
       };
+    }
+    if (sql.startsWith("select count(*) filter") && sql.includes("as failed")) {
+      return { rows: [{
+        failed: jobs.filter((job) => job.status === "failed").length,
+        exhausted: jobs.filter((job) => job.status !== "succeeded" && job.attemptCount >= job.maxAttempts).length,
+      }], rowCount: 1 };
     }
     if (sql.startsWith("delete from background_job")) {
       if (sql.includes("status = 'leased'") && sql.includes("lease_owner")) {
@@ -142,6 +156,7 @@ function addJob(index: number, storageKey = `owner/c2000000-0000-4000-8000-00000
     maxAttempts: 100,
     lastErrorCode: null,
     leaseOwner: null,
+    createdAt: new Date(`2026-07-14T00:00:0${index}.000Z`),
   });
 }
 
@@ -240,8 +255,9 @@ describe("durable file-erasure state machine", () => {
     expect(syncParentDirectory).toHaveBeenCalledTimes(2);
   });
 
-  it("purges completed user-delete coordinates without stealing account or retention work", async () => {
+  it("purges user-delete coordinates but retains lifecycle successes for atomic finalization", async () => {
     addJob(1);
+    mocks.jobs[0]!.createdAt = new Date("2026-07-14T00:00:03.000Z");
     mocks.jobs.push({
       id: "d1000000-0000-4000-8000-000000000002",
       payload: {
@@ -255,14 +271,15 @@ describe("durable file-erasure state machine", () => {
       maxAttempts: 100,
       lastErrorCode: null,
       leaseOwner: null,
+      createdAt: new Date("2026-07-14T00:00:02.000Z"),
     });
     const eraseObject = vi.fn(async () => ({ alreadyAbsent: false }));
     await expect(processUserFileErasures({
       objectStorageRoot: ROOT,
-      limit: 1,
+      limit: 2,
       eraseObject,
-    })).resolves.toEqual({ processed: 1, removed: 1, alreadyAbsent: 0, failed: 0, exhausted: 0 });
-    expect(mocks.jobs[0]).toMatchObject({ status: "queued", attemptCount: 0 });
+    })).resolves.toEqual({ processed: 2, removed: 2, alreadyAbsent: 0, failed: 0, exhausted: 0 });
+    expect(mocks.jobs[0]).toMatchObject({ status: "succeeded", attemptCount: 1 });
     expect(mocks.jobs).toHaveLength(1);
     expect(JSON.stringify(mocks.jobs)).not.toContain("user_file_delete");
     expect(JSON.stringify(mocks.jobs)).not.toContain("owner/c2000000-0000-4000-8000-000000000002");
@@ -270,7 +287,7 @@ describe("durable file-erasure state machine", () => {
       String(sql).replace(/\s+/g, " ").trim().toLowerCase().startsWith("delete from background_job")
       && String(sql).includes("lease_owner")
     ));
-    expect(purge?.[1]).toEqual(["d1000000-0000-4000-8000-000000000002", expect.stringMatching(/^file-erasure:user-delete:/)]);
+    expect(purge?.[1]).toEqual(["d1000000-0000-4000-8000-000000000002", expect.stringMatching(/^file-erasure:global:/)]);
     expect(eraseObject).toHaveBeenCalledWith("owner/c2000000-0000-4000-8000-000000000002");
   });
 
@@ -288,12 +305,56 @@ describe("durable file-erasure state machine", () => {
       maxAttempts: 8,
       lastErrorCode: "FILE_ERASURE_deadbeef0000",
       leaseOwner: null,
+      createdAt: new Date("2026-07-14T00:00:03.000Z"),
     });
 
     await expect(processUserFileErasures({
       objectStorageRoot: ROOT,
       eraseObject: vi.fn(async () => ({ alreadyAbsent: false })),
-    })).resolves.toEqual({ processed: 0, removed: 0, alreadyAbsent: 0, failed: 0, exhausted: 1 });
+    })).resolves.toEqual({ processed: 0, removed: 0, alreadyAbsent: 0, failed: 1, exhausted: 1 });
+  });
+
+  it("globally claims the oldest due job across user deletes, retention, and account deletion", async () => {
+    addJob(1);
+    mocks.jobs[0]!.payload.operation = "retention";
+    mocks.jobs[0]!.createdAt = new Date("2026-07-13T00:00:00.000Z");
+    mocks.jobs.push({
+      id: "d1000000-0000-4000-8000-000000000002",
+      payload: { lifecycleRunId: "", objectId: "c2000000-0000-4000-8000-000000000002", storageKey: "owner/c2000000-0000-4000-8000-000000000002", operation: "user_file_delete" },
+      status: "queued", attemptCount: 0, maxAttempts: 100, lastErrorCode: null, leaseOwner: null,
+      createdAt: new Date("2026-07-14T00:00:00.000Z"),
+    });
+
+    await expect(processUserFileErasures({
+      objectStorageRoot: ROOT, limit: 1,
+      eraseObject: vi.fn(async () => ({ alreadyAbsent: false })),
+    })).resolves.toMatchObject({ processed: 1, removed: 1 });
+
+    expect(mocks.jobs[0]).toMatchObject({ payload: { operation: "retention" }, status: "succeeded", attemptCount: 1 });
+    expect(mocks.jobs[1]).toMatchObject({ payload: { operation: "user_file_delete" }, status: "queued" });
+    const claimSql = mocks.query.mock.calls.find(([sql]) => String(sql).startsWith("with candidate as"))?.[0];
+    expect(String(claimSql)).toContain("for update skip locked");
+    expect(String(claimSql)).toContain("order by created_at asc, id asc");
+  });
+
+  it("counts failed and exhausted erasure health across every supported operation", async () => {
+    addJob(1);
+    mocks.jobs[0]!.payload.operation = "retention";
+    mocks.jobs[0]!.status = "failed";
+    mocks.jobs[0]!.attemptCount = 100;
+    mocks.jobs[0]!.maxAttempts = 100;
+    mocks.jobs.push({
+      id: "d1000000-0000-4000-8000-000000000002",
+      payload: { lifecycleRunId: "c1000000-0000-4000-8000-000000000002", objectId: "c2000000-0000-4000-8000-000000000002", storageKey: "owner/c2000000-0000-4000-8000-000000000002", operation: "account_deletion" },
+      status: "failed", attemptCount: 100, maxAttempts: 100,
+      lastErrorCode: "FILE_ERASURE_deadbeef0000", leaseOwner: null,
+      createdAt: new Date("2026-07-14T00:00:02.000Z"),
+    });
+
+    await expect(processUserFileErasures({
+      objectStorageRoot: ROOT,
+      eraseObject: vi.fn(async () => ({ alreadyAbsent: false })),
+    })).resolves.toMatchObject({ processed: 0, failed: 2, exhausted: 2 });
   });
 
   it("enqueues only opaque lifecycle/object coordinates and purges keys at durable completion", async () => {

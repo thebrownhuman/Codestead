@@ -140,7 +140,7 @@ async function claimNextJob(
   return result.rows[0] ?? null;
 }
 
-async function claimNextUserDeleteJob(
+async function claimNextGlobalJob(
   client: Queryable,
   input: { workerId: string; now: Date; leaseMs: number },
 ) {
@@ -149,7 +149,8 @@ async function claimNextUserDeleteJob(
     `with candidate as (
        select id
          from background_job
-        where type = $1 and payload ->> 'operation' = 'user_file_delete'
+         where type = $1
+           and payload ->> 'operation' in ('user_file_delete', 'retention', 'account_deletion')
           and attempt_count < max_attempts and run_after <= $2
           and (
             status in ('queued', 'failed')
@@ -322,8 +323,8 @@ export async function processUserFileErasures(input: {
     || !Number.isSafeInteger(limit)
     || limit < 1
     || limit > 100
-  ) throw new Error("Valid bounded user-file-erasure worker settings are required.");
-  const workerId = `file-erasure:user-delete:${randomUUID()}`;
+  ) throw new Error("Valid bounded file-erasure worker settings are required.");
+  const workerId = `file-erasure:global:${randomUUID()}`;
   const store = new NodeDurableObjectStore({ root: input.objectStorageRoot });
   if (!input.eraseObject) await store.assertReady();
   const eraseObject = input.eraseObject ?? ((storageKey: string) => store.erase(storageKey));
@@ -331,25 +332,32 @@ export async function processUserFileErasures(input: {
   let processed = 0;
   let removed = 0;
   let alreadyAbsent = 0;
-  let failed = 0;
   try {
     while (processed < limit) {
       const now = new Date();
-      const job = await claimNextUserDeleteJob(client, { workerId, now, leaseMs });
+      const job = await claimNextGlobalJob(client, { workerId, now, leaseMs });
       if (!job) break;
       processed += 1;
       try {
         const result = await eraseObject(job.payload.storageKey);
-        const completed = await client.query(
-          `delete from background_job
-            where id = $1 and status = 'leased' and lease_owner = $2`,
-          [job.id, workerId],
-        );
+        const completed = job.payload.operation === "user_file_delete"
+          ? await client.query(
+            `delete from background_job
+              where id = $1 and status = 'leased' and lease_owner = $2`,
+            [job.id, workerId],
+          )
+          : await client.query(
+            `update background_job
+                set status = 'succeeded', attempt_count = attempt_count + 1,
+                    lease_owner = null, lease_expires_at = null,
+                    last_error_code = $3, completed_at = $4, updated_at = $4
+              where id = $1 and status = 'leased' and lease_owner = $2`,
+            [job.id, workerId, result.alreadyAbsent ? ALREADY_ABSENT : null, new Date()],
+          );
         if ((completed.rowCount ?? 0) !== 1) throw new FileErasureError("FILE_ERASURE_INCOMPLETE");
         if (result.alreadyAbsent) alreadyAbsent += 1;
         else removed += 1;
       } catch (error) {
-        failed += 1;
         const failedAt = new Date();
         await client.query(
           `update background_job
@@ -362,20 +370,21 @@ export async function processUserFileErasures(input: {
         ).catch(() => undefined);
       }
     }
-    const backlog = await client.query<{ exhausted: number }>(
-      `select count(*)::int as exhausted
+    const backlog = await client.query<{ failed: number; exhausted: number }>(
+      `select count(*) filter (where status = 'failed')::int as failed,
+              count(*) filter (
+                where status <> 'succeeded' and attempt_count >= max_attempts
+              )::int as exhausted
          from background_job
         where type = $1
-          and payload ->> 'operation' = 'user_file_delete'
-          and status <> 'succeeded'
-          and attempt_count >= max_attempts`,
+          and payload ->> 'operation' in ('user_file_delete', 'retention', 'account_deletion')`,
       [JOB_TYPE],
     );
     return {
       processed,
       removed,
       alreadyAbsent,
-      failed,
+      failed: Number(backlog.rows[0]?.failed ?? 0),
       exhausted: Number(backlog.rows[0]?.exhausted ?? 0),
     };
   } finally {
