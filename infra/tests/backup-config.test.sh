@@ -42,6 +42,7 @@ for invalid_policy in \
   'RCLONE_MIN_BULK_BYTES_PER_SECOND=999999999999999999999999999999999' \
   'RCLONE_BULK_OVERHEAD_SECONDS=0' \
   'RCLONE_SERVICE_RESERVE_SECONDS=0' \
+  'RCLONE_OPERATION_GRACE_SECONDS=3601' \
   'RCLONE_SERVICE_BUDGET_SECONDS=14401' \
   $'RCLONE_BULK_OVERHEAD_SECONDS=7200\nRCLONE_SERVICE_RESERVE_SECONDS=1\nRCLONE_SERVICE_BUDGET_SECONDS=14400'; do
   printf '%s\n' "$invalid_policy" >"$work/invalid-policy.env"
@@ -58,6 +59,154 @@ if rclone_bulk_plan_fits_service_budget invalid 2; then
   exit 1
 fi
 
+deadline_case_setup() {
+  RCLONE_CONTROL_TIMEOUT_SECONDS=120
+  RCLONE_MIN_BULK_BYTES_PER_SECOND=4194304
+  RCLONE_BULK_OVERHEAD_SECONDS=600
+  RCLONE_SERVICE_BUDGET_SECONDS=1000
+  RCLONE_SERVICE_RESERVE_SECONDS=100
+  RCLONE_OPERATION_GRACE_SECONDS=5
+  fake_now_ms=0
+  fake_advance_ms=0
+  fake_consume_allocated=0
+  fake_status=0
+  deadline_calls=()
+  rclone_monotonic_milliseconds() {
+    RCLONE_MONOTONIC_MILLISECONDS="$fake_now_ms"
+  }
+  _run_rclone_with_deadline() {
+    local allocated="$1" operation="${2:-missing}"
+    deadline_calls+=("$allocated:$operation")
+    if ((fake_consume_allocated)); then
+      fake_now_ms=$((fake_now_ms + allocated * 1000))
+    else
+      fake_now_ms=$((fake_now_ms + fake_advance_ms))
+    fi
+    return "$fake_status"
+  }
+  _run_backup_with_deadline() {
+    _run_rclone_with_deadline "$@"
+  }
+}
+
+(
+  deadline_case_setup
+  start_rclone_service_budget
+  original_deadline="$RCLONE_SERVICE_HARD_DEADLINE_MILLISECONDS"
+  if start_rclone_service_budget; then
+    echo "rclone service deadline was reset" >&2
+    exit 1
+  fi
+  [[ "$RCLONE_SERVICE_HARD_DEADLINE_MILLISECONDS" == "$original_deadline" ]]
+  run_rclone_control lsf fake:metadata
+  [[ "${deadline_calls[*]}" == "120:lsf" ]]
+)
+
+(
+  deadline_case_setup
+  start_rclone_service_budget
+  run_backup_work_control sha256sum archive
+  [[ "${deadline_calls[*]}" == "120:sha256sum" ]]
+)
+
+(
+  deadline_case_setup
+  start_rclone_service_budget
+  fake_now_ms=850000
+  run_rclone_control lsf fake:metadata
+  [[ "${deadline_calls[*]}" == "50:lsf" ]]
+)
+
+(
+  deadline_case_setup
+  start_rclone_service_budget
+  fake_now_ms=900000
+  control_status=0
+  run_rclone_control lsf fake:metadata || control_status=$?
+  [[ "$control_status" == 75 && ${#deadline_calls[@]} -eq 0 ]]
+  begin_rclone_service_finalization
+  run_rclone_finalization_control copyto point pointer
+  [[ "${deadline_calls[*]}" == "100:copyto" ]]
+  bulk_status=0
+  run_rclone_bulk 1 copyto archive remote || bulk_status=$?
+  [[ "$bulk_status" == 70 ]]
+)
+
+(
+  deadline_case_setup
+  start_rclone_service_budget
+  fake_now_ms=990000
+  begin_rclone_service_finalization
+  insufficient_teardown_status=0
+  run_rclone_finalization_control copyto point pointer \
+    || insufficient_teardown_status=$?
+  [[ "$insufficient_teardown_status" == 75 \
+    && ${#deadline_calls[@]} -eq 0 ]]
+)
+
+(
+  deadline_case_setup
+  RCLONE_SERVICE_BUDGET_SECONDS=14400
+  RCLONE_SERVICE_RESERVE_SECONDS=600
+  start_rclone_service_budget
+  fake_consume_allocated=1
+  large_archive_bytes=26419920896
+  run_rclone_bulk "$large_archive_bytes" copyto archive remote
+  [[ "${deadline_calls[0]}" == "6899:copyto" ]]
+  for _ in 1 2 3 4 5 6 7; do
+    run_rclone_control lsf fake:metadata
+  done
+  calls_before_second=${#deadline_calls[@]}
+  second_status=0
+  run_rclone_bulk "$large_archive_bytes" copyto remote readback || second_status=$?
+  [[ "$second_status" == 75 && ${#deadline_calls[@]} -eq calls_before_second ]]
+)
+
+(
+  deadline_case_setup
+  start_rclone_service_budget
+  fake_advance_ms=901000
+  overrun_status=0
+  run_rclone_control lsf fake:metadata || overrun_status=$?
+  [[ "$overrun_status" == 75 && ${#deadline_calls[@]} -eq 1 ]]
+)
+
+(
+  deadline_case_setup
+  fake_now_ms=08
+  leading_zero_status=0
+  leading_zero_diagnostic="$work/leading-zero-clock.stderr"
+  start_rclone_service_budget 2>"$leading_zero_diagnostic" \
+    || leading_zero_status=$?
+  [[ "$leading_zero_status" == 70 && ! -s "$leading_zero_diagnostic" ]]
+)
+
+(
+  deadline_case_setup
+  fake_now_ms=9223372036854775808
+  overflow_status=0
+  start_rclone_service_budget || overflow_status=$?
+  [[ "$overflow_status" == 70 ]]
+)
+
+(
+  deadline_case_setup
+  fake_now_ms=10000
+  start_rclone_service_budget
+  fake_now_ms=9999
+  backward_status=0
+  run_rclone_control lsf fake:metadata || backward_status=$?
+  [[ "$backward_status" == 70 && ${#deadline_calls[@]} -eq 0 ]]
+)
+
+(
+  deadline_case_setup
+  start_rclone_service_budget
+  fake_status=17
+  child_status=0
+  run_rclone_control lsf fake:metadata || child_status=$?
+  [[ "$child_status" == 17 ]]
+)
 ln -s "$work/default.env" "$work/symlink.env"
 expect_config_failure "$work/symlink.env"
 

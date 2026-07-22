@@ -20,6 +20,54 @@ if grep -Eq '(^|[[:space:]])rclone[[:space:]]+sync([[:space:]]|$)' "$sync_script
   fail "offsite publication still uses destructive directory synchronization"
 fi
 
+python3 - "$sync_script" "$fetch_script" <<'PY' \
+  || fail "offsite entrypoints do not enforce one shared deadline and irreversible finalization"
+from pathlib import Path
+import sys
+
+sync_text = Path(sys.argv[1]).read_text(encoding="utf-8")
+fetch_text = Path(sys.argv[2]).read_text(encoding="utf-8")
+
+for label, text in (("sync", sync_text), ("fetch", fetch_text)):
+    if text.count("\nstart_rclone_service_budget\n") != 1:
+        raise SystemExit(f"{label} must initialize the service budget exactly once")
+    if "run_rclone_service_capture" not in text:
+        raise SystemExit(f"{label} does not use budgeted capture")
+    if "\nrun_rclone_capture " in text:
+        raise SystemExit(f"{label} bypasses the service budget for captured output")
+    if "verify_ciphertext_checksum_service_budget" not in text:
+        raise SystemExit(f"{label} does not budget ciphertext verification")
+    if "\nverify_ciphertext_checksum " in text:
+        raise SystemExit(f"{label} still performs unbudgeted ciphertext verification")
+
+sync_start = sync_text.index("\nstart_rclone_service_budget\n")
+sync_first_remote = min(
+    sync_text.index(token)
+    for token in ("\nrun_rclone_bulk ", "\nrun_rclone_control ")
+)
+sync_finalize = sync_text.index("\nbegin_rclone_service_finalization\n")
+sync_publish = sync_text.index("\n  pending_point=")
+if not sync_start < sync_first_remote < sync_finalize < sync_publish:
+    raise SystemExit("sync deadline/finalization call order is unsafe")
+if "\nrun_rclone_control " in sync_text[sync_finalize:]:
+    raise SystemExit("sync performs ordinary remote work after finalization")
+if "run_rclone_finalization_control" in sync_text[:sync_finalize]:
+    raise SystemExit("sync uses finalization reserve before the irreversible boundary")
+if "run_backup_work_bulk" not in sync_text[:sync_finalize]:
+    raise SystemExit("sync does not budget full-file comparison work")
+
+fetch_start = fetch_text.index("\nstart_rclone_service_budget\n")
+fetch_first_remote = fetch_text.index("\n  run_rclone_service_capture ")
+fetch_finalize = fetch_text.index("\nbegin_rclone_service_finalization\n")
+fetch_publish = fetch_text.index("\nrun_backup_finalization_control mv -T -- ")
+if not fetch_start < fetch_first_remote < fetch_finalize < fetch_publish:
+    raise SystemExit("fetch deadline/finalization call order is unsafe")
+if any(token in fetch_text[fetch_finalize:] for token in (
+    "run_rclone_control", "run_rclone_bulk", "run_rclone_service_capture"
+)):
+    raise SystemExit("fetch performs remote work after finalization")
+PY
+
 work="$(mktemp -d)"
 trap 'rm -rf -- "$work"' EXIT
 mkdir -m 0700 -p "$work/bin" "$work/remote" "$work/backup/full" \
@@ -130,11 +178,11 @@ run_env=(
 
 tight_bulk_env=(
   "${run_env[@]}"
-  "RCLONE_CONTROL_TIMEOUT_SECONDS=1"
+  "RCLONE_CONTROL_TIMEOUT_SECONDS=8"
   "RCLONE_MIN_BULK_BYTES_PER_SECOND=1048576"
-  "RCLONE_BULK_OVERHEAD_SECONDS=2"
-  "RCLONE_SERVICE_BUDGET_SECONDS=10"
-  "RCLONE_SERVICE_RESERVE_SECONDS=1"
+  "RCLONE_BULK_OVERHEAD_SECONDS=8"
+  "RCLONE_SERVICE_BUDGET_SECONDS=40"
+  "RCLONE_SERVICE_RESERVE_SECONDS=10"
   "RCLONE_OPERATION_GRACE_SECONDS=1"
 )
 
@@ -143,7 +191,7 @@ if env "${tight_bulk_env[@]}" "FAKE_PARTIAL_ARCHIVE_TIMEOUT=1" \
   bash "$sync_script" >/dev/null 2>&1; then
   fail "partial remote archive write did not time out"
 fi
-if ((SECONDS - partial_started >= 6)); then
+if ((SECONDS - partial_started >= 12)); then
   fail "partial remote archive write exceeded its size-derived bulk deadline"
 fi
 [[ -f "$work/remote/codestead/backups/full/$archive" ]] \

@@ -292,10 +292,12 @@ load_backup_config() {
     && ${#RCLONE_MIN_BULK_BYTES_PER_SECOND} -le 12 \
     && ${#RCLONE_BULK_OVERHEAD_SECONDS} -le 5 \
     && ${#RCLONE_SERVICE_BUDGET_SECONDS} -le 5 \
-    && ${#RCLONE_SERVICE_RESERVE_SECONDS} -le 5 ]] \
+    && ${#RCLONE_SERVICE_RESERVE_SECONDS} -le 5 \
+    && ${#RCLONE_OPERATION_GRACE_SECONDS} -le 4 ]] \
     || die "rclone transfer policy values exceed safe arithmetic bounds"
   ((RCLONE_MIN_BULK_BYTES_PER_SECOND <= 1000000000000 \
-    && RCLONE_SERVICE_BUDGET_SECONDS <= 14400)) \
+    && RCLONE_SERVICE_BUDGET_SECONDS <= 14400 \
+    && RCLONE_OPERATION_GRACE_SECONDS <= 3600)) \
     || die "rclone throughput or service budget exceeds its policy bound"
   rclone_bulk_plan_fits_service_budget 1 2 \
     || die "rclone service budget cannot fit upload, readback, and reserve"
@@ -454,6 +456,30 @@ verify_ciphertext_checksum() {
   [[ "$actual_hash" == "$expected_hash" ]]
 }
 
+SERVICE_VERIFIED_CIPHERTEXT_SHA256=""
+verify_ciphertext_checksum_service_budget() {
+  local archive="${1:-}" archive_bytes="${2:-}" checksum="${1:-}.sha256"
+  local expected_hash expected_name extra actual_bytes hash_record actual_hash actual_name
+
+  SERVICE_VERIFIED_CIPHERTEXT_SHA256=""
+  [[ -f "$archive" && ! -L "$archive" && -s "$archive" ]] || return 1
+  [[ -f "$checksum" && ! -L "$checksum" && -s "$checksum" ]] || return 1
+  actual_bytes="$(stat -c '%s' -- "$archive")" || return 1
+  [[ "$archive_bytes" =~ ^[1-9][0-9]*$ && "$actual_bytes" == "$archive_bytes" ]] \
+    || return 1
+  [[ "$(wc -l <"$checksum")" -eq 1 ]] || return 1
+  read -r expected_hash expected_name extra <"$checksum"
+  [[ -z "${extra:-}" && "$expected_hash" =~ ^[0-9a-fA-F]{64}$ ]] || return 1
+  [[ "$expected_name" == "$(basename -- "$archive")" ]] || return 1
+  hash_record="$(run_backup_work_bulk "$archive_bytes" sha256sum -- "$archive")" \
+    || return 1
+  [[ "$hash_record" != *$'\n'* ]] || return 1
+  read -r actual_hash actual_name extra <<<"$hash_record"
+  [[ -z "${extra:-}" && "$actual_name" == "$archive" \
+    && "$actual_hash" == "$expected_hash" ]] || return 1
+  SERVICE_VERIFIED_CIPHERTEXT_SHA256="$actual_hash"
+}
+
 require_secure_rclone_config() {
   [[ "${RCLONE_CONFIG:-}" == /* ]] || return 1
   require_secure_regular_file "$RCLONE_CONFIG" 600 0
@@ -466,23 +492,178 @@ validate_rclone_remote() {
     && "$value" != */ ]]
 }
 
+readonly RCLONE_BUDGET_STATE_ERROR=70
+readonly RCLONE_BUDGET_EXHAUSTED=75
+readonly RCLONE_MANAGED_GROUP_PROOF_SECONDS=5
+RCLONE_MONOTONIC_MILLISECONDS=""
+RCLONE_SERVICE_PHASE="uninitialized"
+RCLONE_SERVICE_START_MILLISECONDS=""
+RCLONE_SERVICE_LAST_MILLISECONDS=""
+RCLONE_SERVICE_HARD_DEADLINE_MILLISECONDS=""
+RCLONE_SERVICE_WORK_DEADLINE_MILLISECONDS=""
+RCLONE_BUDGET_REMAINING_MILLISECONDS=""
+RCLONE_BUDGET_CAP_SECONDS=""
+
+_unsigned_decimal_fits_int64() {
+  local value="${1:-}"
+
+  [[ "$value" =~ ^(0|[1-9][0-9]*)$ && ${#value} -le 19 ]] || return 1
+  if ((${#value} == 19)); then
+    # Fixed-width lexical comparison avoids overflowing Bash signed arithmetic.
+    # shellcheck disable=SC2071
+    [[ "$value" < 9223372036854775808 ]] || return 1
+  fi
+  return 0
+}
+
+rclone_monotonic_milliseconds() {
+  local uptime="" idle="" whole="" fraction=""
+
+  IFS=' ' read -r uptime idle </proc/uptime || return 1
+  [[ "$uptime" =~ ^([0-9]{1,12})\.([0-9]{2})$ ]] || return 1
+  whole="${BASH_REMATCH[1]}"
+  fraction="${BASH_REMATCH[2]}"
+  RCLONE_MONOTONIC_MILLISECONDS=$((10#$whole * 1000 + 10#$fraction * 10))
+}
+
+_sample_rclone_monotonic_milliseconds() {
+  local sample=""
+
+  RCLONE_MONOTONIC_MILLISECONDS=""
+  rclone_monotonic_milliseconds || return "$RCLONE_BUDGET_STATE_ERROR"
+  sample="$RCLONE_MONOTONIC_MILLISECONDS"
+  _unsigned_decimal_fits_int64 "$sample" \
+    || return "$RCLONE_BUDGET_STATE_ERROR"
+  if [[ -n "$RCLONE_SERVICE_LAST_MILLISECONDS" ]]     && ((sample < RCLONE_SERVICE_LAST_MILLISECONDS)); then
+    return "$RCLONE_BUDGET_STATE_ERROR"
+  fi
+  RCLONE_SERVICE_LAST_MILLISECONDS="$sample"
+}
+
+start_rclone_service_budget() {
+  local budget_seconds reserve_seconds budget_milliseconds
+
+  [[ "$RCLONE_SERVICE_PHASE" == "uninitialized" ]] \
+    || return "$RCLONE_BUDGET_STATE_ERROR"
+  [[ "$RCLONE_SERVICE_BUDGET_SECONDS" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_SERVICE_RESERVE_SECONDS" =~ ^[1-9][0-9]*$ \
+    && ${#RCLONE_SERVICE_BUDGET_SECONDS} -le 5 \
+    && ${#RCLONE_SERVICE_RESERVE_SECONDS} -le 5 ]] \
+    || return "$RCLONE_BUDGET_STATE_ERROR"
+  budget_seconds=$((10#$RCLONE_SERVICE_BUDGET_SECONDS))
+  reserve_seconds=$((10#$RCLONE_SERVICE_RESERVE_SECONDS))
+  ((budget_seconds <= 14400 && budget_seconds > reserve_seconds)) \
+    || return "$RCLONE_BUDGET_STATE_ERROR"
+  budget_milliseconds=$((budget_seconds * 1000))
+  _sample_rclone_monotonic_milliseconds || return $?
+  ((RCLONE_MONOTONIC_MILLISECONDS <= 9223372036854775807 - budget_milliseconds))     || return "$RCLONE_BUDGET_STATE_ERROR"
+  RCLONE_SERVICE_START_MILLISECONDS="$RCLONE_MONOTONIC_MILLISECONDS"
+  RCLONE_SERVICE_HARD_DEADLINE_MILLISECONDS=$((RCLONE_MONOTONIC_MILLISECONDS + budget_milliseconds))
+  RCLONE_SERVICE_WORK_DEADLINE_MILLISECONDS=$((RCLONE_SERVICE_HARD_DEADLINE_MILLISECONDS - reserve_seconds * 1000))
+  RCLONE_SERVICE_PHASE="work"
+}
+
+_rclone_service_remaining_milliseconds() {
+  local phase="${1:-}" deadline
+
+  [[ "$RCLONE_SERVICE_PHASE" != "uninitialized" ]]     || return "$RCLONE_BUDGET_STATE_ERROR"
+  _sample_rclone_monotonic_milliseconds || return $?
+  case "$phase" in
+    work) deadline="$RCLONE_SERVICE_WORK_DEADLINE_MILLISECONDS" ;;
+    finalization) deadline="$RCLONE_SERVICE_HARD_DEADLINE_MILLISECONDS" ;;
+    *) return "$RCLONE_BUDGET_STATE_ERROR" ;;
+  esac
+  RCLONE_BUDGET_REMAINING_MILLISECONDS=$((deadline - RCLONE_MONOTONIC_MILLISECONDS))
+  ((RCLONE_BUDGET_REMAINING_MILLISECONDS > 0))     || return "$RCLONE_BUDGET_EXHAUSTED"
+}
+
+_run_service_budgeted() {
+  local runner="${1:-}" phase="${2:-}" requested_seconds="${3:-}" require_full="${4:-}"
+  local available_seconds teardown_seconds child_status=0 budget_status=0
+  shift 4 || return "$RCLONE_BUDGET_STATE_ERROR"
+  [[ ( "$runner" == _run_rclone_with_deadline \
+      || "$runner" == _run_backup_with_deadline ) \
+    && "$RCLONE_SERVICE_PHASE" == "$phase" \
+    && "$requested_seconds" =~ ^[1-9][0-9]*$ \
+    && ( "$require_full" == 0 || "$require_full" == 1 ) \
+    && "$RCLONE_OPERATION_GRACE_SECONDS" =~ ^[1-9][0-9]*$ \
+    && ${#RCLONE_OPERATION_GRACE_SECONDS} -le 4 ]] \
+    || return "$RCLONE_BUDGET_STATE_ERROR"
+  teardown_seconds=$((10#$RCLONE_OPERATION_GRACE_SECONDS + RCLONE_MANAGED_GROUP_PROOF_SECONDS))
+  ((10#$RCLONE_OPERATION_GRACE_SECONDS <= 3600)) \
+    || return "$RCLONE_BUDGET_STATE_ERROR"
+  _rclone_service_remaining_milliseconds "$phase" || return $?
+  available_seconds=$((RCLONE_BUDGET_REMAINING_MILLISECONDS / 1000))
+  ((available_seconds > 0)) || return "$RCLONE_BUDGET_EXHAUSTED"
+  RCLONE_BUDGET_CAP_SECONDS="$requested_seconds"
+  if ((RCLONE_BUDGET_CAP_SECONDS > available_seconds)); then
+    RCLONE_BUDGET_CAP_SECONDS="$available_seconds"
+  fi
+  if ((require_full && RCLONE_BUDGET_CAP_SECONDS < requested_seconds)); then
+    return "$RCLONE_BUDGET_EXHAUSTED"
+  fi
+  if ((RCLONE_BUDGET_CAP_SECONDS <= teardown_seconds)); then
+    return "$RCLONE_BUDGET_EXHAUSTED"
+  fi
+  "$runner" "$RCLONE_BUDGET_CAP_SECONDS" "$@" || child_status=$?
+  _rclone_service_remaining_milliseconds "$phase" || budget_status=$?
+  if ((child_status != 0)); then
+    ((budget_status == RCLONE_BUDGET_STATE_ERROR)) && return "$budget_status"
+    return "$child_status"
+  fi
+  ((budget_status == 0)) || return "$RCLONE_BUDGET_EXHAUSTED"
+}
+
+_run_rclone_budgeted() {
+  _run_service_budgeted _run_rclone_with_deadline "$@"
+}
+
+_run_backup_budgeted() {
+  _run_service_budgeted _run_backup_with_deadline "$@"
+}
+
+begin_rclone_service_finalization() {
+  [[ "$RCLONE_SERVICE_PHASE" == "work" ]]     || return "$RCLONE_BUDGET_STATE_ERROR"
+  _rclone_service_remaining_milliseconds finalization || return $?
+  RCLONE_SERVICE_PHASE="finalization"
+}
+
+require_rclone_service_finalization_budget() {
+  [[ "$RCLONE_SERVICE_PHASE" == "finalization" ]]     || return "$RCLONE_BUDGET_STATE_ERROR"
+  _rclone_service_remaining_milliseconds finalization
+}
+
 run_managed_backup_command() {
-  local deadline_seconds="${1:-}" script_dir managed_deadline
+  local allotted_seconds="${1:-}" script_dir managed_deadline command_seconds
+  local allotted_value grace_value
   shift || return 125
-  [[ "$deadline_seconds" =~ ^[1-9][0-9]*$ ]] || return 125
+  [[ "$allotted_seconds" =~ ^[1-9][0-9]*$ \
+    && "$RCLONE_OPERATION_GRACE_SECONDS" =~ ^[1-9][0-9]*$ \
+    && ${#allotted_seconds} -le 5 \
+    && ${#RCLONE_OPERATION_GRACE_SECONDS} -le 4 ]] || return 125
+  allotted_value=$((10#$allotted_seconds))
+  grace_value=$((10#$RCLONE_OPERATION_GRACE_SECONDS))
+  ((allotted_value <= 86400 && grace_value <= 3600)) || return 125
+  command_seconds=$((allotted_value - grace_value \
+    - RCLONE_MANAGED_GROUP_PROOF_SECONDS))
+  ((command_seconds > 0)) || return 125
   script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)" || return 125
   managed_deadline="$script_dir/run-managed-deadline.py"
   [[ -f "$managed_deadline" && ! -L "$managed_deadline" ]] || return 125
   python3 "$managed_deadline" --expected-parent-pid "$BASHPID" \
-    "$deadline_seconds" "$RCLONE_OPERATION_GRACE_SECONDS" -- "$@"
+    "$command_seconds" "$grace_value" -- "$@"
+}
+
+_run_backup_with_deadline() {
+  local deadline_seconds="${1:-}"
+  shift || return 125
+  run_managed_backup_command "$deadline_seconds" "$@"
 }
 
 rclone_bulk_timeout_seconds() {
   local archive_bytes="${1:-}" transfer_seconds
-  [[ "$archive_bytes" =~ ^[1-9][0-9]*$ && ${#archive_bytes} -le 19 ]] || return 1
-  if ((${#archive_bytes} == 19)); then
-    [[ "$archive_bytes" < 9223372036854775808 ]] || return 1
-  fi
+  [[ "$archive_bytes" =~ ^[1-9][0-9]*$ ]] || return 1
+  _unsigned_decimal_fits_int64 "$archive_bytes" || return 1
   transfer_seconds=$(((archive_bytes - 1) / RCLONE_MIN_BULK_BYTES_PER_SECOND + 1))
   ((transfer_seconds <= 9223372036854775807 - RCLONE_BULK_OVERHEAD_SECONDS)) || return 1
   printf '%s\n' "$((transfer_seconds + RCLONE_BULK_OVERHEAD_SECONDS))"
@@ -502,32 +683,51 @@ _run_rclone_with_deadline() {
   shift || return 125
   require_secure_rclone_config || return 125
   validate_rclone_remote || return 125
-  run_managed_backup_command "$deadline_seconds" rclone "$@" --config "$RCLONE_CONFIG" \
-    --contimeout 15s --timeout 60s --retries 1 --low-level-retries 1
+  run_managed_backup_command "$deadline_seconds" rclone "$@" --config "$RCLONE_CONFIG"     --contimeout 15s --timeout 60s --retries 1 --low-level-retries 1
 }
 
 run_rclone_control() {
-  _run_rclone_with_deadline "$RCLONE_CONTROL_TIMEOUT_SECONDS" "$@"
+  _run_rclone_budgeted work "$RCLONE_CONTROL_TIMEOUT_SECONDS" 0 "$@"
 }
 
 run_rclone_bulk() {
   local archive_bytes="${1:-}" deadline_seconds
   shift || return 125
   deadline_seconds="$(rclone_bulk_timeout_seconds "$archive_bytes")" || return 125
-  _run_rclone_with_deadline "$deadline_seconds" "$@"
+  _run_rclone_budgeted work "$deadline_seconds" 1 "$@"
 }
 
-# Backward-compatible control-only name for metadata, retention, and evidence calls.
+run_rclone_finalization_control() {
+  _run_rclone_budgeted finalization "$RCLONE_CONTROL_TIMEOUT_SECONDS" 0 "$@"
+}
+
+run_backup_work_control() {
+  _run_backup_budgeted work "$RCLONE_CONTROL_TIMEOUT_SECONDS" 0 "$@"
+}
+
+run_backup_work_bulk() {
+  local archive_bytes="${1:-}" deadline_seconds
+  shift || return 125
+  deadline_seconds="$(rclone_bulk_timeout_seconds "$archive_bytes")" || return 125
+  _run_backup_budgeted work "$deadline_seconds" 1 "$@"
+}
+
+run_backup_finalization_control() {
+  _run_backup_budgeted finalization "$RCLONE_CONTROL_TIMEOUT_SECONDS" 0 "$@"
+}
+
+# Backward-compatible fixed control deadline for retention and evidence calls.
 run_rclone() {
-  run_rclone_control "$@"
+  _run_rclone_with_deadline "$RCLONE_CONTROL_TIMEOUT_SECONDS" "$@"
 }
 
-run_rclone_capture() {
-  local output="${1:-}" maximum_bytes="${2:-}" size
-  shift 2 || return 125
+_run_rclone_capture_with() {
+  local runner="${1:-}" output="${2:-}" maximum_bytes="${3:-}" size
+  shift 3 || return 125
+  [[ "$runner" == run_rclone || "$runner" == run_rclone_control ]] || return 125
   [[ "$output" == /* && "$maximum_bytes" =~ ^[1-9][0-9]*$ ]] || return 125
   [[ ! -e "$output" && ! -L "$output" ]] || return 125
-  if ! run_rclone_control "$@" >"$output"; then
+  if ! "$runner" "$@" >"$output"; then
     rm -f -- "$output"
     return 1
   fi
@@ -538,4 +738,12 @@ run_rclone_capture() {
     rm -f -- "$output"
     return 1
   fi
+}
+
+run_rclone_capture() {
+  _run_rclone_capture_with run_rclone "$@"
+}
+
+run_rclone_service_capture() {
+  _run_rclone_capture_with run_rclone_control "$@"
 }

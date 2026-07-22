@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
 source "$SCRIPT_DIR/common.sh"
 load_backup_config
+start_rclone_service_budget
 require_command cmp
 require_command flock
 require_command python3
@@ -46,11 +47,16 @@ fi
 acquire_backup_lock_shared
 stage="$(mktemp -d -- "$destination/.offsite-fetch.XXXXXX")"
 chmod 0700 -- "$stage"
+published_archive=""
+published_sidecar=""
 cleanup() {
   local status=$?
   trap - EXIT
   rm -rf --one-file-system -- "$stage"
   if ((status != 0)); then
+    if [[ -n "$published_archive" && -n "$published_sidecar" ]]; then
+      rm -f -- "$published_archive" "$published_sidecar"
+    fi
     find -P "$destination" -mindepth 1 -maxdepth 1 -type f \
       -name '.offsite-fetch-*' -delete 2>/dev/null || true
   fi
@@ -62,7 +68,7 @@ remote_base="${RCLONE_REMOTE%/}"
 require_unique_remote_object() {
   local remote="$1" listing="$2" expected
   rm -f -- "$listing"
-  run_rclone_capture "$listing" "$RCLONE_OUTPUT_LIMIT_BYTES" \
+  run_rclone_service_capture "$listing" "$RCLONE_OUTPUT_LIMIT_BYTES" \
     lsf "$remote" --files-only --max-depth 1 \
     || die "required remote object listing failed or exceeded its bound"
   expected="$(basename -- "$remote")"
@@ -95,7 +101,7 @@ require_unique_remote_object "$remote_base/full/$archive" "$stage/listing.archiv
 require_unique_remote_object \
   "$remote_base/full/$archive.sha256" "$stage/listing.sidecar"
 archive_size_metadata="$stage/archive-size.json"
-run_rclone_capture "$archive_size_metadata" "$RCLONE_OUTPUT_LIMIT_BYTES" \
+run_rclone_service_capture "$archive_size_metadata" "$RCLONE_OUTPUT_LIMIT_BYTES" \
   size "$remote_base/full/$archive" --json \
   || die "marked offsite archive size could not be read"
 archive_bytes="$(python3 -c 'import json,sys; value=json.load(open(sys.argv[1], encoding="utf-8")); count=value.get("count"); size=value.get("bytes"); assert count == 1 and isinstance(size, int) and size > 0; print(size)' "$archive_size_metadata")" \
@@ -106,20 +112,31 @@ run_rclone_bulk "$archive_bytes" copyto "$remote_base/full/$archive" "$downloade
   || die "marked offsite archive could not be downloaded"
 run_rclone_control copyto "$remote_base/full/$archive.sha256" "$downloaded_archive.sha256" \
   || die "marked offsite checksum could not be downloaded"
-verify_ciphertext_checksum "$downloaded_archive" \
+verify_ciphertext_checksum_service_budget "$downloaded_archive" "$archive_bytes" \
   || die "downloaded offsite recovery point failed checksum verification"
-actual_sha256="$(sha256sum "$downloaded_archive" | awk '{print $1}')"
+actual_sha256="$SERVICE_VERIFIED_CIPHERTEXT_SHA256"
 [[ "$actual_sha256" == "$archive_sha256" ]] \
   || die "downloaded archive hash differs from the immutable point attestation"
 
-mv -T -- "$downloaded_archive" "$destination/$archive"
-mv -T -- "$downloaded_archive.sha256" "$destination/$archive.sha256"
-chmod 0600 -- "$destination/$archive" "$destination/$archive.sha256"
-sync -f -- "$destination/$archive" "$destination/$archive.sha256"
-rm -f -- "$pointer" "$attestation" \
+begin_rclone_service_finalization
+require_rclone_service_finalization_budget \
+  || die "offsite retrieval deadline expired before publication"
+published_archive="$destination/$archive"
+published_sidecar="$destination/$archive.sha256"
+run_backup_finalization_control mv -T -- "$downloaded_archive" "$published_archive"
+run_backup_finalization_control mv -T -- "$downloaded_archive.sha256" "$published_sidecar"
+run_backup_finalization_control chmod 0600 -- "$published_archive" "$published_sidecar"
+run_backup_finalization_control sync -f -- "$published_archive" "$published_sidecar"
+require_rclone_service_finalization_budget \
+  || die "offsite retrieval deadline expired while publishing verified bytes"
+run_backup_finalization_control rm -f -- "$pointer" "$attestation" \
   "$stage/listing.pointer" "$stage/listing.attestation" \
   "$stage/listing.archive" "$stage/listing.sidecar" "$archive_size_metadata"
-rmdir -- "$stage"
+run_backup_finalization_control rmdir -- "$stage"
 stage="$destination/.offsite-fetch.removed"
-sync -f -- "$destination"
-printf '%s\n' "$destination/$archive"
+run_backup_finalization_control sync -f -- "$destination"
+require_rclone_service_finalization_budget \
+  || die "offsite retrieval deadline expired before reporting success"
+run_backup_finalization_control printf '%s\n' "$published_archive"
+require_rclone_service_finalization_budget \
+  || die "offsite retrieval deadline expired while reporting success"
