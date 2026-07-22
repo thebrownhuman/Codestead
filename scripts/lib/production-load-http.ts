@@ -164,6 +164,7 @@ export function createProductionLoadHttpAdapter(
             cache: "no-store",
             headers: {
               accept: expectJson ? "application/json" : "text/html,application/xhtml+xml",
+              ...(method === "GET" ? {} : { origin: baseUrl.origin }),
               cookie: session.sessionHandle,
               ...init.headers,
             },

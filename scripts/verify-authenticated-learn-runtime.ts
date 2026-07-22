@@ -808,10 +808,11 @@ async function signInSyntheticContext(context: BrowserContext, input: {
   email: string;
   password: string;
 }) {
-  const signIn = await context.request.post(input.baseURL + "/api/auth/sign-in/email", {
+  const canonicalOrigin = new URL(input.baseURL).origin;
+  const signIn = await context.request.post(canonicalOrigin + "/api/auth/sign-in/email", {
     data: { email: input.email, password: input.password, rememberMe: true },
     headers: {
-      origin: input.baseURL,
+      origin: canonicalOrigin,
       "user-agent": "Codestead synthetic authenticated durability verification",
     },
   });
