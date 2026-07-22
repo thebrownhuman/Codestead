@@ -2,25 +2,33 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const state = {
-    claim: "new" as "new" | "replay" | "running" | "failed" | "mismatch" | "resume_failed" | "resume_running",
+    claim: "new" as "new" | "replay" | "running" | "failed" | "mismatch" | "resume_failed" | "resume_running" | "resume_stored" | "resume_oldest",
     failCount: false,
+    deletedObjectCount: 2,
   };
-  const query = vi.fn(async (statement: string, _values?: unknown[]) => {
+  const objects = [
+    { id: "d2000000-0000-4000-8000-000000000001", storage_key: "owner/object-1" },
+    { id: "d2000000-0000-4000-8000-000000000002", storage_key: "owner/object-2" },
+  ];
+  const query = vi.fn(async (statement: string, parameters?: unknown[]) => {
+    void parameters;
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
     if (sql.startsWith("insert into data_lifecycle_run")) {
       return state.claim === "new" ? { rows: [{ id: "retention-run-1" }], rowCount: 1 } : { rows: [], rowCount: 0 };
     }
     if (sql.includes("from data_lifecycle_run where idempotency_key")) {
+      if (state.claim === "resume_oldest") return { rows: [], rowCount: 0 };
       const status = state.claim === "replay" ? "succeeded" : state.claim === "running" ? "running" : "failed";
-      const resume = state.claim === "resume_failed" || state.claim === "resume_running";
+      const resume = state.claim === "resume_failed" || state.claim === "resume_running" || state.claim === "resume_stored";
       return {
         rows: [{
           id: "existing-run",
           operation: state.claim === "mismatch" ? "export" : "retention",
           policy_version: "2026-07-14.v4",
           dry_run: resume ? false : true,
-          cutoff_matches: state.claim !== "mismatch",
-          status: state.claim === "resume_running" ? "running" : status,
+          cutoff_manifest: { rawChat: "2025-07-12T00:00:00.000Z" },
+          cutoff_matches: state.claim !== "mismatch" && state.claim !== "resume_stored",
+          status: state.claim === "resume_running" || state.claim === "resume_stored" ? "running" : status,
           report: resume ? {
             phase: "file_erasure_pending",
             evaluatedAt: "2026-07-12T00:00:00.000Z",
@@ -40,6 +48,25 @@ const mocks = vi.hoisted(() => {
         rowCount: 1,
       };
     }
+    if (sql.includes("from data_lifecycle_run") && sql.includes("order by created_at asc")) {
+      return state.claim === "resume_oldest" ? {
+        rows: [{
+          id: "existing-run",
+          operation: "retention",
+          policy_version: "2026-07-14.v4",
+          dry_run: false,
+          cutoff_manifest: { rawChat: "2025-07-11T00:00:00.000Z" },
+          status: "failed",
+          report: {
+            phase: "file_erasure_pending",
+            evaluatedAt: "2026-07-11T00:00:00.000Z",
+            cutoffs: { rawChat: "2025-07-11T00:00:00.000Z" },
+            categories: { objects: { eligible: 1, deleted: 1, retained: 0, hasMore: false } },
+          },
+        }],
+        rowCount: 1,
+      } : { rows: [], rowCount: 0 };
+    }
     if (sql.startsWith("select count(*)")) {
       if (state.failCount) throw new TypeError("synthetic count failure");
       return { rows: [{ count: "2" }], rowCount: 1 };
@@ -48,16 +75,11 @@ const mocks = vi.hoisted(() => {
       return { rows: [{ id: "d1000000-0000-4000-8000-000000000001" }], rowCount: 1 };
     }
     if (sql.startsWith("select id, storage_key from stored_object")) {
-      return {
-        rows: [
-          { id: "d2000000-0000-4000-8000-000000000001", storage_key: "owner/object-1" },
-          { id: "d2000000-0000-4000-8000-000000000002", storage_key: "owner/object-2" },
-        ],
-        rowCount: 2,
-      };
+      return { rows: objects, rowCount: objects.length };
     }
     if (sql.startsWith("delete from stored_object where id = any")) {
-      return { rows: [], rowCount: Array.isArray(_values?.[0]) ? _values[0].length : 0 };
+      const rows = objects.slice(0, state.deletedObjectCount);
+      return { rows, rowCount: rows.length };
     }
     return { rows: [{ id: "row-1" }], rowCount: 1 };
   });
@@ -96,6 +118,7 @@ describe("retention runtime orchestration", () => {
     vi.clearAllMocks();
     mocks.state.claim = "new";
     mocks.state.failCount = false;
+    mocks.state.deletedObjectCount = 2;
     mocks.unlink.mockResolvedValue(undefined);
     mocks.enqueueFileErasures.mockResolvedValue(2);
     mocks.processFileErasures.mockResolvedValue({ total: 2, removed: 1, alreadyAbsent: 1, failed: 0, pending: 0, complete: true });
@@ -162,6 +185,21 @@ describe("retention runtime orchestration", () => {
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("update chat_message set model_call_id = null"))).toBe(true);
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("delete from provider_operation_receipt"))).toBe(true);
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("set status = 'expired'"))).toBe(true);
+  });
+
+  it("rolls back the object batch when deletion-time revalidation changes eligibility", async () => {
+    mocks.state.deletedObjectCount = 1;
+
+    await expect(runRetention({
+      idempotencyKey: "retention:test:revalidate",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    })).rejects.toThrow("Retention object eligibility changed during locked deletion.");
+
+    expect(mocks.enqueueFileErasures).not.toHaveBeenCalled();
+    expect(mocks.query).toHaveBeenCalledWith("rollback");
   });
 
   it("uses an explicitly supplied erasure processor without changing the production default", async () => {
@@ -241,6 +279,37 @@ describe("retention runtime orchestration", () => {
       now,
     })).resolves.toMatchObject({ runId: "existing-run", replayed: true });
     expect(mocks.unlink).not.toHaveBeenCalled();
+  });
+
+  it("uses the persisted checkpoint and cutoffs for a same-key retry on a later day", async () => {
+    mocks.state.claim = "resume_stored";
+    await expect(runRetention({
+      idempotencyKey: "retention:test:stored-cutoff",
+      dryRun: false,
+      now: new Date("2026-07-13T00:00:00.000Z"),
+      objectStorageRoot: "C:/retention-objects",
+    })).resolves.toMatchObject({
+      runId: "existing-run",
+      evaluatedAt: "2026-07-12T00:00:00.000Z",
+      cutoffs: {},
+    });
+    expect(mocks.processFileErasures).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers the oldest persisted checkpoint before inserting a new daily run", async () => {
+    mocks.state.claim = "resume_oldest";
+    await expect(runRetention({
+      idempotencyKey: "retention:test:day-d-plus-one",
+      dryRun: false,
+      now: new Date("2026-07-13T00:00:00.000Z"),
+      objectStorageRoot: "C:/retention-objects",
+    })).resolves.toMatchObject({
+      runId: "existing-run",
+      evaluatedAt: "2026-07-11T00:00:00.000Z",
+      cutoffs: { rawChat: "2025-07-11T00:00:00.000Z" },
+    });
+    expect(mocks.processFileErasures).toHaveBeenCalledTimes(1);
+    expect(mocks.query.mock.calls.some(([sql]) => String(sql).startsWith("insert into data_lifecycle_run"))).toBe(false);
   });
 
   it.each(["resume_failed", "resume_running"] as const)("recovers a %s file-erasure checkpoint without repeating metadata deletes", async (claim) => {

@@ -4,9 +4,13 @@ Documentation=/opt/learncoding/docs/runbooks/data-lifecycle.md
 After=learncoding-compose.service
 Requires=learncoding-compose.service
 OnFailure=learncoding-alert@%n.service
+StartLimitIntervalSec=25200
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
+Restart=on-failure
+RestartSec=60s
 User=root
 WorkingDirectory=/opt/learncoding
 ExecStart=/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle
