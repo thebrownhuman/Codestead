@@ -14,18 +14,36 @@ describe("notification delivery privacy", () => {
     vi.restoreAllMocks();
   });
 
-  it("console delivery logs metadata only, never bearer links or template variables", async () => {
+  it("console delivery logs allowlisted metadata only, never capability IDs, recipient, token, or body", async () => {
     const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const recipient = "privacy-canary@recipient.private.example";
+    const tombstoneId = "tombstone-capability-log-canary";
+    const deletionRunId = "deletion-run-capability-log-canary";
+    const token = "bearer-token-log-canary";
+    const body = "private-final-notice-body-canary";
+
     await sendEmail({
-      to: "learner@example.com",
-      template: "reset-password",
-      variables: { name: "Learner", url: "https://example.test/reset?token=super-secret" },
+      to: recipient,
+      template: "account-deleted",
+      variables: {
+        backupRetentionUntil: "2026-08-22T00:00:00.000Z",
+        tombstoneId,
+        deletionRunId,
+        url: `https://example.test/final?token=${token}`,
+        body,
+      },
     });
-    const serialized = JSON.stringify(log.mock.calls);
+
+    const entries = log.mock.calls.map(([entry]) => JSON.parse(String(entry)) as unknown);
+    expect(entries).toEqual([{
+      event: "email.console_delivery",
+      template: "account-deleted",
+    }]);
+    const serialized = JSON.stringify(entries);
     expect(serialized).toContain("email.console_delivery");
-    expect(serialized).toContain("example.com");
-    expect(serialized).not.toContain("Learner");
-    expect(serialized).not.toContain("super-secret");
+    for (const sensitive of [recipient, "recipient.private.example", tombstoneId, deletionRunId, token, body]) {
+      expect(serialized).not.toContain(sensitive);
+    }
   });
 
   it.each(["https://backup.test/dump.sql", "https://backup.test/archive.tar", "https://backup.test/x.zip"])(

@@ -78,7 +78,7 @@ describe("mail outbox reliability migration", () => {
     expect(normalized).toContain("delegated acl grantor");
   });
 
-  it("keeps the generated journal and snapshot lineage coupled to 0057", () => {
+  it("keeps the generated journal and snapshot lineage coupled from 0057 to 0058", () => {
     const directory = resolve(process.cwd(), "drizzle");
     const journal = JSON.parse(
       readFileSync(resolve(directory, "meta", "_journal.json"), "utf8"),
@@ -90,9 +90,17 @@ describe("mail outbox reliability migration", () => {
       readFileSync(resolve(directory, "meta", "0056_snapshot.json"), "utf8"),
     ) as { id: string };
 
-    expect(journal.entries.at(-1)).toMatchObject({
+    const reliabilityIndex = journal.entries.findIndex(
+      ({ tag }) => tag === "0057_mail_outbox_reliability",
+    );
+
+    expect(journal.entries[reliabilityIndex]).toMatchObject({
       idx: 57,
       tag: "0057_mail_outbox_reliability",
+    });
+    expect(journal.entries[reliabilityIndex + 1]).toMatchObject({
+      idx: 58,
+      tag: "0058_mail_delivery_scope",
     });
     expect(current.prevId).toBe(previous.id);
     expect(current.id).not.toBe(previous.id);
