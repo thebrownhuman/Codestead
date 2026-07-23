@@ -1,10 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db/client";
 import { learnerProfile, providerCredential, twoFactor, user } from "@/lib/db/schema";
 import { requireAuth } from "@/lib/http/authz";
 import { learningService } from "@/lib/learning-service/runtime";
+import { lockUserAuthority } from "@/lib/security/user-authority-lock";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import {
   getCurrentConsents,
@@ -54,7 +55,17 @@ export async function POST() {
     return NextResponse.json({ error: "Onboarding requirements are incomplete.", missing }, { status: 409 });
   }
   const now = new Date();
-  await db.transaction(async (tx) => {
+  const accountAvailable = await db.transaction(async (tx) => {
+    await lockUserAuthority(tx, authz.session.user.id);
+    const [account] = await tx
+      .select({ status: user.status })
+      .from(user)
+      .where(and(
+        eq(user.id, authz.session.user.id),
+        inArray(user.status, ["pending", "active"]),
+      ))
+      .limit(1);
+    if (!account) return false;
     await tx
       .update(learnerProfile)
       .set({ onboardingStep: "complete", onboardingCompletedAt: now })
@@ -62,8 +73,18 @@ export async function POST() {
     await tx
       .update(user)
       .set({ status: "active" })
-      .where(eq(user.id, authz.session.user.id));
+      .where(and(
+        eq(user.id, authz.session.user.id),
+        inArray(user.status, ["pending", "active"]),
+      ));
+    return true;
   });
+  if (!accountAvailable) {
+    return NextResponse.json(
+      { error: "This account is unavailable for onboarding changes.", code: "ACCOUNT_UNAVAILABLE" },
+      { status: 409 },
+    );
+  }
       let planInitialization: {
         state: "ready" | "degraded" | "empty" | "unavailable";
         planCount: number;
