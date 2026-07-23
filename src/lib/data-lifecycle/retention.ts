@@ -412,7 +412,7 @@ export async function runRetention(input: {
     const emailEligible = await count(
       client,
       `select count(*)::text as count from email_outbox
-        where status in ('sent', 'suppressed', 'failed')
+        where status in ('sent', 'suppressed', 'failed', 'quarantined')
           and coalesce(sent_at, updated_at) < $1`,
       [cutoffs.terminalEmailDeliveryRecords],
     );
@@ -592,7 +592,7 @@ export async function runRetention(input: {
         const deletedEmail = await client.query<IdRow>(
           `delete from email_outbox where id in (
              select id from email_outbox
-              where status in ('sent', 'suppressed', 'failed')
+              where status in ('sent', 'suppressed', 'failed', 'quarantined')
                 and coalesce(sent_at, updated_at) < $1
               order by coalesce(sent_at, updated_at) asc, id asc limit $2
            ) returning id`,

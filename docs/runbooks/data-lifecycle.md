@@ -15,7 +15,7 @@ Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/polic
 | Administrator audit chain | At least 24 months | No automatic purge at launch; reports the older population as retained |
 | `temporary` objects | 24 hours | Remove file, quota rows, and metadata |
 | Quarantined, terminal scanner-error, or user-soft-deleted objects | 7 days | Remove file, quota rows, and metadata |
-| Terminal sent/suppressed/failed email delivery records | 30 days | Delete delivery record |
+| Terminal sent/suppressed/failed/quarantined email delivery records | 30 days | Delete delivery record |
 | Mastery state and official evidence | Until administrator account deletion | Never touched by scheduled retention |
 
 User uploads classified `user_upload` remain until user deletion or administrator account deletion. Future AI attachment writers must set `retention_class=ai_request_attachment`; temporary writers must set `temporary`. The database rejects unknown classes.
