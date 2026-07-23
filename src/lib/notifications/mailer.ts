@@ -67,8 +67,8 @@ export async function sendEmail(input: OutgoingEmail) {
   }
   const adapter = process.env.MAIL_ADAPTER ?? "console";
   if (adapter === "console") {
-    // Deliberately exclude variables: activation/reset URLs contain bearer tokens.
-    console.info(JSON.stringify({ event: "email.console_delivery", template: input.template, recipientDomain: input.to.split("@")[1] ?? "invalid" }));
+    // Deliberately exclude recipient and variables: activation/reset URLs contain bearer tokens.
+    console.info(JSON.stringify({ event: "email.console_delivery", template: input.template }));
     return { providerId: `console-${crypto.randomUUID()}` };
   }
   if (adapter !== "gmail") throw new Error("MAIL_ADAPTER must be either console or gmail.");

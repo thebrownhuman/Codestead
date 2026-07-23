@@ -78,7 +78,8 @@ describe("email outbox delivery-scope migration", () => {
       id: string;
     };
 
-    expect(journal.entries.at(-1)).toMatchObject({ idx: 58 });
+    expect(journal.entries.find(({ tag }) => tag === "0058_mail_delivery_scope"))
+      .toMatchObject({ idx: 58, tag: "0058_mail_delivery_scope" });
     expect(current.prevId).toBe(previous.id);
     expect(current.id).not.toBe(previous.id);
   });
