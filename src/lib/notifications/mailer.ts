@@ -7,31 +7,76 @@ export interface OutgoingEmail {
   variables: Record<string, string>;
 }
 
+const DEFAULT_GMAIL_REQUEST_TIMEOUT_MS = 10_000;
+const MIN_GMAIL_REQUEST_TIMEOUT_MS = 1_000;
+const MAX_GMAIL_REQUEST_TIMEOUT_MS = 25_000;
+
+function gmailRequestTimeoutMs() {
+  const configured = process.env.GMAIL_REQUEST_TIMEOUT_MS?.trim();
+  if (!configured) return DEFAULT_GMAIL_REQUEST_TIMEOUT_MS;
+  const value = Number(configured);
+  if (
+    !/^[0-9]+$/.test(configured)
+    || !Number.isSafeInteger(value)
+    || value < MIN_GMAIL_REQUEST_TIMEOUT_MS
+    || value > MAX_GMAIL_REQUEST_TIMEOUT_MS
+  ) {
+    throw new Error(
+      "GMAIL_REQUEST_TIMEOUT_MS must be an integer from 1000 to 25000.",
+    );
+  }
+  return value;
+}
+
+async function withGmailRequestDeadline<T>(
+  stage: "OAuth" | "delivery",
+  timeoutMs: number,
+  operation: (signal: AbortSignal) => Promise<T>,
+) {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`Gmail ${stage} request timed out.`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([operation(controller.signal), timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 function headerValue(value: string, name: string) {
   if (!value || /[\r\n]/.test(value)) throw new Error(`Invalid ${name} header.`);
   return value;
 }
 
-async function gmailAccessToken() {
+async function gmailAccessToken(timeoutMs: number) {
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
   const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
   if (!clientId || !clientSecret || !refreshToken) throw new Error("Gmail OAuth is not configured.");
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-    cache: "no-store",
+  return withGmailRequestDeadline("OAuth", timeoutMs, async (signal) => {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+      cache: "no-store",
+      signal,
+    });
+    if (!response.ok) throw new Error(`Gmail token exchange failed (${response.status}).`);
+    const body = (await response.json()) as { access_token?: string };
+    if (!body.access_token) throw new Error("Gmail token exchange returned no access token.");
+    return body.access_token;
   });
-  if (!response.ok) throw new Error(`Gmail token exchange failed (${response.status}).`);
-  const body = (await response.json()) as { access_token?: string };
-  if (!body.access_token) throw new Error("Gmail token exchange returned no access token.");
-  return body.access_token;
 }
 
 function mimeMessage(input: OutgoingEmail) {
@@ -72,18 +117,22 @@ export async function sendEmail(input: OutgoingEmail) {
     return { providerId: `console-${crypto.randomUUID()}` };
   }
   if (adapter !== "gmail") throw new Error("MAIL_ADAPTER must be either console or gmail.");
+  const requestTimeoutMs = gmailRequestTimeoutMs();
   const raw = Buffer.from(mimeMessage(input), "utf8").toString("base64url");
   // Reject invalid headers before contacting even the OAuth endpoint.
-  const accessToken = await gmailAccessToken();
-  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-    method: "POST",
-    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ raw }),
-    cache: "no-store",
+  const accessToken = await gmailAccessToken(requestTimeoutMs);
+  return withGmailRequestDeadline("delivery", requestTimeoutMs, async (signal) => {
+    const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ raw }),
+      cache: "no-store",
+      signal,
+    });
+    if (!response.ok) throw new Error(`Gmail delivery failed (${response.status}).`);
+    const body = (await response.json()) as { id?: string };
+    const providerId = body.id?.trim();
+    if (!providerId) throw new Error("Gmail delivery returned no message ID.");
+    return { providerId };
   });
-  if (!response.ok) throw new Error(`Gmail delivery failed (${response.status}).`);
-  const body = (await response.json()) as { id?: string };
-  const providerId = body.id?.trim();
-  if (!providerId) throw new Error("Gmail delivery returned no message ID.");
-  return { providerId };
 }

@@ -9,6 +9,7 @@ describe("notification delivery privacy", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -62,6 +63,28 @@ describe("notification delivery privacy", () => {
     })).rejects.toThrow("MAIL_ADAPTER must be either console or gmail");
   });
 
+  it.each(["999", "25001", "1000.5", "10s"])(
+    "rejects unsafe Gmail request timeout configuration %s before any network call",
+    async (timeout) => {
+      vi.stubEnv("MAIL_ADAPTER", "gmail");
+      vi.stubEnv("GMAIL_CLIENT_ID", "client");
+      vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
+      vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
+      vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", timeout);
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await expect(sendEmail({
+        to: "learner@example.com",
+        template: "invitation",
+        variables: {},
+      })).rejects.toThrow(
+        "GMAIL_REQUEST_TIMEOUT_MS must be an integer from 1000 to 25000.",
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects header injection before contacting OAuth or Gmail", async () => {
     vi.stubEnv("MAIL_ADAPTER", "gmail");
     vi.stubEnv("GMAIL_CLIENT_ID", "client");
@@ -75,6 +98,86 @@ describe("notification delivery privacy", () => {
       variables: { url: "https://example.test/activate" },
     })).rejects.toThrow("Invalid To header");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("aborts a blackholed OAuth request at the configured deadline and ignores its late response", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("MAIL_ADAPTER", "gmail");
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
+    let resolveOAuth!: (response: Response) => void;
+    const lateOAuth = new Promise<Response>((resolve) => {
+      resolveOAuth = resolve;
+    });
+    const fetchMock = vi.fn<typeof fetch>(() => lateOAuth);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = sendEmail({
+      to: "learner@example.com",
+      template: "invitation",
+      variables: {},
+    });
+    let outcome: unknown = "pending";
+    void pending.then(
+      (value) => { outcome = value; },
+      (error: unknown) => { outcome = error; },
+    );
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toBe("Gmail OAuth request timed out.");
+    const signal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(true);
+
+    resolveOAuth(new Response(JSON.stringify({ access_token: "late-token" }), { status: 200 }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(outcome).toBeInstanceOf(Error);
+  });
+
+  it("aborts a blackholed Gmail delivery request at the configured deadline and ignores its late response", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("MAIL_ADAPTER", "gmail");
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
+    let resolveDelivery!: (response: Response) => void;
+    const lateDelivery = new Promise<Response>((resolve) => {
+      resolveDelivery = resolve;
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "access" }), { status: 200 }))
+      .mockImplementationOnce(() => lateDelivery);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = sendEmail({
+      to: "learner@example.com",
+      template: "invitation",
+      variables: {},
+    });
+    let outcome: unknown = "pending";
+    void pending.then(
+      (value) => { outcome = value; },
+      (error: unknown) => { outcome = error; },
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toBe("Gmail delivery request timed out.");
+    const signal = (fetchMock.mock.calls[1]?.[1] as RequestInit | undefined)?.signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(true);
+
+    resolveDelivery(new Response(JSON.stringify({ id: "late-id" }), { status: 200 }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(outcome).toBeInstanceOf(Error);
   });
 
   it("builds a multipart Gmail message and keeps OAuth credentials out of the MIME body", async () => {
