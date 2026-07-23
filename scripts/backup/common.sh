@@ -348,7 +348,9 @@ WITH administrator AS MATERIALIZED (
     AND coalesce(banned, false) = false
 ), inserted AS (
   INSERT INTO email_outbox (
+    operation_id,
     user_id,
+    delivery_scope_key,
     to_email,
     template,
     template_version,
@@ -356,7 +358,9 @@ WITH administrator AS MATERIALIZED (
     idempotency_key
   )
   SELECT
+    gen_random_uuid(),
     id,
+    'a:' || id,
     email,
     'backup-status',
     '1',
