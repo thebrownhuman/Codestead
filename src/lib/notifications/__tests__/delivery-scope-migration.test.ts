@@ -1,21 +1,15 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-function deliveryScopeMigration() {
-  const directory = resolve(process.cwd(), "drizzle");
-  const matches = readdirSync(directory)
-    .filter((name) => /^\d{4}_.+\.sql$/.test(name))
-    .map((name) => ({ name, source: readFileSync(resolve(directory, name), "utf8") }))
-    .filter(({ source }) => source.includes("delivery_scope_key"));
-  expect(matches).toHaveLength(1);
-  return matches[0]!;
+function migration(name: string) {
+  return readFileSync(resolve(process.cwd(), "drizzle", name), "utf8");
 }
 
 describe("email outbox delivery-scope migration", () => {
   it("backfills account, registered system, and unresolved scopes without guessing", () => {
-    const { source } = deliveryScopeMigration();
+    const source = migration("0058_mail_delivery_scope.sql");
     const normalized = source.toLowerCase();
 
     expect(normalized).toContain("add column \"delivery_scope_key\"");
@@ -38,7 +32,7 @@ describe("email outbox delivery-scope migration", () => {
   });
 
   it("quarantines unresolved claimable history and excludes it from scoped delivery", () => {
-    const { source } = deliveryScopeMigration();
+    const source = migration("0058_mail_delivery_scope.sql");
     const normalized = source.toLowerCase();
 
     expect(normalized).toContain("unresolved_delivery_scope");
@@ -55,7 +49,7 @@ describe("email outbox delivery-scope migration", () => {
   });
 
   it("keeps orphan scopes terminal and makes assigned authority immutable", () => {
-    const { source } = deliveryScopeMigration();
+    const source = migration("0058_mail_delivery_scope.sql");
     const normalized = source.toLowerCase();
 
     expect(normalized).not.toContain('"template" = \'account-deleted\'');
@@ -82,5 +76,91 @@ describe("email outbox delivery-scope migration", () => {
       .toMatchObject({ idx: 58, tag: "0058_mail_delivery_scope" });
     expect(current.prevId).toBe(previous.id);
     expect(current.id).not.toBe(previous.id);
+  });
+
+  it("catches rolling null rows under a write lock and drains only unresolved active leases", () => {
+    const normalized = migration("0059_mail_delivery_scope_contract.sql").toLowerCase();
+    const accountBackfill = normalized.indexOf("'a:' || \"user_id\"");
+    const systemBackfill = normalized.indexOf("'s:' || \"operation_id\"::text");
+    const activeLeaseGuard = normalized.indexOf("email_outbox has an active unresolved delivery-scope lease");
+    const orphanBackfill = normalized.indexOf("'o:' || \"operation_id\"::text");
+
+    expect(normalized).toContain('lock table "email_outbox" in share row exclusive mode');
+    expect(accountBackfill).toBeGreaterThanOrEqual(0);
+    expect(systemBackfill).toBeGreaterThan(accountBackfill);
+    expect(activeLeaseGuard).toBeGreaterThan(systemBackfill);
+    expect(orphanBackfill).toBeGreaterThan(activeLeaseGuard);
+    expect(normalized).toContain("errcode = '55006'");
+    expect(normalized).toContain('"delivery_scope_key" is null');
+    expect(normalized).toContain('"status" = \'sending\'');
+    expect(normalized).toContain('"lease_expires_at" > statement_timestamp()');
+  });
+
+  it("atomically quarantines and scrubs claimable orphan rows while preserving terminal evidence", () => {
+    const normalized = migration("0059_mail_delivery_scope_contract.sql").toLowerCase();
+    const statements = normalized.split("--> statement-breakpoint");
+    const claimable = statements.find((statement) =>
+      statement.includes("'o:' || \"operation_id\"::text")
+      && statement.includes('"status" = \'quarantined\''),
+    );
+    const terminal = statements.find((statement) =>
+      statement.includes("'o:' || \"operation_id\"::text")
+      && statement.includes("'sent', 'failed', 'suppressed', 'quarantined'"),
+    );
+
+    expect(claimable).toContain('"to_email" = \'unresolved-recipient@invalid.local\'');
+    expect(claimable).toContain('"variables" = \'{}\'::jsonb');
+    expect(claimable).toContain("unresolved_delivery_scope_provider_unknown");
+    expect(claimable).toContain("unresolved_delivery_scope");
+    expect(claimable).toContain('"claim_token" = null');
+    expect(claimable).toContain('"claim_owner" = null');
+    expect(claimable).toContain('"lease_expires_at" = null');
+    expect(claimable).toContain('"claim_version" < 2147483647');
+    expect(terminal).toContain('"to_email" = \'unresolved-recipient@invalid.local\'');
+    expect(terminal).toContain('"variables" = \'{}\'::jsonb');
+    expect(terminal).not.toContain('"status" = \'quarantined\'');
+  });
+
+  it("closes the nullable expansion contract and preserves exact a/s/o authority", () => {
+    const normalized = migration("0059_mail_delivery_scope_contract.sql").toLowerCase();
+    const strictConstraint = normalized
+      .split("--> statement-breakpoint")
+      .find((statement) => statement.includes("email_outbox_delivery_scope_valid")
+        && statement.includes("add constraint"));
+
+    expect(strictConstraint).toContain("'a:' || \"email_outbox\".\"user_id\"");
+    expect(strictConstraint).toContain("'s:' || \"email_outbox\".\"operation_id\"::text");
+    expect(strictConstraint).toContain("'o:' || \"email_outbox\".\"operation_id\"::text");
+    expect(strictConstraint).not.toMatch(/delivery_scope_key"\s+is\s+null\s+or/u);
+    expect(normalized).toContain('alter column "delivery_scope_key" set not null');
+  });
+
+  it("journals a strict 0059 snapshot descended from 0058", () => {
+    const directory = resolve(process.cwd(), "drizzle", "meta");
+    const journal = JSON.parse(readFileSync(resolve(directory, "_journal.json"), "utf8")) as {
+      entries: Array<{ idx: number; tag: string }>;
+    };
+    const current = JSON.parse(readFileSync(resolve(directory, "0059_snapshot.json"), "utf8")) as {
+      id: string;
+      prevId: string;
+      tables: Record<string, {
+        columns: Record<string, { notNull: boolean }>;
+        checkConstraints: Record<string, { value: string }>;
+      }>;
+    };
+    const previous = JSON.parse(readFileSync(resolve(directory, "0058_snapshot.json"), "utf8")) as {
+      id: string;
+    };
+    const outbox = current.tables["public.email_outbox"]!;
+
+    expect(journal.entries.at(-1)).toMatchObject({
+      idx: 59,
+      tag: "0059_mail_delivery_scope_contract",
+    });
+    expect(current.prevId).toBe(previous.id);
+    expect(current.id).not.toBe(previous.id);
+    expect(outbox.columns.delivery_scope_key?.notNull).toBe(true);
+    expect(outbox.checkConstraints.email_outbox_delivery_scope_valid?.value)
+      .not.toMatch(/delivery_scope_key"?\s+is\s+null\s+or/iu);
   });
 });

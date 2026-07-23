@@ -414,6 +414,13 @@
       "when": 1784753601960,
       "tag": "0058_mail_delivery_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1784835583629,
+      "tag": "0059_mail_delivery_scope_contract",
+      "breakpoints": true
     }
   ]
 }
