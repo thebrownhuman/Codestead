@@ -5,19 +5,29 @@ const mocks = vi.hoisted(() => {
   const where = vi.fn(() => ({ limit }));
   const from = vi.fn(() => ({ where }));
   const select = vi.fn(() => ({ from }));
+  const txLimit = vi.fn();
+  const txWhere = vi.fn(() => ({ limit: txLimit }));
+  const txFrom = vi.fn(() => ({ where: txWhere }));
+  const txSelect = vi.fn(() => ({ from: txFrom }));
   const updateWhere = vi.fn();
   const set = vi.fn(() => ({ where: updateWhere }));
   const update = vi.fn(() => ({ set }));
   const transaction = vi.fn();
+  const lockUserAuthority = vi.fn();
+  const tx = { select: txSelect, update };
   return {
     limit,
     where,
     from,
     select,
+    txLimit,
+    txSelect,
     updateWhere,
     set,
     update,
     transaction,
+    lockUserAuthority,
+    tx,
     requireAuth: vi.fn(),
     withRateLimit: vi.fn(),
     getCurrentConsents: vi.fn(),
@@ -30,6 +40,9 @@ vi.mock("@/lib/db/client", () => ({
 }));
 vi.mock("@/lib/http/authz", () => ({ requireAuth: mocks.requireAuth }));
 vi.mock("@/lib/security/rate-limit", () => ({ withRateLimit: mocks.withRateLimit }));
+vi.mock("@/lib/security/user-authority-lock", () => ({
+  lockUserAuthority: mocks.lockUserAuthority,
+}));
 vi.mock("@/lib/learning-service/runtime", () => ({
   learningService: { initializePlans: mocks.initializePlans },
 }));
@@ -77,7 +90,9 @@ describe("onboarding completion MFA gate", () => {
       missingPublications: [],
     });
     mocks.updateWhere.mockResolvedValue(undefined);
-    mocks.transaction.mockImplementation(async (callback) => callback({ update: mocks.update }));
+    mocks.txLimit.mockResolvedValue([{ status: "pending" }]);
+    mocks.lockUserAuthority.mockResolvedValue(undefined);
+    mocks.transaction.mockImplementation(async (callback) => callback(mocks.tx));
   });
 
   it("refuses completion when only the user MFA flag is set", async () => {
@@ -132,6 +147,50 @@ describe("onboarding completion MFA gate", () => {
     expect(mocks.transaction.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.initializePlans.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("waits for the canonical authority lock before mutating onboarding or account state", async () => {
+    rows(true);
+    let releaseLock!: () => void;
+    mocks.lockUserAuthority.mockImplementationOnce(
+      () => new Promise<void>((resolve) => {
+        releaseLock = resolve;
+      }),
+    );
+
+    const completion = POST();
+    await vi.waitFor(() => expect(mocks.lockUserAuthority).toHaveBeenCalledOnce());
+
+    expect(mocks.lockUserAuthority).toHaveBeenCalledWith(mocks.tx, "learner-1");
+    expect(mocks.update).not.toHaveBeenCalled();
+
+    releaseLock();
+    const response = await completion;
+
+    expect(response.status).toBe(200);
+    expect(mocks.lockUserAuthority.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.update.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("does not activate an account whose durable authority changed while waiting for the lock", async () => {
+    rows(true);
+    mocks.txLimit.mockResolvedValueOnce([]);
+
+    const response = await POST();
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "This account is unavailable for onboarding changes.",
+      code: "ACCOUNT_UNAVAILABLE",
+    });
+    expect(mocks.lockUserAuthority).toHaveBeenCalledWith(mocks.tx, "learner-1");
+    expect(mocks.txSelect).toHaveBeenCalledOnce();
+    expect(mocks.lockUserAuthority.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.txSelect.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.initializePlans).not.toHaveBeenCalled();
   });
 
   it("reports missing publications without undoing completed onboarding", async () => {
