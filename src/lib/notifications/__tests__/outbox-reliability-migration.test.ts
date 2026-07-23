@@ -90,7 +90,7 @@ describe("mail outbox reliability migration", () => {
       readFileSync(resolve(directory, "meta", "0056_snapshot.json"), "utf8"),
     ) as { id: string };
 
-    expect(journal.entries.at(-1)).toMatchObject({
+    expect(journal.entries.find((entry) => entry.idx === 57)).toMatchObject({
       idx: 57,
       tag: "0057_mail_outbox_reliability",
     });

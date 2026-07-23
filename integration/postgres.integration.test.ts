@@ -1961,6 +1961,7 @@ describe("versioned category retention", () => {
     );
     await db.insert(emailOutbox).values({
       userId: USER_A,
+      deliveryScopeKey: `a:${USER_A}`,
       toEmail: "learner-a@integration.invalid",
       template: "weekly-summary",
       templateVersion: "1",
@@ -1973,6 +1974,7 @@ describe("versioned category retention", () => {
     });
     await db.insert(emailOutbox).values({
       userId: USER_A,
+      deliveryScopeKey: `a:${USER_A}`,
       toEmail: "learner-a@integration.invalid",
       template: "weekly-summary",
       templateVersion: "1",

@@ -3203,7 +3203,7 @@ export const emailOutbox = pgTable(
     variables: jsonb("variables").$type<Record<string, string>>().notNull(),
     idempotencyKey: text("idempotency_key").notNull().unique(),
     operationId: uuid("operation_id").defaultRandom().notNull().unique(),
-    deliveryScopeKey: text("delivery_scope_key"),
+    deliveryScopeKey: text("delivery_scope_key").notNull(),
     status: notificationStatusEnum("status").default("pending").notNull(),
     attemptCount: integer("attempt_count").default(0).notNull(),
     claimToken: uuid("claim_token"),
@@ -3240,7 +3240,7 @@ export const emailOutbox = pgTable(
     ),
     check(
       "email_outbox_delivery_scope_valid",
-      sql`${table.deliveryScopeKey} IS NULL OR (
+      sql`(
         (${table.userId} IS NOT NULL AND ${table.deliveryScopeKey} = 'a:' || ${table.userId})
         OR (${table.userId} IS NULL AND ${table.deliveryScopeKey} = 's:' || ${table.operationId}::text
           AND ${table.templateVersion} = '1' AND ${table.template} IN ('invitation', 'access-rejected'))
