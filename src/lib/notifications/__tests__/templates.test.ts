@@ -46,13 +46,19 @@ describe("email templates", () => {
   });
 
   it("describes primary deletion without falsely claiming encrypted backup erasure", () => {
+    const tombstoneId = "11111111-1111-4111-8111-111111111111";
+    const deletionRunId = "22222222-2222-4222-8222-222222222222";
     const email = renderEmail("account-deleted", {
       name: "Learner",
       backupRetentionUntil: "2027-07-12T00:00:00.000Z",
+      tombstoneId,
+      deletionRunId,
     });
     expect(email.text).toContain("primary application data were deleted");
     expect(email.text).toContain("not claimed erased immediately");
     expect(email.text).toContain("2027-07-12T00:00:00.000Z");
+    expect(JSON.stringify(email)).not.toContain(tombstoneId);
+    expect(JSON.stringify(email)).not.toContain(deletionRunId);
   });
 
   it("keeps plan-revision email generic and excludes rationale or plan contents", () => {

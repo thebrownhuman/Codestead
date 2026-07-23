@@ -187,6 +187,28 @@ describe("retention runtime orchestration", () => {
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("set status = 'expired'"))).toBe(true);
   });
 
+  it("applies terminal-delivery PII retention to quarantined outbox rows", async () => {
+    await runRetention({
+      idempotencyKey: "retention:test:quarantined-email",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    const statements = mocks.query.mock.calls.map(([sql]) => (
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase()
+    ));
+    const eligible = statements.find((sql) => (
+      sql.startsWith("select count(*)::text as count from email_outbox")
+    ));
+    const deleted = statements.find((sql) => (
+      sql.startsWith("delete from email_outbox where id in")
+    ));
+    expect(eligible).toContain("status in ('sent', 'suppressed', 'failed', 'quarantined')");
+    expect(deleted).toContain("status in ('sent', 'suppressed', 'failed', 'quarantined')");
+  });
+
   it("rolls back the object batch when deletion-time revalidation changes eligibility", async () => {
     mocks.state.deletedObjectCount = 1;
 

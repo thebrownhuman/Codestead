@@ -223,6 +223,18 @@ describe("account deletion runtime orchestration", () => {
     expect(deletionNoticeInsert).toContain("operation_id, user_id, delivery_scope_key");
     expect(deletionNoticeInsert).toContain("'a:' || $2");
     expect(deletionNoticeInsert).not.toContain("values (null");
+    const deletionNoticeCall = (
+      mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
+    ).find(([sql]) => (
+      String(sql).replace(/\s+/g, " ").trim().startsWith("insert into email_outbox")
+      && String(sql).includes("'account-deleted'")
+    ));
+    expect(deletionNoticeCall?.[1]?.[1]).toBe("learner-1");
+    expect(JSON.parse(String(deletionNoticeCall?.[1]?.[3]))).toEqual({
+      backupRetentionUntil: "2027-07-12T00:00:00.000Z",
+      tombstoneId: report.tombstoneId,
+      deletionRunId: report.runId,
+    });
     const authorityLocks = (mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>)
       .filter(([sql]) => String(sql).includes("pg_advisory_xact_lock(hashtext($1))"))
       .map(([, values]) => (values as string[] | undefined)?.[0]);

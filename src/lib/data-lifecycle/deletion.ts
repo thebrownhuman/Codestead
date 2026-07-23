@@ -858,6 +858,8 @@ export async function deleteLearnerAccount(input: {
           claim.target.email,
           JSON.stringify({
             backupRetentionUntil: backupRetentionUntil.toISOString(),
+            tombstoneId,
+            deletionRunId: claim.runId,
           }),
           mailKey,
         ],
