@@ -10,6 +10,8 @@ import type {
   ProviderStartedClaim,
 } from "./outbox-worker";
 
+import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+
 export type EmailOutboxPayload = Readonly<{
   userId: string | null;
   to: string;
@@ -39,6 +41,7 @@ type CandidateRow = {
   id: string;
   user_id: string | null;
   operation_id: string;
+  delivery_scope_key: string;
   claim_version: number;
 };
 
@@ -113,10 +116,39 @@ function variables(value: unknown): Readonly<Record<string, string>> {
   return Object.fromEntries(entries) as Record<string, string>;
 }
 
-function accountLockKey(userId: string | null, operationId: string) {
-  return userId
-    ? `learncoding/account/v1:${userId}`
-    : `learncoding/outbox/v1:${operationId}`;
+type DeliveryScope = Readonly<{
+  key: string;
+  lockKey: string;
+  kind: "account" | "system";
+  userId: string | null;
+}>;
+
+function deliveryScope(
+  row: Pick<CandidateRow, "delivery_scope_key" | "operation_id" | "user_id">,
+): DeliveryScope {
+  assertUuid(row.operation_id, "Outbox operation ID");
+  if (row.user_id !== null) {
+    const expected = `a:${row.user_id}`;
+    if (row.delivery_scope_key !== expected) {
+      throw new Error("Outbox account delivery scope is invalid.");
+    }
+    return {
+      key: expected,
+      lockKey: userAuthorityLockKey(row.user_id),
+      kind: "account",
+      userId: row.user_id,
+    };
+  }
+  const expected = `s:${row.operation_id}`;
+  if (row.delivery_scope_key !== expected) {
+    throw new Error("Outbox system delivery scope is invalid.");
+  }
+  return {
+    key: expected,
+    lockKey: `mail-delivery-scope:${expected}`,
+    kind: "system",
+    userId: null,
+  };
 }
 
 async function transaction<T>(pool: OutboxPgPool, work: (client: OutboxPgClient) => Promise<T>) {
@@ -145,21 +177,176 @@ async function advisoryLock(
 ) {
   if (wait) {
     await client.query(
-      "select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended($1, 0))",
+      "select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext($1))",
       [key],
     );
     return true;
   }
   const result = await client.query<{ locked: boolean }>(
-    "select pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended($1, 0)) as locked",
+    "select pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtext($1)) as locked",
     [key],
   );
   return result.rows[0]?.locked === true;
 }
 
+type ClaimFenceInput = Readonly<{
+  id: string;
+  operationId: string;
+  claimToken: string;
+  claimOwner: string;
+  claimVersion: number;
+}>;
+
+type BoundaryDecision =
+  | "allowed"
+  | "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY"
+  | "DELETION_NOTICE_CAPABILITY_INVALID";
+
+async function lockFenceScope(
+  client: OutboxPgClient,
+  fence: ClaimFenceInput,
+  wait: boolean,
+): Promise<DeliveryScope | null> {
+  const result = await client.query<CandidateRow>(`
+    select id::text, user_id, operation_id::text, delivery_scope_key, claim_version
+    from public.email_outbox
+    where id = $1::uuid
+      and operation_id = $2::uuid
+      and claim_token = $3::uuid
+      and claim_owner = $4::text
+      and claim_version = $5::integer
+  `, [
+    fence.id,
+    fence.operationId,
+    fence.claimToken,
+    fence.claimOwner,
+    fence.claimVersion,
+  ]);
+  const row = result.rows[0];
+  if (!row) return null;
+  const scope = deliveryScope(row);
+  return await advisoryLock(client, scope.lockKey, wait) ? scope : null;
+}
+
+type PermitFenceInput = ClaimFenceInput & Readonly<{ adapter: string }>;
+
+async function lockPermitScope(
+  client: OutboxPgClient,
+  permit: PermitFenceInput,
+  wait: boolean,
+): Promise<DeliveryScope | null> {
+  const result = await client.query<CandidateRow>(`
+    select id::text, user_id, operation_id::text, delivery_scope_key, claim_version
+    from public.email_outbox
+    where id = $1::uuid
+      and operation_id = $2::uuid
+      and claim_version = $5::integer
+      and adapter = $6::text
+      and provider_call_started is not null
+      and (
+        (claim_token = $3::uuid and claim_owner = $4::text)
+        or (
+          claim_token is null
+          and claim_owner is null
+          and status in ('sent', 'failed', 'quarantined')
+        )
+      )
+  `, [
+    permit.id,
+    permit.operationId,
+    permit.claimToken,
+    permit.claimOwner,
+    permit.claimVersion,
+    permit.adapter,
+  ]);
+  const row = result.rows[0];
+  if (!row) return null;
+  const scope = deliveryScope(row);
+  return await advisoryLock(client, scope.lockKey, wait) ? scope : null;
+}
+
+async function providerBoundaryDecision(
+  client: OutboxPgClient,
+  claim: OutboxClaim<EmailOutboxPayload>,
+  scope: DeliveryScope,
+): Promise<BoundaryDecision | null> {
+  const result = await client.query<{ decision: BoundaryDecision }>(`
+    select case
+      when outbox.user_id is null then 'allowed'
+      when outbox.template <> 'account-deleted'
+        and exists (
+          select 1 from public."user" account_user
+          where account_user.id = outbox.user_id
+            and lower(account_user.email) = outbox.to_email
+            and (
+              (
+                outbox.template = 'verify-email'
+                and account_user.status = 'pending'
+              )
+              or (
+                outbox.template = 'reset-password'
+                and account_user.status in ('pending', 'active')
+              )
+              or (
+                outbox.template not in (
+                  'verify-email', 'reset-password', 'invitation',
+                  'access-rejected', 'account-deleted'
+                )
+                and account_user.status = 'active'
+              )
+            )
+        ) then 'allowed'
+      when outbox.template = 'account-deleted'
+        and outbox.template_version = '1'
+        and exists (
+          select 1 from public."user" account_user
+          where account_user.id = outbox.user_id and account_user.status = 'deleted'
+        )
+        and exists (
+          select 1 from public.account_deletion_tombstone tombstone
+          where tombstone.id::text = outbox.variables ->> 'tombstoneId'
+            and tombstone.user_id = outbox.user_id
+            and tombstone.primary_deletion_completed_at is not null
+            and tombstone.report ->> 'runId' = outbox.variables ->> 'deletionRunId'
+        ) then 'allowed'
+      when outbox.template = 'account-deleted'
+        then 'DELETION_NOTICE_CAPABILITY_INVALID'
+      else 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
+    end as decision
+    from public.email_outbox outbox
+    where outbox.id = $1::uuid
+      and outbox.operation_id = $2::uuid
+      and outbox.claim_token = $3::uuid
+      and outbox.claim_owner = $4::text
+      and outbox.claim_version = $5::integer
+      and outbox.delivery_scope_key = $6::text
+      and outbox.user_id is not distinct from $7::text
+      and outbox.to_email = lower($8::text)
+      and outbox.template = $9::text
+      and outbox.template_version = $10::text
+      and outbox.variables = $11::jsonb
+      and outbox.provider_call_started is null
+      and outbox.status = 'sending'
+  `, [
+    claim.id,
+    claim.operationId,
+    claim.claimToken,
+    claim.claimOwner,
+    claim.claimVersion,
+    scope.key,
+    claim.payload.userId,
+    claim.payload.to,
+    claim.payload.template,
+    claim.payload.templateVersion,
+    JSON.stringify(claim.payload.variables),
+  ]);
+  return result.rows[0]?.decision ?? null;
+}
+
 function claimFromRow(row: ClaimRow): OutboxClaim<EmailOutboxPayload> {
   assertUuid(row.id, "Outbox ID");
   assertUuid(row.operation_id, "Outbox operation ID");
+  deliveryScope(row);
   assertUuid(row.claim_token, "Outbox claim token");
   const claimOwner = assertBoundedText(row.claim_owner, "Outbox claim owner", 128);
   if (!Number.isSafeInteger(row.claim_version) || row.claim_version <= 0) {
@@ -218,36 +405,73 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
 
     return transaction(this.pool, async (client) => {
       const candidates = await client.query<CandidateRow>(`
-        select id::text, user_id, operation_id::text, claim_version
-        from public.email_outbox
-        where (
-          status = 'pending'
-          and next_attempt_at <= pg_catalog.statement_timestamp()
-          and claim_token is null
-          and claim_owner is null
-          and lease_expires_at is null
-          and provider_call_started is null
-          and adapter is null
-          and provider_message_id is null
-          and quarantined_at is null
-        ) or (
-          status = 'sending'
-          and lease_expires_at < pg_catalog.statement_timestamp()
-          and provider_call_started is null
-          and adapter is null
-          and provider_message_id is null
-          and quarantined_at is null
-        )
+        select id::text, user_id, operation_id::text, delivery_scope_key, claim_version
+        from (
+          select candidate.id, candidate.user_id, candidate.operation_id,
+                 candidate.delivery_scope_key, candidate.claim_version,
+                 candidate.next_attempt_at, candidate.created_at,
+                 pg_catalog.row_number() over (
+                   partition by candidate.delivery_scope_key
+                   order by candidate.next_attempt_at, candidate.created_at, candidate.id
+                 ) as scope_rank
+          from public.email_outbox candidate
+          where (
+            (candidate.user_id is not null and candidate.delivery_scope_key = 'a:' || candidate.user_id)
+            or (
+              candidate.user_id is null
+              and candidate.delivery_scope_key = 's:' || candidate.operation_id::text
+            )
+          )
+            and (
+              (
+                candidate.status = 'pending'
+                and candidate.next_attempt_at <= pg_catalog.statement_timestamp()
+                and candidate.claim_token is null
+                and candidate.claim_owner is null
+                and candidate.lease_expires_at is null
+                and candidate.provider_call_started is null
+                and candidate.adapter is null
+                and candidate.provider_message_id is null
+                and candidate.quarantined_at is null
+              ) or (
+                candidate.status = 'sending'
+                and candidate.lease_expires_at < pg_catalog.statement_timestamp()
+                and candidate.provider_call_started is null
+                and candidate.adapter is null
+                and candidate.provider_message_id is null
+                and candidate.quarantined_at is null
+              )
+            )
+            and not exists (
+              select 1
+              from public.email_outbox active
+              where active.delivery_scope_key = candidate.delivery_scope_key
+                and active.id <> candidate.id
+                and (
+                  (
+                    active.status = 'sending'
+                    and (
+                      active.provider_call_started is not null
+                      or active.lease_expires_at is null
+                      or active.lease_expires_at >= pg_catalog.statement_timestamp()
+                    )
+                  )
+                  or (
+                    active.status = 'quarantined'
+                    and active.provider_call_started is not null
+                    and active.provider_message_id is null
+                  )
+                )
+            )
+        ) eligible
+        where scope_rank = 1
         order by next_attempt_at, created_at, id
         limit 16
       `);
 
       for (const candidate of candidates.rows) {
-        const locked = await advisoryLock(
-          client,
-          accountLockKey(candidate.user_id, candidate.operation_id),
-          false,
-        );
+        const scope = deliveryScope(candidate);
+        const locked = await advisoryLock(client, scope.lockKey, false);
         if (!locked) continue;
 
         const claimed = await client.query<ClaimRow>(`
@@ -264,6 +488,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and operation_id = $2::uuid
             and claim_version = $3::integer
             and user_id is not distinct from $7::text
+            and delivery_scope_key = $8::text
             and claim_version < 2147483647
             and (
               (
@@ -285,7 +510,28 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 and quarantined_at is null
               )
             )
-          returning id::text, user_id, operation_id::text, claim_version,
+            and not exists (
+              select 1
+              from public.email_outbox active
+              where active.delivery_scope_key = $8::text
+                and active.id <> $1::uuid
+                and (
+                  (
+                    active.status = 'sending'
+                    and (
+                      active.provider_call_started is not null
+                      or active.lease_expires_at is null
+                      or active.lease_expires_at >= pg_catalog.statement_timestamp()
+                    )
+                  )
+                  or (
+                    active.status = 'quarantined'
+                    and active.provider_call_started is not null
+                    and active.provider_message_id is null
+                  )
+                )
+            )
+          returning id::text, user_id, operation_id::text, delivery_scope_key, claim_version,
                     to_email, template, template_version, variables,
                     claim_token::text, claim_owner, attempt_count, lease_expires_at
         `, [
@@ -296,6 +542,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           owner,
           input.leaseMs,
           candidate.user_id,
+          scope.key,
         ]);
         if (claimed.rows[0]) return claimFromRow(claimed.rows[0]);
       }
@@ -313,7 +560,57 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     assertLeaseMs(input.leaseMs);
 
     return transaction(this.pool, async (client) => {
-      await advisoryLock(client, accountLockKey(claim.payload.userId, claim.operationId), true);
+      const scope = await lockFenceScope(client, claim, true);
+      if (!scope) return { kind: "lost" };
+
+      const decision = await providerBoundaryDecision(client, claim, scope);
+      if (decision === null) return { kind: "lost" };
+      if (decision !== "allowed") {
+        const suppressed = await client.query<{ id: string }>(`
+          update public.email_outbox
+          set status = 'suppressed',
+              last_error_code = $7::text,
+              claim_token = null,
+              claim_owner = null,
+              lease_expires_at = null,
+              claim_version = claim_version + 1,
+              updated_at = pg_catalog.statement_timestamp()
+          where id = $1::uuid
+            and operation_id = $2::uuid
+            and claim_token = $3::uuid
+            and claim_owner = $4::text
+            and claim_version = $5::integer
+            and delivery_scope_key = $6::text
+            and user_id is not distinct from $8::text
+            and to_email = lower($9::text)
+            and template = $10::text
+            and template_version = $11::text
+            and variables = $12::jsonb
+            and provider_call_started is null
+            and adapter is null
+            and provider_message_id is null
+            and quarantined_at is null
+            and status = 'sending'
+          returning id::text
+        `, [
+          claim.id,
+          claim.operationId,
+          claim.claimToken,
+          claim.claimOwner,
+          claim.claimVersion,
+          scope.key,
+          decision,
+          claim.payload.userId,
+          claim.payload.to,
+          claim.payload.template,
+          claim.payload.templateVersion,
+          JSON.stringify(claim.payload.variables),
+        ]);
+        return suppressed.rows[0]
+          ? { kind: "suppressed", code: decision }
+          : { kind: "lost" };
+      }
+
       const result = await client.query<BoundaryRow>(`
         update public.email_outbox
         set provider_call_started = pg_catalog.statement_timestamp(),
@@ -332,6 +629,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and lease_expires_at > pg_catalog.statement_timestamp()
           and status = 'sending'
           and user_id is not distinct from $8::text
+          and delivery_scope_key = $9::text
+          and to_email = lower($10::text)
+          and template = $11::text
+          and template_version = $12::text
+          and variables = $13::jsonb
         returning provider_call_started, lease_expires_at
       `, [
         claim.id,
@@ -341,7 +643,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         claim.claimVersion,
         adapter,
         input.leaseMs,
-        claim.payload.userId,
+        scope.userId,
+        scope.key,
+        claim.payload.to,
+        claim.payload.template,
+        claim.payload.templateVersion,
+        JSON.stringify(claim.payload.variables),
       ]);
       const row = result.rows[0];
       if (!row) return { kind: "lost" };
@@ -372,7 +679,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     }
 
     return transaction(this.pool, async (client) => {
-      await advisoryLock(client, accountLockKey(claim.payload.userId, claim.operationId), true);
+      const scope = await lockFenceScope(client, claim, true);
+      if (!scope) return { kind: "lost" };
       const result = await client.query<{ operation_id: string }>(`
         update public.email_outbox
         set status = case $6::text
@@ -399,6 +707,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and lease_expires_at > pg_catalog.statement_timestamp()
           and status = 'sending'
           and user_id is not distinct from $9::text
+          and delivery_scope_key = $10::text
         returning operation_id::text
       `, [
         claim.id,
@@ -409,7 +718,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         exit.kind,
         code,
         retryAt,
-        claim.payload.userId,
+        scope.userId,
+        scope.key,
       ]);
       return result.rows[0] ? { kind: "applied" } : { kind: "lost" };
     });
@@ -428,7 +738,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       : assertBoundedText(exit.code, "Outbox error code", 80);
 
     return transaction(this.pool, async (client) => {
-      await advisoryLock(client, accountLockKey(null, permit.operationId), true);
+      const scope = await lockPermitScope(client, permit, true);
+      if (!scope) return { kind: "lost" };
       const result = exit.kind === "sent"
         ? await client.query<TerminalRow>(`
             update public.email_outbox
@@ -452,6 +763,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and provider_message_id is null
               and provider_call_started is not null
               and status in ('sending', 'quarantined')
+              and delivery_scope_key = $8::text
             returning status::text, claim_version, adapter, provider_message_id,
                       provider_call_started, sent_at, quarantined_at, last_error_code
           `, [
@@ -462,6 +774,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             permit.claimVersion,
             permit.adapter,
             providerMessageId,
+            scope.key,
           ])
         : await client.query<TerminalRow>(`
             update public.email_outbox
@@ -488,6 +801,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and provider_call_started is not null
               and quarantined_at is null
               and status = 'sending'
+              and delivery_scope_key = $9::text
             returning status::text, claim_version, adapter, provider_message_id,
                       provider_call_started, sent_at, quarantined_at, last_error_code
           `, [
@@ -499,6 +813,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             permit.adapter,
             exit.kind,
             code,
+            scope.key,
           ]);
       if (result.rows[0]) return { kind: "applied" };
 
@@ -507,7 +822,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                provider_call_started, sent_at, quarantined_at, last_error_code
         from public.email_outbox
         where id = $1::uuid and operation_id = $2::uuid
-      `, [permit.id, permit.operationId]);
+          and delivery_scope_key = $3::text
+      `, [permit.id, permit.operationId, scope.key]);
       const row = existing.rows[0];
       if (!row || row.claim_version !== permit.claimVersion || row.adapter !== permit.adapter) {
         return { kind: "lost" };
@@ -541,7 +857,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     }
     return transaction(this.pool, async (client) => {
       const candidates = await client.query<SweepCandidateRow>(`
-        select id::text, user_id, operation_id::text, claim_version,
+        select id::text, user_id, operation_id::text, delivery_scope_key, claim_version,
                claim_token::text, claim_owner, lease_expires_at
         from public.email_outbox
         where status = 'sending'
@@ -550,16 +866,17 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and provider_message_id is null
           and quarantined_at is null
           and lease_expires_at < pg_catalog.statement_timestamp() - interval '30 seconds'
+          and (
+            (user_id is not null and delivery_scope_key = 'a:' || user_id)
+            or (user_id is null and delivery_scope_key = 's:' || operation_id::text)
+          )
         order by lease_expires_at, id
         limit $1::integer
       `, [input.limit]);
       let quarantined = 0;
       for (const candidate of candidates.rows) {
-        const locked = await advisoryLock(
-          client,
-          accountLockKey(candidate.user_id, candidate.operation_id),
-          false,
-        );
+        const scope = deliveryScope(candidate);
+        const locked = await advisoryLock(client, scope.lockKey, false);
         if (!locked) continue;
         const result = await client.query<{ operation_id: string }>(`
           update public.email_outbox
@@ -573,6 +890,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and claim_owner = $4::text
             and claim_version = $5::integer
             and user_id is not distinct from $6::text
+            and delivery_scope_key = $8::text
             and lease_expires_at = $7::timestamptz
             and lease_expires_at < pg_catalog.statement_timestamp() - interval '30 seconds'
             and provider_call_started is not null
@@ -587,8 +905,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           candidate.claim_token,
           candidate.claim_owner,
           candidate.claim_version,
-          candidate.user_id,
+          scope.userId,
           candidate.lease_expires_at,
+          scope.key,
         ]);
         if (result.rows[0]) quarantined += 1;
       }

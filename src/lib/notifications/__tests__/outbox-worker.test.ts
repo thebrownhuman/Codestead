@@ -137,6 +137,28 @@ describe("fenced outbox worker", () => {
       "finish-after:sent",
     ]);
     expect(input.send).toHaveBeenCalledTimes(1);
+    expect(input.store.finishAfterProvider).toHaveBeenCalledWith(
+      permit,
+      { kind: "sent", providerMessageId: "gmail-1" },
+    );
+  });
+
+  it("reports an applied authority suppression without calling the provider", async () => {
+    const input = harness();
+    vi.mocked(input.store.beginProviderCall).mockResolvedValue({
+      kind: "suppressed",
+      code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
+    });
+    const { result } = run(input);
+
+    await expect(result).resolves.toMatchObject({
+      outcomes: [{
+        kind: "suppressed",
+        code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
+      }],
+    });
+    expect(input.send).not.toHaveBeenCalled();
+    expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
   });
 
   it("never calls the provider when the boundary CAS is lost", async () => {

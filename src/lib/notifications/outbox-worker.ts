@@ -37,6 +37,7 @@ export type PostFinishResult =
 
 export type BoundaryResult =
   | { readonly kind: "applied"; readonly permit: ProviderCallPermit }
+  | { readonly kind: "suppressed"; readonly code: string }
   | { readonly kind: "lost" };
 
 export type PreProviderExit =
@@ -316,6 +317,12 @@ export async function processOutboxBatch<P, M>(
     }
     if (boundary.kind === "lost") {
       const item = outcome(next, "claim-lost");
+      outcomes.push(item);
+      emit(deps.onEvent, item);
+      continue;
+    }
+    if (boundary.kind === "suppressed") {
+      const item = outcome(next, "suppressed", boundary.code);
       outcomes.push(item);
       emit(deps.onEvent, item);
       continue;

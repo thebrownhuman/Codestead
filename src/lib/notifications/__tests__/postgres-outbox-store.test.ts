@@ -61,6 +61,7 @@ function claimRow() {
   return {
     id: ID,
     user_id: "learner-1",
+    delivery_scope_key: "a:learner-1",
     operation_id: OPERATION,
     claim_version: 4,
     to_email: "learner@example.test",
@@ -71,6 +72,16 @@ function claimRow() {
     claim_owner: "worker-1",
     attempt_count: 2,
     lease_expires_at: new Date("2026-07-22T19:01:00.000Z"),
+  };
+}
+
+function scopeRow(claimVersion = 4) {
+  return {
+    id: ID,
+    user_id: "learner-1",
+    operation_id: OPERATION,
+    delivery_scope_key: "a:learner-1",
+    claim_version: claimVersion,
   };
 }
 
@@ -110,13 +121,8 @@ describe("PostgresOutboxStore", () => {
     const input = harness([
       { contains: "begin" },
       {
-        contains: "select id::text, user_id, operation_id::text, claim_version",
-        rows: [{
-          id: ID,
-          user_id: "learner-1",
-          operation_id: OPERATION,
-          claim_version: 3,
-        }],
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [scopeRow(3)],
       },
       { contains: "pg_try_advisory_xact_lock", rows: [{ locked: true }] },
       { contains: "update public.email_outbox", rows: [claimRow()] },
@@ -133,10 +139,14 @@ describe("PostgresOutboxStore", () => {
     expect(candidateSql).not.toContain("for update");
     expect(candidateSql).toContain("provider_call_started is null");
     expect(candidateSql).toContain("lease_expires_at < pg_catalog.statement_timestamp()");
+    expect(candidateSql).toContain("not exists");
+    expect(candidateSql).toContain("active.delivery_scope_key = candidate.delivery_scope_key");
+    expect(candidateSql).toContain("active.provider_call_started is not null");
     const claimSql = input.client.calls[3]!.sql;
     expect(claimSql).toContain("claim_version = claim_version + 1");
     expect(claimSql).toContain("claim_token = $4::uuid");
     expect(claimSql).toContain("user_id is not distinct from $7::text");
+    expect(claimSql).toContain("active.delivery_scope_key = $8::text");
     expect(input.client.released).toBe(true);
   });
 
@@ -144,8 +154,8 @@ describe("PostgresOutboxStore", () => {
     const input = harness([
       { contains: "begin" },
       {
-        contains: "select id::text, user_id, operation_id::text, claim_version",
-        rows: [{ id: ID, user_id: "learner-1", operation_id: OPERATION, claim_version: 3 }],
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [scopeRow(3)],
       },
       { contains: "pg_try_advisory_xact_lock", rows: [{ locked: true }] },
       { contains: "update public.email_outbox", rows: [] },
@@ -162,7 +172,9 @@ describe("PostgresOutboxStore", () => {
   it("returns a provider permit only from the freshly applied boundary", async () => {
     const input = harness([
       { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
         rows: [{
@@ -178,18 +190,64 @@ describe("PostgresOutboxStore", () => {
       leaseMs: 60_000,
     })).resolves.toEqual({ kind: "applied", permit });
 
-    const sql = input.client.calls[2]!.sql;
+    const sql = input.client.calls[4]!.sql;
     expect(sql).toContain("claim_token = $3::uuid");
     expect(sql).toContain("claim_owner = $4::text");
     expect(sql).toContain("claim_version = $5::integer");
     expect(sql).toContain("provider_call_started is null");
     expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
+    const boundarySql = input.client.calls[3]!.sql;
+    expect(boundarySql).toContain("outbox.to_email = lower($8::text)");
+    expect(boundarySql).toContain("outbox.template = $9::text");
+    expect(boundarySql).toContain("outbox.template_version = $10::text");
+    expect(boundarySql).toContain("outbox.variables = $11::jsonb");
+    expect(input.client.calls[3]!.values.slice(6)).toEqual([
+      "learner-1",
+      "learner@example.test",
+      "invitation",
+      "1",
+      JSON.stringify({ name: "Learner" }),
+    ]);
+    expect(sql).toContain("to_email = lower($10::text)");
+    expect(sql).toContain("template = $11::text");
+    expect(sql).toContain("template_version = $12::text");
+    expect(sql).toContain("variables = $13::jsonb");
+  });
+
+  it("reports a durable provider-boundary suppression with its authority code", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "select case",
+        rows: [{ decision: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY" }],
+      },
+      { contains: "update public.email_outbox", rows: [{ id: ID }] },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.beginProviderCall(claim, {
+      adapter: "gmail",
+      leaseMs: 60_000,
+    })).resolves.toEqual({
+      kind: "suppressed",
+      code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
+    });
+    const suppressionSql = input.client.calls[4]!.sql;
+    expect(suppressionSql).toContain("to_email = lower($9::text)");
+    expect(suppressionSql).toContain("template = $10::text");
+    expect(suppressionSql).toContain("template_version = $11::text");
+    expect(suppressionSql).toContain("variables = $12::jsonb");
+    expect(input.client.calls[4]!.values.at(-1)).toBe(JSON.stringify(claim.payload.variables));
   });
 
   it("does not reconstruct a permit after an unknown boundary commit", async () => {
     const input = harness([
       { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
         rows: [{
@@ -212,6 +270,7 @@ describe("PostgresOutboxStore", () => {
   it("accepts an exact already-persisted provider result", async () => {
     const input = harness([
       { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
       { contains: "update public.email_outbox", rows: [] },
       {
@@ -239,6 +298,7 @@ describe("PostgresOutboxStore", () => {
   it("rejects a conflicting already-persisted provider identity", async () => {
     const input = harness([
       { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
       { contains: "update public.email_outbox", rows: [] },
       {
@@ -272,6 +332,7 @@ describe("PostgresOutboxStore", () => {
         rows: [{
           id: ID,
           user_id: "learner-1",
+          delivery_scope_key: "a:learner-1",
           operation_id: OPERATION,
           claim_version: 4,
           claim_token: TOKEN,
