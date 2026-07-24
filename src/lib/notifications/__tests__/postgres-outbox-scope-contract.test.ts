@@ -29,19 +29,27 @@ describe("PostgresOutboxStore delivery authority", () => {
 
   it("revalidates account authority and the exact post-deletion notice capability", () => {
     expect(normalized).toContain('from public."user"');
+    expect(source).toContain("function accountMailAuthorityPredicate");
+    expect(source).toContain("function deletionNoticeCapabilityPredicate");
+    expect(source).toContain("DECISION_DELETION_CAPABILITY_SQL");
+    expect(source).toContain("SUPPRESSION_DELETION_CAPABILITY_SQL");
+    expect(source).toContain("BOUNDARY_DELETION_CAPABILITY_SQL");
     expect(normalized).toContain("account_deletion_tombstone");
+    expect(normalized).toContain("data_lifecycle_run");
+    expect(normalized).toContain("{deletionnotice,recipienthmacsha256}");
+    expect(normalized).toContain("{deletionnotice,payloadsha256}");
     expect(normalized).toContain("deletion_notice_capability_invalid");
     expect(normalized).toContain("account_not_active_at_provider_boundary");
     expect(normalized).toContain("account_user.email");
     expect(normalized).toContain("account_user.status = 'pending'");
-    expect(normalized).toContain("outbox.template = 'verify-email'");
-    expect(normalized).toContain("outbox.template = 'reset-password'");
+    expect(normalized).toContain("${outbox}.template = 'verify-email'");
+    expect(normalized).toContain("${outbox}.template = 'reset-password'");
     expect(normalized).toContain("account_user.status in ('pending', 'active')");
     expect(normalized).toContain("'invitation', 'access-rejected', 'account-deleted'");
   });
 
   it("binds the provider permit to the exact claimed payload", () => {
-    expect(normalized).toContain("outbox.to_email = lower($8::text)");
+    expect(normalized).toContain("outbox.to_email = lower(btrim($8::text))");
     expect(normalized).toContain("outbox.template = $9::text");
     expect(normalized).toContain("outbox.template_version = $10::text");
     expect(normalized).toContain("outbox.variables = $11::jsonb");

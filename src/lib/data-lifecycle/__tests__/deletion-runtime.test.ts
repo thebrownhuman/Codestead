@@ -2,9 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const state = {
-    mode: "success" as "success" | "admin_denied" | "missing_learner" | "already_deleted" | "run_running" | "run_checkpoint" | "provider_in_flight" | "runner_in_flight" | "rehearsal_in_flight",
+    mode: "success" as
+      | "success"
+      | "admin_denied"
+      | "missing_learner"
+      | "already_deleted"
+      | "run_running"
+      | "run_checkpoint"
+      | "provider_in_flight"
+      | "runner_in_flight"
+      | "rehearsal_in_flight"
+      | "mail_boundary_race"
+      | "mail_quarantined_unresolved"
+      | "mail_sending_with_provider_id"
+      | "mail_quarantined_resolved"
+      | "notice_conflict_mismatch",
   };
-  const query = vi.fn(async (statement: string) => {
+  const query = vi.fn(async (statement: string, values: unknown[] = []) => {
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
     if (sql.includes('select role, status from "user"')) {
       return { rows: state.mode === "admin_denied" ? [{ role: "learner", status: "active" }] : [{ role: "admin", status: "active" }], rowCount: 1 };
@@ -44,15 +58,50 @@ const mocks = vi.hoisted(() => {
       };
     }
     if (sql.startsWith("select exists (") && sql.includes("provider_operation_receipt")) {
-      return { rows: [{ blocked: state.mode === "provider_in_flight" }], rowCount: 1 };
+      const blocksUnresolvedQuarantine = state.mode === "mail_quarantined_unresolved"
+        && sql.includes("'quarantined'")
+        && sql.includes("provider_message_id is null");
+      const blocksSendingWithProviderId = state.mode === "mail_sending_with_provider_id"
+        && sql.includes("status = 'sending'")
+        && sql.includes("provider_call_started is not null");
+      return {
+        rows: [{
+          blocked: state.mode === "provider_in_flight"
+            || blocksUnresolvedQuarantine
+            || blocksSendingWithProviderId,
+        }],
+        rowCount: 1,
+      };
     }
-    if (sql.startsWith("select id, status, provider_call_started from email_outbox")) {
-      const rows = (state.mode as string) === "mail_boundary_race"
+    if (sql.startsWith("select id, status, provider_call_started, provider_message_id from email_outbox")) {
+      const rows = state.mode === "mail_boundary_race"
         ? [{
             id: "c3000000-0000-4000-8000-000000000001",
             status: "sending",
             provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
+            provider_message_id: null,
           }]
+        : state.mode === "mail_quarantined_unresolved"
+          ? [{
+              id: "c3000000-0000-4000-8000-000000000002",
+              status: "quarantined",
+              provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
+              provider_message_id: null,
+            }]
+          : state.mode === "mail_quarantined_resolved"
+            ? [{
+                id: "c3000000-0000-4000-8000-000000000003",
+                status: "quarantined",
+                provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
+                provider_message_id: "gmail-accepted-1",
+              }]
+          : state.mode === "mail_sending_with_provider_id"
+            ? [{
+                id: "c3000000-0000-4000-8000-000000000004",
+                status: "sending",
+                provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
+                provider_message_id: "gmail-accepted-while-sending",
+              }]
         : [];
       return { rows, rowCount: rows.length };
     }
@@ -85,6 +134,54 @@ const mocks = vi.hoisted(() => {
     }
     if (sql.startsWith("select id from access_request")) {
       return { rows: [{ id: "c1000000-0000-4000-8000-000000000001" }], rowCount: 1 };
+    }
+    if (
+      sql.startsWith("insert into email_outbox")
+      && sql.includes("(id, operation_id")
+      && sql.includes("'account-deleted'")
+    ) {
+      if (state.mode === "notice_conflict_mismatch") {
+        return { rows: [], rowCount: 0 };
+      }
+      const [id, operationId, userId, toEmail, rawVariables, idempotencyKey] = values;
+      return {
+        rows: [{
+          id,
+          operation_id: operationId,
+          user_id: userId,
+          delivery_scope_key: `a:${String(userId)}`,
+          to_email: String(toEmail).toLowerCase(),
+          template: "account-deleted",
+          template_version: "1",
+          variables: JSON.parse(String(rawVariables)),
+          idempotency_key: idempotencyKey,
+        }],
+        rowCount: 1,
+      };
+    }
+    if (
+      sql.startsWith("select id::text, operation_id::text, user_id")
+      && sql.includes("from email_outbox")
+      && sql.includes("idempotency_key")
+    ) {
+      return {
+        rows: [{
+          id: "c3000000-0000-4000-8000-000000000099",
+          operation_id: "c4000000-0000-4000-8000-000000000099",
+          user_id: "learner-1",
+          delivery_scope_key: "a:learner-1",
+          to_email: "attacker@example.test",
+          template: "account-deleted",
+          template_version: "1",
+          variables: {
+            backupRetentionUntil: "2027-07-12T00:00:00.000Z",
+            tombstoneId: "c5000000-0000-4000-8000-000000000099",
+            deletionRunId: "run-1",
+          },
+          idempotency_key: values[0],
+        }],
+        rowCount: 1,
+      };
     }
     return { rows: [], rowCount: 1 };
   });
@@ -214,14 +311,15 @@ describe("account deletion runtime orchestration", () => {
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("'account-deleted'"))).toBe(true);
     const normalizedStatements = statements.map((sql) => sql.replace(/\s+/g, " ").trim());
     const outboxLockIndex = normalizedStatements.findIndex((sql) =>
-      sql.startsWith("select id, status, provider_call_started from email_outbox") && sql.endsWith("for update"));
+      sql.startsWith("select id, status, provider_call_started, provider_message_id from email_outbox") && sql.endsWith("for update"));
     const outboxDeleteIndex = normalizedStatements.findIndex((sql) => sql.startsWith("delete from email_outbox"));
     expect(outboxLockIndex).toBeGreaterThan(-1);
     expect(outboxLockIndex).toBeLessThan(outboxDeleteIndex);
     const deletionNoticeInsert = normalizedStatements.find((sql) =>
       sql.startsWith("insert into email_outbox") && sql.includes("'account-deleted'"));
-    expect(deletionNoticeInsert).toContain("operation_id, user_id, delivery_scope_key");
-    expect(deletionNoticeInsert).toContain("'a:' || $2");
+    expect(deletionNoticeInsert).toContain("id, operation_id, user_id, delivery_scope_key");
+    expect(deletionNoticeInsert).toContain("'a:' || $3");
+    expect(deletionNoticeInsert).toContain("returning id::text, operation_id::text");
     expect(deletionNoticeInsert).not.toContain("values (null");
     const deletionNoticeCall = (
       mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
@@ -229,12 +327,37 @@ describe("account deletion runtime orchestration", () => {
       String(sql).replace(/\s+/g, " ").trim().startsWith("insert into email_outbox")
       && String(sql).includes("'account-deleted'")
     ));
-    expect(deletionNoticeCall?.[1]?.[1]).toBe("learner-1");
-    expect(JSON.parse(String(deletionNoticeCall?.[1]?.[3]))).toEqual({
+    const deletionNotice = report.deletionNotice;
+    expect(deletionNotice).not.toBeNull();
+    if (!deletionNotice) throw new Error("New deletion report did not bind its notice.");
+    expect(deletionNoticeCall?.[1]?.[0]).toBe(deletionNotice.outboxId);
+    expect(deletionNoticeCall?.[1]?.[1]).toBe(deletionNotice.operationId);
+    expect(deletionNoticeCall?.[1]?.[2]).toBe("learner-1");
+    expect(deletionNoticeCall?.[1]?.[3]).toBe("learner@example.test");
+    expect(JSON.parse(String(deletionNoticeCall?.[1]?.[4]))).toEqual({
       backupRetentionUntil: "2027-07-12T00:00:00.000Z",
       tombstoneId: report.tombstoneId,
       deletionRunId: report.runId,
     });
+    expect(deletionNotice).toEqual({
+      outboxId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      operationId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      recipientHmacSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      payloadSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
+    expect(deletionNotice.recipientHmacSha256).not.toContain("learner@example.test");
+    const tombstoneInsert = (
+      mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
+    ).find(([sql]) => String(sql).includes("insert into account_deletion_tombstone"));
+    const immutableReport = JSON.parse(String(tombstoneInsert?.[1]?.[7]));
+    expect(immutableReport.deletionNotice).toEqual(report.deletionNotice);
+    const runSuccessUpdate = (
+      mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
+    ).find(([sql]) => (
+      String(sql).includes("update data_lifecycle_run set status = 'succeeded'")
+    ));
+    expect(JSON.parse(String(runSuccessUpdate?.[1]?.[1])).deletionNotice)
+      .toEqual(report.deletionNotice);
     const authorityLocks = (mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>)
       .filter(([sql]) => String(sql).includes("pg_advisory_xact_lock(hashtext($1))"))
       .map(([, values]) => (values as string[] | undefined)?.[0]);
@@ -320,15 +443,63 @@ describe("account deletion runtime orchestration", () => {
   });
 
   it("rolls back if mail crosses the provider boundary after the initial conflict check", async () => {
-    mocks.state.mode = "mail_boundary_race" as never;
+    mocks.state.mode = "mail_boundary_race";
     await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
       code: "PROVIDER_OPERATION_IN_PROGRESS",
     });
     const statements = mocks.query.mock.calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim());
-    expect(statements.some((sql) => sql.startsWith("select id, status, provider_call_started from email_outbox") && sql.endsWith("for update")))
+    expect(statements.some((sql) => sql.startsWith("select id, status, provider_call_started, provider_message_id from email_outbox") && sql.endsWith("for update")))
       .toBe(true);
     expect(statements.some((sql) => sql.startsWith("delete from public_portfolio"))).toBe(false);
     expect(mocks.processFileErasures).not.toHaveBeenCalled();
+  });
+
+  it("blocks an unresolved quarantined provider start but permits a reconciled quarantine", async () => {
+    mocks.state.mode = "mail_quarantined_unresolved";
+    await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+      code: "PROVIDER_OPERATION_IN_PROGRESS",
+    });
+    const conflictSql = mocks.query.mock.calls
+      .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase())
+      .find((sql) => sql.startsWith("select exists (") && sql.includes("provider_operation_receipt"));
+    expect(conflictSql).toContain("status = 'sending' and provider_call_started is not null");
+    expect(conflictSql).toContain(
+      "status = 'quarantined' and provider_call_started is not null and provider_message_id is null",
+    );
+    expect(conflictSql).toContain("provider_message_id is null");
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
+
+    vi.clearAllMocks();
+    mocks.state.mode = "mail_sending_with_provider_id";
+    mocks.connect.mockResolvedValue(mocks.client);
+    await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+      code: "PROVIDER_OPERATION_IN_PROGRESS",
+    });
+
+    vi.clearAllMocks();
+    mocks.state.mode = "mail_quarantined_resolved";
+    mocks.connect.mockResolvedValue(mocks.client);
+    await expect(deleteLearnerAccount({
+      ...input,
+      requestId: "c2000000-0000-4000-8000-000000000003",
+    })).resolves.toMatchObject({ learnerNotificationQueued: true });
+  });
+
+  it("aborts the deletion transaction when an idempotency conflict is not the exact bound notice", async () => {
+    mocks.state.mode = "notice_conflict_mismatch";
+    await expect(deleteLearnerAccount(input)).rejects.toThrow(
+      "Deletion notice idempotency state mismatch.",
+    );
+    const statements = mocks.query.mock.calls
+      .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    expect(statements.some((sql) => (
+      sql.startsWith("select id::text, operation_id::text, user_id")
+      && sql.includes("from email_outbox")
+      && sql.includes("for update")
+    ))).toBe(true);
+    expect(statements).toContain("rollback");
+    expect(statements.some((sql) => sql.includes("status = 'succeeded'"))).toBe(false);
+    expect(mocks.purgeCompletedFileErasureJobs).not.toHaveBeenCalled();
   });
 
   it("rejects possibly dispatched runner work before claiming deletion or erasing files", async () => {
@@ -359,6 +530,7 @@ describe("account deletion runtime orchestration", () => {
       runId: "old-run",
       tombstoneId: "old-tombstone",
       replayed: true,
+      deletionNotice: null,
     });
     expect(mocks.unlink).not.toHaveBeenCalled();
   });
