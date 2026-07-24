@@ -77,6 +77,8 @@ sudo journalctl -u learncoding-backup.service --since '30 minutes ago'
 
 Confirm one `.tar.gz.age` and matching `.sha256` exist. Do not decrypt it on the production filesystem merely to inspect it; use the restore drill.
 
+The backup writer and the mail cutover share `/run/lock/learncoding-backup.lock`. During [Mail outbox store cutover](mail-outbox-cutover.md), stop the timer, wait for an active backup to finish, and let the release transaction hold that lock across drain, 0059 catch-up, and claimant start. The timer stop alone is not a database-writer fence.
+
 Every nightly run also attempts to enqueue one idempotent `backup-status` email for the single active administrator. The message contains only a generic success or failure summary and never includes an archive name, filesystem path, checksum, log, database value, or encryption material. The ordinary mail worker delivers the outbox row. Check queue status and template name only:
 
 ```bash
