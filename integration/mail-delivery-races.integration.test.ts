@@ -385,6 +385,26 @@ async function expiredPermit() {
   return { claim, permit };
 }
 
+async function markUnresolvedQuarantined(rowId = ROW_IDS[0]) {
+  const result = await pool.query(`
+    update email_outbox
+       set status = 'quarantined',
+           attempt_count = 1,
+           claim_token = $2::uuid,
+           claim_owner = 'abandoned-provider-worker',
+           claim_version = 1,
+           lease_expires_at = null,
+           provider_call_started = now() - interval '2 minutes',
+           adapter = 'console',
+           provider_message_id = null,
+           quarantined_at = now(),
+           last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY',
+           updated_at = now()
+     where id = $1::uuid
+  `, [rowId, STALE_TOKENS[0]]);
+  expect(result.rowCount).toBe(1);
+
+}
 async function outboxState() {
   return (await pool.query<{
     id: string;
@@ -472,6 +492,146 @@ afterAll(async () => {
 });
 
 describe("real PostgreSQL mail delivery races", () => {
+  it("revalidates a selected claim candidate at the CAS after a concurrent winner changes it", async () => {
+    await seedOutboxRows("pending", 1);
+    const candidatePause = new QueryPause();
+    const claimantStore = store(new InstrumentedPool({
+      after: async (event) => {
+        if (isCandidateSelect(event.sql)) await candidatePause.hold(event.pid);
+      },
+    }));
+    const claiming = claimantStore.claimNext({
+      owner: "stale-candidate-worker",
+      token: CLAIM_TOKENS[0],
+      leaseMs: 120_000,
+    });
+    await within(candidatePause.reached, "stale claim candidate snapshot");
+
+    let mutationError: unknown = null;
+    let changedRows: number | null = null;
+    try {
+      const changed = await pool.query(`
+        update email_outbox
+           set status = 'sending',
+               attempt_count = attempt_count + 1,
+               claim_token = $2::uuid,
+               claim_owner = 'concurrent-cas-winner',
+               claim_version = claim_version + 1,
+               lease_expires_at = now() + interval '2 minutes',
+               updated_at = now()
+         where id = $1::uuid and status = 'pending'
+      `, [ROW_IDS[0], STALE_TOKENS[0]]);
+      changedRows = changed.rowCount;
+    } catch (error) {
+      mutationError = error;
+    } finally {
+      candidatePause.release();
+    }
+    const claim = await within(claiming, "stale candidate CAS");
+    if (mutationError) throw mutationError;
+
+    expect(changedRows).toBe(1);
+    expect(claim).toBeNull();
+    expect((await outboxState())[0]).toMatchObject({
+      status: "sending",
+      attempt_count: 1,
+      claim_token: STALE_TOKENS[0],
+      claim_owner: "concurrent-cas-winner",
+      claim_version: 1,
+      provider_call_started: null,
+    });
+  });
+
+  it("treats a NULL sending lease as unresolved authority that blocks later scope work", async () => {
+    await seedOutboxRows("pending", 2);
+    const ambiguous = await pool.query(`
+      update email_outbox
+         set status = 'sending',
+             attempt_count = 1,
+             claim_token = $2::uuid,
+             claim_owner = 'null-lease-worker',
+             claim_version = 1,
+             lease_expires_at = null,
+             updated_at = now()
+       where id = $1::uuid
+    `, [ROW_IDS[0], STALE_TOKENS[0]]);
+    expect(ambiguous.rowCount).toBe(1);
+
+    await expect(store().claimNext({
+      owner: "null-lease-follow-up",
+      token: CLAIM_TOKENS[0],
+      leaseMs: 120_000,
+    })).resolves.toBeNull();
+
+    expect(await outboxState()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: ROW_IDS[0],
+        status: "sending",
+        claim_token: STALE_TOKENS[0],
+        claim_version: 1,
+      }),
+      expect.objectContaining({
+        id: ROW_IDS[1],
+        status: "pending",
+        claim_token: null,
+        claim_version: 0,
+      }),
+    ]));
+  });
+
+  it("keeps an unresolved quarantined provider call as a delivery-scope blocker", async () => {
+    await seedOutboxRows("pending", 2);
+    await markUnresolvedQuarantined();
+
+    await expect(store().claimNext({
+      owner: "quarantined-scope-follow-up",
+      token: CLAIM_TOKENS[0],
+      leaseMs: 120_000,
+    })).resolves.toBeNull();
+
+    expect(await outboxState()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: ROW_IDS[0],
+        status: "quarantined",
+        provider_message_id: null,
+        last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+      }),
+      expect.objectContaining({
+        id: ROW_IDS[1],
+        status: "pending",
+        claim_token: null,
+        claim_version: 0,
+      }),
+    ]));
+  });
+
+  it("blocks deletion while a quarantined provider call has no provider message", async () => {
+    await seedOutboxRows("pending", 1);
+    await markUnresolvedQuarantined();
+    let fileErasureStarted = false;
+
+    await expect(deleteLearnerAccount(
+      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000003"),
+      {
+        processFileErasures: async () => {
+          fileErasureStarted = true;
+          return ZERO_ERASURE_SUMMARY;
+        },
+      },
+    )).rejects.toMatchObject({ code: "PROVIDER_OPERATION_IN_PROGRESS" });
+
+    expect(fileErasureStarted).toBe(false);
+    expect((await pool.query<{ status: string }>(
+      `select status::text from "user" where id = $1`,
+      [LEARNER_ID],
+    )).rows[0]?.status).toBe("active");
+    expect((await outboxState())[0]).toMatchObject({
+      status: "quarantined",
+      provider_message_id: null,
+      last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+    });
+  });
+
   it.each([
     ["pending claimers", "pending" as const],
     ["expired reclaimers", "expired-pre-provider" as const],
