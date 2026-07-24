@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -15,6 +17,8 @@ import type {
 const ID = "11111111-1111-4111-8111-111111111111";
 const OPERATION = "22222222-2222-4222-8222-222222222222";
 const TOKEN = "33333333-3333-4333-8333-333333333333";
+const SOURCE = "44444444-4444-4444-8444-444444444444";
+const ACTIVATION_TOKEN = "A".repeat(43);
 
 type Step = Readonly<{
   contains: string;
@@ -23,7 +27,7 @@ type Step = Readonly<{
 }>;
 
 function compact(sql: string) {
-  return sql.replace(/\s+/g, " ").trim().toLowerCase();
+  return sql.replace(/\s+/g, " ").trim();
 }
 
 class ScriptedClient implements OutboxPgClient {
@@ -37,10 +41,11 @@ class ScriptedClient implements OutboxPgClient {
     values: unknown[] = [],
   ) {
     const sql = compact(text);
+    const normalizedSql = sql.toLowerCase();
     this.calls.push({ sql, values });
     const step = this.steps.shift();
     expect(step, `Unexpected SQL: ${sql}`).toBeDefined();
-    expect(sql).toContain(step!.contains.toLowerCase());
+    expect(normalizedSql).toContain(step!.contains.toLowerCase());
     if (step!.error) throw step!.error;
     return { rows: (step!.rows ?? []) as Row[] };
   }
@@ -84,6 +89,14 @@ function scopeRow(claimVersion = 4) {
     claim_version: claimVersion,
   };
 }
+function systemScopeRow() {
+  return {
+    ...scopeRow(),
+    user_id: null,
+    delivery_scope_key: `s:${OPERATION}`,
+  };
+}
+
 
 const claim: OutboxClaim<EmailOutboxPayload> = {
   phase: "pre-provider",
@@ -157,6 +170,7 @@ describe("PostgresOutboxStore", () => {
 
   afterEach(() => {
     delete process.env.DELETION_TOMBSTONE_KEY;
+    vi.unstubAllEnvs();
   });
 
   it("claims with an account lock and full generation fence", async () => {
@@ -217,6 +231,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
       { contains: "select case", rows: [{ decision: "allowed" }] },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
         rows: [{
@@ -232,13 +247,17 @@ describe("PostgresOutboxStore", () => {
       leaseMs: 60_000,
     })).resolves.toEqual({ kind: "applied", permit });
 
-    const sql = input.client.calls[4]!.sql;
+    const sql = input.client.calls[5]!.sql;
     expect(sql).toContain("claim_token = $3::uuid");
     expect(sql).toContain("claim_owner = $4::text");
     expect(sql).toContain("claim_version = $5::integer");
     expect(sql).toContain("provider_call_started is null");
     expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
     const boundarySql = input.client.calls[3]!.sql;
+    const lockedBoundarySql = input.client.calls[4]!.sql;
+    expect(lockedBoundarySql).toContain("for share of account_user");
+    expect(lockedBoundarySql).toContain("for share of source_invitation, source_request");
+    expect(lockedBoundarySql).toContain("for share of source_request, admin_recipient");
     expect(boundarySql).toContain("outbox.to_email = lower(btrim($8::text))");
     expect(boundarySql).toContain("outbox.template = $9::text");
     expect(boundarySql).toContain("outbox.template_version = $10::text");
@@ -250,11 +269,156 @@ describe("PostgresOutboxStore", () => {
       "1",
       JSON.stringify({ name: "Learner" }),
     ]);
-    expect(input.client.calls[3]!.values.slice(11)).toEqual([null, null, false]);
+    expect(input.client.calls[3]!.values.slice(11)).toEqual([null, null, false, null, null]);
+    expect(input.client.calls[4]!.values).toEqual(input.client.calls[3]!.values);
     expect(sql).toContain("outbox.to_email = lower(btrim($10::text))");
     expect(sql).toContain("template = $11::text");
     expect(sql).toContain("template_version = $12::text");
     expect(sql).toContain("variables = $13::jsonb");
+    expect(sql).toContain("source_invitation.token_hash = $17::text");
+    expect(sql).toContain("outbox.variables ->> 'url' = $18::text");
+    expect(input.client.calls[5]!.values.slice(13)).toEqual([null, null, false, null, null]);
+  });
+
+  it.each([
+    [
+      "canonical",
+      `https://learn.example.test/activate?token=${ACTIVATION_TOKEN}`,
+      createHash("sha256").update(ACTIVATION_TOKEN).digest("hex"),
+    ],
+    [
+      "cross-origin",
+      `https://attacker.example/activate?token=${ACTIVATION_TOKEN}`,
+      null,
+    ],
+  ])("derives %s approved-invitation evidence without shifting deletion evidence", async (
+    _case,
+    url,
+    expectedTokenHash,
+  ) => {
+    vi.stubEnv("APP_URL", "https://learn.example.test");
+    const approvedClaim: OutboxClaim<EmailOutboxPayload> = {
+      ...claim,
+      payload: {
+        userId: null,
+        to: "learner@example.test",
+        template: "invitation",
+        templateVersion: "1",
+        variables: {
+          name: "Learner",
+          url,
+          _mailOperationId: OPERATION,
+          _mailRecipient: "learner@example.test",
+          _mailProducer: "access-request-approved",
+          _mailSourceId: SOURCE,
+        },
+      },
+    };
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [systemScopeRow()],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "SYSTEM_EMAIL_AUTHORITY_INVALID" }] },
+      { contains: "update public.email_outbox", rows: [{ id: ID }] },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.beginProviderCall(approvedClaim, {
+      adapter: "gmail",
+      leaseMs: 60_000,
+    })).resolves.toEqual({
+      kind: "suppressed",
+      code: "SYSTEM_EMAIL_AUTHORITY_INVALID",
+    });
+
+    const decision = input.client.calls[3]!;
+    const suppression = input.client.calls[4]!;
+    expect(decision.sql).toContain("_mailOperationId");
+    expect(decision.sql).toContain("_mailSourceId");
+    expect(decision.sql).toContain("source_invitation.token_hash = $15::text");
+    expect(suppression.sql).toContain("source_invitation.token_hash = $16::text");
+    expect(decision.values.slice(11, 14)).toEqual([null, null, false]);
+    expect(suppression.values.slice(12, 15)).toEqual([null, null, false]);
+    expect(decision.values[14]).toBe(expectedTokenHash);
+    expect(suppression.values[15]).toBe(expectedTokenHash);
+  });
+
+  it("revalidates canonical admin authority under row locks and in the provider CAS", async () => {
+    vi.stubEnv("APP_URL", "https://learn.example.test");
+    const adminClaim: OutboxClaim<EmailOutboxPayload> = {
+      ...claim,
+      payload: {
+        userId: null,
+        to: "admin@example.test",
+        template: "access-request-admin",
+        templateVersion: "1",
+        variables: {
+          name: "Administrator",
+          url: "https://learn.example.test/admin/access",
+          _mailOperationId: OPERATION,
+          _mailRecipient: "admin@example.test",
+          _mailProducer: "access-request-admin",
+          _mailSourceId: SOURCE,
+        },
+      },
+    };
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [systemScopeRow()],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.beginProviderCall(adminClaim, {
+      adapter: "gmail",
+      leaseMs: 60_000,
+    })).resolves.toEqual({ kind: "applied", permit });
+
+    const decision = input.client.calls[3]!;
+    const lockedDecision = input.client.calls[4]!;
+    const boundary = input.client.calls[5]!;
+    for (const call of [decision, lockedDecision, boundary]) {
+      expect(call.sql).toContain("_mailOperationId");
+      expect(call.sql).toContain("_mailRecipient");
+      expect(call.sql).toContain("_mailProducer");
+      expect(call.sql).toContain("_mailSourceId");
+      expect(call.sql).toContain("source_request.adult_confirmed_at is not null");
+      expect(call.sql).toContain("source_request.decided_by is null");
+      expect(call.sql).toContain("admin_recipient.banned = false");
+      expect(call.sql).toContain("variables ->> 'name' = 'Administrator'");
+    }
+    expect(lockedDecision.sql).toContain("for share of source_request, admin_recipient");
+    expect(decision.sql).toContain("outbox.variables ->> 'url' = $16::text");
+    expect(boundary.sql).toContain("outbox.variables ->> 'url' = $18::text");
+    expect(decision.values.slice(11)).toEqual([
+      null,
+      null,
+      false,
+      null,
+      "https://learn.example.test/admin/access",
+    ]);
+    expect(boundary.values.slice(13)).toEqual([
+      null,
+      null,
+      false,
+      null,
+      "https://learn.example.test/admin/access",
+    ]);
   });
 
   it("repeats the exact immutable deletion capability inside the provider-boundary CAS", async () => {
@@ -262,6 +426,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "begin" },
       { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
@@ -279,8 +444,9 @@ describe("PostgresOutboxStore", () => {
     })).resolves.toEqual({ kind: "applied", permit });
 
     const decision = input.client.calls[3]!;
-    const boundary = input.client.calls[4]!;
-    for (const call of [decision, boundary]) {
+    const lockedDecision = input.client.calls[4]!;
+    const boundary = input.client.calls[5]!;
+    for (const call of [decision, lockedDecision, boundary]) {
       expect(call.sql).toContain("from public.account_deletion_tombstone tombstone");
       expect(call.sql).toContain("join public.data_lifecycle_run lifecycle");
       expect(call.sql).toContain("join public.\"user\" deleted_user");
@@ -288,10 +454,10 @@ describe("PostgresOutboxStore", () => {
       expect(call.sql).toContain("tombstone.primary_deletion_completed_at is not null");
       expect(call.sql).toContain("lifecycle.status = 'succeeded'");
       expect(call.sql).toContain("lifecycle.operation = 'account_deletion'");
-      expect(call.sql).toContain("#>> '{deletionnotice,outboxid}'");
-      expect(call.sql).toContain("#>> '{deletionnotice,operationid}'");
-      expect(call.sql).toContain("#>> '{deletionnotice,recipienthmacsha256}'");
-      expect(call.sql).toContain("#>> '{deletionnotice,payloadsha256}'");
+      expect(call.sql).toContain("#>> '{deletionNotice,outboxId}'");
+      expect(call.sql).toContain("#>> '{deletionNotice,operationId}'");
+      expect(call.sql).toContain("#>> '{deletionNotice,recipientHmacSha256}'");
+      expect(call.sql).toContain("#>> '{deletionNotice,payloadSha256}'");
     }
     expect(decision.sql).toContain("outbox.to_email = lower(btrim($8::text))");
     expect(boundary.sql).toContain("outbox.to_email = lower(btrim($10::text))");
@@ -299,9 +465,12 @@ describe("PostgresOutboxStore", () => {
     expect(decision.values[11]).toMatch(/^[0-9a-f]{64}$/);
     expect(decision.values[12]).toMatch(/^[0-9a-f]{64}$/);
     expect(decision.values[13]).toBe(true);
+    expect(decision.values.slice(14)).toEqual([null, null]);
+    expect(lockedDecision.values).toEqual(decision.values);
     expect(boundary.values[13]).toBe(decision.values[11]);
     expect(boundary.values[14]).toBe(decision.values[12]);
     expect(boundary.values[15]).toBe(true);
+    expect(boundary.values.slice(16)).toEqual([null, null]);
   });
 
   it.each([
@@ -337,7 +506,7 @@ describe("PostgresOutboxStore", () => {
     expect(decision.values[13]).toBe(false);
     expect(suppression.sql).toContain("not (");
     expect(suppression.sql).toContain("from public.account_deletion_tombstone tombstone");
-    expect(suppression.sql).toContain("#>> '{deletionnotice,payloadsha256}'");
+    expect(suppression.sql).toContain("#>> '{deletionNotice,payloadSha256}'");
     expect(suppression.sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
     expect(suppression.values[12]).toBeNull();
     expect(suppression.values[13]).toBeNull();
@@ -378,6 +547,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "begin" },
       { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",

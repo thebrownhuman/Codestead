@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type {
   BoundaryResult,
   OutboxClaim,
@@ -179,7 +181,7 @@ function deletionNoticeCapabilityEvidence(
   return { valid: true, ...binding };
 }
 
-function accountMailAuthorityPredicate(outbox: string) {
+function accountMailAuthorityPredicate(outbox: string, lockClause = "") {
   return `exists (
     select 1 from public."user" account_user
     where account_user.id = ${outbox}.user_id
@@ -194,13 +196,116 @@ function accountMailAuthorityPredicate(outbox: string) {
           and account_user.status in ('pending', 'active')
         )
         or (
-          ${outbox}.template not in (
-            'verify-email', 'reset-password', 'invitation',
-            'access-rejected', 'account-deleted'
+          ${outbox}.template in (
+            'lost-device-proof', 'learning-request-updated', 'new-device',
+            'session-revocation-requested', 'session-revocation-updated',
+            'session-revoked', 'credential-changed', 'credential-revealed',
+            'fallback-grant-changed', 'learning-plan-changed',
+            'storage-quota-changed', 'inactivity-reminder',
+            'inactivity-reminder-followup', 'inactivity-admin-notice',
+            'daily-study-reminder', 'revision-reminder', 'goal-reminder',
+            'challenge-reminder', 'exam-result', 'mastery-awarded',
+            'appeal-updated', 'assessment-corrected', 'weekly-summary',
+            'backup-status'
           )
           and account_user.status = 'active'
         )
       )
+    ${lockClause}
+  )`;
+}
+
+type SystemMailAuthorityParameters = Readonly<{
+  approvedInvitationTokenHashParameter: number;
+  adminAccessUrlParameter: number;
+  lockAuthorityRows: boolean;
+}>;
+
+function systemMailAuthorityPredicate(
+  outbox: string,
+  input: SystemMailAuthorityParameters,
+) {
+  const adminAuthorityLock = input.lockAuthorityRows
+    ? "for share of source_request, admin_recipient"
+    : "";
+  const approvedAuthorityLock = input.lockAuthorityRows
+    ? "for share of source_invitation, source_request"
+    : "";
+  const rejectedAuthorityLock = input.lockAuthorityRows
+    ? "for share of source_request"
+    : "";
+
+  return `(
+    ${outbox}.user_id is null
+    and ${outbox}.template_version = '1'
+    and ${outbox}.variables ->> '_mailOperationId' = ${outbox}.operation_id::text
+    and ${outbox}.variables ->> '_mailRecipient' = ${outbox}.to_email
+    and (
+      (
+        ${outbox}.template = 'access-request-admin'
+        and ${outbox}.variables ->> '_mailProducer' = 'access-request-admin'
+        and ${outbox}.variables ->> 'name' = 'Administrator'
+        and ${outbox}.variables ->> 'url'
+              = $${input.adminAccessUrlParameter}::text
+        and exists (
+          select 1
+          from public.access_request source_request
+          join public."user" admin_recipient
+            on lower(admin_recipient.email) = ${outbox}.to_email
+          where source_request.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and source_request.status = 'pending'
+            and source_request.adult_confirmed_at is not null
+            and source_request.decided_by is null
+            and source_request.decision_reason is null
+            and source_request.decided_at is null
+            and admin_recipient.status = 'active'
+            and admin_recipient.role = 'admin'
+            and admin_recipient.banned = false
+          ${adminAuthorityLock}
+        )
+      )
+      or (
+        ${outbox}.template = 'invitation'
+        and ${outbox}.variables ->> '_mailProducer' = 'access-request-approved'
+        and exists (
+          select 1
+          from public.invitation source_invitation
+          join public.access_request source_request
+            on source_invitation.access_request_id = source_request.id
+          where source_invitation.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and source_request.status = 'approved'
+            and source_request.decided_by is not null
+            and source_request.decision_reason is not null
+            and source_request.decided_at is not null
+            and source_invitation.created_by = source_request.decided_by
+            and lower(source_invitation.email) = ${outbox}.to_email
+            and lower(source_request.email) = ${outbox}.to_email
+            and source_request.name = ${outbox}.variables ->> 'name'
+            and source_invitation.token_hash
+                  = $${input.approvedInvitationTokenHashParameter}::text
+            and source_invitation.expires_at > pg_catalog.statement_timestamp()
+            and source_invitation.consumed_at is null
+          ${approvedAuthorityLock}
+        )
+      )
+      or (
+        ${outbox}.template = 'access-rejected'
+        and ${outbox}.variables ->> '_mailProducer' = 'access-request-rejected'
+        and not (${outbox}.variables ? 'url')
+        and exists (
+          select 1
+          from public.access_request source_request
+          where source_request.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and source_request.status = 'rejected'
+            and source_request.decided_by is not null
+            and source_request.decision_reason is not null
+            and source_request.decided_at is not null
+            and lower(source_request.email) = ${outbox}.to_email
+            and source_request.name = ${outbox}.variables ->> 'name'
+          ${rejectedAuthorityLock}
+        )
+      )
+    )
   )`;
 }
 
@@ -276,6 +381,17 @@ const BOUNDARY_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outb
   recipientHmacParameter: 14,
   payloadDigestParameter: 15,
 });
+const SUPPRESSION_SYSTEM_MAIL_AUTHORITY_SQL = systemMailAuthorityPredicate("outbox", {
+  approvedInvitationTokenHashParameter: 16,
+  adminAccessUrlParameter: 17,
+  lockAuthorityRows: false,
+});
+const BOUNDARY_SYSTEM_MAIL_AUTHORITY_SQL = systemMailAuthorityPredicate("outbox", {
+  approvedInvitationTokenHashParameter: 17,
+  adminAccessUrlParameter: 18,
+  lockAuthorityRows: false,
+});
+
 
 type DeliveryScope = Readonly<{
   key: string;
@@ -361,6 +477,7 @@ type ClaimFenceInput = Readonly<{
 type BoundaryDecision =
   | "allowed"
   | "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY"
+  | "SYSTEM_EMAIL_AUTHORITY_INVALID"
   | "DELETION_NOTICE_CAPABILITY_INVALID";
 
 async function lockFenceScope(
@@ -426,19 +543,93 @@ async function lockPermitScope(
   return await advisoryLock(client, scope.lockKey, wait) ? scope : null;
 }
 
+const ACTIVATION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
+function canonicalAppOrigin(): string | null {
+  const configured = process.env.APP_URL
+    ?? (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
+  if (!configured) return null;
+
+  try {
+    const appUrl = new URL(configured);
+    const protocolAllowed = process.env.NODE_ENV === "production"
+      ? appUrl.protocol === "https:"
+      : appUrl.protocol === "http:" || appUrl.protocol === "https:";
+    return protocolAllowed && appUrl.origin === configured ? configured : null;
+  } catch {
+    return null;
+  }
+}
+
+function canonicalAdminAccessUrl(
+  claim: OutboxClaim<EmailOutboxPayload>,
+): string | null {
+  if (
+    claim.payload.userId !== null
+    || claim.payload.template !== "access-request-admin"
+    || claim.payload.templateVersion !== "1"
+    || claim.payload.variables._mailProducer !== "access-request-admin"
+  ) {
+    return null;
+  }
+  const appOrigin = canonicalAppOrigin();
+  return appOrigin ? `${appOrigin}/admin/access` : null;
+}
+
+function canonicalActivationTokenHash(
+  claim: OutboxClaim<EmailOutboxPayload>,
+): string | null {
+  if (
+    claim.payload.userId !== null
+    || claim.payload.template !== "invitation"
+    || claim.payload.templateVersion !== "1"
+    || claim.payload.variables._mailProducer !== "access-request-approved"
+  ) {
+    return null;
+  }
+
+  const appOrigin = canonicalAppOrigin();
+  if (!appOrigin) return null;
+
+  try {
+    const activationUrl = new URL(claim.payload.variables.url);
+    const tokens = activationUrl.searchParams.getAll("token");
+    if (tokens.length !== 1 || !ACTIVATION_TOKEN.test(tokens[0]!)) return null;
+    const canonicalUrl = `${appOrigin}/activate?token=${tokens[0]}`;
+    if (claim.payload.variables.url !== canonicalUrl) return null;
+
+    return createHash("sha256").update(tokens[0]!).digest("hex");
+  } catch {
+    return null;
+  }
+}
+
 async function providerBoundaryDecision(
   client: OutboxPgClient,
   claim: OutboxClaim<EmailOutboxPayload>,
   scope: DeliveryScope,
   evidence: DeletionNoticeCapabilityEvidence,
+  approvedInvitationTokenHash: string | null,
+  adminAccessUrl: string | null,
+  lockAuthorityRows: boolean,
 ): Promise<BoundaryDecision | null> {
+  const accountAuthoritySql = accountMailAuthorityPredicate(
+    "outbox",
+    lockAuthorityRows ? "for share of account_user" : "",
+  );
+  const systemAuthoritySql = systemMailAuthorityPredicate("outbox", {
+    approvedInvitationTokenHashParameter: 15,
+    adminAccessUrlParameter: 16,
+    lockAuthorityRows,
+  });
+
   const result = await client.query<{ decision: BoundaryDecision }>(`
     select case
-      when outbox.user_id is null
-        and outbox.template <> 'account-deleted'
-        then 'allowed'
+      when ${systemAuthoritySql} then 'allowed'
+      when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
       when outbox.template <> 'account-deleted'
-        and ${ACCOUNT_MAIL_AUTHORITY_SQL}
+        and outbox.template_version = '1'
+        and ${accountAuthoritySql}
         then 'allowed'
       when ${DECISION_DELETION_CAPABILITY_SQL} then 'allowed'
       when outbox.template = 'account-deleted'
@@ -474,6 +665,8 @@ async function providerBoundaryDecision(
     evidence.recipientHmacSha256,
     evidence.payloadSha256,
     evidence.valid,
+    approvedInvitationTokenHash,
+    adminAccessUrl,
   ]);
   return result.rows[0]?.decision ?? null;
 }
@@ -694,13 +887,35 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     if (!ADAPTERS.has(adapter)) throw new Error("Outbox adapter is not allowed.");
     assertLeaseMs(input.leaseMs);
     const evidence = deletionNoticeCapabilityEvidence(claim.payload);
+    const approvedInvitationTokenHash = canonicalActivationTokenHash(claim);
+    const adminAccessUrl = canonicalAdminAccessUrl(claim);
 
     return transaction(this.pool, async (client) => {
       const scope = await lockFenceScope(client, claim, true);
       if (!scope) return { kind: "lost" };
 
-      const decision = await providerBoundaryDecision(client, claim, scope, evidence);
+      let decision = await providerBoundaryDecision(
+        client,
+        claim,
+        scope,
+        evidence,
+        approvedInvitationTokenHash,
+        adminAccessUrl,
+        false,
+      );
       if (decision === null) return { kind: "lost" };
+      if (decision === "allowed") {
+        decision = await providerBoundaryDecision(
+          client,
+          claim,
+          scope,
+          evidence,
+          approvedInvitationTokenHash,
+          adminAccessUrl,
+          true,
+        );
+        if (decision === null) return { kind: "lost" };
+      }
       if (decision !== "allowed") {
         const suppressed = await client.query<{ id: string }>(`
           update public.email_outbox as outbox
@@ -738,7 +953,15 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 $7::text = 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
                 and outbox.user_id is not null
                 and outbox.template <> 'account-deleted'
-                and not (${ACCOUNT_MAIL_AUTHORITY_SQL})
+                and not (
+                  outbox.template_version = '1'
+                  and ${ACCOUNT_MAIL_AUTHORITY_SQL}
+                )
+              )
+              or (
+                $7::text = 'SYSTEM_EMAIL_AUTHORITY_INVALID'
+                and outbox.user_id is null
+                and not (${SUPPRESSION_SYSTEM_MAIL_AUTHORITY_SQL})
               )
             )
           returning outbox.id::text
@@ -758,6 +981,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           evidence.recipientHmacSha256,
           evidence.payloadSha256,
           evidence.valid,
+          approvedInvitationTokenHash,
+          adminAccessUrl,
         ]);
         return suppressed.rows[0]
           ? { kind: "suppressed", code: decision }
@@ -788,12 +1013,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and outbox.template_version = $12::text
           and outbox.variables = $13::jsonb
           and (
-            (
-              outbox.user_id is null
-              and outbox.template <> 'account-deleted'
-            )
+            ${BOUNDARY_SYSTEM_MAIL_AUTHORITY_SQL}
             or (
               outbox.template <> 'account-deleted'
+              and outbox.template_version = '1'
               and ${ACCOUNT_MAIL_AUTHORITY_SQL}
             )
             or ${BOUNDARY_DELETION_CAPABILITY_SQL}
@@ -816,6 +1039,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         evidence.recipientHmacSha256,
         evidence.payloadSha256,
         evidence.valid,
+        approvedInvitationTokenHash,
+        adminAccessUrl,
       ]);
       const row = result.rows[0];
       if (!row) return { kind: "lost" };
