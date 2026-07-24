@@ -421,6 +421,13 @@
       "when": 1784835583629,
       "tag": "0059_mail_delivery_scope_contract",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1784898036015,
+      "tag": "0060_mail_outbox_payload_immutability",
+      "breakpoints": true
     }
   ]
 }
