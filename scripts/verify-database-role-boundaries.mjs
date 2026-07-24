@@ -145,33 +145,71 @@ async function expectInsufficientPrivilege(client, sql) {
   }
 }
 
+async function tablePrivilegeDelegationState(client, grantee, objectOid) {
+  const result = await client.query(`
+    select has_table_privilege($1::name, $2::oid, 'SELECT') delegated,
+           has_table_privilege(
+             current_user,
+             $2::oid,
+             'SELECT WITH GRANT OPTION'
+           ) current_role_effective_grantable,
+           coalesce(
+             bool_or(acl.is_grantable) filter (
+               where acl.grantee = current_role.oid
+                 and acl.privilege_type = 'SELECT'
+             ),
+             false
+           ) current_role_direct_grantable,
+           coalesce(
+             string_agg(
+               pg_catalog.concat_ws(
+                 ':',
+                 acl.grantor::text,
+                 acl.grantee::text,
+                 acl.privilege_type,
+                 acl.is_grantable::text
+               ),
+               ',' order by acl.grantor,
+                            acl.grantee,
+                            acl.privilege_type,
+                            acl.is_grantable
+             ),
+             ''
+           ) table_acl
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_roles current_role
+        on current_role.rolname = current_user
+      cross join lateral pg_catalog.aclexplode(
+        coalesce(c.relacl, pg_catalog.acldefault('r', c.relowner))
+      ) acl
+     where c.oid = $2::oid
+     group by c.oid, current_role.oid`,
+    [grantee, objectOid],
+  );
+  if (!result.rows[0]) fail();
+  return result.rows[0];
+}
+
 async function expectTablePrivilegeNotDelegated(client, table, objectOid) {
   const grantee = "learncoding_migrator";
   await client.query("begin");
   try {
-    const before = await client.query(
-      "select has_table_privilege($1::name, $2::oid, 'SELECT') delegated",
-      [grantee, objectOid],
-    );
-    if (before.rows[0]?.delegated !== false) fail();
-
-    let rejected = false;
+    const before = await tablePrivilegeDelegationState(client, grantee, objectOid);
+    if (
+      before.delegated !== false ||
+      before.current_role_effective_grantable !== false ||
+      before.current_role_direct_grantable !== false
+    ) fail();
+    await client.query("savepoint codestead_table_grant_probe");
     try {
       await client.query(
         `grant select on table ${table} to ${quoteIdentifier(grantee)}`,
       );
-    } catch (error) {
-      if (error instanceof DatabaseRoleBoundaryError || error?.code !== "42501") fail();
-      rejected = true;
+    } catch {
+      await client.query("rollback to savepoint codestead_table_grant_probe");
     }
-
-    if (!rejected) {
-      const after = await client.query(
-        "select has_table_privilege($1::name, $2::oid, 'SELECT') delegated",
-        [grantee, objectOid],
-      );
-      if (after.rows[0]?.delegated !== false) fail();
-    }
+    const after = await tablePrivilegeDelegationState(client, grantee, objectOid);
+    if (!exactRow(after, before)) fail();
   } finally {
     await bounded(() => client.query("rollback"));
   }
