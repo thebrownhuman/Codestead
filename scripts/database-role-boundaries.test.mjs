@@ -23,6 +23,35 @@ const validInput = () => ({
   databaseOpsUrl: `postgresql://learncoding_ops:${password("o")}@postgres:5432/learncoding`,
 });
 
+const PLATFORM_ENVIRONMENT_KEYS = Object.freeze([
+  "CI",
+  "LANG",
+  "LC_ALL",
+  "TZ",
+  "NO_COLOR",
+  "FORCE_COLOR",
+  "SYSTEMROOT",
+  "WINDIR",
+  "COMSPEC",
+  "PATHEXT",
+  "TEMP",
+  "TMP",
+  "TMPDIR",
+]);
+
+function minimalPlatformEnvironment(environment) {
+  const result = {};
+  for (const canonicalName of PLATFORM_ENVIRONMENT_KEYS) {
+    const matchedName = Object.keys(environment).find(
+      (name) => name.toUpperCase() === canonicalName,
+    );
+    if (matchedName !== undefined && environment[matchedName] !== undefined) {
+      result[canonicalName] = environment[matchedName];
+    }
+  }
+  return result;
+}
+
 test("composes the mail worker outbox role without payload mutation authority", () => {
   assert.deepEqual(MAIL_WORKER_OUTBOX_INSERT_COLUMNS, [
     "operation_id",
@@ -311,13 +340,41 @@ test("fails closed when a forbidden statement succeeds or the lock remains held"
 
 });
 
+test("the verifier child receives no ambient credentials or alternate database settings", () => {
+  const canaries = {
+    ARBITRARY_TOKEN: "ambient-token-canary",
+    APPLICATION_SECRET: "ambient-secret-canary",
+    SIGNING_KEY: "ambient-key-canary",
+    SERVICE_CREDENTIAL: "ambient-credential-canary",
+    AWS_SECRET_ACCESS_KEY: "ambient-cloud-canary",
+    HTTPS_PROXY: "https://ambient-proxy.invalid",
+    DATABASE_ANALYTICS_URL: "postgresql://alternate-database.invalid/analytics",
+    DATABASE_URL_FILE: "C:\\ambient\\alternate-database-url",
+    PGHOST: "ambient-postgres-host.invalid",
+  };
+  const result = spawnSync(process.execPath, [
+    "-e",
+    "process.stdout.write(JSON.stringify(process.env))",
+  ], {
+    encoding: "utf8",
+    env: minimalPlatformEnvironment(Object.assign({}, process.env, canaries)),
+  });
+
+  assert.equal(result.status, 0);
+  const childEnvironment = JSON.parse(result.stdout);
+  for (const [name, value] of Object.entries(canaries)) {
+    assert.equal(childEnvironment[name], undefined);
+    assert.doesNotMatch(result.stdout, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
+  }
+});
+
 test("CLI failure output never includes credential material", () => {
   const script = path.join(import.meta.dirname, "verify-database-role-boundaries.mjs");
   const canary = "BOUNDARY_SECRET_CANARY_123456789012345678901234567890";
   const result = spawnSync(process.execPath, [script], {
     encoding: "utf8",
     env: {
-      ...process.env,
+      ...minimalPlatformEnvironment(process.env),
       POSTGRES_DB: "learncoding",
       DATABASE_URL: `postgresql://learncoding_app:${canary}@wrong-host:5432/learncoding`,
       DATABASE_MIGRATOR_URL: validInput().databaseMigratorUrl,

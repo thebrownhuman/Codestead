@@ -1,11 +1,20 @@
 import { randomBytes } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 
 import pg, { type PoolClient } from "pg";
 
-import { runDisposableIntegrationReleaseCycles } from "./lib/disposable-integration-topology";
+import { minimalNodeTestEnvironment } from "./lib/disposable-integration-environment";
+import {
+  migrationJournalEntryCount,
+  runDisposableIntegrationReleaseCycles,
+} from "./lib/disposable-integration-topology";
+import {
+  type DisposableRoleUrls,
+  verifyDisposableIntegrationRoleBoundaries as verifyDisposableRoleBoundaryAdapter,
+} from "./lib/disposable-role-boundary-adapter";
 
 const { Client, Pool } = pg;
 
@@ -50,13 +59,6 @@ type RoleBoundaryVerifier = (options: {
 
 type DisposableRoleCredentials = Readonly<{
   bootstrap: string;
-  app: string;
-  migrator: string;
-  worker: string;
-  ops: string;
-}>;
-
-type DisposableRoleUrls = Readonly<{
   app: string;
   migrator: string;
   worker: string;
@@ -147,20 +149,6 @@ function disposableRoleUrls(
   };
 }
 
-const ROLE_URL_KEY_BY_DATABASE_ROLE = Object.freeze({
-  learncoding_app: "app",
-  learncoding_migrator: "migrator",
-  learncoding_worker: "worker",
-  learncoding_ops: "ops",
-} as const);
-
-function canonicalDatabaseRoleUrl(scopedConnectionString: string) {
-  const url = new URL(scopedConnectionString);
-  url.hostname = "postgres";
-  url.port = "5432";
-  return url.href;
-}
-
 async function verifyDisposableIntegrationRoleBoundaries(input: {
   database: string;
   roleUrls: DisposableRoleUrls;
@@ -170,34 +158,10 @@ async function verifyDisposableIntegrationRoleBoundaries(input: {
   const { verifyDatabaseRoleBoundaries } = await import(
     /* @vite-ignore */ modulePath
   ) as { verifyDatabaseRoleBoundaries: RoleBoundaryVerifier };
-  await verifyDatabaseRoleBoundaries({
-    postgresDatabase: input.database,
-    databaseAppUrl: canonicalDatabaseRoleUrl(input.roleUrls.app),
-    databaseMigratorUrl: canonicalDatabaseRoleUrl(input.roleUrls.migrator),
-    databaseWorkerUrl: canonicalDatabaseRoleUrl(input.roleUrls.worker),
-    databaseOpsUrl: canonicalDatabaseRoleUrl(input.roleUrls.ops),
-    requireApplicationObjects: input.requireApplicationObjects,
-    lockTimeoutMs: 10_000,
-    poolFactory: ({ connectionString, role }) => {
-      const roleName = ROLE_URL_KEY_BY_DATABASE_ROLE[
-        role as keyof typeof ROLE_URL_KEY_BY_DATABASE_ROLE
-      ];
-      if (!roleName) {
-        throw new Error("disposable integration role URL mapping mismatch");
-      }
-      const connectionUrl = new URL(connectionString);
-      const scopedUrl = new URL(input.roleUrls[roleName]);
-      connectionUrl.hostname = scopedUrl.hostname;
-      connectionUrl.port = scopedUrl.port;
-      return new Pool({
-        application_name: `codestead_integration_boundary_${roleName}`,
-        connectionString: connectionUrl.href,
-        connectionTimeoutMillis: 5_000,
-        idleTimeoutMillis: 1_000,
-        max: 1,
-        statement_timeout: 5_000,
-      });
-    },
+  await verifyDisposableRoleBoundaryAdapter({
+    ...input,
+    verifyDatabaseRoleBoundaries,
+    createPool: (options) => new Pool(options),
   });
 }
 
@@ -382,6 +346,20 @@ async function waitForPostgres(connectionString: string): Promise<void> {
   throw new Error(`PostgreSQL did not become ready: ${String(lastError)}`);
 }
 
+async function expectedMigrationJournalCount(): Promise<number> {
+  const source = await readFile(
+    path.resolve(process.cwd(), "drizzle/meta/_journal.json"),
+    "utf8",
+  );
+  let journal: unknown;
+  try {
+    journal = JSON.parse(source) as unknown;
+  } catch {
+    throw new Error("disposable integration migration journal validation failed");
+  }
+  return migrationJournalEntryCount(journal);
+}
+
 async function main() {
   const requestedTests = process.argv.slice(2);
   for (const requested of requestedTests) {
@@ -389,6 +367,14 @@ async function main() {
       throw new Error(`Integration test path is not allowlisted: ${requested}`);
     }
   }
+  const expectedJournalCount = await expectedMigrationJournalCount();
+  await run(process.execPath, [
+    "--test",
+    path.resolve(process.cwd(), "scripts/database-role-boundaries.test.mjs"),
+  ], {
+    env: minimalNodeTestEnvironment(process.env),
+  });
+
   const docker = executable("docker");
   const dockerCheck = spawnSync(docker, ["version", "--format", "{{.Server.Version}}"], {
     encoding: "utf8",
@@ -490,6 +476,7 @@ async function main() {
     // Mirror two complete releases, including negative probes before each
     // migration and application-object boundary verification after reconciliation.
     await runDisposableIntegrationReleaseCycles({
+      expectedJournalCount,
       reconcileRoles: () => reconcileDisposableIntegrationRoles(topology),
       verifyRoleBoundaries: (requireApplicationObjects) => (
         verifyDisposableIntegrationRoleBoundaries({

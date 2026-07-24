@@ -120,6 +120,10 @@ describe("database least-privilege bootstrap", () => {
       readFile("scripts/run-integration-tests.ts", "utf8"));
     const bootstrapSource = await import("node:fs/promises").then(({ readFile }) =>
       readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
+    const packageJson = await import("node:fs/promises").then(async ({ readFile }) =>
+      JSON.parse(await readFile("package.json", "utf8")) as {
+        scripts: Record<string, string>;
+      });
     const orchestratorIndex = source.indexOf(
       "await runDisposableIntegrationReleaseCycles({",
     );
@@ -134,10 +138,9 @@ describe("database least-privilege bootstrap", () => {
       'migrationsFolder: path.resolve(process.cwd(), "drizzle")',
     );
     expect(source).toContain("new Pool({ connectionString: input.databaseUrl, max: 1 })");
-    expect(source).toContain("databaseAppUrl: canonicalDatabaseRoleUrl(input.roleUrls.app)");
-    expect(source).toContain("connectionUrl.hostname = scopedUrl.hostname");
-    expect(source).toContain("connectionUrl.port = scopedUrl.port");
-    expect(source).toContain("connectionString: connectionUrl.href");
+    expect(source).toContain("verifyDisposableRoleBoundaryAdapter({");
+    expect(source).toContain("env: minimalNodeTestEnvironment(process.env)");
+    expect(source).toContain("expectedJournalCount");
     expect(source).toContain("postgresUser: input.integrationUser");
     expect(source).toContain("verifyDatabaseRoleBootstrapState");
     expect(source).toContain("reconcileRoles: () => reconcileDisposableIntegrationRoles(topology)");
@@ -161,6 +164,9 @@ describe("database least-privilege bootstrap", () => {
     }
     expect(orchestratorIndex).toBeGreaterThanOrEqual(0);
     expect(orchestratorIndex).toBeLessThan(testIndex);
+    expect(packageJson.scripts["test:integration"]).toBe(
+      "tsx scripts/run-integration-tests.ts",
+    );
     expect(source).not.toMatch(
       /create role learncoding_(?:owner|migrator|app|worker|ops)/iu,
     );
@@ -198,6 +204,8 @@ describe("database least-privilege bootstrap", () => {
     expect(opsProofSource.match(/runRetention\(/gu)).toHaveLength(1);
     expect(opsProofSource).toContain("}, integrationRetentionDependencies);");
     expect(opsProofSource).toContain("select current_user, session_user");
+    expect(opsProofSource).toContain("runWithValidatedRetentionOpsEnvironment");
+    expect(opsProofSource).toContain("current_database()");
     expect(opsProofSource).toContain('current_user: "learncoding_owner"');
     expect(opsProofSource).toContain('session_user: "learncoding_migrator"');
     expect(opsProofSource).toContain('current_user: "learncoding_ops"');
