@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   PostgresOutboxStore,
@@ -116,7 +116,49 @@ const started: ProviderStartedClaim = {
 };
 const permit = started as ProviderCallPermit;
 
+const deletionClaim: OutboxClaim<EmailOutboxPayload> = {
+  ...claim,
+  payload: {
+    userId: "learner-1",
+    to: "learner@example.test",
+    template: "account-deleted",
+    templateVersion: "1",
+    variables: {
+      backupRetentionUntil: "2027-07-12T00:00:00.000Z",
+      tombstoneId: "44444444-4444-4444-8444-444444444444",
+      deletionRunId: "55555555-5555-4555-8555-555555555555",
+    },
+  },
+};
+
+const malformedDeletionClaim: OutboxClaim<EmailOutboxPayload> = {
+  ...deletionClaim,
+  payload: {
+    ...deletionClaim.payload,
+    variables: { tombstoneId: "44444444-4444-4444-8444-444444444444" },
+  },
+};
+
+const extraKeyDeletionClaim: OutboxClaim<EmailOutboxPayload> = {
+  ...deletionClaim,
+  payload: {
+    ...deletionClaim.payload,
+    variables: {
+      ...deletionClaim.payload.variables,
+      unexpected: "must-not-be-accepted",
+    },
+  },
+};
+
 describe("PostgresOutboxStore", () => {
+  beforeEach(() => {
+    process.env.DELETION_TOMBSTONE_KEY = "deletion-test-secret-that-is-at-least-32-bytes";
+  });
+
+  afterEach(() => {
+    delete process.env.DELETION_TOMBSTONE_KEY;
+  });
+
   it("claims with an account lock and full generation fence", async () => {
     const input = harness([
       { contains: "begin" },
@@ -197,22 +239,111 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("provider_call_started is null");
     expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
     const boundarySql = input.client.calls[3]!.sql;
-    expect(boundarySql).toContain("outbox.to_email = lower($8::text)");
+    expect(boundarySql).toContain("outbox.to_email = lower(btrim($8::text))");
     expect(boundarySql).toContain("outbox.template = $9::text");
     expect(boundarySql).toContain("outbox.template_version = $10::text");
     expect(boundarySql).toContain("outbox.variables = $11::jsonb");
-    expect(input.client.calls[3]!.values.slice(6)).toEqual([
+    expect(input.client.calls[3]!.values.slice(6, 11)).toEqual([
       "learner-1",
       "learner@example.test",
       "invitation",
       "1",
       JSON.stringify({ name: "Learner" }),
     ]);
-    expect(sql).toContain("to_email = lower($10::text)");
+    expect(input.client.calls[3]!.values.slice(11)).toEqual([null, null, false]);
+    expect(sql).toContain("outbox.to_email = lower(btrim($10::text))");
     expect(sql).toContain("template = $11::text");
     expect(sql).toContain("template_version = $12::text");
     expect(sql).toContain("variables = $13::jsonb");
   });
+
+  it("repeats the exact immutable deletion capability inside the provider-boundary CAS", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.beginProviderCall(deletionClaim, {
+      adapter: "gmail",
+      leaseMs: 60_000,
+    })).resolves.toEqual({ kind: "applied", permit });
+
+    const decision = input.client.calls[3]!;
+    const boundary = input.client.calls[4]!;
+    for (const call of [decision, boundary]) {
+      expect(call.sql).toContain("from public.account_deletion_tombstone tombstone");
+      expect(call.sql).toContain("join public.data_lifecycle_run lifecycle");
+      expect(call.sql).toContain("join public.\"user\" deleted_user");
+      expect(call.sql).toContain("deleted_user.status = 'deleted'");
+      expect(call.sql).toContain("tombstone.primary_deletion_completed_at is not null");
+      expect(call.sql).toContain("lifecycle.status = 'succeeded'");
+      expect(call.sql).toContain("lifecycle.operation = 'account_deletion'");
+      expect(call.sql).toContain("#>> '{deletionnotice,outboxid}'");
+      expect(call.sql).toContain("#>> '{deletionnotice,operationid}'");
+      expect(call.sql).toContain("#>> '{deletionnotice,recipienthmacsha256}'");
+      expect(call.sql).toContain("#>> '{deletionnotice,payloadsha256}'");
+    }
+    expect(decision.sql).toContain("outbox.to_email = lower(btrim($8::text))");
+    expect(boundary.sql).toContain("outbox.to_email = lower(btrim($10::text))");
+    expect(boundary.sql).toContain("$16::boolean");
+    expect(decision.values[11]).toMatch(/^[0-9a-f]{64}$/);
+    expect(decision.values[12]).toMatch(/^[0-9a-f]{64}$/);
+    expect(decision.values[13]).toBe(true);
+    expect(boundary.values[13]).toBe(decision.values[11]);
+    expect(boundary.values[14]).toBe(decision.values[12]);
+    expect(boundary.values[15]).toBe(true);
+  });
+
+  it.each([
+    ["missing required keys", malformedDeletionClaim],
+    ["containing an extra key", extraKeyDeletionClaim],
+  ] as const)(
+    "suppresses deletion variables %s without throwing and rechecks invalidity atomically",
+    async (_case, invalidClaim) => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "select case",
+        rows: [{ decision: "DELETION_NOTICE_CAPABILITY_INVALID" }],
+      },
+      { contains: "update public.email_outbox", rows: [{ id: ID }] },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.beginProviderCall(invalidClaim, {
+      adapter: "gmail",
+      leaseMs: 60_000,
+    })).resolves.toEqual({
+      kind: "suppressed",
+      code: "DELETION_NOTICE_CAPABILITY_INVALID",
+    });
+
+    const decision = input.client.calls[3]!;
+    const suppression = input.client.calls[4]!;
+    expect(decision.values[11]).toBeNull();
+    expect(decision.values[12]).toBeNull();
+    expect(decision.values[13]).toBe(false);
+    expect(suppression.sql).toContain("not (");
+    expect(suppression.sql).toContain("from public.account_deletion_tombstone tombstone");
+    expect(suppression.sql).toContain("#>> '{deletionnotice,payloadsha256}'");
+    expect(suppression.sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
+    expect(suppression.values[12]).toBeNull();
+    expect(suppression.values[13]).toBeNull();
+    expect(suppression.values[14]).toBe(false);
+    },
+  );
 
   it("reports a durable provider-boundary suppression with its authority code", async () => {
     const input = harness([
@@ -235,11 +366,11 @@ describe("PostgresOutboxStore", () => {
       code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
     });
     const suppressionSql = input.client.calls[4]!.sql;
-    expect(suppressionSql).toContain("to_email = lower($9::text)");
+    expect(suppressionSql).toContain("outbox.to_email = lower(btrim($9::text))");
     expect(suppressionSql).toContain("template = $10::text");
     expect(suppressionSql).toContain("template_version = $11::text");
     expect(suppressionSql).toContain("variables = $12::jsonb");
-    expect(input.client.calls[4]!.values.at(-1)).toBe(JSON.stringify(claim.payload.variables));
+    expect(input.client.calls[4]!.values[11]).toBe(JSON.stringify(claim.payload.variables));
   });
 
   it("does not reconstruct a permit after an unknown boundary commit", async () => {
