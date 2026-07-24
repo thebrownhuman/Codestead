@@ -30,7 +30,7 @@
     "test:coverage": "vitest run --coverage --maxWorkers=2",
     "test:auth-boundary": "vitest run --config vitest.auth-boundary.config.ts",
     "test:watch": "vitest",
-    "test:database-role-boundaries": "node --test scripts/database-role-boundaries.test.mjs",
+    "test:database-role-boundaries": "tsx scripts/run-database-role-boundaries-tests.ts",
     "test:integration": "tsx scripts/run-integration-tests.ts",
     "test:integration:vitest": "vitest run --config vitest.integration.config.ts",
     "test:mail-delivery-scope-0059:registration": "node infra/tests/mail-delivery-scope-0059-registration.test.mjs",
