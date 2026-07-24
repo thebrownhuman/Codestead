@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -15,6 +17,8 @@ import type {
 const ID = "11111111-1111-4111-8111-111111111111";
 const OPERATION = "22222222-2222-4222-8222-222222222222";
 const TOKEN = "33333333-3333-4333-8333-333333333333";
+const SOURCE = "44444444-4444-4444-8444-444444444444";
+const ACTIVATION_TOKEN = "A".repeat(43);
 
 type Step = Readonly<{
   contains: string;
@@ -175,6 +179,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
       { contains: "select case", rows: [{ decision: "allowed" }] },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
         rows: [{
@@ -190,13 +195,16 @@ describe("PostgresOutboxStore", () => {
       leaseMs: 60_000,
     })).resolves.toEqual({ kind: "applied", permit });
 
-    const sql = input.client.calls[4]!.sql;
+    const sql = input.client.calls[5]!.sql;
     expect(sql).toContain("claim_token = $3::uuid");
     expect(sql).toContain("claim_owner = $4::text");
     expect(sql).toContain("claim_version = $5::integer");
     expect(sql).toContain("provider_call_started is null");
     expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
     const boundarySql = input.client.calls[3]!.sql;
+    const lockedBoundarySql = input.client.calls[4]!.sql;
+    expect(lockedBoundarySql).toContain("for share of account_user");
+    expect(lockedBoundarySql).toContain("for share of source_invitation, source_request");
     expect(boundarySql).toContain("outbox.to_email = lower($8::text)");
     expect(boundarySql).toContain("outbox.template = $9::text");
     expect(boundarySql).toContain("outbox.template_version = $10::text");
@@ -207,13 +215,82 @@ describe("PostgresOutboxStore", () => {
       "invitation",
       "1",
       JSON.stringify({ name: "Learner" }),
+      null,
     ]);
     expect(sql).toContain("to_email = lower($10::text)");
     expect(sql).toContain("template = $11::text");
     expect(sql).toContain("template_version = $12::text");
     expect(sql).toContain("variables = $13::jsonb");
+    expect(sql).toContain("source_invitation.token_hash = $14::text");
+    expect(input.client.calls[5]!.values.at(-1)).toBeNull();
   });
 
+  it.each([
+    [
+      "canonical",
+      `https://learn.example.test/activate?token=${ACTIVATION_TOKEN}`,
+      createHash("sha256").update(ACTIVATION_TOKEN).digest("hex"),
+    ],
+    [
+      "cross-origin",
+      `https://attacker.example/activate?token=${ACTIVATION_TOKEN}`,
+      null,
+    ],
+  ])("derives %s approved-invitation evidence before denying invalid live authority", async (
+    _case,
+    url,
+    expectedTokenHash,
+  ) => {
+    vi.stubEnv("APP_URL", "https://learn.example.test");
+    const systemClaim: OutboxClaim<EmailOutboxPayload> = {
+      ...claim,
+      payload: {
+        userId: null,
+        to: "learner@example.test",
+        template: "invitation",
+        templateVersion: "1",
+        variables: {
+          name: "Learner",
+          url,
+          _mailOperationId: OPERATION,
+          _mailRecipient: "learner@example.test",
+          _mailProducer: "access-request-approved",
+          _mailSourceId: SOURCE,
+        },
+      },
+    };
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [{
+          ...scopeRow(),
+          user_id: null,
+          delivery_scope_key: `s:${OPERATION}`,
+        }],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "select case",
+        rows: [{ decision: "SYSTEM_EMAIL_AUTHORITY_INVALID" }],
+      },
+      { contains: "update public.email_outbox", rows: [{ id: ID }] },
+      { contains: "commit" },
+    ]);
+
+    try {
+      await expect(input.store.beginProviderCall(systemClaim, {
+        adapter: "gmail",
+        leaseMs: 60_000,
+      })).resolves.toEqual({
+        kind: "suppressed",
+        code: "SYSTEM_EMAIL_AUTHORITY_INVALID",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(input.client.calls[3]!.values[11]).toBe(expectedTokenHash);
+  });
   it("reports a durable provider-boundary suppression with its authority code", async () => {
     const input = harness([
       { contains: "begin" },
@@ -247,6 +324,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "begin" },
       { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
