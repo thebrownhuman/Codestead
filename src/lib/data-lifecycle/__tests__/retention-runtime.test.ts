@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { PoolClient } from "pg";
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -272,6 +273,25 @@ describe("retention runtime orchestration", () => {
       objectStorageRoot: "C:/retention-objects",
     });
     expect(mocks.processFileErasures).not.toHaveBeenCalled();
+  });
+
+  it("uses an explicitly supplied client acquisition path for the retention session", async () => {
+    const acquireClient = vi.fn(async () => mocks.client as unknown as PoolClient);
+
+    await expect(runRetention({
+      idempotencyKey: "retention:test:injected-pool",
+      dryRun: true,
+      now,
+    }, {
+      acquireClient,
+      processFileErasures: mocks.processFileErasures,
+    })).resolves.toMatchObject({
+      runId: "retention-run-1",
+      dryRun: true,
+    });
+
+    expect(acquireClient).toHaveBeenCalledOnce();
+    expect(mocks.connect).not.toHaveBeenCalled();
   });
 
   it("uses the explicitly supplied erasure processor when resuming a durable checkpoint", async () => {

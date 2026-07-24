@@ -145,9 +145,42 @@ async function expectInsufficientPrivilege(client, sql) {
   }
 }
 
+async function expectTablePrivilegeNotDelegated(client, table, objectOid) {
+  const grantee = "learncoding_migrator";
+  await client.query("begin");
+  try {
+    const before = await client.query(
+      "select has_table_privilege($1::name, $2::oid, 'SELECT') delegated",
+      [grantee, objectOid],
+    );
+    if (before.rows[0]?.delegated !== false) fail();
+
+    let rejected = false;
+    try {
+      await client.query(
+        `grant select on table ${table} to ${quoteIdentifier(grantee)}`,
+      );
+    } catch (error) {
+      if (error instanceof DatabaseRoleBoundaryError || error?.code !== "42501") fail();
+      rejected = true;
+    }
+
+    if (!rejected) {
+      const after = await client.query(
+        "select has_table_privilege($1::name, $2::oid, 'SELECT') delegated",
+        [grantee, objectOid],
+      );
+      if (after.rows[0]?.delegated !== false) fail();
+    }
+  } finally {
+    await bounded(() => client.query("rollback"));
+  }
+}
+
 async function discoverApplicationObjects(client) {
   const table = await client.query(`
-    select n.nspname schema_name, c.relname object_name, a.attname column_name
+    select n.nspname schema_name, c.relname object_name,
+           c.oid object_oid, a.attname column_name
       from pg_class c
       join pg_namespace n on n.oid = c.relnamespace
       join lateral (
@@ -279,7 +312,7 @@ async function verifyRole({ client, role, database, objects }) {
     const table = qualifiedName(objects.table);
     await expectInsufficientPrivilege(client, `alter table ${table} owner to ${quoteIdentifier(role)}`);
     negativeChecks += 1;
-    await expectInsufficientPrivilege(client, `grant select on table ${table} to ${quoteIdentifier(role)}`);
+    await expectTablePrivilegeNotDelegated(client, table, objects.table.object_oid);
     negativeChecks += 1;
   }
   return { positiveChecks, negativeChecks };

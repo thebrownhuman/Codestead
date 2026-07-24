@@ -99,6 +99,7 @@ test("accepts only the exact four distinct restricted-role URLs", () => {
 
 function makeClient(role, database, options) {
   const queries = [];
+  let delegated = false;
   return {
     queries,
     release() {},
@@ -134,14 +135,34 @@ function makeClient(role, database, options) {
           schema_create: false,
         }] };
       }
+      if (normalized.startsWith("select has_table_privilege")) {
+        if (
+          role === "learncoding_migrator" &&
+          options.migratorCannotResolveRelationName === true &&
+          !normalized.includes("$2::oid")
+        ) throw Object.assign(new Error("redacted relation lookup rejection"), { code: "42501" });
+        return { rows: [{ delegated }] };
+      }
       if (normalized.includes("from pg_class c") && normalized.includes("c.relkind = 'r'")) {
-        return { rows: [{ schema_name: "public", object_name: "sample", column_name: "id" }] };
+        return { rows: [{
+          schema_name: "public",
+          object_name: "sample",
+          object_oid: 16_384,
+          column_name: "id",
+        }] };
       }
       if (normalized.includes("from pg_class c") && normalized.includes("c.relkind = 's'")) {
         return { rows: [{ schema_name: "public", object_name: "sample_id_seq" }] };
       }
       if (normalized.includes("from pg_type t")) {
         return { rows: [{ schema_name: "public", object_name: "sample_status" }] };
+      }
+      if (
+        normalized.startsWith("grant select on table ") &&
+        options.grantWithoutGrantOptionIsNoop === true
+      ) {
+        if (options.grantActuallyDelegates === true) delegated = true;
+        return { rows: [] };
       }
       const forbidden =
         normalized.startsWith("create role ") ||
@@ -226,6 +247,41 @@ test("proves application-object access without mutating application rows", async
     assert.equal(queries.some((sql) => sql.startsWith("explain (format json) update")), true);
     assert.equal(queries.some((sql) => sql.startsWith("explain (format json) delete")), true);
   }
+});
+
+test("accepts PostgreSQL's no-op GRANT only when the privilege remains undelegated", async () => {
+  const harness = makePoolHarness({
+    grantWithoutGrantOptionIsNoop: true,
+    migratorCannotResolveRelationName: true,
+  });
+
+  const result = await verifyDatabaseRoleBoundaries({
+    ...validInput(),
+    poolFactory: harness.factory,
+    lockTimeoutMs: 50,
+    requireApplicationObjects: true,
+  });
+
+  assert.deepEqual(result, {
+    rolesAuthenticated: 4,
+    positiveChecks: 31,
+    negativeChecks: 23,
+  });
+
+  const delegated = makePoolHarness({
+    grantWithoutGrantOptionIsNoop: true,
+    grantActuallyDelegates: true,
+  });
+  await assert.rejects(
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: delegated.factory,
+      lockTimeoutMs: 50,
+      requireApplicationObjects: true,
+    }),
+    DatabaseRoleBoundaryError,
+  );
+  assert.equal(delegated.pools.every((pool) => pool.ended), true);
 });
 
 test("fails closed when a forbidden statement succeeds or the lock remains held", async () => {

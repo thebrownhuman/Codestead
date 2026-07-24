@@ -7,6 +7,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { NextRequest } from "next/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { hashPassword } from "better-auth/crypto";
+import { Pool as PgPool } from "pg";
 
 import { POST as activateInvitation } from "@/app/api/invitations/activate/route";
 import {
@@ -131,6 +132,14 @@ const EXAM_ATTEMPT_ID = "20000000-0000-4000-8000-000000000001";
 const EXAM_SESSION_ID = "20000000-0000-4000-8000-000000000002";
 const FAILED_EXAM_ATTEMPT_ID = "20000000-0000-4000-8000-000000000003";
 const FAILED_EXAM_SESSION_ID = "20000000-0000-4000-8000-000000000004";
+const integrationRetentionPool = new PgPool({
+  application_name: "codestead_integration_retention_ops",
+  connectionString: process.env.DATABASE_OPS_URL,
+  max: 1,
+});
+const integrationRetentionDependencies = {
+  acquireClient: () => integrationRetentionPool.connect(),
+} as const;
 const integrationFileErasureDependencies = {
   processFileErasures: (input: Parameters<typeof processFileErasures>[0]) => processFileErasures({
     ...input,
@@ -142,6 +151,10 @@ const integrationFileErasureDependencies = {
       await access(path.dirname(resolveStoredObjectPath(root, storageKey)));
     },
   }),
+} as const;
+const integrationRetentionFileErasureDependencies = {
+  ...integrationRetentionDependencies,
+  ...integrationFileErasureDependencies,
 } as const;
 
 const REVIEWED_LEARNING_FIXTURE_BANK = {
@@ -752,7 +765,10 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await pool.end();
+  await Promise.all([
+    pool.end(),
+    integrationRetentionPool.end(),
+  ]);
 });
 
 describe("PostgreSQL migration contract", () => {
@@ -2025,7 +2041,7 @@ describe("versioned category retention", () => {
         dryRun: true,
         now,
         objectStorageRoot: objectRoot,
-      });
+      }, integrationRetentionDependencies);
       expect(dryRun.categories.rawChat.eligible).toBe(1);
       expect(dryRun.categories.rawChat.deleted).toBe(0);
       const replay = await runRetention({
@@ -2033,14 +2049,14 @@ describe("versioned category retention", () => {
         dryRun: true,
         now,
         objectStorageRoot: objectRoot,
-      });
+      }, integrationRetentionDependencies);
       expect(replay.replayed).toBe(true);
       await expect(runRetention({
         idempotencyKey: "retention:integration:dry-run",
         dryRun: true,
         now: new Date("2026-07-13T00:00:00.000Z"),
         objectStorageRoot: objectRoot,
-      })).rejects.toMatchObject({ code: "IDEMPOTENCY_MISMATCH" });
+      }, integrationRetentionDependencies)).rejects.toMatchObject({ code: "IDEMPOTENCY_MISMATCH" });
       expect(await db.select().from(chatMessage)).toHaveLength(2);
 
       const applied = await runRetention({
@@ -2048,7 +2064,7 @@ describe("versioned category retention", () => {
         dryRun: false,
         now,
         objectStorageRoot: objectRoot,
-      }, integrationFileErasureDependencies);
+      }, integrationRetentionFileErasureDependencies);
       expect(applied.categories.rawChat.deleted).toBe(1);
       expect(applied.categories.rawCode.deleted).toBe(1);
       expect(applied.categories.aiRequestMetadata.deleted).toBe(1);
@@ -2514,7 +2530,7 @@ describe("bounded export and administrator-only account deletion", () => {
         dryRun: false,
         now: new Date("2027-07-12T00:00:00.001Z"),
         objectStorageRoot: objectRoot,
-      });
+      }, integrationRetentionDependencies);
       expect(expiryRun.categories.backupExpiryEligibility).toMatchObject({
         deleted: 0,
         transitioned: 1,
