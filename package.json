@@ -92,6 +92,7 @@
     "architecture:check": "tsx scripts/verify-import-boundaries.ts --check",
     "architecture:apply": "tsx scripts/verify-import-boundaries.ts --apply",
     "worker:email": "tsx scripts/process-outbox.ts",
+    "worker:email:reconcile": "tsx scripts/reconcile-gmail-outbox.ts",
     "worker:regrade": "tsx scripts/process-assessment-regrades.ts",
     "worker:project-review-corrections": "tsx scripts/process-project-review-corrections.ts",
     "worker:exam-finalization": "tsx scripts/process-exam-finalizations.ts",

@@ -7,6 +7,39 @@ export interface OutgoingEmail {
   variables: Record<string, string>;
 }
 
+export interface MailProviderContext {
+  messageId: string;
+}
+export type MailDeliveryFailure = Readonly<{
+  kind: "definitely-rejected" | "ambiguous";
+  code: string;
+}>;
+
+export class MailDeliveryError extends Error {
+  constructor(
+    message: string,
+    readonly failure: MailDeliveryFailure,
+  ) {
+    super(message);
+    this.name = "MailDeliveryError";
+  }
+}
+
+export function classifyMailDeliveryError(error: unknown): MailDeliveryFailure {
+  return error instanceof MailDeliveryError
+    ? error.failure
+    : { kind: "ambiguous", code: "PROVIDER_OUTCOME_AMBIGUOUS" };
+}
+
+function deliveryError(
+  error: unknown,
+  failure: MailDeliveryFailure,
+) {
+  if (error instanceof MailDeliveryError) return error;
+  const message = error instanceof Error ? error.message : "Mail delivery failed.";
+  return new MailDeliveryError(message, failure);
+}
+
 const DEFAULT_GMAIL_REQUEST_TIMEOUT_MS = 10_000;
 const MIN_GMAIL_REQUEST_TIMEOUT_MS = 1_000;
 const MAX_GMAIL_REQUEST_TIMEOUT_MS = 25_000;
@@ -29,7 +62,7 @@ function gmailRequestTimeoutMs() {
 }
 
 async function withGmailRequestDeadline<T>(
-  stage: "OAuth" | "delivery",
+  stage: "OAuth" | "delivery" | "reconciliation",
   timeoutMs: number,
   operation: (signal: AbortSignal) => Promise<T>,
 ) {
@@ -52,6 +85,19 @@ async function withGmailRequestDeadline<T>(
 function headerValue(value: string, name: string) {
   if (!value || /[\r\n]/.test(value)) throw new Error(`Invalid ${name} header.`);
   return value;
+}
+
+const OUTBOX_MESSAGE_ID =
+  /^<codestead\.outbox\.[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@mail\.codestead\.invalid>$/i;
+
+function gmailCorrelation(messageId: string) {
+  const header = headerValue(messageId, "Message-ID");
+  if (!OUTBOX_MESSAGE_ID.test(header)) {
+    throw new Error("Invalid Message-ID header.");
+  }
+  return {
+    header,
+  };
 }
 
 async function gmailAccessToken(timeoutMs: number) {
@@ -79,16 +125,18 @@ async function gmailAccessToken(timeoutMs: number) {
   });
 }
 
-function mimeMessage(input: OutgoingEmail) {
+function mimeMessage(input: OutgoingEmail, context: MailProviderContext) {
   const rendered = renderEmail(input.template, input.variables);
   const boundary = `learncoding-${crypto.randomUUID()}`;
   const from = headerValue(process.env.MAIL_FROM ?? "Codestead <noreply@example.com>", "From");
   const to = headerValue(input.to, "To");
   const subject = headerValue(rendered.subject, "Subject");
+  const messageId = gmailCorrelation(context?.messageId ?? "").header;
   return [
     `From: ${from}`,
     `To: ${to}`,
     `Subject: ${subject}`,
+    `Message-ID: ${messageId}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
@@ -106,9 +154,109 @@ function mimeMessage(input: OutgoingEmail) {
   ].join("\r\n");
 }
 
-export async function sendEmail(input: OutgoingEmail) {
+export async function findGmailMessageByMessageId(messageId: string) {
+  const correlation = gmailCorrelation(messageId);
+  const requestTimeoutMs = gmailRequestTimeoutMs();
+  const accessToken = await gmailAccessToken(requestTimeoutMs);
+  const listUrl = new URL(
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+  );
+  listUrl.searchParams.set("maxResults", "2");
+  listUrl.searchParams.set("q", `rfc822msgid:${correlation.header}`);
+  listUrl.searchParams.append("labelIds", "SENT");
+  const listResponse = await withGmailRequestDeadline(
+    "reconciliation",
+    requestTimeoutMs,
+    (signal) => fetch(listUrl, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+      signal,
+    }),
+  );
+  if (!listResponse.ok) {
+    throw new Error(`Gmail reconciliation search failed (${listResponse.status}).`);
+  }
+  const listBody = (await listResponse.json()) as {
+    messages?: unknown;
+    nextPageToken?: unknown;
+  };
+  const rawMessages = listBody.messages;
+  if (
+    (rawMessages !== undefined && !Array.isArray(rawMessages))
+    || (
+      listBody.nextPageToken !== undefined
+      && (
+        typeof listBody.nextPageToken !== "string"
+        || listBody.nextPageToken.trim() !== ""
+      )
+    )
+  ) {
+    return { kind: "ambiguous" as const };
+  }
+  const messages = Array.isArray(rawMessages) ? rawMessages : [];
+  if (messages.some((message) => (
+    typeof message !== "object"
+    || message === null
+    || typeof (message as { id?: unknown }).id !== "string"
+  ))) {
+    return { kind: "ambiguous" as const };
+  }
+  const providerIds = messages
+    .map((message) => (message as { id: string }).id.trim())
+    .filter(Boolean);
+  if (messages.length === 0) return { kind: "not-found" as const };
+  if (
+    providerIds.length !== 1
+    || providerIds.length !== messages.length
+  ) {
+    return { kind: "ambiguous" as const };
+  }
+
+  const providerMessageId = providerIds[0]!;
+  const metadataUrl = new URL(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(providerMessageId)}`,
+  );
+  metadataUrl.searchParams.set("format", "metadata");
+  metadataUrl.searchParams.append("metadataHeaders", "Message-ID");
+  const metadataResponse = await withGmailRequestDeadline(
+    "reconciliation",
+    requestTimeoutMs,
+    (signal) => fetch(metadataUrl, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+      signal,
+    }),
+  );
+  if (!metadataResponse.ok) {
+    throw new Error(`Gmail reconciliation verification failed (${metadataResponse.status}).`);
+  }
+  const metadata = (await metadataResponse.json()) as {
+    id?: string;
+    labelIds?: string[];
+    payload?: { headers?: Array<{ name?: string; value?: string }> };
+  };
+  const messageIdHeaders = (metadata.payload?.headers ?? [])
+    .filter(({ name }) => name?.toLowerCase() === "message-id")
+    .map(({ value }) => value?.trim() ?? "");
+  if (
+    metadata.id?.trim() !== providerMessageId
+    || messageIdHeaders.length !== 1
+    || !metadata.labelIds?.includes("SENT")
+    || messageIdHeaders[0] !== correlation.header
+  ) {
+    return { kind: "ambiguous" as const };
+  }
+  return { kind: "matched" as const, providerMessageId };
+}
+export async function sendEmail(
+  input: OutgoingEmail,
+  context: MailProviderContext,
+) {
   if (input.template === "backup-status" && /archive|\.sql|\.tar|\.zip/i.test(input.variables.url ?? "")) {
-    throw new Error("Backup archives may not be emailed.");
+    throw new MailDeliveryError(
+      "Backup archives may not be emailed.",
+      { kind: "definitely-rejected", code: "MAIL_PRE_SEND_REJECTED" },
+    );
   }
   const adapter = process.env.MAIL_ADAPTER ?? "console";
   if (adapter === "console") {
@@ -116,23 +264,62 @@ export async function sendEmail(input: OutgoingEmail) {
     console.info(JSON.stringify({ event: "email.console_delivery", template: input.template }));
     return { providerId: `console-${crypto.randomUUID()}` };
   }
-  if (adapter !== "gmail") throw new Error("MAIL_ADAPTER must be either console or gmail.");
-  const requestTimeoutMs = gmailRequestTimeoutMs();
-  const raw = Buffer.from(mimeMessage(input), "utf8").toString("base64url");
-  // Reject invalid headers before contacting even the OAuth endpoint.
-  const accessToken = await gmailAccessToken(requestTimeoutMs);
-  return withGmailRequestDeadline("delivery", requestTimeoutMs, async (signal) => {
-    const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-      body: JSON.stringify({ raw }),
-      cache: "no-store",
-      signal,
+  if (adapter !== "gmail") {
+    throw new MailDeliveryError(
+      "MAIL_ADAPTER must be either console or gmail.",
+      { kind: "definitely-rejected", code: "MAIL_PRE_SEND_REJECTED" },
+    );
+  }
+  let requestTimeoutMs: number;
+  let raw: string;
+  try {
+    requestTimeoutMs = gmailRequestTimeoutMs();
+    raw = Buffer.from(mimeMessage(input, context), "utf8").toString("base64url");
+  } catch (error) {
+    throw deliveryError(error, {
+      kind: "definitely-rejected",
+      code: "MAIL_PRE_SEND_REJECTED",
     });
-    if (!response.ok) throw new Error(`Gmail delivery failed (${response.status}).`);
-    const body = (await response.json()) as { id?: string };
-    const providerId = body.id?.trim();
-    if (!providerId) throw new Error("Gmail delivery returned no message ID.");
-    return { providerId };
-  });
+  }
+
+  let accessToken: string;
+  try {
+    accessToken = await gmailAccessToken(requestTimeoutMs);
+  } catch (error) {
+    throw deliveryError(error, {
+      kind: "definitely-rejected",
+      code: "GMAIL_OAUTH_FAILED",
+    });
+  }
+
+  try {
+    return await withGmailRequestDeadline("delivery", requestTimeoutMs, async (signal) => {
+      const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ raw }),
+        cache: "no-store",
+        signal,
+      });
+      if (!response.ok) {
+        const error = new Error(`Gmail delivery failed (${response.status}).`);
+        if ([400, 401, 403, 404, 405, 410, 413, 415, 422].includes(response.status)) {
+          throw new MailDeliveryError(
+            error.message,
+            { kind: "definitely-rejected", code: "GMAIL_DELIVERY_REJECTED" },
+          );
+        }
+        throw error;
+      }
+      const body = (await response.json()) as { id?: string };
+      const providerId = body.id?.trim();
+      if (!providerId) throw new Error("Gmail delivery returned no message ID.");
+      return { providerId };
+    });
+  } catch (error) {
+    throw deliveryError(error, {
+      kind: "ambiguous",
+      code: "GMAIL_DELIVERY_AMBIGUOUS",
+    });
+  }
 }

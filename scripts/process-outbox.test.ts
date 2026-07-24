@@ -21,6 +21,13 @@ const mocks = vi.hoisted(() => {
   const processOutboxBatch = vi.fn();
   const materializeDeliveryVariables = vi.fn();
   const sendEmail = vi.fn();
+  const classifyMailDeliveryError = vi.fn((): {
+    kind: "definitely-rejected" | "ambiguous";
+    code: string;
+  } => ({
+    kind: "ambiguous" as const,
+    code: "PROVIDER_OUTCOME_AMBIGUOUS",
+  }));
   const scheduleInactivityReminders = vi.fn();
   const scheduleSmartReminders = vi.fn();
   const health = {
@@ -39,6 +46,7 @@ const mocks = vi.hoisted(() => {
     processOutboxBatch,
     materializeDeliveryVariables,
     sendEmail,
+    classifyMailDeliveryError,
     scheduleInactivityReminders,
     scheduleSmartReminders,
     health,
@@ -71,6 +79,7 @@ vi.mock("../src/lib/notifications/outbox-worker", () => ({
 }));
 vi.mock("../src/lib/notifications/mailer", () => ({
   sendEmail: mocks.sendEmail,
+  classifyMailDeliveryError: mocks.classifyMailDeliveryError,
 }));
 vi.mock("../src/lib/notifications/delivery-variables", () => ({
   materializeDeliveryVariables: mocks.materializeDeliveryVariables,
@@ -231,6 +240,7 @@ describe("mail worker production composition", () => {
       const message = (materializeResult as { message: unknown }).message;
       providerResult = await dependencies.provider.send(message, {
         operationId: claim.operationId,
+        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
         permit: { phase: "post-provider" },
       });
       return { claimed: 1, swept: 0, outcomes: [] };
@@ -255,6 +265,8 @@ describe("mail worker production composition", () => {
       to: "learner@example.test",
       template: "reset-password",
       variables: materialized,
+    }, {
+      messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
     });
     expect(providerResult).toEqual({
       kind: "accepted",
@@ -262,6 +274,38 @@ describe("mail worker production composition", () => {
     });
   });
 
+  it("maps a typed pre-request mail failure to definite rejection", async () => {
+    const failure = new Error("Gmail OAuth request timed out.");
+    mocks.sendEmail.mockRejectedValueOnce(failure);
+    mocks.classifyMailDeliveryError.mockReturnValueOnce({
+      kind: "definitely-rejected",
+      code: "GMAIL_OAUTH_FAILED",
+    });
+    let providerResult: unknown;
+    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
+      provider: {
+        send(message: unknown, context: unknown): Promise<unknown>;
+      };
+    }) => {
+      providerResult = await dependencies.provider.send({
+        to: "learner@example.test",
+        template: "invitation",
+        variables: {},
+      }, {
+        operationId: "22222222-2222-4222-8222-222222222222",
+        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+        permit: { phase: "post-provider" },
+      });
+      return { claimed: 1, swept: 0, outcomes: [] };
+    });
+
+    await loadWorkerOnce();
+
+    expect(providerResult).toEqual({
+      kind: "definitely-rejected",
+      code: "GMAIL_OAUTH_FAILED",
+    });
+  });
   it("suppresses a row before provider delivery when delivery proof cannot be materialized", async () => {
     mocks.materializeDeliveryVariables.mockResolvedValue(null);
     let materializeResult: unknown;

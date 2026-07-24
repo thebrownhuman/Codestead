@@ -4,7 +4,11 @@ import { hostname } from "node:os";
 import { pool } from "../src/lib/db/client";
 import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
 import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
-import { sendEmail, type OutgoingEmail } from "../src/lib/notifications/mailer";
+import {
+  classifyMailDeliveryError,
+  sendEmail,
+  type OutgoingEmail,
+} from "../src/lib/notifications/mailer";
 import type { EmailTemplate } from "../src/lib/notifications/outbox";
 import {
   PostgresOutboxStore,
@@ -188,12 +192,27 @@ async function processBatch(
     },
     provider: {
       adapter,
-      send: async (message) => {
-        const receipt = await sendEmail(message);
-        return {
-          kind: "accepted",
-          providerMessageId: receipt.providerId,
-        };
+      send: async (message, context) => {
+        try {
+          const receipt = await sendEmail(message, {
+            messageId: context.messageId,
+          });
+          return {
+            kind: "accepted" as const,
+            providerMessageId: receipt.providerId,
+          };
+        } catch (error) {
+          const failure = classifyMailDeliveryError(error);
+          return failure.kind === "definitely-rejected"
+            ? {
+                kind: "definitely-rejected" as const,
+                code: failure.code,
+              }
+            : {
+                kind: "ambiguous" as const,
+                code: failure.code,
+              };
+        }
       },
     },
     claimOwner,
