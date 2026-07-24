@@ -44,18 +44,37 @@ class MigrationCleanupTimeoutError extends Error {
   }
 }
 
-function preserveFailureWithAggregateCause(primaryFailure, failures) {
-  const cause = new AggregateError(
-    failures,
-    "Production migration failed and cleanup was incomplete",
-  );
+function preserveFailureWithAggregateCause(primaryFailure, cleanupFailures) {
   if (primaryFailure instanceof Error) {
-    const failure = new Error(primaryFailure.message, { cause });
-    failure.name = primaryFailure.name;
-    return failure;
+    try {
+      const hasExistingCause = "cause" in primaryFailure;
+      const cleanupCause = hasExistingCause
+        ? new AggregateError(
+            cleanupFailures,
+            "Production migration failed and cleanup was incomplete",
+            { cause: primaryFailure.cause },
+          )
+        : new AggregateError(
+            cleanupFailures,
+            "Production migration failed and cleanup was incomplete",
+          );
+      Object.defineProperty(primaryFailure, "cause", {
+        value: cleanupCause,
+        configurable: true,
+        writable: true,
+        enumerable: false,
+      });
+    } catch {
+      // Never replace the primary failure because diagnostic attachment failed.
+    }
+    return primaryFailure;
   }
 
-  const failure = new Error("Production migration failed", { cause });
+  const cleanupCause = new AggregateError(
+    cleanupFailures,
+    "Production migration failed and cleanup was incomplete",
+  );
+  const failure = new Error("Production migration failed", { cause: cleanupCause });
   failure.name = "UNKNOWN";
   return failure;
 }
