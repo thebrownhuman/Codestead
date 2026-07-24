@@ -4,8 +4,10 @@ type DatabaseRoleModule = {
   DATABASE_ADMIN_LOCK_NAME: string;
   REVIEWED_APPLICATION_FUNCTIONS: ReadonlyArray<{
     signature: string;
-    role: string;
-    grantSql: string;
+    owner: string;
+    securityDefiner: boolean;
+    configuration: readonly string[];
+    allowedRoles: readonly string[];
   }>;
   reviewedApplicationFunctionPrivilegesSql: () => string;
   validateDatabaseRoleUrls: (input: {
@@ -80,16 +82,17 @@ describe("database least-privilege bootstrap", () => {
       {
         signature:
           "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
-        role: "learncoding_ops",
-        grantSql:
-          "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog"],
+        allowedRoles: ["learncoding_ops"],
       },
     ]);
     const reviewedGrant = databaseRoleBootstrap!
       .reviewedApplicationFunctionPrivilegesSql()
       .toLowerCase();
     expect(reviewedGrant).toContain(
-      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer) to learncoding_ops",
     );
     expect(reviewedGrant).not.toMatch(/to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu);
 

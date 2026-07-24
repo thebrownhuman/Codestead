@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
+import { REVIEWED_APPLICATION_FUNCTIONS } from "./bootstrap-database-roles.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -16,6 +17,9 @@ const ROLE_SPECS = Object.freeze([
   ["worker", "databaseWorkerUrl", "learncoding_worker"],
   ["ops", "databaseOpsUrl", "learncoding_ops"],
 ]);
+const RESTRICTED_ROLE_NAMES = Object.freeze(
+  ROLE_SPECS.map(([, , role]) => role),
+);
 const RUNTIME_ROLES = new Set(["learncoding_app", "learncoding_worker", "learncoding_ops"]);
 
 export class DatabaseRoleBoundaryError extends Error {
@@ -253,6 +257,96 @@ async function discoverApplicationObjects(client) {
   return { table: table.rows[0], sequence: sequence.rows[0], type: type.rows[0] };
 }
 
+export async function verifyReviewedApplicationRoutines(
+  client,
+  routines = REVIEWED_APPLICATION_FUNCTIONS,
+) {
+  let verified = 0;
+  for (const routine of routines) {
+    const result = await client.query(`
+      select pg_catalog.pg_get_userbyid(p.proowner) = $2 owner_exact,
+             p.prosecdef is not distinct from $3::boolean security_definer_exact,
+             p.proconfig is not distinct from $4::text[] configuration_exact,
+             (
+               not pg_catalog.has_function_privilege(0, p.oid, 'EXECUTE')
+               and not exists (
+                 select 1
+                   from pg_catalog.unnest($5::text[]) restricted(role_name)
+                  where pg_catalog.has_function_privilege(
+                          restricted.role_name,
+                          p.oid,
+                          'EXECUTE'
+                        ) is distinct from
+                        (restricted.role_name = any($6::text[]))
+               )
+             ) effective_execute_exact,
+             (
+               with observed(
+                 grantor, grantee, privilege_type, is_grantable
+               ) as (
+                 select acl.grantor,
+                        acl.grantee,
+                        acl.privilege_type,
+                        acl.is_grantable
+                   from pg_catalog.aclexplode(
+                     coalesce(
+                       p.proacl,
+                       pg_catalog.acldefault('f', p.proowner)
+                     )
+                   ) acl
+                  where acl.grantee <> p.proowner
+               ),
+               expected(
+                 grantor, grantee, privilege_type, is_grantable
+               ) as (
+                 select p.proowner,
+                        grantee.oid,
+                        'EXECUTE'::text,
+                        false
+                   from pg_catalog.unnest($6::text[]) allowed(role_name)
+                   join pg_catalog.pg_roles grantee
+                     on grantee.rolname = allowed.role_name
+               )
+               select not exists (
+                 select 1
+                   from (
+                     (
+                       select * from observed
+                       except all
+                       select * from expected
+                     )
+                     union all
+                     (
+                       select * from expected
+                       except all
+                       select * from observed
+                     )
+                   ) difference
+               )
+             ) routine_direct_acl_exact
+        from pg_catalog.pg_proc p
+       where p.oid = pg_catalog.to_regprocedure($1::text)::oid`,
+      [
+        routine.signature,
+        routine.owner,
+        routine.securityDefiner,
+        routine.configuration,
+        RESTRICTED_ROLE_NAMES,
+        routine.allowedRoles,
+      ],
+    );
+    if (result.rows.length !== 1 || !exactRow(result.rows[0], {
+      owner_exact: true,
+      security_definer_exact: true,
+      configuration_exact: true,
+      effective_execute_exact: true,
+      routine_direct_acl_exact: true,
+    })) fail();
+    verified += 1;
+  }
+  return verified;
+}
+
 async function verifyApplicationObjectAccess(client, objects) {
   let positiveChecks = 0;
   const table = qualifiedName(objects.table);
@@ -382,9 +476,11 @@ export async function verifyDatabaseRoleBoundaries(options) {
     lockClient = resources.get("ops").client;
     await acquireAdministrationLock(lockClient, lockTimeoutMs);
     lockAcquired = true;
-    const objects = requireApplicationObjects
-      ? await discoverApplicationObjects(lockClient)
-      : undefined;
+    let objects;
+    if (requireApplicationObjects) {
+      objects = await discoverApplicationObjects(lockClient);
+      positiveChecks += await verifyReviewedApplicationRoutines(lockClient);
+    }
     for (const [name] of ROLE_SPECS) {
       const role = parsed[name];
       const result = await verifyRole({

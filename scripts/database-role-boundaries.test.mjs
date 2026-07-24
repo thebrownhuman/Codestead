@@ -12,6 +12,7 @@ import {
 import {
   DatabaseRoleBoundaryError,
   verifyDatabaseRoleBoundaries,
+  verifyReviewedApplicationRoutines,
   validateDatabaseRoleBoundaryUrls,
 } from "./verify-database-role-boundaries.mjs";
 
@@ -191,14 +192,17 @@ test("accepts only the exact four distinct restricted-role URLs", () => {
 
 function makeClient(role, database, options) {
   const queries = [];
+  const queryParameters = [];
   let delegated = false;
   let grantCatalogVersion = 0;
   return {
     queries,
+    queryParameters,
     release() {},
-    async query(sql) {
+    async query(sql, parameters) {
       const normalized = String(sql).replace(/\s+/gu, " ").trim().toLowerCase();
       queries.push(normalized);
+      queryParameters.push(parameters);
       if (normalized.startsWith("select pg_try_advisory_lock")) {
         return { rows: [{ acquired: options.lockAvailable !== false }] };
       }
@@ -226,6 +230,17 @@ function makeClient(role, database, options) {
           create_allowed: false,
           schema_usage: role !== "learncoding_migrator",
           schema_create: false,
+        }] };
+      }
+      if (normalized.includes("routine_direct_acl_exact")) {
+        if (options.requiredRoutineMissing === true) return { rows: [] };
+        const tamper = options.routineContractTamper;
+        return { rows: [{
+          owner_exact: tamper !== "owner",
+          security_definer_exact: tamper !== "security-definer",
+          configuration_exact: tamper !== "configuration",
+          effective_execute_exact: tamper !== "effective-acl",
+          routine_direct_acl_exact: tamper !== "direct-acl",
         }] };
       }
       if (
@@ -354,7 +369,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 4,
-    positiveChecks: 31,
+    positiveChecks: 32,
     negativeChecks: 23,
   });
   for (const role of ["learncoding_app", "learncoding_worker", "learncoding_ops"]) {
@@ -362,6 +377,101 @@ test("proves application-object access without mutating application rows", async
     assert.equal(queries.some((sql) => sql.startsWith("explain (format json) insert")), true);
     assert.equal(queries.some((sql) => sql.startsWith("explain (format json) update")), true);
     assert.equal(queries.some((sql) => sql.startsWith("explain (format json) delete")), true);
+  }
+});
+
+test("requires the exact reviewed 0062 routine contract in application-object mode", async () => {
+  const verified = makePoolHarness();
+  const result = await verifyDatabaseRoleBoundaries({
+    ...validInput(),
+    poolFactory: verified.factory,
+    lockTimeoutMs: 50,
+    requireApplicationObjects: true,
+  });
+
+  assert.deepEqual(result, {
+    rolesAuthenticated: 4,
+    positiveChecks: 32,
+    negativeChecks: 23,
+  });
+  const routineQueries = verified.clients.get("learncoding_ops").queries.filter((sql) =>
+    sql.includes("routine_direct_acl_exact")
+  );
+  assert.equal(routineQueries.length, 1);
+  assert.match(routineQueries[0], /pg_catalog\.to_regprocedure/iu);
+  assert.match(routineQueries[0], /p\.prosecdef/iu);
+  assert.match(routineQueries[0], /p\.proconfig/iu);
+  assert.match(routineQueries[0], /pg_catalog\.aclexplode/iu);
+  assert.match(routineQueries[0], /has_function_privilege/iu);
+  const routineQueryIndex = verified.clients.get("learncoding_ops").queries.indexOf(
+    routineQueries[0],
+  );
+  assert.deepEqual(
+    verified.clients.get("learncoding_ops").queryParameters[routineQueryIndex],
+    [
+      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+      "learncoding_owner",
+      true,
+      ["search_path=pg_catalog"],
+      [
+        "learncoding_app",
+        "learncoding_migrator",
+        "learncoding_worker",
+        "learncoding_ops",
+      ],
+      ["learncoding_ops"],
+    ],
+  );
+
+  for (const options of [
+    { requiredRoutineMissing: true },
+    { routineContractTamper: "owner" },
+    { routineContractTamper: "security-definer" },
+    { routineContractTamper: "configuration" },
+    { routineContractTamper: "effective-acl" },
+    { routineContractTamper: "direct-acl" },
+  ]) {
+    const tampered = makePoolHarness(options);
+    await assert.rejects(
+      verifyDatabaseRoleBoundaries({
+        ...validInput(),
+        poolFactory: tampered.factory,
+        lockTimeoutMs: 50,
+        requireApplicationObjects: true,
+      }),
+      DatabaseRoleBoundaryError,
+    );
+    assert.equal(tampered.pools.every((pool) => pool.ended), true);
+  }
+});
+
+test("supports reviewed routines with no restricted-role execute allowance", async () => {
+  const contract = Object.freeze({
+    signature: "public.no_runtime_execute_contract()",
+    owner: "learncoding_owner",
+    securityDefiner: false,
+    configuration: Object.freeze(["search_path=pg_catalog"]),
+    allowedRoles: Object.freeze([]),
+  });
+  const verified = makeClient("learncoding_ops", "learncoding", {});
+
+  assert.equal(
+    await verifyReviewedApplicationRoutines(verified, [contract]),
+    1,
+  );
+  const queryIndex = verified.queries.findIndex((sql) =>
+    sql.includes("routine_direct_acl_exact")
+  );
+  assert.deepEqual(verified.queryParameters[queryIndex]?.[5], []);
+
+  for (const routineContractTamper of ["effective-acl", "direct-acl"]) {
+    const tampered = makeClient("learncoding_ops", "learncoding", {
+      routineContractTamper,
+    });
+    await assert.rejects(
+      verifyReviewedApplicationRoutines(tampered, [contract]),
+      DatabaseRoleBoundaryError,
+    );
   }
 });
 
@@ -379,7 +489,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 4,
-    positiveChecks: 31,
+    positiveChecks: 32,
     negativeChecks: 23,
   });
   for (const role of [
@@ -464,7 +574,7 @@ test("rechecks catalog state after a savepointed GRANT error without trusting it
 
     assert.deepEqual(result, {
       rolesAuthenticated: 4,
-      positiveChecks: 31,
+      positiveChecks: 32,
       negativeChecks: 23,
     });
     for (const role of [
