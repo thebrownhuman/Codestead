@@ -114,6 +114,7 @@ export interface ProcessOutboxBatchDeps<P, M> {
   readonly provider: MailProvider<M>;
   readonly claimOwner: string;
   readonly newClaimToken: () => string;
+  readonly shouldStop: () => boolean;
   readonly clock: { now(): Date };
   readonly retryPolicy: {
     unexpectedMaterializeError(input: Readonly<{
@@ -259,6 +260,7 @@ export async function processOutboxBatch<P, M>(
   let claimed = 0;
 
   for (let index = 0; index < deps.policy.batchSize; index += 1) {
+    if (deps.shouldStop()) break;
     const next = await deps.store.claimNext({
       owner: deps.claimOwner,
       token: deps.newClaimToken(),

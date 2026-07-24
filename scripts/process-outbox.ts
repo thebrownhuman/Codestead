@@ -114,6 +114,9 @@ async function cleanup() {
           : "POOL_SHUTDOWN_FAILED",
       }),
     );
+    if (error instanceof PoolShutdownTimeoutError) {
+      process.exit(1);
+    }
   }
 }
 
@@ -186,6 +189,7 @@ async function processBatch(
     },
     claimOwner,
     newClaimToken: randomUUID,
+    shouldStop: () => stopping,
     clock: { now: () => new Date() },
     retryPolicy: {
       unexpectedMaterializeError: ({ attempt, now }) =>
