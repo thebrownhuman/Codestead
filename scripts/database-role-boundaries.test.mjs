@@ -499,16 +499,19 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
     "learncoding_ops",
   ]) {
     const queries = harness.clients.get(role).queries;
+    const probesWithGrant = role !== "learncoding_migrator";
     assert.equal(
       queries.filter((sql) =>
         sql.includes("aclexplode") &&
         sql.includes("current_role_direct_grantable")
       ).length,
-      2,
+      probesWithGrant ? 2 : 1,
     );
     assert.equal(
-      queries.filter((sql) => sql.startsWith("grant select on table ")).length,
-      1,
+      queries.filter((sql) =>
+        sql.startsWith("grant select on table ")
+      ).length,
+      probesWithGrant ? 1 : 0,
     );
   }
 
@@ -562,41 +565,31 @@ test("rejects current-role grantability even when the target stays undelegated",
   }
 });
 
-test("rechecks catalog state after a savepointed GRANT error without trusting its code", async () => {
+test("fails closed when the fixed GRANT probe errors for any SQLSTATE", async () => {
   for (const grantProbeErrorCode of ["42501", "XX000"]) {
     const harness = makePoolHarness({ grantProbeErrorCode });
-    const result = await verifyDatabaseRoleBoundaries({
-      ...validInput(),
-      poolFactory: harness.factory,
-      lockTimeoutMs: 50,
-      requireApplicationObjects: true,
-    });
-
-    assert.deepEqual(result, {
-      rolesAuthenticated: 4,
-      positiveChecks: 32,
-      negativeChecks: 23,
-    });
-    for (const role of [
-      "learncoding_app",
-      "learncoding_migrator",
-      "learncoding_worker",
-      "learncoding_ops",
-    ]) {
-      const queries = harness.clients.get(role).queries;
-      const grantIndex = queries.findIndex((sql) =>
-        sql.startsWith("grant select on table ")
-      );
-      const rollbackIndex = queries.indexOf(
-        "rollback to savepoint codestead_table_grant_probe",
-      );
-      const catalogIndexes = queries.flatMap((sql, index) =>
-        sql.includes("current_role_direct_grantable") ? [index] : []
-      );
-      assert.equal(catalogIndexes.length, 2);
-      assert.equal(grantIndex < rollbackIndex, true);
-      assert.equal(rollbackIndex < catalogIndexes[1], true);
-    }
+    await assert.rejects(
+      verifyDatabaseRoleBoundaries({
+        ...validInput(),
+        poolFactory: harness.factory,
+        lockTimeoutMs: 50,
+        requireApplicationObjects: true,
+      }),
+      DatabaseRoleBoundaryError,
+    );
+    assert.equal(harness.pools.every((pool) => pool.ended), true);
+    const queries = harness.clients.get("learncoding_app").queries;
+    assert.equal(
+      queries.filter((sql) =>
+        sql.includes("current_role_direct_grantable")
+      ).length,
+      1,
+    );
+    assert.equal(
+      queries.includes("rollback to savepoint codestead_table_grant_probe"),
+      false,
+    );
+    assert.equal(queries.includes("rollback"), true);
   }
 });
 
