@@ -15,9 +15,10 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
   Object.freeze({
     signature:
       "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
-    role: OPS_ROLE,
-    grantSql:
-      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: Object.freeze(["search_path=pg_catalog"]),
+    allowedRoles: Object.freeze([OPS_ROLE]),
   }),
 ]);
 
@@ -26,20 +27,23 @@ function sqlLiteral(value) {
 }
 
 export function reviewedApplicationFunctionPrivilegesSql() {
-  return REVIEWED_APPLICATION_FUNCTIONS.map((routine, index) => {
-    const blockTag = `codestead_reviewed_function_${index}`;
-    return `
+  return REVIEWED_APPLICATION_FUNCTIONS.flatMap((routine, routineIndex) =>
+    routine.allowedRoles.map((role, roleIndex) => {
+      const blockTag = `codestead_reviewed_function_${routineIndex}_${roleIndex}`;
+      const grantSql = `grant execute on function ${routine.signature} to ${role}`;
+      return `
       do $${blockTag}$
       begin
-        if pg_catalog.to_regrole(${sqlLiteral(routine.role)})
+        if pg_catalog.to_regrole(${sqlLiteral(role)})
              is not null
            and pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
              is not null then
-          execute ${sqlLiteral(routine.grantSql)};
+          execute ${sqlLiteral(grantSql)};
         end if;
       end
       $${blockTag}$`;
-  }).join(";\n");
+    }),
+  ).join(";\n");
 }
 
 const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
@@ -1308,10 +1312,11 @@ export async function verifyDatabaseRoleBootstrapState(
     [
       postgresDatabase,
       JSON.stringify(
-        REVIEWED_APPLICATION_FUNCTIONS.map(({ signature, role }) => ({
-          signature,
-          allowed_role: role,
-        })),
+        REVIEWED_APPLICATION_FUNCTIONS.flatMap(({ signature, allowedRoles }) =>
+          allowedRoles.map((allowedRole) => ({
+            signature,
+            allowed_role: allowedRole,
+          }))),
       ),
     ],
   );
