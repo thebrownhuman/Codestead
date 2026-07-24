@@ -376,10 +376,37 @@ jobs:
           node-version: 22.23.1
           cache: npm
       - run: npm ci
+      - run: npm run test:mail-delivery-scope-0059:registration
       - run: npm run test:integration
       - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
       - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737
       - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh
+      - name: Install PostgreSQL 18 from the official PGDG repository
+        run: |
+          set -Eeuo pipefail
+          key_path="$RUNNER_TEMP/postgresql-pgdg.asc"
+          curl --fail --silent --show-error --location \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            --output "$key_path"
+          fingerprint="$(
+            gpg --batch --show-keys --with-colons "$key_path" \
+              | awk -F: '$1 == "fpr" { print $10; exit }'
+          )"
+          [[ "$fingerprint" == B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8 ]]
+          sudo install -m 0755 -d /usr/share/postgresql-common/pgdg
+          sudo install -m 0644 "$key_path" \
+            /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          printf '%s\n' \
+            'Types: deb' \
+            'URIs: https://apt.postgresql.org/pub/repos/apt' \
+            'Suites: noble-pgdg' \
+            'Architectures: amd64' \
+            'Components: main' \
+            'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \
+            | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-18
+      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059
 
   curriculum-runtime:
     runs-on: ubuntu-24.04
