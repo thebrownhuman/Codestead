@@ -104,6 +104,12 @@ async function loadWorkerOnce() {
   await vi.waitFor(() => expect(mocks.poolEnd).toHaveBeenCalledTimes(1));
 }
 
+async function flushWorkerMicrotasks() {
+  for (let index = 0; index < 12; index += 1) {
+    await Promise.resolve();
+  }
+}
+
 describe("mail worker production composition", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -126,6 +132,7 @@ describe("mail worker production composition", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     process.argv = [...originalArgv];
     process.exitCode = undefined;
     vi.unstubAllEnvs();
@@ -158,6 +165,8 @@ describe("mail worker production composition", () => {
       maxRetryDelayMs: 6 * 60 * 60_000,
       terminalPersistenceAttempts: 3,
     });
+    expect(mocks.db.select).not.toHaveBeenCalled();
+    expect(mocks.db.update).not.toHaveBeenCalled();
   });
 
   it("materializes delivery-only variables and converts a provider receipt for the state machine", async () => {
@@ -311,5 +320,89 @@ describe("mail worker production composition", () => {
     expect(mocks.health.retry).not.toHaveBeenCalled();
     expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
     expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["SIGTERM", "SIGINT"] as const)(
+    "interrupts the poll wait on %s and exits without claiming another batch",
+    async (signal) => {
+      vi.useFakeTimers();
+      vi.stubEnv("OUTBOX_POLL_SECONDS", "1");
+      process.argv = [originalArgv[0]!, originalArgv[1]!];
+      const before = {
+        SIGTERM: process.listeners("SIGTERM"),
+        SIGINT: process.listeners("SIGINT"),
+      };
+      mocks.processOutboxBatch.mockImplementation(async () => {
+        if (mocks.processOutboxBatch.mock.calls.length === 1) {
+          return { claimed: 0, swept: 0, outcomes: [] } satisfies BatchResult;
+        }
+        throw new Error("LEGACY_CONTINUOUS_LOOP_TEST_CLEANUP");
+      });
+
+      await import("./process-outbox");
+      await flushWorkerMicrotasks();
+      expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
+
+      const signalHandler = process.listeners(signal)
+        .find((listener) => !before[signal].includes(listener));
+      if (!signalHandler) {
+        await vi.advanceTimersByTimeAsync(1_000);
+        await flushWorkerMicrotasks();
+        expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+        expect(signalHandler).toBeTypeOf("function");
+        return;
+      }
+
+      signalHandler(signal);
+      await flushWorkerMicrotasks();
+
+      expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+      expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
+      expect(mocks.health.success).toHaveBeenCalledTimes(1);
+      expect(mocks.health.retry).not.toHaveBeenCalled();
+      expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
+      expect(
+        process.listeners("SIGTERM")
+          .filter((listener) => !before.SIGTERM.includes(listener)),
+      ).toEqual([]);
+      expect(
+        process.listeners("SIGINT")
+          .filter((listener) => !before.SIGINT.includes(listener)),
+      ).toEqual([]);
+    },
+  );
+
+  it("bounds pool cleanup to five seconds and reports timeout without PII", async () => {
+    vi.useFakeTimers();
+    mocks.poolEnd.mockImplementationOnce(
+      () => new Promise<undefined>(() => undefined),
+    );
+    process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
+
+    await import("./process-outbox");
+    await flushWorkerMicrotasks();
+
+    expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
+    expect(mocks.health.success).toHaveBeenCalledTimes(1);
+    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+    expect(process.exitCode).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(4_999);
+    await flushWorkerMicrotasks();
+    expect(process.exitCode).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushWorkerMicrotasks();
+
+    expect(process.exitCode).toBe(1);
+    const entries = vi.mocked(console.error).mock.calls
+      .map(([entry]) => String(entry))
+      .filter((entry) => entry.includes('"event":"email.worker_cleanup_failed"'));
+    expect(entries).toHaveLength(1);
+    expect(JSON.parse(entries[0]!)).toEqual({
+      event: "email.worker_cleanup_failed",
+      code: "POOL_SHUTDOWN_TIMEOUT",
+    });
+    expect(entries[0]).not.toMatch(/row|operation|recipient|provider|token/i);
   });
 });
