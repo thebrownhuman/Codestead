@@ -139,6 +139,14 @@ for (const [modelName, config] of Object.entries(models)) {
     config.services?.app?.environment?.UPLOADS_ENABLED === (modelName === "uploads" || modelName === "combined" ? "true" : "false"),
     `${modelName} app must receive UPLOADS_ENABLED`,
   );
+  expect(
+    config.services?.["mail-worker"]?.environment?.MAIL_OUTBOX_PHASE === "dual-write-v1",
+    `${modelName} mail worker must render the reviewed dual-write phase`,
+  );
+  expect(
+    config.services?.["mail-worker"]?.environment?.OUTBOX_WORKER_MODE === "fenced-postgres-v1",
+    `${modelName} mail worker must render the exact fenced claimant`,
+  );
   for (const [name, service] of Object.entries(config.services ?? {})) {
     const consumesSecrets = (service.secrets?.length ?? 0) > 0;
     const expectedGroups = consumesSecrets ? ["2000"] : [];

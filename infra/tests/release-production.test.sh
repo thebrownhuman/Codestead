@@ -35,7 +35,10 @@ if grep -Fq 'Browser-local crash durability remains a separate implementation' "
 fi
 
 chmod 0700 "$work"
-mkdir -p "$work/bin" "$work/data" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" "$work/secrets"
+mkdir -p "$work/bin" "$work/data" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" \
+  "$work/run" "$work/secrets"
+touch "$work/run/learncoding-backup.lock"
+chmod 0600 "$work/run/learncoding-backup.lock"
 touch "$work/repo/compose.yaml" "$work/compose.env"
 cat >"$work/compose.env" <<EOF
 APP_URL=https://pilot.example.test
@@ -44,6 +47,8 @@ POSTGRES_UID=999
 POSTGRES_GID=999
 LEARN_DATA_ROOT=$work/data
 UPLOADS_ENABLED=false
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
 EOF
 printf '%s\n' 'reviewed host firewall fixture' >"$work/repo/infra/runner-vm/host-runner.nft"
 cp "$repo_root/infra/ops/package-release-tree.py" "$work/repo/infra/ops/package-release-tree.py"
@@ -287,6 +292,10 @@ if [[ "$#" == 2 && "$1" == "ps" && "$2" == "-q" ]]; then
       printf 'old-%s-container\n' "$service"
     done
   elif [[ "${FAKE_SCENARIO:-}" == "pointer-second" \
+    || "${FAKE_SCENARIO:-}" == "mail-cutover-success" \
+    || "${FAKE_SCENARIO:-}" == "mail-drain-failure" \
+    || "${FAKE_SCENARIO:-}" == "mail-contract-failure" \
+    || "${FAKE_SCENARIO:-}" == "mail-backup-lock-busy" \
     || "${FAKE_SCENARIO:-}" == "runtime-state-active-fsync-failure" \
     || "${FAKE_SCENARIO:-}" == "post-active-target-fsync-failure" \
     || "${FAKE_SCENARIO:-}" == "post-active-pointer-fsync-failure" ]]; then
@@ -362,6 +371,32 @@ if [[ "$#" == 11 && "$1" == "stop" && "$2" == "--timeout" && "$3" == "60" ]]; th
 fi
 
 if [[ "$#" == 6 && "$1" == "--profile" && "$2" == "uploads" && "$3" == "stop" && "$4" == "--timeout" && "$5" == "60" && "$6" == "scan-worker" ]]; then
+  exit 0
+fi
+
+if [[ "$1" == "exec" && " $* " == *" psql "* \
+  && " $* " == *" --host=/run/learncoding-postgres "* \
+  && " $* " == *" mail-store-drain-gate-v1 "* ]]; then
+  [[ " $* " == *" --no-psqlrc "* && " $* " == *" --quiet "* \
+    && " $* " == *" --no-align "* && " $* " == *" --tuples-only "* ]] || die_unknown
+  if [[ "${FAKE_SCENARIO:-}" == "mail-drain-failure" ]]; then
+    printf '1|0|0\n'
+  else
+    printf '0|0|0\n'
+  fi
+  exit 0
+fi
+
+if [[ "$1" == "exec" && " $* " == *" psql "* \
+  && " $* " == *" --host=/run/learncoding-postgres "* \
+  && " $* " == *" mail-store-contract-gate-v1 "* ]]; then
+  [[ " $* " == *" --no-psqlrc "* && " $* " == *" --quiet "* \
+    && " $* " == *" --no-align "* && " $* " == *" --tuples-only "* ]] || die_unknown
+  if [[ "${FAKE_SCENARIO:-}" == "mail-contract-failure" ]]; then
+    printf 't|t|t|0|1\n'
+  else
+    printf 't|t|t|0|0\n'
+  fi
   exit 0
 fi
 
@@ -453,6 +488,9 @@ swap_lock_path() {
 }
 if [[ "${FAKE_SCENARIO:-}" == lock-path-swap-before-flock ]]; then
   swap_lock_path
+fi
+if [[ "${FAKE_SCENARIO:-}" == mail-backup-lock-busy && "${*: -1}" == 8 ]]; then
+  exit 75
 fi
 /usr/bin/flock "$@"
 flock_status="$?"
@@ -714,6 +752,8 @@ POSTGRES_UID=999
 POSTGRES_GID=999
 LEARN_DATA_ROOT=$work/data
 UPLOADS_ENABLED=false
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
 EOF
 echo "ok - release rejects an IPv4 APP_URL before Docker"
 
@@ -1042,6 +1082,125 @@ grep -Fxq "git_commit=$second_shared_commit" "$shared_records/current-release.en
   fail "current release pointer Git commit is wrong"
 }
 echo "ok - consecutive releases retain the exact previous Git/release pointer"
+
+dual_contract="$second_shared_record/mail-outbox-contract.env"
+grep -Fxq 'SCHEMA_VERSION=1' "$dual_contract" || fail "dual-write release omitted its contract schema"
+grep -Fxq 'MAIL_OUTBOX_PHASE=dual-write-v1' "$dual_contract" || fail "dual-write release omitted its phase"
+grep -Fxq 'OUTBOX_WORKER_MODE=fenced-postgres-v1' "$dual_contract" || fail "dual-write release omitted its fenced claimant"
+grep -Fxq 'STORE_CUTOVER=false' "$dual_contract" || fail "dual-write release was mislabeled as a cutover"
+echo "ok - dual-write release records its fenced claimant contract"
+
+printf '%s\n' '# reviewed mail store cutover release' >>"$work/repo/compose.yaml"
+git -C "$work/repo" add compose.yaml
+git -C "$work/repo" commit -qm 'fixture mail store cutover release'
+regenerate_release_fixture
+
+set_mail_release_contract() {
+  local phase="$1" mode="$2"
+  sed -i "s/^MAIL_OUTBOX_PHASE=.*/MAIL_OUTBOX_PHASE=$phase/" "$work/compose.env"
+  sed -i "s/^OUTBOX_WORKER_MODE=.*/OUTBOX_WORKER_MODE=$mode/" "$work/compose.env"
+}
+set_mail_release_contract store-v1 fenced-postgres-v1
+
+mail_cutover_base="$work/mail-cutover-base"
+cp -a "$shared_records" "$mail_cutover_base"
+
+mail_flag_records="$work/mail-cutover-flag-conflict"
+cp -a "$mail_cutover_base" "$mail_flag_records"
+RUN_RECORD_ROOT="$mail_flag_records" run_release mail-cutover-success \
+  --mail-store-cutover --schema-backward-compatible
+unset RUN_RECORD_ROOT
+[[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted generic automatic rollback"
+grep -Fq 'mutually exclusive' "$RELEASE_CASE_DIR/stderr" || {
+  fail "mail cutover/schema rollback flag conflict was not explicit"
+}
+echo "ok - mail cutover cannot enable legacy automatic rollback"
+
+mail_backup_records="$work/mail-cutover-backup-lock"
+cp -a "$mail_cutover_base" "$mail_backup_records"
+cp "$mail_backup_records/current-release.env" "$work/mail-backup-pointer-before.env"
+RUN_RECORD_ROOT="$mail_backup_records" run_release mail-backup-lock-busy --mail-store-cutover
+unset RUN_RECORD_ROOT
+[[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover ignored the active host backup writer lock"
+grep -Fq 'host backup writer lock' "$RELEASE_CASE_DIR/stderr" || {
+  fail "host backup writer lock refusal was not explicit"
+}
+cmp -s "$mail_backup_records/current-release.env" "$work/mail-backup-pointer-before.env" || {
+  fail "backup-lock refusal advanced the release pointer"
+}
+if grep -Fq $'\tstop\t--timeout\t60\tapp' "$RELEASE_CASE_DIR/docker.log"; then
+  fail "mail cutover stopped mutators before fencing the host backup writer"
+fi
+echo "ok - mail cutover fences the independent host backup writer first"
+
+mail_drain_records="$work/mail-cutover-drain-failure"
+cp -a "$mail_cutover_base" "$mail_drain_records"
+cp "$mail_drain_records/current-release.env" "$work/mail-drain-pointer-before.env"
+RUN_RECORD_ROOT="$mail_drain_records" run_release mail-drain-failure --mail-store-cutover
+unset RUN_RECORD_ROOT
+[[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted an in-flight pre-cutover claim"
+grep -Fq 'pre-cutover mail claims did not drain' "$RELEASE_CASE_DIR/stderr" || {
+  fail "pre-cutover mail drain refusal was not explicit"
+}
+if grep -Fq $'\t--exit-code-from\tmigrate\tmigrate' "$RELEASE_CASE_DIR/docker.log"; then
+  fail "mail cutover migrated before the pre-cutover claimant drained"
+fi
+cmp -s "$mail_drain_records/current-release.env" "$work/mail-drain-pointer-before.env" || {
+  fail "mail drain refusal advanced the release pointer"
+}
+echo "ok - mail cutover drains the pre-cutover claimant before 0059"
+
+mail_contract_records="$work/mail-cutover-contract-failure"
+cp -a "$mail_cutover_base" "$mail_contract_records"
+cp "$mail_contract_records/current-release.env" "$work/mail-contract-pointer-before.env"
+RUN_RECORD_ROOT="$mail_contract_records" run_release mail-contract-failure --mail-store-cutover
+unset RUN_RECORD_ROOT
+[[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted an incomplete 0059 contract"
+grep -Fq '0059 delivery-scope contract is incomplete' "$RELEASE_CASE_DIR/stderr" || {
+  fail "0059 contract refusal was not explicit"
+}
+if grep -Fq $'\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tpostgres\tapp' "$RELEASE_CASE_DIR/docker.log"; then
+  fail "mail worker started before the 0059 contract passed"
+fi
+cmp -s "$mail_contract_records/current-release.env" "$work/mail-contract-pointer-before.env" || {
+  fail "0059 contract refusal advanced the release pointer"
+}
+echo "ok - mail cutover requires the completed 0059 catch-up contract"
+
+mail_success_records="$work/mail-cutover-success"
+cp -a "$mail_cutover_base" "$mail_success_records"
+RUN_RECORD_ROOT="$mail_success_records" run_release mail-cutover-success --mail-store-cutover
+unset RUN_RECORD_ROOT
+[[ "$RELEASE_STATUS" == 0 ]] || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "gated mail store cutover failed"
+}
+mail_success_id="$(sed -n 's/^release_id=//p' "$mail_success_records/current-release.env")"
+mail_success_record="$mail_success_records/$mail_success_id"
+cat >"$work/expected-mail-cutover-contract.env" <<'EOF'
+SCHEMA_VERSION=1
+MAIL_OUTBOX_PHASE=store-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+STORE_CUTOVER=true
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+EOF
+cmp -s "$mail_success_record/mail-outbox-contract.env" "$work/expected-mail-cutover-contract.env" || {
+  fail "successful mail cutover evidence is incomplete"
+}
+backup_lock_line="$(line_number $'\tmail-outbox-host-backup-fence\tcompleted' "$mail_success_record/stages.tsv")"
+mutator_stop_line="$(line_number $'\tstop-database-mutators\tstarted' "$mail_success_record/stages.tsv")"
+drain_line="$(line_number $'\tmail-outbox-drain\tstarted' "$mail_success_record/stages.tsv")"
+migrate_line="$(line_number $'\tmigrate\tstarted' "$mail_success_record/stages.tsv")"
+contract_line="$(line_number $'\tmail-outbox-0059-catch-up\tstarted' "$mail_success_record/stages.tsv")"
+core_line="$(line_number $'\tcore-start\tstarted' "$mail_success_record/stages.tsv")"
+(( backup_lock_line < mutator_stop_line && mutator_stop_line < drain_line \
+  && drain_line < migrate_line && migrate_line < contract_line && contract_line < core_line )) || {
+  fail "mail cutover did not preserve backup-fence -> drain -> 0059 -> claimant order"
+}
+echo "ok - mail store cutover is ordered and durably evidenced"
+
+set_mail_release_contract dual-write-v1 fenced-postgres-v1
 
 publication_records="$work/publication-release-records"
 publication_runtime_state="$work/publication-runtime-state"
