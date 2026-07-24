@@ -413,7 +413,25 @@ export async function runRetention(input: {
       client,
       `select count(*)::text as count from email_outbox
         where status in ('sent', 'suppressed', 'failed', 'quarantined')
+          and not (
+            status = 'quarantined'
+            and provider_call_started is not null
+            and provider_message_id is null
+          )
           and coalesce(sent_at, updated_at) < $1`,
+      [cutoffs.terminalEmailDeliveryRecords],
+    );
+    const unresolvedEmailAuthorityEligible = await count(
+      client,
+      `select count(*)::text as count from email_outbox
+        where status = 'quarantined'
+          and provider_call_started is not null
+          and provider_message_id is null
+          and coalesce(sent_at, updated_at) < $1
+          and (
+            to_email is distinct from 'redacted+' || id::text || '@invalid.local'
+            or variables is distinct from '{}'::jsonb
+          )`,
       [cutoffs.terminalEmailDeliveryRecords],
     );
     const oldAudit = await count(
@@ -490,6 +508,11 @@ export async function runRetention(input: {
       );
       categories.objects = category(objectEligible, 0, "dry-run");
       categories.terminalEmailDeliveryRecords = category(emailEligible, 0, "dry-run");
+      categories.unresolvedEmailDeliveryAuthority = transitionedCategory(
+        unresolvedEmailAuthorityEligible,
+        0,
+        "dry-run; would redact recipient and variables while retaining unresolved provider authority",
+      );
       categories.backupExpiryEligibility = transitionedCategory(
         backupExpiryEligible,
         0,
@@ -589,10 +612,41 @@ export async function runRetention(input: {
           "Marked expired; not physically deleted in the same run.",
         );
 
+        const redactedEmailAuthority = await client.query<IdRow>(
+          `update email_outbox
+              set to_email = 'redacted+' || id::text || '@invalid.local',
+                  variables = '{}'::jsonb,
+                  updated_at = $2
+            where id in (
+              select id from email_outbox
+               where status = 'quarantined'
+                 and provider_call_started is not null
+                 and provider_message_id is null
+                 and coalesce(sent_at, updated_at) < $1
+                 and (
+                   to_email is distinct from 'redacted+' || id::text || '@invalid.local'
+                   or variables is distinct from '{}'::jsonb
+                 )
+               order by coalesce(sent_at, updated_at) asc, id asc limit $3
+            )
+            returning id`,
+          [cutoffs.terminalEmailDeliveryRecords, now, limit],
+        );
+        categories.unresolvedEmailDeliveryAuthority = transitionedCategory(
+          unresolvedEmailAuthorityEligible,
+          redactedEmailAuthority.rowCount ?? 0,
+          "Recipient and variables redacted; unresolved provider authority evidence retained until reconciliation.",
+        );
+
         const deletedEmail = await client.query<IdRow>(
           `delete from email_outbox where id in (
              select id from email_outbox
               where status in ('sent', 'suppressed', 'failed', 'quarantined')
+                and not (
+                  status = 'quarantined'
+                  and provider_call_started is not null
+                  and provider_message_id is null
+                )
                 and coalesce(sent_at, updated_at) < $1
               order by coalesce(sent_at, updated_at) asc, id asc limit $2
            ) returning id`,
