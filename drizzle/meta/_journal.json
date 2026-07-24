@@ -428,6 +428,13 @@
       "when": 1784898036015,
       "tag": "0060_mail_outbox_payload_immutability",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1784921980000,
+      "tag": "0061_mail_worker_outbox_privileges",
+      "breakpoints": true
     }
   ]
 }

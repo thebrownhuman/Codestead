@@ -13,6 +13,74 @@ const OPS_ROLE = "learncoding_ops";
 const LOGIN_ROLES = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
 // Fixed reviewed runtime-function allowlist. Empty for this release.
 export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([]);
+const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
+  "id",
+  "user_id",
+  "to_email",
+  "template",
+  "template_version",
+  "variables",
+  "idempotency_key",
+  "operation_id",
+  "delivery_scope_key",
+  "status",
+  "attempt_count",
+  "claim_token",
+  "claim_owner",
+  "claim_version",
+  "lease_expires_at",
+  "provider_call_started",
+  "adapter",
+  "provider_message_id",
+  "next_attempt_at",
+  "sent_at",
+  "quarantined_at",
+  "last_error_code",
+  "created_at",
+  "updated_at",
+]);
+export const MAIL_WORKER_OUTBOX_INSERT_COLUMNS = Object.freeze([
+  "operation_id",
+  "user_id",
+  "delivery_scope_key",
+  "to_email",
+  "template",
+  "template_version",
+  "variables",
+  "idempotency_key",
+  "status",
+  "next_attempt_at",
+]);
+export const MAIL_WORKER_OUTBOX_UPDATE_COLUMNS = Object.freeze([
+  "status",
+  "attempt_count",
+  "claim_token",
+  "claim_owner",
+  "claim_version",
+  "lease_expires_at",
+  "provider_call_started",
+  "adapter",
+  "provider_message_id",
+  "next_attempt_at",
+  "sent_at",
+  "quarantined_at",
+  "last_error_code",
+  "updated_at",
+]);
+
+export function mailWorkerOutboxPrivilegesSql() {
+  const allColumns = MAIL_WORKER_OUTBOX_COLUMNS.join(", ");
+  const insertColumns = MAIL_WORKER_OUTBOX_INSERT_COLUMNS.join(", ");
+  const updateColumns = MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.join(", ");
+  return `
+    revoke all on table public.email_outbox from learncoding_worker;
+    revoke all (${allColumns}) on table public.email_outbox from learncoding_worker;
+    grant select on table public.email_outbox to learncoding_worker;
+    grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker;
+    grant update (${updateColumns}) on table public.email_outbox to learncoding_worker;
+  `;
+}
+
 const MAX_LOCK_TIMEOUT_MS = 120_000;
 const LOCK_POLL_MS = 500;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
@@ -692,6 +760,13 @@ async function reconcilePrivileges(client) {
     alter default privileges for role learncoding_owner in schema public
       grant usage on types to learncoding_app, learncoding_worker, learncoding_ops`);
 
+  const emailOutbox = await client.query(
+    "select to_regclass('public.email_outbox') is not null present",
+  );
+  if (emailOutbox.rows[0]?.present === true) {
+    await client.query(mailWorkerOutboxPrivilegesSql());
+  }
+
   const drizzleExists = await client.query(
     "select exists(select 1 from pg_namespace where nspname = 'drizzle') present",
   );
@@ -894,7 +969,7 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
          select 1
            from pg_class c
            join pg_namespace n on n.oid = c.relnamespace
-           cross join unnest(array['learncoding_app','learncoding_worker','learncoding_ops']) role_name
+           cross join unnest(array['learncoding_app','learncoding_ops']) role_name
           where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
             and (
               not has_table_privilege(role_name, c.oid, 'SELECT')
@@ -907,6 +982,53 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
               or has_table_privilege(role_name, c.oid, 'MAINTAIN')
             )
        ) table_privileges_exact,
+       not exists (
+         select 1
+           from pg_class c
+           join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
+            and c.relname <> 'email_outbox'
+            and (
+              not has_table_privilege('learncoding_worker', c.oid, 'SELECT')
+              or not has_table_privilege('learncoding_worker', c.oid, 'INSERT')
+              or not has_table_privilege('learncoding_worker', c.oid, 'UPDATE')
+              or not has_table_privilege('learncoding_worker', c.oid, 'DELETE')
+              or has_table_privilege('learncoding_worker', c.oid, 'TRUNCATE')
+              or has_table_privilege('learncoding_worker', c.oid, 'REFERENCES')
+              or has_table_privilege('learncoding_worker', c.oid, 'TRIGGER')
+              or has_table_privilege('learncoding_worker', c.oid, 'MAINTAIN')
+            )
+       ) worker_other_table_privileges_exact,
+       case when to_regclass('public.email_outbox') is null then true
+         else
+           has_table_privilege(
+             'learncoding_worker', 'public.email_outbox', 'SELECT'
+           )
+           and not has_table_privilege(
+             'learncoding_worker', 'public.email_outbox', 'DELETE'
+           )
+           and not has_table_privilege(
+             'learncoding_worker', 'public.email_outbox', 'TRUNCATE'
+           )
+           and not has_column_privilege(
+             'learncoding_worker', 'public.email_outbox', 'variables', 'UPDATE'
+           )
+           and not has_column_privilege(
+             'learncoding_worker', 'public.email_outbox', 'to_email', 'UPDATE'
+           )
+           and not has_column_privilege(
+             'learncoding_worker', 'public.email_outbox', 'template', 'UPDATE'
+           )
+           and has_column_privilege(
+             'learncoding_worker', 'public.email_outbox', 'variables', 'INSERT'
+           )
+           and has_column_privilege(
+             'learncoding_worker', 'public.email_outbox', 'status', 'UPDATE'
+           )
+           and has_column_privilege(
+             'learncoding_worker', 'public.email_outbox', 'updated_at', 'UPDATE'
+           )
+       end worker_outbox_privileges_exact,
        not exists (
          select 1
            from pg_class c
