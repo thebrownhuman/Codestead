@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type {
   BoundaryResult,
   OutboxClaim,
@@ -200,6 +202,7 @@ type ClaimFenceInput = Readonly<{
 type BoundaryDecision =
   | "allowed"
   | "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY"
+  | "SYSTEM_EMAIL_AUTHORITY_INVALID"
   | "DELETION_NOTICE_CAPABILITY_INVALID";
 
 async function lockFenceScope(
@@ -265,15 +268,121 @@ async function lockPermitScope(
   return await advisoryLock(client, scope.lockKey, wait) ? scope : null;
 }
 
+const ACTIVATION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
+function canonicalActivationTokenHash(
+  claim: OutboxClaim<EmailOutboxPayload>,
+): string | null {
+  if (
+    claim.payload.userId !== null
+    || claim.payload.template !== "invitation"
+    || claim.payload.templateVersion !== "1"
+    || claim.payload.variables._mailProducer !== "access-request-approved"
+  ) {
+    return null;
+  }
+
+  const configured = process.env.APP_URL
+    ?? (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
+  if (!configured) return null;
+
+  try {
+    const appUrl = new URL(configured);
+    const protocolAllowed = process.env.NODE_ENV === "production"
+      ? appUrl.protocol === "https:"
+      : appUrl.protocol === "http:" || appUrl.protocol === "https:";
+    if (!protocolAllowed || appUrl.origin !== configured) return null;
+
+    const activationUrl = new URL(claim.payload.variables.url);
+    const tokens = activationUrl.searchParams.getAll("token");
+    if (tokens.length !== 1 || !ACTIVATION_TOKEN.test(tokens[0]!)) return null;
+    const canonicalUrl = `${configured}/activate?token=${tokens[0]}`;
+    if (claim.payload.variables.url !== canonicalUrl) return null;
+
+    return createHash("sha256").update(tokens[0]!).digest("hex");
+  } catch {
+    return null;
+  }
+}
+
 async function providerBoundaryDecision(
   client: OutboxPgClient,
   claim: OutboxClaim<EmailOutboxPayload>,
   scope: DeliveryScope,
+  approvedInvitationTokenHash: string | null,
+  lockAuthorityRows: boolean,
 ): Promise<BoundaryDecision | null> {
+  const accountUserLock = lockAuthorityRows ? "for share of account_user" : "";
+  const tombstoneLock = lockAuthorityRows ? "for share of tombstone" : "";
+  const adminAuthorityLock = lockAuthorityRows
+    ? "for share of source_request, admin_recipient"
+    : "";
+  const approvedAuthorityLock = lockAuthorityRows
+    ? "for share of source_invitation, source_request"
+    : "";
+  const rejectedAuthorityLock = lockAuthorityRows
+    ? "for share of source_request"
+    : "";
+
   const result = await client.query<{ decision: BoundaryDecision }>(`
     select case
-      when outbox.user_id is null then 'allowed'
+      when outbox.user_id is null
+        and outbox.template_version = '1'
+        and outbox.variables ->> '_mailOperationId' = outbox.operation_id::text
+        and outbox.variables ->> '_mailRecipient' = outbox.to_email
+        and (
+          (
+            outbox.template = 'access-request-admin'
+            and outbox.variables ->> '_mailProducer' = 'access-request-admin'
+            and exists (
+              select 1
+              from public.access_request source_request
+              join public."user" admin_recipient
+                on lower(admin_recipient.email) = outbox.to_email
+              where source_request.id::text = outbox.variables ->> '_mailSourceId'
+                and source_request.status = 'pending'
+                and admin_recipient.status = 'active'
+                and admin_recipient.role = 'admin'
+              ${adminAuthorityLock}
+            )
+          )
+          or (
+            outbox.template = 'invitation'
+            and outbox.variables ->> '_mailProducer' = 'access-request-approved'
+            and exists (
+              select 1
+              from public.invitation source_invitation
+              join public.access_request source_request
+                on source_invitation.access_request_id = source_request.id
+              where source_invitation.id::text = outbox.variables ->> '_mailSourceId'
+                and source_request.status = 'approved'
+                and lower(source_invitation.email) = outbox.to_email
+                and lower(source_request.email) = outbox.to_email
+                and source_request.name = outbox.variables ->> 'name'
+                and source_invitation.token_hash = $12::text
+                and source_invitation.expires_at > pg_catalog.statement_timestamp()
+                and source_invitation.consumed_at is null
+              ${approvedAuthorityLock}
+            )
+          )
+          or (
+            outbox.template = 'access-rejected'
+            and outbox.variables ->> '_mailProducer' = 'access-request-rejected'
+            and not (outbox.variables ? 'url')
+            and exists (
+              select 1
+              from public.access_request source_request
+              where source_request.id::text = outbox.variables ->> '_mailSourceId'
+                and source_request.status = 'rejected'
+                and lower(source_request.email) = outbox.to_email
+                and source_request.name = outbox.variables ->> 'name'
+              ${rejectedAuthorityLock}
+            )
+          )
+        ) then 'allowed'
+      when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
       when outbox.template <> 'account-deleted'
+        and outbox.template_version = '1'
         and exists (
           select 1 from public."user" account_user
           where account_user.id = outbox.user_id
@@ -288,19 +397,29 @@ async function providerBoundaryDecision(
                 and account_user.status in ('pending', 'active')
               )
               or (
-                outbox.template not in (
-                  'verify-email', 'reset-password', 'invitation',
-                  'access-rejected', 'account-deleted'
+                outbox.template in (
+                  'lost-device-proof', 'learning-request-updated', 'new-device',
+                  'session-revocation-requested', 'session-revocation-updated',
+                  'session-revoked', 'credential-changed', 'credential-revealed',
+                  'fallback-grant-changed', 'learning-plan-changed',
+                  'storage-quota-changed', 'inactivity-reminder',
+                  'inactivity-reminder-followup', 'inactivity-admin-notice',
+                  'daily-study-reminder', 'revision-reminder', 'goal-reminder',
+                  'challenge-reminder', 'exam-result', 'mastery-awarded',
+                  'appeal-updated', 'assessment-corrected', 'weekly-summary',
+                  'backup-status'
                 )
                 and account_user.status = 'active'
               )
             )
+          ${accountUserLock}
         ) then 'allowed'
       when outbox.template = 'account-deleted'
         and outbox.template_version = '1'
         and exists (
           select 1 from public."user" account_user
           where account_user.id = outbox.user_id and account_user.status = 'deleted'
+          ${accountUserLock}
         )
         and exists (
           select 1 from public.account_deletion_tombstone tombstone
@@ -308,6 +427,7 @@ async function providerBoundaryDecision(
             and tombstone.user_id = outbox.user_id
             and tombstone.primary_deletion_completed_at is not null
             and tombstone.report ->> 'runId' = outbox.variables ->> 'deletionRunId'
+          ${tombstoneLock}
         ) then 'allowed'
       when outbox.template = 'account-deleted'
         then 'DELETION_NOTICE_CAPABILITY_INVALID'
@@ -339,6 +459,7 @@ async function providerBoundaryDecision(
     claim.payload.template,
     claim.payload.templateVersion,
     JSON.stringify(claim.payload.variables),
+    approvedInvitationTokenHash,
   ]);
   return result.rows[0]?.decision ?? null;
 }
@@ -558,13 +679,30 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     const adapter = assertBoundedText(input.adapter, "Outbox adapter", 32);
     if (!ADAPTERS.has(adapter)) throw new Error("Outbox adapter is not allowed.");
     assertLeaseMs(input.leaseMs);
+    const approvedInvitationTokenHash = canonicalActivationTokenHash(claim);
 
     return transaction(this.pool, async (client) => {
       const scope = await lockFenceScope(client, claim, true);
       if (!scope) return { kind: "lost" };
 
-      const decision = await providerBoundaryDecision(client, claim, scope);
+      let decision = await providerBoundaryDecision(
+        client,
+        claim,
+        scope,
+        approvedInvitationTokenHash,
+        false,
+      );
       if (decision === null) return { kind: "lost" };
+      if (decision === "allowed") {
+        decision = await providerBoundaryDecision(
+          client,
+          claim,
+          scope,
+          approvedInvitationTokenHash,
+          true,
+        );
+        if (decision === null) return { kind: "lost" };
+      }
       if (decision !== "allowed") {
         const suppressed = await client.query<{ id: string }>(`
           update public.email_outbox
@@ -634,6 +772,62 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and template = $11::text
           and template_version = $12::text
           and variables = $13::jsonb
+          and (
+            user_id is not null
+            or (
+              user_id is null
+              and template_version = '1'
+              and variables ->> '_mailOperationId' = operation_id::text
+              and variables ->> '_mailRecipient' = to_email
+              and (
+                (
+                  template = 'access-request-admin'
+                  and variables ->> '_mailProducer' = 'access-request-admin'
+                  and exists (
+                    select 1
+                    from public.access_request source_request
+                    join public."user" admin_recipient
+                      on lower(admin_recipient.email) = to_email
+                    where source_request.id::text = variables ->> '_mailSourceId'
+                      and source_request.status = 'pending'
+                      and admin_recipient.status = 'active'
+                      and admin_recipient.role = 'admin'
+                  )
+                )
+                or (
+                  template = 'invitation'
+                  and variables ->> '_mailProducer' = 'access-request-approved'
+                  and exists (
+                    select 1
+                    from public.invitation source_invitation
+                    join public.access_request source_request
+                      on source_invitation.access_request_id = source_request.id
+                    where source_invitation.id::text = variables ->> '_mailSourceId'
+                      and source_request.status = 'approved'
+                      and lower(source_invitation.email) = to_email
+                      and lower(source_request.email) = to_email
+                      and source_request.name = variables ->> 'name'
+                      and source_invitation.token_hash = $14::text
+                      and source_invitation.expires_at > pg_catalog.statement_timestamp()
+                      and source_invitation.consumed_at is null
+                  )
+                )
+                or (
+                  template = 'access-rejected'
+                  and variables ->> '_mailProducer' = 'access-request-rejected'
+                  and not (variables ? 'url')
+                  and exists (
+                    select 1
+                    from public.access_request source_request
+                    where source_request.id::text = variables ->> '_mailSourceId'
+                      and source_request.status = 'rejected'
+                      and lower(source_request.email) = to_email
+                      and source_request.name = variables ->> 'name'
+                  )
+                )
+              )
+            )
+          )
         returning provider_call_started, lease_expires_at
       `, [
         claim.id,
@@ -649,6 +843,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         claim.payload.template,
         claim.payload.templateVersion,
         JSON.stringify(claim.payload.variables),
+        approvedInvitationTokenHash,
       ]);
       const row = result.rows[0];
       if (!row) return { kind: "lost" };
