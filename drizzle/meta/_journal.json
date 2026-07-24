@@ -435,6 +435,13 @@
       "when": 1784921980000,
       "tag": "0061_mail_worker_outbox_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1784925600000,
+      "tag": "0062_mail_outbox_retention_redaction",
+      "breakpoints": true
     }
   ]
 }

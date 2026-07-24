@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   mkdtempSync,
   readFileSync,
@@ -50,6 +50,70 @@ function run(command, args, options = {}) {
   return result;
 }
 
+function startPsql(port, database, username, sql) {
+  const child = spawn(
+    executable("psql"),
+    [
+      ...connectionArgs(port, database, username),
+      "--set=ON_ERROR_STOP=1",
+      "--quiet",
+    ],
+    {
+      cwd: repositoryRoot,
+      env: { ...process.env, PGCONNECT_TIMEOUT: "5" },
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    },
+  );
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  child.stdin.end(sql);
+
+  const completion = new Promise((resolve, reject) => {
+    let timeoutHandle;
+    child.once("error", reject);
+    child.once("close", (status, signal) => {
+      clearTimeout(timeoutHandle);
+      resolve({ status, signal, stdout, stderr });
+    });
+    timeoutHandle = setTimeout(() => {
+      child.kill();
+      reject(new Error(`psql session timed out for ${username}`));
+    }, 15_000);
+  });
+  return completion;
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+async function waitForScalar(
+  port,
+  database,
+  sql,
+  expected,
+  message,
+  timeoutMs = 5_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (scalar(port, database, sql) === expected) return;
+    await delay(25);
+  }
+  throw new Error(message);
+}
+
 async function unusedLoopbackPort() {
   const server = net.createServer();
   await new Promise((resolve, reject) => {
@@ -64,11 +128,11 @@ async function unusedLoopbackPort() {
   return address.port;
 }
 
-function connectionArgs(port, database) {
+function connectionArgs(port, database, username = "postgres") {
   return [
     "--host=127.0.0.1",
     `--port=${port}`,
-    "--username=postgres",
+    `--username=${username}`,
     `--dbname=${database}`,
     "--no-psqlrc",
   ];
@@ -78,7 +142,7 @@ function psql(port, database, sql, options = {}) {
   return run(
     executable("psql"),
     [
-      ...connectionArgs(port, database),
+      ...connectionArgs(port, database, options.username),
       "--set=ON_ERROR_STOP=1",
       "--quiet",
       ...(options.scalar ? ["--tuples-only", "--no-align"] : []),
@@ -91,12 +155,32 @@ function scalar(port, database, sql) {
   return psql(port, database, sql, { scalar: true }).stdout.trim();
 }
 
+function psqlAs(port, database, username, sql, options = {}) {
+  return psql(port, database, sql, { ...options, username });
+}
+
+function scalarAs(port, database, username, sql) {
+  return psqlAs(port, database, username, sql, { scalar: true }).stdout.trim();
+}
+
+function createRoles(port) {
+  psql(port, "postgres", `
+    create role learncoding_owner nologin;
+    create role learncoding_migrator login noinherit;
+    create role learncoding_app login;
+    create role learncoding_worker login;
+    create role learncoding_ops login;
+    grant learncoding_owner to learncoding_migrator
+      with admin false, inherit false, set true;
+  `);
+}
+
 function applyMigrations(port, database) {
   const migrations = readdirSync(migrationDirectory)
     .filter((name) => /^\d{4}_.+\.sql$/u.test(name))
-    .filter((name) => Number.parseInt(name.slice(0, 4), 10) <= 60)
+    .filter((name) => Number.parseInt(name.slice(0, 4), 10) <= 62)
     .sort();
-  assert.equal(migrations.length, 61);
+  assert.equal(migrations.length, 63);
 
   migrations.forEach((name, index) => {
     assert.equal(Number.parseInt(name.slice(0, 4), 10), index);
@@ -105,9 +189,102 @@ function applyMigrations(port, database) {
       "--set=ON_ERROR_STOP=1",
       "--quiet",
       "--single-transaction",
+      "--command=SET ROLE learncoding_owner",
       `--file=${path.join(migrationDirectory, name)}`,
     ]);
   });
+}
+
+function redactionCatalogDigest(port, database) {
+  return scalar(
+    port,
+    database,
+    `select string_agg(
+       p.oid::text || ':' ||
+       pg_get_userbyid(p.proowner) || ':' ||
+       p.prosecdef::text || ':' ||
+       coalesce(array_to_string(p.proconfig, ','), '') || ':' ||
+       coalesce(p.proacl::text, '') || ':' ||
+       md5(p.prosrc),
+       '|' order by p.oid
+     )
+       from pg_proc p
+      where p.pronamespace = 'public'::regnamespace
+        and p.proname in (
+          'enforce_email_outbox_payload_immutable',
+          'redact_unresolved_email_outbox_authority'
+        );`,
+  );
+}
+
+function replayRetentionMigration(port, database) {
+  run(executable("psql"), [
+    ...connectionArgs(port, database, "learncoding_migrator"),
+    "--set=ON_ERROR_STOP=1",
+    "--quiet",
+    "--single-transaction",
+    "--command=SET ROLE learncoding_owner",
+    `--file=${path.join(
+      migrationDirectory,
+      "0062_mail_outbox_retention_redaction.sql",
+    )}`,
+  ]);
+}
+
+async function runLiveRoleBootstrap(port, database) {
+  const [{ Pool }, { runDatabaseRoleBootstrap }] = await Promise.all([
+    import("pg"),
+    import("../../scripts/bootstrap-database-roles.mjs"),
+  ]);
+  const roleUrl = (role, password) =>
+    `postgresql://${role}:${password}@postgres:5432/${database}`;
+  const pool = new Pool({
+    host: "127.0.0.1",
+    port,
+    user: "postgres",
+    database,
+    max: 1,
+  });
+
+  return runDatabaseRoleBootstrap({
+    postgresUser: "postgres",
+    postgresDatabase: database,
+    databaseBootstrapUrl: roleUrl("postgres", "b".repeat(48)),
+    databaseAppUrl: roleUrl("learncoding_app", "a".repeat(48)),
+    databaseMigratorUrl: roleUrl("learncoding_migrator", "m".repeat(48)),
+    databaseWorkerUrl: roleUrl("learncoding_worker", "w".repeat(48)),
+    databaseOpsUrl: roleUrl("learncoding_ops", "o".repeat(48)),
+    lockTimeoutMs: 5_000,
+    cleanupTimeoutMs: 5_000,
+    pool,
+  });
+}
+
+async function proveBootstrapReplay(port, database, catalogBeforeBootstrap) {
+  await runLiveRoleBootstrap(port, database);
+  assert.equal(
+    redactionCatalogDigest(port, database),
+    catalogBeforeBootstrap,
+    "post-migration role bootstrap stripped or changed the reviewed routine ACL",
+  );
+  await runLiveRoleBootstrap(port, database);
+  assert.equal(
+    redactionCatalogDigest(port, database),
+    catalogBeforeBootstrap,
+    "idempotent bootstrap/restore replay changed the reviewed routine ACL",
+  );
+}
+
+function grantRuntimePrivileges(port, database) {
+  psql(port, database, `
+    set role learncoding_owner;
+    grant usage on schema public
+      to learncoding_app, learncoding_worker, learncoding_ops;
+    grant usage on type public.notification_status
+      to learncoding_app, learncoding_worker, learncoding_ops;
+    grant select, insert, update, delete on table public.email_outbox
+      to learncoding_app, learncoding_ops;
+  `);
 }
 
 function proveImmutability(port, database) {
@@ -243,6 +420,583 @@ function proveImmutability(port, database) {
   );
 }
 
+function proveRetentionRedaction(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select p.prosecdef::text || '|' ||
+              pg_get_userbyid(p.proowner) || '|' ||
+              coalesce(array_to_string(p.proconfig, ','), '') || '|' ||
+              has_function_privilege(
+                'learncoding_ops',
+                'public.redact_unresolved_email_outbox_authority(timestamptz,integer)',
+                'execute'
+              )::text || '|' ||
+              has_function_privilege(
+                'learncoding_app',
+                'public.redact_unresolved_email_outbox_authority(timestamptz,integer)',
+                'execute'
+              )::text || '|' ||
+              has_function_privilege(
+                'learncoding_worker',
+                'public.redact_unresolved_email_outbox_authority(timestamptz,integer)',
+                'execute'
+              )::text || '|' ||
+              has_function_privilege(
+                'learncoding_migrator',
+                'public.redact_unresolved_email_outbox_authority(timestamptz,integer)',
+                'execute'
+              )::text
+         from pg_proc p
+        where p.oid =
+          'public.redact_unresolved_email_outbox_authority(timestamptz,integer)'::regprocedure;`,
+    ),
+    "true|learncoding_owner|search_path=pg_catalog|true|false|false|false",
+  );
+
+  psql(port, database, `
+    set role learncoding_owner;
+    insert into public."user" (id, name, email)
+    values (
+      'retention-0062-user',
+      'Retention 0062 User',
+      'retention-0062-user@example.invalid'
+    );
+
+    insert into public.email_outbox (
+      id, user_id, to_email, template, template_version, variables,
+      idempotency_key, operation_id, delivery_scope_key, status,
+      attempt_count, claim_token, claim_owner, claim_version,
+      lease_expires_at, provider_call_started, adapter,
+      provider_message_id, next_attempt_at, sent_at, quarantined_at,
+      last_error_code, created_at, updated_at
+    ) values
+      (
+        '62000000-0000-4000-8000-000000000001',
+        'retention-0062-user', 'eligible-secret@example.invalid',
+        'weekly-summary', '1', '{"secret":"eligible"}'::jsonb,
+        'retention-0062-eligible',
+        '62200000-0000-4000-8000-000000000001',
+        'a:retention-0062-user', 'quarantined', 2,
+        '62100000-0000-4000-8000-000000000001',
+        'gmail-worker-0062', 4,
+        statement_timestamp() - interval '39 days',
+        statement_timestamp() - interval '40 days', 'gmail', null,
+        statement_timestamp() - interval '40 days', null,
+        statement_timestamp() - interval '39 days', 'GMAIL_RESULT_UNKNOWN',
+        statement_timestamp() - interval '45 days',
+        statement_timestamp() - interval '40 days'
+      ),
+      (
+        '62000000-0000-4000-8000-000000000002',
+        'retention-0062-user', 'active-lease-secret@example.invalid',
+        'weekly-summary', '1', '{"secret":"active-lease"}'::jsonb,
+        'retention-0062-active-lease',
+        '62200000-0000-4000-8000-000000000002',
+        'a:retention-0062-user', 'quarantined', 2,
+        '62100000-0000-4000-8000-000000000002',
+        'gmail-worker-active', 5,
+        statement_timestamp() + interval '1 hour',
+        statement_timestamp() - interval '40 days', 'gmail', null,
+        statement_timestamp() - interval '40 days', null,
+        statement_timestamp() - interval '39 days', 'GMAIL_RESULT_UNKNOWN',
+        statement_timestamp() - interval '45 days',
+        statement_timestamp() - interval '40 days'
+      ),
+      (
+        '62000000-0000-4000-8000-000000000003',
+        'retention-0062-user', 'young-secret@example.invalid',
+        'weekly-summary', '1', '{"secret":"young"}'::jsonb,
+        'retention-0062-young',
+        '62200000-0000-4000-8000-000000000003',
+        'a:retention-0062-user', 'quarantined', 1, null, null, 2, null,
+        statement_timestamp() - interval '5 days', 'gmail', null,
+        statement_timestamp() - interval '5 days', null,
+        statement_timestamp() - interval '5 days', 'GMAIL_RESULT_UNKNOWN',
+        statement_timestamp() - interval '5 days',
+        statement_timestamp() - interval '5 days'
+      ),
+      (
+        '62000000-0000-4000-8000-000000000004',
+        'retention-0062-user', 'wrong-state-secret@example.invalid',
+        'weekly-summary', '1', '{"secret":"wrong-state"}'::jsonb,
+        'retention-0062-wrong-state',
+        '62200000-0000-4000-8000-000000000004',
+        'a:retention-0062-user', 'failed', 1, null, null, 2, null,
+        statement_timestamp() - interval '40 days', 'gmail', null,
+        statement_timestamp() - interval '40 days', null, null,
+        'PROVIDER_REJECTED',
+        statement_timestamp() - interval '45 days',
+        statement_timestamp() - interval '40 days'
+      ),
+      (
+        '62000000-0000-4000-8000-000000000005',
+        null, 'system-secret@example.invalid', 'access-rejected', '1',
+        '{
+          "_mailOperationId":"62200000-0000-4000-8000-000000000005",
+          "_mailRecipient":"system-secret@example.invalid",
+          "_mailProducer":"access-request-rejected",
+          "_mailSourceId":"62300000-0000-4000-8000-000000000005"
+        }'::jsonb,
+        'retention-0062-system',
+        '62200000-0000-4000-8000-000000000005',
+        's:62200000-0000-4000-8000-000000000005',
+        'quarantined', 1, null, null, 2, null,
+        statement_timestamp() - interval '40 days', 'gmail', null,
+        statement_timestamp() - interval '40 days', null,
+        statement_timestamp() - interval '39 days', 'GMAIL_RESULT_UNKNOWN',
+        statement_timestamp() - interval '45 days',
+        statement_timestamp() - interval '40 days'
+      ),
+      (
+        '62000000-0000-4000-8000-000000000006',
+        'retention-0062-user', 'console-secret@example.invalid',
+        'weekly-summary', '1', '{"secret":"non-gmail"}'::jsonb,
+        'retention-0062-non-gmail',
+        '62200000-0000-4000-8000-000000000006',
+        'a:retention-0062-user', 'quarantined', 1, null, null, 2, null,
+        statement_timestamp() - interval '40 days', 'console', null,
+        statement_timestamp() - interval '40 days', null,
+        statement_timestamp() - interval '39 days', 'PROVIDER_RESULT_UNKNOWN',
+        statement_timestamp() - interval '45 days',
+        statement_timestamp() - interval '40 days'
+      ),
+      (
+        '62000000-0000-4000-8000-000000000008',
+        null, 'orphan-secret@example.invalid',
+        'weekly-summary', '1', '{"secret":"orphan"}'::jsonb,
+        'retention-0062-orphan',
+        '62200000-0000-4000-8000-000000000008',
+        'o:62200000-0000-4000-8000-000000000008',
+        'quarantined', 1,
+        '62100000-0000-4000-8000-000000000008',
+        'gmail-worker-orphan', 2,
+        statement_timestamp() - interval '39 days',
+        statement_timestamp() - interval '40 days', 'gmail', null,
+        statement_timestamp() - interval '40 days', null,
+        statement_timestamp() - interval '39 days', 'GMAIL_RESULT_UNKNOWN',
+        statement_timestamp() - interval '45 days',
+        statement_timestamp() - interval '40 days'
+      ),
+      (
+        '62000000-0000-4000-8000-000000000009',
+        'retention-0062-user', 'null-lease-secret@example.invalid',
+        'weekly-summary', '1', '{"secret":"null-lease"}'::jsonb,
+        'retention-0062-null-lease',
+        '62200000-0000-4000-8000-000000000009',
+        'a:retention-0062-user', 'quarantined', 1,
+        null, null, 2, null,
+        statement_timestamp() - interval '40 days', 'gmail', null,
+        statement_timestamp() - interval '40 days', null,
+        statement_timestamp() - interval '39 days', 'GMAIL_RESULT_UNKNOWN',
+        statement_timestamp() - interval '45 days',
+        statement_timestamp() - interval '40 days'
+      );
+  `);
+
+  for (const role of [
+    "learncoding_ops",
+    "learncoding_app",
+    "learncoding_worker",
+    "learncoding_migrator",
+  ]) {
+    const rejected = psqlAs(
+      port,
+      database,
+      role,
+      `update public.email_outbox
+          set to_email =
+                'redacted+' || id::text || '@invalid.local',
+              variables = '{}'::jsonb,
+              updated_at = pg_catalog.statement_timestamp()
+        where id = '62000000-0000-4000-8000-000000000001';`,
+      { allowFailure: true },
+    );
+    assert.notEqual(rejected.status, 0, `${role} raw payload update succeeded`);
+    assert.match(
+      `${rejected.stdout}${rejected.stderr}`,
+      /immutable|permission denied/iu,
+      `${role} raw payload update failed for the wrong reason`,
+    );
+  }
+
+  const orphanRejected = psqlAs(
+    port,
+    database,
+    "learncoding_ops",
+    `update public.email_outbox
+        set to_email = 'redacted+' || id::text || '@invalid.local',
+            variables = '{}'::jsonb,
+            updated_at = pg_catalog.statement_timestamp()
+      where id = '62000000-0000-4000-8000-000000000008';`,
+    { allowFailure: true },
+  );
+  assert.notEqual(
+    orphanRejected.status,
+    0,
+    "ops raw update reached the orphan-scope payload",
+  );
+  assert.match(
+    `${orphanRejected.stdout}${orphanRejected.stderr}`,
+    /immutable/iu,
+    "orphan-scope runtime denial failed for the wrong reason",
+  );
+
+  for (const role of [
+    "learncoding_app",
+    "learncoding_worker",
+    "learncoding_migrator",
+  ]) {
+    const rejected = psqlAs(
+      port,
+      database,
+      role,
+      `select * from public.redact_unresolved_email_outbox_authority(
+         pg_catalog.statement_timestamp() - interval '30 days',
+         10
+       );`,
+      { allowFailure: true },
+    );
+    assert.notEqual(rejected.status, 0, `${role} executed redaction routine`);
+    assert.match(`${rejected.stdout}${rejected.stderr}`, /permission denied/iu);
+  }
+
+  for (const role of ["learncoding_app", "learncoding_worker"]) {
+    for (const target of ["learncoding_owner", "learncoding_ops"]) {
+      const rejected = psqlAs(
+        port,
+        database,
+        role,
+        `set role ${target};
+         select * from public.redact_unresolved_email_outbox_authority(
+           pg_catalog.statement_timestamp() - interval '30 days',
+           10
+         );`,
+        { allowFailure: true },
+      );
+      assert.notEqual(
+        rejected.status,
+        0,
+        `${role} unexpectedly assumed ${target}`,
+      );
+      assert.match(`${rejected.stdout}${rejected.stderr}`, /permission denied/iu);
+    }
+  }
+
+  const migratorRoutine = psqlAs(
+    port,
+    database,
+    "learncoding_migrator",
+    `begin;
+     set local role learncoding_owner;
+     select * from public.redact_unresolved_email_outbox_authority(
+       pg_catalog.statement_timestamp() - interval '30 days',
+       10
+     );
+     rollback;`,
+    { allowFailure: true },
+  );
+  assert.notEqual(migratorRoutine.status, 0, "migrator invoked owner routine");
+  assert.match(
+    `${migratorRoutine.stdout}${migratorRoutine.stderr}`,
+    /caller is not authorized/iu,
+  );
+
+  const migratorRaw = psqlAs(
+    port,
+    database,
+    "learncoding_migrator",
+    `begin;
+     set local role learncoding_owner;
+     update public.email_outbox
+        set to_email = 'redacted+' || id::text || '@invalid.local',
+            variables = '{}'::jsonb,
+            updated_at = pg_catalog.statement_timestamp()
+      where id = '62000000-0000-4000-8000-000000000001';
+     rollback;`,
+    { allowFailure: true },
+  );
+  assert.notEqual(migratorRaw.status, 0, "migrator reached trigger exception");
+  assert.match(
+    `${migratorRaw.stdout}${migratorRaw.stderr}`,
+    /immutable/iu,
+  );
+
+  const invalidCutoff = psqlAs(
+    port,
+    database,
+    "learncoding_ops",
+    `select * from public.redact_unresolved_email_outbox_authority(
+       pg_catalog.statement_timestamp(),
+       10
+     );`,
+    { allowFailure: true },
+  );
+  assert.notEqual(invalidCutoff.status, 0);
+  assert.match(
+    `${invalidCutoff.stdout}${invalidCutoff.stderr}`,
+    /cutoff violates retention policy/iu,
+  );
+
+  const authorityBefore = scalar(
+    port,
+    database,
+    `select (
+       to_jsonb(outbox) - 'to_email' - 'variables' - 'updated_at'
+     )::text
+       from public.email_outbox outbox
+      where id = '62000000-0000-4000-8000-000000000001';`,
+  );
+
+  psqlAs(port, database, "learncoding_ops", `
+    begin;
+    do $proof$
+    declare
+      redacted_ids uuid[];
+    begin
+      select array_agg(candidate.id order by candidate.id)
+        into redacted_ids
+        from public.redact_unresolved_email_outbox_authority(
+          pg_catalog.statement_timestamp() - interval '30 days',
+          10
+        ) candidate;
+      if redacted_ids is distinct from array[
+        '62000000-0000-4000-8000-000000000001'::uuid
+      ] then
+        raise exception 'unexpected redaction set: %', redacted_ids;
+      end if;
+    end
+    $proof$;
+    commit;
+  `);
+
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select to_email || '|' || variables::text || '|' || status::text
+         from public.email_outbox
+        where id = '62000000-0000-4000-8000-000000000001';`,
+    ),
+    "redacted+62000000-0000-4000-8000-000000000001@invalid.local|{}|quarantined",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select (
+         to_jsonb(outbox) - 'to_email' - 'variables' - 'updated_at'
+       )::text
+         from public.email_outbox outbox
+        where id = '62000000-0000-4000-8000-000000000001';`,
+    ),
+    authorityBefore,
+    "redaction changed delivery authority or provider evidence",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select count(*)::text
+         from public.email_outbox
+        where id in (
+          '62000000-0000-4000-8000-000000000002',
+          '62000000-0000-4000-8000-000000000003',
+          '62000000-0000-4000-8000-000000000004',
+          '62000000-0000-4000-8000-000000000005',
+          '62000000-0000-4000-8000-000000000006',
+          '62000000-0000-4000-8000-000000000008',
+          '62000000-0000-4000-8000-000000000009'
+        )
+          and variables <> '{}'::jsonb
+          and to_email like '%secret@example.invalid';`,
+    ),
+    "7",
+    "active, young, wrong-state, system, non-Gmail, orphan, or null-lease row was redacted",
+  );
+
+  const redactedAt = scalar(
+    port,
+    database,
+    `select updated_at::text from public.email_outbox
+      where id = '62000000-0000-4000-8000-000000000001';`,
+  );
+  assert.equal(
+    scalarAs(
+      port,
+      database,
+      "learncoding_ops",
+      `select count(*)::text
+         from public.redact_unresolved_email_outbox_authority(
+           pg_catalog.statement_timestamp() - interval '30 days',
+           10
+         );`,
+    ),
+    "0",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select updated_at::text from public.email_outbox
+        where id = '62000000-0000-4000-8000-000000000001';`,
+    ),
+    redactedAt,
+    "idempotent replay changed updated_at",
+  );
+
+  psqlAs(port, database, "learncoding_worker", `
+    update public.email_outbox
+       set status = 'sent',
+           provider_message_id = 'gmail-retention-0062-message',
+           sent_at = pg_catalog.statement_timestamp(),
+           quarantined_at = null,
+           last_error_code = null,
+           claim_token = null,
+           claim_owner = null,
+           lease_expires_at = null,
+           updated_at = pg_catalog.statement_timestamp()
+     where id = '62000000-0000-4000-8000-000000000001'
+       and status = 'quarantined'
+       and provider_call_started is not null
+       and provider_message_id is null;
+  `);
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select status::text || '|' || provider_message_id || '|' ||
+              (sent_at is not null)::text || '|' ||
+              (quarantined_at is null)::text || '|' ||
+              to_email || '|' || variables::text
+         from public.email_outbox
+        where id = '62000000-0000-4000-8000-000000000001';`,
+    ),
+    "sent|gmail-retention-0062-message|true|true|"
+      + "redacted+62000000-0000-4000-8000-000000000001@invalid.local|{}",
+  );
+}
+
+async function proveConcurrentRedactionAndFinalization(port, database) {
+  const raceId = "62000000-0000-4000-8000-000000000007";
+  psql(port, database, `
+    set role learncoding_owner;
+    insert into public.email_outbox (
+      id, user_id, to_email, template, template_version, variables,
+      idempotency_key, operation_id, delivery_scope_key, status,
+      attempt_count, claim_token, claim_owner, claim_version,
+      lease_expires_at, provider_call_started, adapter,
+      provider_message_id, next_attempt_at, sent_at, quarantined_at,
+      last_error_code, created_at, updated_at
+    ) values (
+      '${raceId}',
+      'retention-0062-user', 'race-secret@example.invalid',
+      'weekly-summary', '1', '{"secret":"race"}'::jsonb,
+      'retention-0062-race',
+      '62200000-0000-4000-8000-000000000007',
+      'a:retention-0062-user', 'quarantined', 3,
+      '62100000-0000-4000-8000-000000000007',
+      'gmail-worker-race', 6,
+      statement_timestamp() - interval '39 days',
+      statement_timestamp() - interval '40 days', 'gmail', null,
+      statement_timestamp() - interval '40 days', null,
+      statement_timestamp() - interval '39 days', 'GMAIL_RESULT_UNKNOWN',
+      statement_timestamp() - interval '45 days',
+      statement_timestamp() - interval '40 days'
+    );
+  `);
+
+  const redactor = startPsql(
+    port,
+    database,
+    "learncoding_ops",
+    `begin;
+     set application_name = 'mail_retention_0062_redactor';
+     select id
+       from public.redact_unresolved_email_outbox_authority(
+         pg_catalog.statement_timestamp() - interval '30 days',
+         10
+       );
+     select pg_catalog.pg_advisory_lock(620062);
+     select pg_catalog.pg_sleep(3);
+     select pg_catalog.pg_advisory_unlock(620062);
+     commit;`,
+  );
+
+  await waitForScalar(
+    port,
+    database,
+    `select count(*)::text
+       from pg_catalog.pg_locks locks
+       join pg_catalog.pg_stat_activity activity using (pid)
+      where locks.locktype = 'advisory'
+        and locks.granted
+        and activity.application_name = 'mail_retention_0062_redactor';`,
+    "1",
+    "redaction session never reached its held-row phase",
+  );
+
+  const finalizer = startPsql(
+    port,
+    database,
+    "learncoding_worker",
+    `set application_name = 'mail_retention_0062_finalizer';
+     update public.email_outbox
+        set status = 'sent',
+            provider_message_id = 'gmail-retention-0062-race-message',
+            sent_at = pg_catalog.statement_timestamp(),
+            quarantined_at = null,
+            last_error_code = null,
+            claim_token = null,
+            claim_owner = null,
+            lease_expires_at = null,
+            updated_at = pg_catalog.statement_timestamp()
+      where id = '${raceId}'
+        and status = 'quarantined'
+        and provider_call_started is not null
+        and provider_message_id is null;`,
+  );
+
+  await waitForScalar(
+    port,
+    database,
+    `select count(*)::text
+       from pg_catalog.pg_stat_activity
+      where application_name = 'mail_retention_0062_finalizer'
+        and wait_event_type = 'Lock';`,
+    "1",
+    "finalizer did not overlap and block on the redaction transaction",
+  );
+
+  const [redactorResult, finalizerResult] = await Promise.all([
+    redactor,
+    finalizer,
+  ]);
+  assert.equal(
+    redactorResult.status,
+    0,
+    `redactor failed\n${redactorResult.stdout}${redactorResult.stderr}`,
+  );
+  assert.equal(
+    finalizerResult.status,
+    0,
+    `finalizer failed\n${finalizerResult.stdout}${finalizerResult.stderr}`,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select status::text || '|' || provider_message_id || '|' ||
+              (sent_at is not null)::text || '|' ||
+              to_email || '|' || variables::text
+         from public.email_outbox
+        where id = '${raceId}';`,
+    ),
+    `sent|gmail-retention-0062-race-message|true|redacted+${raceId}@invalid.local|{}`,
+  );
+}
+
 async function main() {
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(version, /PostgreSQL\) 18\./u);
@@ -280,16 +1034,34 @@ async function main() {
       ],
       { stdio: "ignore", timeoutMs: 60_000 },
     );
+    createRoles(port);
     run(executable("createdb"), [
       "--host=127.0.0.1",
       `--port=${port}`,
       "--username=postgres",
+      "--owner=learncoding_owner",
       database,
     ]);
     applyMigrations(port, database);
+    const catalogBeforeReplay = redactionCatalogDigest(port, database);
+    replayRetentionMigration(port, database);
+    assert.equal(
+      redactionCatalogDigest(port, database),
+      catalogBeforeReplay,
+      "0062 replay changed its function catalog contract",
+    );
+    await proveBootstrapReplay(port, database, catalogBeforeReplay);
+    grantRuntimePrivileges(port, database);
     proveImmutability(port, database);
+    proveRetentionRedaction(port, database);
+    await proveConcurrentRedactionAndFinalization(port, database);
     process.stdout.write("mail_payload_0060=immutable_payload:pass\n");
     process.stdout.write("mail_payload_0060=mutable_delivery_state:pass\n");
+    process.stdout.write("mail_retention_0062=restricted_redaction:pass\n");
+    process.stdout.write("mail_retention_0062=reconciliation_after_redaction:pass\n");
+    process.stdout.write("mail_retention_0062=migration_replay:pass\n");
+    process.stdout.write("mail_retention_0062=bootstrap_restore_replay:pass\n");
+    process.stdout.write("mail_retention_0062=concurrent_reconciliation:pass\n");
     process.stdout.write(`mail_payload_0060=postgres:${version}:pass\n`);
   } catch (error) {
     operationError = error;

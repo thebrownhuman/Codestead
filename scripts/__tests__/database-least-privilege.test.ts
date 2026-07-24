@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 type DatabaseRoleModule = {
   DATABASE_ADMIN_LOCK_NAME: string;
+  REVIEWED_APPLICATION_FUNCTIONS: ReadonlyArray<{
+    signature: string;
+    role: string;
+    grantSql: string;
+  }>;
+  reviewedApplicationFunctionPrivilegesSql: () => string;
   validateDatabaseRoleUrls: (input: {
     postgresUser: string;
     postgresDatabase: string;
@@ -64,6 +70,37 @@ describe("database least-privilege bootstrap", () => {
     expect(databaseRoleBootstrap?.DATABASE_ADMIN_LOCK_NAME).toBe(
       "codestead:database-administration:v1",
     );
+  });
+
+  it("reconciles one exact reviewed ops routine after the blanket revoke", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+
+    expect(databaseRoleBootstrap).not.toBeNull();
+    expect(databaseRoleBootstrap!.REVIEWED_APPLICATION_FUNCTIONS).toEqual([
+      {
+        signature:
+          "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+        role: "learncoding_ops",
+        grantSql:
+          "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+      },
+    ]);
+    const reviewedGrant = databaseRoleBootstrap!
+      .reviewedApplicationFunctionPrivilegesSql()
+      .toLowerCase();
+    expect(reviewedGrant).toContain(
+      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+    );
+    expect(reviewedGrant).not.toMatch(/to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu);
+
+    const source = await import("node:fs/promises").then(({ readFile }) =>
+      readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
+    expect(source.indexOf("revoke execute on all routines in schema public"))
+      .toBeLessThan(
+        source.indexOf("await client.query(reviewedApplicationFunctionPrivilegesSql())"),
+      );
+    expect(source).toMatch(/is distinct from exists/iu);
+    expect(source).toMatch(/has_function_privilege\(0, p\.oid, 'EXECUTE'\)/u);
   });
 
   it("accepts only the fixed role, postgres host, and configured database matrix", async () => {

@@ -11,8 +11,35 @@ const APP_ROLE = "learncoding_app";
 const WORKER_ROLE = "learncoding_worker";
 const OPS_ROLE = "learncoding_ops";
 const LOGIN_ROLES = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
-// Fixed reviewed runtime-function allowlist. Empty for this release.
-export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([]);
+export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  Object.freeze({
+    signature:
+      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    role: OPS_ROLE,
+    grantSql:
+      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+  }),
+]);
+
+function sqlLiteral(value) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+export function reviewedApplicationFunctionPrivilegesSql() {
+  return REVIEWED_APPLICATION_FUNCTIONS.map((routine, index) => {
+    const blockTag = `codestead_reviewed_function_${index}`;
+    return `
+      do $${blockTag}$
+      begin
+        if pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
+             is not null then
+          execute ${sqlLiteral(routine.grantSql)};
+        end if;
+      end
+      $${blockTag}$`;
+  }).join(";\n");
+}
+
 const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "id",
   "user_id",
@@ -760,6 +787,8 @@ async function reconcilePrivileges(client) {
     alter default privileges for role learncoding_owner in schema public
       grant usage on types to learncoding_app, learncoding_worker, learncoding_ops`);
 
+  await client.query(reviewedApplicationFunctionPrivilegesSql());
+
   const emailOutbox = await client.query(
     "select to_regclass('public.email_outbox') is not null present",
   );
@@ -1095,10 +1124,29 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
                 select 1
                   from unnest(array['learncoding_migrator','learncoding_app','learncoding_worker','learncoding_ops']) role_name
                  where has_function_privilege(role_name, p.oid, 'EXECUTE')
+                       is distinct from exists (
+                         select 1
+                           from pg_catalog.jsonb_to_recordset($2::jsonb)
+                                reviewed(
+                                  signature text,
+                                  allowed_role text
+                                )
+                          where reviewed.allowed_role = role_name
+                            and p.oid =
+                              pg_catalog.to_regprocedure(reviewed.signature)
+                       )
               )
             )
-       ) routine_execute_restricted`,
-    [postgresDatabase],
+       ) routine_execute_exact`,
+    [
+      postgresDatabase,
+      JSON.stringify(
+        REVIEWED_APPLICATION_FUNCTIONS.map(({ signature, role }) => ({
+          signature,
+          allowed_role: role,
+        })),
+      ),
+    ],
   );
   if (Object.values(privileges.rows[0] ?? {}).some((value) => value !== true)) {
     throw new Error("database role bootstrap invariant verification failed");

@@ -142,6 +142,14 @@ test("bootstrap and migration share the administration lock without broad reassi
   assert.match(migration, /session_user/u);
 });
 
+test("bootstrap preserves only the reviewed retention routine for ops", () => {
+  const bootstrap = read("scripts/bootstrap-database-roles.mjs");
+
+  assert.match(bootstrap, /redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\)/u);
+  assert.match(bootstrap, /grant execute on function public\.redact_unresolved_email_outbox_authority\(timestamp with time zone, integer\) to learncoding_ops/iu);
+  assert.match(bootstrap, /has_function_privilege\(0, p\.oid, 'EXECUTE'\)[\s\S]+is distinct from exists/iu);
+});
+
 test("mail worker outbox grants allow queue state changes but deny payload mutation", () => {
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
   const migration = read("drizzle/0061_mail_worker_outbox_privileges.sql");
@@ -175,12 +183,26 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
   const restore = read("scripts/backup/restore-drill-isolated.sh");
   const restoreCompose = read("infra/restore/restore-drill.compose.yaml");
 
+  const firstBootstrap = restore.indexOf(
+    "restore_one_shot database-role-bootstrap",
+  );
+  const restoreDatabase = restore.indexOf("exec pg_restore");
+  const secondBootstrap = restore.indexOf(
+    "restore_one_shot database-role-bootstrap",
+    firstBootstrap + 1,
+  );
+  const verifier = restore.indexOf(
+    "restore_one_shot database-boundary-verifier",
+  );
+
   assert.match(restore, /--role=learncoding_owner/u);
   assert.match(restore, /database-role-bootstrap/u);
   assert.match(restore, /learncoding_app/u);
   assert.match(restore, /learncoding_worker/u);
   assert.match(restore, /learncoding_ops/u);
   assert.match(restore, /negative/u);
+  assert.ok(firstBootstrap >= 0 && firstBootstrap < restoreDatabase);
+  assert.ok(restoreDatabase < secondBootstrap && secondBootstrap < verifier);
   assert.match(restoreCompose, /\/run\/learncoding-postgres/u);
   assert.match(restoreCompose, /cap_drop:\s*\r?\n\s+- ALL/u);
 });
