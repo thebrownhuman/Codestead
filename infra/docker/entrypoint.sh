@@ -97,6 +97,14 @@ if [ "${NODE_ENV:-}" = "production" ]; then
       exit 64
     fi
   fi
+
+  if [ "${REQUIRE_DELETION_TOMBSTONE_KEY:-0}" = "1" ]; then
+    deletion_tombstone_key="${DELETION_TOMBSTONE_KEY:-}"
+    if [ "${#deletion_tombstone_key}" -lt 32 ]; then
+      echo "fatal: DELETION_TOMBSTONE_KEY must be at least 32 characters" >&2
+      exit 64
+    fi
+  fi
 fi
 
 exec "$@"

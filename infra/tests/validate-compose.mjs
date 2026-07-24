@@ -381,6 +381,7 @@ const expectedSecretSources = {
   ],
   "mail-worker": [
     "database_worker_url",
+    "deletion_tombstone_key",
     "gmail_client_id",
     "gmail_client_secret",
     "gmail_refresh_token",
@@ -653,6 +654,18 @@ expect(
   gmailRequestTimeoutContract.status === 0,
   `Gmail request timeout configuration contract failed: ${(
     gmailRequestTimeoutContract.stderr || gmailRequestTimeoutContract.stdout
+  ).trim()}`,
+);
+
+const gmailReconciliationImageContract = spawnSync(
+  process.execPath,
+  ["--test", path.join(root, "infra/tests/gmail-reconciliation-image.test.mjs")],
+  { cwd: root, encoding: "utf8" },
+);
+expect(
+  gmailReconciliationImageContract.status === 0,
+  `Gmail reconciliation image contract failed: ${(
+    gmailReconciliationImageContract.stderr || gmailReconciliationImageContract.stdout
   ).trim()}`,
 );
 

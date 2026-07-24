@@ -79,6 +79,7 @@ COPY --chown=node:node src ./src
 COPY --chown=node:node scripts/lib/worker-health.ts ./scripts/lib/worker-health.ts
 COPY --chown=node:node scripts/check-worker-health.ts ./scripts/check-worker-health.ts
 COPY --chown=node:node scripts/process-outbox.ts ./scripts/process-outbox.ts
+COPY --chown=node:node scripts/reconcile-gmail-outbox.ts ./scripts/reconcile-gmail-outbox.ts
 COPY --chown=node:node scripts/data-lifecycle.ts ./scripts/data-lifecycle.ts
 COPY --chown=node:node scripts/process-rewards.ts ./scripts/process-rewards.ts
 COPY --chown=node:node scripts/process-file-erasures.ts ./scripts/process-file-erasures.ts

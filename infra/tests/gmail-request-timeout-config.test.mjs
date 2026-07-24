@@ -8,6 +8,7 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 const MAIL_WORKER_ENVIRONMENT_ALLOWLIST = [
   "APP_URL",
   "DATABASE_URL_FILE",
+  "DELETION_TOMBSTONE_KEY_FILE",
   "GMAIL_CLIENT_ID_FILE",
   "GMAIL_CLIENT_SECRET_FILE",
   "GMAIL_OAUTH_SCOPES",
@@ -21,6 +22,7 @@ const MAIL_WORKER_ENVIRONMENT_ALLOWLIST = [
   "NODE_ENV",
   "OUTBOX_POLL_SECONDS",
   "OUTBOX_WORKER_MODE",
+  "REQUIRE_DELETION_TOMBSTONE_KEY",
   "REQUIRE_LOST_DEVICE_PROOF_KEY",
   "WORKER_HEALTH_ID",
   "WORKER_HEALTH_MAX_AGE_SECONDS",
@@ -139,6 +141,11 @@ function assertContract(input) {
     /^      GMAIL_OAUTH_SCOPES: \$\{GMAIL_OAUTH_SCOPES:-\}$/mu,
     "mail-worker must forward only the explicit non-secret scope declaration",
   );
+  assert.match(
+    mailWorker,
+    /^      REQUIRE_DELETION_TOMBSTONE_KEY: "1"$/mu,
+    "mail-worker must fail closed when the deletion capability key is unavailable",
+  );
   assert.doesNotMatch(app, /GMAIL_REQUEST_TIMEOUT_MS/u, "the app service must not receive the Gmail setting");
   assert.doesNotMatch(app, /GMAIL_OAUTH_SCOPES/u, "the app service must not receive Gmail scopes");
   assert.match(
@@ -219,6 +226,15 @@ test("Gmail request timeout contract rejects cross-layer and safety drift", () =
         "      GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-}",
         "",
         "OAuth scope forwarding",
+      ) },
+    ],
+    [
+      "deletion capability key requirement",
+      { compose: replaceExactly(
+        baseline.compose,
+        '      REQUIRE_DELETION_TOMBSTONE_KEY: "1"',
+        '      REQUIRE_DELETION_TOMBSTONE_KEY: "0"',
+        "deletion capability key requirement",
       ) },
     ],
     [

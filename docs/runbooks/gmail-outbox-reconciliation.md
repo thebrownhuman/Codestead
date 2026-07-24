@@ -28,7 +28,7 @@ sends mail.
 ## Inspect without mutation
 
 ```text
-npm run worker:email:reconcile -- --operation-id <operation-uuid>
+docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid>
 ```
 
 The command first verifies the exact quarantined database fence. It then runs
@@ -46,7 +46,7 @@ quarantined and must never trigger a resend.
 Repeat the same operation ID as an explicit mutation confirmation:
 
 ```text
-npm run worker:email:reconcile -- --operation-id <operation-uuid> --apply --confirm-operation-id <same-operation-uuid>
+docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid> --apply --confirm-operation-id <same-operation-uuid>
 ```
 
 The final update reacquires the same account/system delivery-scope advisory

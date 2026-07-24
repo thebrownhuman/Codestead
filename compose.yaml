@@ -350,7 +350,9 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DELETION_TOMBSTONE_KEY_FILE: /run/secrets/deletion_tombstone_key
       LOST_DEVICE_PROOF_KEY_FILE: /run/secrets/lost_device_proof_key
+      REQUIRE_DELETION_TOMBSTONE_KEY: "1"
       REQUIRE_LOST_DEVICE_PROOF_KEY: "1"
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       MAIL_ADAPTER: ${MAIL_ADAPTER:-console}
@@ -371,6 +373,7 @@ services:
       - source: database_worker_url
         target: database_url
       - lost_device_proof_key
+      - deletion_tombstone_key
       - gmail_client_id
       - gmail_client_secret
       - gmail_refresh_token
