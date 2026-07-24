@@ -1,3 +1,5 @@
+import { outboxMessageId } from "./provider-correlation";
+
 export type ClaimFence = Readonly<{
   id: string;
   operationId: string;
@@ -91,6 +93,7 @@ export interface MailProvider<M> {
     context: Readonly<{
       operationId: string;
       permit: ProviderCallPermit;
+      messageId: string;
     }>,
   ): Promise<ProviderSendResult>;
 }
@@ -335,6 +338,7 @@ export async function processOutboxBatch<P, M>(
       providerResult = await deps.provider.send(materialized.message, {
         operationId: next.operationId,
         permit: boundary.permit,
+        messageId: outboxMessageId(next.operationId),
       });
     } catch {
       providerResult = {

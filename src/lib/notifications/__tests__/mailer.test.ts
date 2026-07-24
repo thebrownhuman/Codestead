@@ -1,6 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sendEmail } from "../mailer";
+import {
+  classifyMailDeliveryError,
+  sendEmail as deliverEmail,
+  type MailProviderContext,
+  type OutgoingEmail,
+} from "../mailer";
+
+const PROVIDER_CONTEXT: MailProviderContext = {
+  messageId:
+    "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+};
+
+function sendEmail(input: OutgoingEmail, context = PROVIDER_CONTEXT) {
+  return deliverEmail(input, context);
+}
 
 describe("notification delivery privacy", () => {
   beforeEach(() => {
@@ -58,9 +72,15 @@ describe("notification delivery privacy", () => {
 
   it("rejects unknown delivery adapters rather than silently falling back", async () => {
     vi.stubEnv("MAIL_ADAPTER", "smtp-ish");
-    await expect(sendEmail({
+    const error = await sendEmail({
       to: "learner@example.com", template: "weekly-summary", variables: {},
-    })).rejects.toThrow("MAIL_ADAPTER must be either console or gmail");
+    }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("MAIL_ADAPTER must be either console or gmail");
+    expect(classifyMailDeliveryError(error)).toEqual({
+      kind: "definitely-rejected",
+      code: "MAIL_PRE_SEND_REJECTED",
+    });
   });
 
   it.each(["999", "25001", "1000.5", "10s"])(
@@ -100,6 +120,21 @@ describe("notification delivery privacy", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("requires deterministic correlation context before Gmail OAuth", async () => {
+    vi.stubEnv("MAIL_ADAPTER", "gmail");
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deliverEmail({
+      to: "learner@example.com",
+      template: "invitation",
+      variables: {},
+    }, undefined as never)).rejects.toThrow("Invalid Message-ID header.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("aborts a blackholed OAuth request at the configured deadline and ignores its late response", async () => {
     vi.useFakeTimers();
     vi.stubEnv("MAIL_ADAPTER", "gmail");
@@ -128,6 +163,10 @@ describe("notification delivery privacy", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toBe("Gmail OAuth request timed out.");
+    expect(classifyMailDeliveryError(outcome)).toEqual({
+      kind: "definitely-rejected",
+      code: "GMAIL_OAUTH_FAILED",
+    });
     const signal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal;
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(signal?.aborted).toBe(true);
@@ -170,6 +209,10 @@ describe("notification delivery privacy", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toBe("Gmail delivery request timed out.");
+    expect(classifyMailDeliveryError(outcome)).toEqual({
+      kind: "ambiguous",
+      code: "GMAIL_DELIVERY_AMBIGUOUS",
+    });
     const signal = (fetchMock.mock.calls[1]?.[1] as RequestInit | undefined)?.signal;
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(signal?.aborted).toBe(true);
@@ -194,6 +237,8 @@ describe("notification delivery privacy", () => {
       to: "learner@example.com",
       template: "invitation",
       variables: { name: "<Learner>", url: "https://example.test/activate?token=one-time" },
+    }, {
+      messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
     })).resolves.toEqual({ providerId: "gmail-message-1" });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -203,6 +248,9 @@ describe("notification delivery privacy", () => {
     const raw = (JSON.parse(String(sendOptions.body)) as { raw: string }).raw;
     const mime = Buffer.from(raw, "base64url").toString("utf8");
     expect(mime).toContain("Content-Type: multipart/alternative");
+    expect(mime).toContain(
+      "Message-ID: <codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+    );
     expect(mime).toContain("&lt;Learner&gt;");
     expect(mime).toContain("one-time");
     expect(mime).not.toContain("client-secret");
@@ -224,6 +272,10 @@ describe("notification delivery privacy", () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("Gmail delivery failed (500).");
     expect((error as Error).message).not.toContain("provider echoed private email content");
+    expect(classifyMailDeliveryError(error)).toEqual({
+      kind: "ambiguous",
+      code: "GMAIL_DELIVERY_AMBIGUOUS",
+    });
   });
 
   it.each([
