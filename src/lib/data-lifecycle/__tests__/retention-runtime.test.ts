@@ -187,8 +187,8 @@ describe("retention runtime orchestration", () => {
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("set status = 'expired'"))).toBe(true);
   });
 
-  it("applies terminal-delivery PII retention to quarantined outbox rows", async () => {
-    await runRetention({
+  it("redacts unresolved quarantine PII while preserving delivery authority", async () => {
+    const report = await runRetention({
       idempotencyKey: "retention:test:quarantined-email",
       dryRun: false,
       batchSize: 2,
@@ -199,6 +199,9 @@ describe("retention runtime orchestration", () => {
     const statements = mocks.query.mock.calls.map(([sql]) => (
       String(sql).replace(/\s+/g, " ").trim().toLowerCase()
     ));
+    const redacted = statements.find((sql) => (
+      sql.startsWith("update email_outbox set to_email = 'redacted+'")
+    ));
     const eligible = statements.find((sql) => (
       sql.startsWith("select count(*)::text as count from email_outbox")
     ));
@@ -206,7 +209,34 @@ describe("retention runtime orchestration", () => {
       sql.startsWith("delete from email_outbox where id in")
     ));
     expect(eligible).toContain("status in ('sent', 'suppressed', 'failed', 'quarantined')");
+    expect(eligible).toContain("not ( status = 'quarantined'");
+    expect(eligible).toContain("provider_call_started is not null");
+    expect(eligible).toContain("provider_message_id is null");
     expect(deleted).toContain("status in ('sent', 'suppressed', 'failed', 'quarantined')");
+    expect(deleted).toContain("not ( status = 'quarantined'");
+    expect(deleted).toContain("provider_call_started is not null");
+    expect(deleted).toContain("provider_message_id is null");
+    expect(redacted).toContain("variables = '{}'::jsonb");
+    expect(redacted).toContain("status = 'quarantined'");
+    expect(redacted).toContain("provider_call_started is not null");
+    expect(redacted).toContain("provider_message_id is null");
+    expect(redacted).not.toContain("user_id =");
+    expect(redacted).not.toContain("delivery_scope_key =");
+    expect(redacted).not.toContain("operation_id =");
+    expect(redacted).not.toContain("claim_token =");
+    expect(redacted).not.toContain("claim_owner =");
+    expect(statements.findIndex((sql) => (
+      sql.startsWith("update email_outbox set to_email = 'redacted+'")
+    ))).toBeLessThan(statements.findIndex((sql) => (
+      sql.startsWith("delete from email_outbox where id in")
+    )));
+    expect(report.categories.unresolvedEmailDeliveryAuthority).toMatchObject({
+      eligible: 2,
+      deleted: 0,
+      retained: 2,
+      transitioned: 1,
+      hasMore: true,
+    });
   });
 
   it("rolls back the object batch when deletion-time revalidation changes eligibility", async () => {

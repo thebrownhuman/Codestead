@@ -34,5 +34,38 @@ describe("mail outbox retention privacy", () => {
   ] as const)("includes quarantined rows in the terminal-email %s", (_label, fragment) => {
     expect(fragment).toMatch(/status\s+in\s*\([^)]*'quarantined'[^)]*\)/u);
     expect(fragment).toContain("coalesce(sent_at, updated_at) < $1");
+    expect(fragment).toContain("status = 'quarantined'");
+    expect(fragment).toContain("provider_call_started is not null");
+    expect(fragment).toContain("provider_message_id is null");
+    expect(fragment).toMatch(/not\s*\(\s*status\s*=\s*'quarantined'/u);
+  });
+
+  it("redacts PII without destroying unresolved provider authority", () => {
+    const source = retentionSource();
+    const redactStart = source.indexOf("const redactedEmailAuthority =");
+    const redactEnd = source.indexOf(
+      "categories.unresolvedEmailDeliveryAuthority =",
+      redactStart,
+    );
+    expect(redactStart).toBeGreaterThanOrEqual(0);
+    expect(redactEnd).toBeGreaterThan(redactStart);
+    const redaction = source.slice(redactStart, redactEnd);
+
+    expect(redaction).toContain("update email_outbox");
+    expect(redaction).toContain(
+      "to_email = 'redacted+' || id::text || '@invalid.local'",
+    );
+    expect(redaction).toContain("variables = '{}'::jsonb");
+    expect(redaction).toContain("status = 'quarantined'");
+    expect(redaction).toContain("provider_call_started is not null");
+    expect(redaction).toContain("provider_message_id is null");
+    expect(redaction).toContain("returning id");
+    expect(redaction).not.toMatch(/user_id\s*=/u);
+    expect(redaction).not.toMatch(/delivery_scope_key\s*=/u);
+    expect(redaction).not.toMatch(/operation_id\s*=/u);
+    expect(redaction).not.toMatch(/provider_call_started\s*=/u);
+    expect(redaction).not.toMatch(/provider_message_id\s*=/u);
+    expect(redaction).not.toMatch(/claim_token\s*=/u);
+    expect(redaction).not.toMatch(/claim_owner\s*=/u);
   });
 });
