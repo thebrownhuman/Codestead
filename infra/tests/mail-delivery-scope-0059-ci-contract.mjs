@@ -39,7 +39,6 @@ export function assertMailDeliveryScope0059PostgresProjection(
     "URIs: https://apt.postgresql.org/pub/repos/apt",
     "Suites: noble-pgdg",
     "Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc",
-    "sudo apt-get install --yes --no-install-recommends postgresql-18",
   ]) {
     assert.equal(
       postgresProjection.split(requiredSetup).length,
@@ -48,9 +47,15 @@ export function assertMailDeliveryScope0059PostgresProjection(
     );
   }
 
-  const installIndex = postgresProjection.indexOf(
-    "sudo apt-get install --yes --no-install-recommends postgresql-18",
+  const installLines = postgresProjection.match(
+    /^          sudo apt-get install --yes --no-install-recommends (?:postgresql-18|postgresql-17 postgresql-18)$/gmu,
+  ) ?? [];
+  assert.equal(
+    installLines.length,
+    1,
+    "PostgreSQL 18 install command is missing or outside the reviewed forms",
   );
+  const installIndex = postgresProjection.indexOf(installLines[0]);
   const registrationIndex = postgresProjection.indexOf(
     `      - run: npm run ${registrationScript}`,
   );
