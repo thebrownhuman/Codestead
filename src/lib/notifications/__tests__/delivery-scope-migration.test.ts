@@ -163,4 +163,23 @@ describe("email outbox delivery-scope migration", () => {
     expect(outbox.checkConstraints.email_outbox_delivery_scope_valid?.value)
       .not.toMatch(/delivery_scope_key"?\s+is\s+null\s+or/iu);
   });
+
+  it("keeps every raw PostgreSQL integration fixture inside the strict scope contract", () => {
+    for (const name of [
+      "mentor-evidence.integration.test.ts",
+      "tutor-memory.integration.test.ts",
+    ]) {
+      const source = readFileSync(
+        resolve(process.cwd(), "integration", name),
+        "utf8",
+      );
+      const columnLists = [...source.matchAll(
+        /insert\s+into\s+email_outbox\s*\(([^)]+)\)/giu,
+      )].map((match) => match[1]!.toLowerCase());
+
+      expect(columnLists, name).not.toHaveLength(0);
+      expect(columnLists.every((columns) => columns.includes("delivery_scope_key")), name)
+        .toBe(true);
+    }
+  });
 });

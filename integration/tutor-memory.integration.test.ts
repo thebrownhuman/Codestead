@@ -104,13 +104,13 @@ async function seed() {
   }
   await pool.query(
     `insert into email_outbox
-      (id,user_id,to_email,template,template_version,variables,idempotency_key,status,created_at,updated_at)
+      (id,user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,status,created_at,updated_at)
      values
-      ('67000000-0000-4000-8000-000000000001',$1,'asha-memory@integration.invalid','weekly-summary','1',
+      ('67000000-0000-4000-8000-000000000001',$1,'a:' || $1,'asha-memory@integration.invalid','weekly-summary','1',
        '{"summary":"Older summary"}'::jsonb,'memory-old','sent',$3::timestamptz - interval '1 day',$3::timestamptz - interval '1 day'),
-      ('67000000-0000-4000-8000-000000000002',$1,'asha-memory@integration.invalid','weekly-summary','1',
+      ('67000000-0000-4000-8000-000000000002',$1,'a:' || $1,'asha-memory@integration.invalid','weekly-summary','1',
        $4::jsonb,'memory-latest','sent',$3::timestamptz,$3::timestamptz),
-      ('67000000-0000-4000-8000-000000000003',$2,'other-memory@integration.invalid','weekly-summary','1',
+      ('67000000-0000-4000-8000-000000000003',$2,'a:' || $2,'other-memory@integration.invalid','weekly-summary','1',
        '{"summary":"OTHER-SUMMARY-SENTINEL"}'::jsonb,'memory-other','sent',$3::timestamptz,$3::timestamptz)`,
     [LEARNER, OTHER, NOW, JSON.stringify({ summary: `Latest owner summary. token: ${FAKE_OPENAI_KEY}` })],
   );

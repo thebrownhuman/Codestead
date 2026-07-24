@@ -153,9 +153,9 @@ async function seedEvidence() {
 
   await pool.query(
     `insert into email_outbox
-      (id,user_id,to_email,template,template_version,variables,idempotency_key,status,created_at,updated_at)
-     values ('37000000-0000-4000-8000-000000000001',$1,'asha-mentor@integration.invalid','weekly-summary','1',$2::jsonb,'mentor-summary-target','sent',$4,$4),
-            ('37000000-0000-4000-8000-000000000002',$3,'other-mentor@integration.invalid','weekly-summary','1','{"summary":"OTHER-SUMMARY-SENTINEL"}'::jsonb,'mentor-summary-other','sent',$4,$4)`,
+      (id,user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,status,created_at,updated_at)
+     values ('37000000-0000-4000-8000-000000000001',$1,'a:' || $1,'asha-mentor@integration.invalid','weekly-summary','1',$2::jsonb,'mentor-summary-target','sent',$4,$4),
+            ('37000000-0000-4000-8000-000000000002',$3,'a:' || $3,'other-mentor@integration.invalid','weekly-summary','1','{"summary":"OTHER-SUMMARY-SENTINEL"}'::jsonb,'mentor-summary-other','sent',$4,$4)`,
     [LEARNER, JSON.stringify({ summary: "You completed loops. access token=abcdefghijklmnop" }), OTHER, NOW],
   );
 }
