@@ -136,7 +136,6 @@ describe("production migration", () => {
     const cause = (failure as Error & { cause?: unknown }).cause;
     expect(cause).toBeInstanceOf(AggregateError);
     expect((cause as AggregateError).errors).toEqual([
-      primaryError,
       resetError,
       releaseError,
       poolError,
@@ -444,13 +443,15 @@ describe("production migration", () => {
     }
   });
 
-  it("ends the pool after unlock and release failures", async () => {
+  it("does not duplicate the outward cleanup failure in its cause", async () => {
+    const unlockError = new Error("unlock failed");
+    const releaseError = new Error("release failed");
     const client = {
       query: roleAwareQuery(
-        async () => { throw new Error("unlock failed"); },
+        async () => { throw unlockError; },
       ),
       release: vi.fn(() => {
-        throw new Error("release failed");
+        throw releaseError;
       }),
     };
     const pool = {
@@ -458,15 +459,23 @@ describe("production migration", () => {
       end: vi.fn(async () => undefined),
     };
 
-    await expect(
-      runProductionMigration({
-        connectionString: "postgresql://test",
-        pool,
-        migrate: vi.fn(async () => undefined),
-        drizzle: vi.fn(() => ({})),
-      }),
-    ).rejects.toThrow("release failed");
+    const failure = await runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate: vi.fn(async () => undefined),
+      drizzle: vi.fn(() => ({})),
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
 
+    expect(failure).toMatchObject({
+      name: releaseError.name,
+      message: releaseError.message,
+    });
+    const cause = (failure as Error & { cause?: unknown }).cause;
+    expect(cause).toBeInstanceOf(AggregateError);
+    expect((cause as AggregateError).errors).toEqual([unlockError]);
     expect(String(client.query.mock.calls.at(-1)?.[0])).toContain("pg_advisory_unlock");
     expect(client.release).toHaveBeenCalledWith(true);
     expect(pool.end).toHaveBeenCalledOnce();
