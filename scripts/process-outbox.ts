@@ -93,7 +93,6 @@ function waitForNextPoll(milliseconds: number) {
 }
 
 async function endPoolWithinDeadline() {
-  const deadline = performance.now() + POOL_SHUTDOWN_TIMEOUT_MS;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const close = Promise.resolve().then(() => pool.end());
   const expired = new Promise<never>((_, reject) => {
@@ -105,9 +104,6 @@ async function endPoolWithinDeadline() {
 
   try {
     await Promise.race([close, expired]);
-    if (performance.now() >= deadline) {
-      throw new PoolShutdownTimeoutError();
-    }
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
   }

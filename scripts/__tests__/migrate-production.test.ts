@@ -80,6 +80,71 @@ function roleAwareQuery(
   });
 
 describe("production migration", () => {
+  it("preserves the primary migration failure when cleanup also fails", async () => {
+    const primaryError = new Error("migration execution failed");
+    primaryError.name = "MigrationExecutionError";
+    const resetError = new Error("reset cleanup failed");
+    const releaseError = new Error("release cleanup failed");
+    const poolError = new Error("pool cleanup failed");
+    let ownerRoleAssumed = false;
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_try_advisory_lock")) return { rows: [{ acquired: true }] };
+      if (sql.includes("SET ROLE learncoding_owner")) {
+        ownerRoleAssumed = true;
+        return { rows: [] };
+      }
+      if (sql.includes("RESET ROLE")) throw resetError;
+      if (sql.includes("current_user") && sql.includes("session_user")) {
+        return {
+          rows: [{
+            current_user: ownerRoleAssumed ? "learncoding_owner" : "learncoding_migrator",
+            session_user: "learncoding_migrator",
+          }],
+        };
+      }
+      return { rows: [] };
+    });
+    const client = {
+      query,
+      release: vi.fn(() => {
+        throw releaseError;
+      }),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => {
+        throw poolError;
+      }),
+    };
+
+    const failure = await runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate: vi.fn(async () => {
+        throw primaryError;
+      }),
+      drizzle: vi.fn(() => ({})),
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(failure).toMatchObject({
+      name: primaryError.name,
+      message: primaryError.message,
+    });
+    const cause = (failure as Error & { cause?: unknown }).cause;
+    expect(cause).toBeInstanceOf(AggregateError);
+    expect((cause as AggregateError).errors).toEqual([
+      primaryError,
+      resetError,
+      releaseError,
+      poolError,
+    ]);
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
   it("fails closed and destroys the session when identity evidence is absent", async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes("pg_try_advisory_lock")) return { rows: [{ acquired: true }] };

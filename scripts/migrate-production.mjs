@@ -44,6 +44,22 @@ class MigrationCleanupTimeoutError extends Error {
   }
 }
 
+function preserveFailureWithAggregateCause(primaryFailure, failures) {
+  const cause = new AggregateError(
+    failures,
+    "Production migration failed and cleanup was incomplete",
+  );
+  if (primaryFailure instanceof Error) {
+    const failure = new Error(primaryFailure.message, { cause });
+    failure.name = primaryFailure.name;
+    return failure;
+  }
+
+  const failure = new Error("Production migration failed", { cause });
+  failure.name = "UNKNOWN";
+  return failure;
+}
+
 function normalizeLockTimeoutMs(timeoutMs) {
   if (!Number.isFinite(timeoutMs)) {
     throw new RangeError("Production migration lock timeout must be finite");
@@ -197,8 +213,11 @@ export async function runProductionMigration(options) {
   let client;
   let lockAcquired = false;
   let destroyClient = false;
-
+  let primaryFailure;
+  let hasPrimaryFailure = false;
+  const cleanupFailures = [];
   let ownerRoleAssumed = false;
+
   try {
     client = await migrationPool.connect();
     try {
@@ -215,37 +234,58 @@ export async function runProductionMigration(options) {
     await migrate(drizzle(client), { migrationsFolder });
   } catch (error) {
     destroyClient = true;
-    throw error;
-  } finally {
-    try {
-      if (client && ownerRoleAssumed) {
-        await queryMigrationCleanup(client, "RESET ROLE", cleanupTimeoutMs);
-        await verifyMigrationIdentity(
-          client,
-          "learncoding_migrator",
-          cleanupTimeoutMs,
-        );
-      }
-      if (client && lockAcquired) {
-        await queryMigrationUnlock(client, unlockTimeoutMs);
-      }
-    } catch (error) {
-      destroyClient = true;
-      throw error;
-    } finally {
-      try {
-        if (client) {
-          if (destroyClient) client.release(true);
-          else client.release();
-        }
-      } finally {
-        await boundedMigrationCleanup(
-          () => migrationPool.end(),
-          cleanupTimeoutMs,
-          "pool shutdown",
-        );
-      }
+    hasPrimaryFailure = true;
+    primaryFailure = error;
+  }
+
+  try {
+    if (client && ownerRoleAssumed) {
+      await queryMigrationCleanup(client, "RESET ROLE", cleanupTimeoutMs);
+      await verifyMigrationIdentity(
+        client,
+        "learncoding_migrator",
+        cleanupTimeoutMs,
+      );
     }
+    if (client && lockAcquired) {
+      await queryMigrationUnlock(client, unlockTimeoutMs);
+    }
+  } catch (error) {
+    destroyClient = true;
+    cleanupFailures.push(error);
+  }
+
+  try {
+    if (client) {
+      if (destroyClient) client.release(true);
+      else client.release();
+    }
+  } catch (error) {
+    cleanupFailures.push(error);
+  }
+
+  try {
+    await boundedMigrationCleanup(
+      () => migrationPool.end(),
+      cleanupTimeoutMs,
+      "pool shutdown",
+    );
+  } catch (error) {
+    cleanupFailures.push(error);
+  }
+
+  if (hasPrimaryFailure) {
+    if (cleanupFailures.length === 0) throw primaryFailure;
+    throw preserveFailureWithAggregateCause(
+      primaryFailure,
+      [primaryFailure, ...cleanupFailures],
+    );
+  }
+
+  if (cleanupFailures.length === 1) throw cleanupFailures[0];
+  if (cleanupFailures.length > 1) {
+    const outwardFailure = cleanupFailures[cleanupFailures.length - 1];
+    throw preserveFailureWithAggregateCause(outwardFailure, cleanupFailures);
   }
 }
 
