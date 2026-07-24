@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 type DatabaseRoleModule = {
   DATABASE_ADMIN_LOCK_NAME: string;
+  REVIEWED_APPLICATION_FUNCTIONS: ReadonlyArray<{
+    signature: string;
+    role: string;
+    grantSql: string;
+  }>;
+  reviewedApplicationFunctionPrivilegesSql: () => string;
   validateDatabaseRoleUrls: (input: {
     postgresUser: string;
     postgresDatabase: string;
@@ -63,6 +69,107 @@ describe("database least-privilege bootstrap", () => {
     expect(databaseRoleBootstrap).not.toBeNull();
     expect(databaseRoleBootstrap?.DATABASE_ADMIN_LOCK_NAME).toBe(
       "codestead:database-administration:v1",
+    );
+  });
+
+  it("reconciles one exact reviewed ops routine after the blanket revoke", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+
+    expect(databaseRoleBootstrap).not.toBeNull();
+    expect(databaseRoleBootstrap!.REVIEWED_APPLICATION_FUNCTIONS).toEqual([
+      {
+        signature:
+          "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+        role: "learncoding_ops",
+        grantSql:
+          "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+      },
+    ]);
+    const reviewedGrant = databaseRoleBootstrap!
+      .reviewedApplicationFunctionPrivilegesSql()
+      .toLowerCase();
+    expect(reviewedGrant).toContain(
+      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+    );
+    expect(reviewedGrant).not.toMatch(/to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu);
+
+    const source = await import("node:fs/promises").then(({ readFile }) =>
+      readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
+    expect(source.indexOf("revoke execute on all routines in schema public"))
+      .toBeLessThan(
+        source.indexOf("await client.query(reviewedApplicationFunctionPrivilegesSql())"),
+      );
+    expect(source).toMatch(/is distinct from exists/iu);
+    expect(source).toMatch(/has_function_privilege\(0, p\.oid, 'EXECUTE'\)/u);
+    expect(source).toMatch(
+      /aclexplode\(\s*coalesce\(p\.proacl,\s*acldefault\('f',\s*p\.proowner\)\)\s*\)/u,
+    );
+    expect(source).toMatch(
+      /aclexplode\(\s*coalesce\(t\.typacl,\s*acldefault\('T',\s*t\.typowner\)\)\s*\)/u,
+    );
+    expect(source).toContain("routine_direct_acl_exact");
+    expect(source).toContain("type_direct_acl_exact");
+    expect(source).toMatch(/except[\s\S]+except/iu);
+    expect(source).toContain("'MEMBER'");
+    expect(source).toContain("'USAGE'");
+    expect(source).toContain("'SET'");
+  });
+
+  it("brackets disposable integration migrations with the real role bootstrap", async () => {
+    const source = await import("node:fs/promises").then(({ readFile }) =>
+      readFile("scripts/run-integration-tests.ts", "utf8"));
+    const bootstrapSource = await import("node:fs/promises").then(({ readFile }) =>
+      readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
+    const bootstrapCalls = [
+      ...source.matchAll(/await reconcileDisposableIntegrationRoles\(/gu),
+    ].map((match) => match.index);
+    const migrationCalls = [
+      ...source.matchAll(/await runDisposableIntegrationMigration\(/gu),
+    ].map((match) => match.index);
+    const verificationCalls = [
+      ...source.matchAll(/await verifyDisposableIntegrationTopology\(/gu),
+    ].map((match) => match.index);
+    const testIndex = source.indexOf(
+      'await runNpm([\n      "run",\n      "test:integration:vitest"',
+    );
+
+    expect(source).toContain("runDatabaseRoleBootstrap");
+    expect(source).toContain("runProductionMigration");
+    expect(source).toContain(
+      'migrationsFolder: path.resolve(process.cwd(), "drizzle")',
+    );
+    expect(source).toContain("new Pool({ connectionString: input.databaseUrl, max: 1 })");
+    expect(source).toContain("postgresUser: input.integrationUser");
+    expect(source).toContain("verifyDatabaseRoleBootstrapState");
+    expect(source).toContain("firstCycle.journal_count !== 63");
+    expect(source).toContain("secondCycle.fingerprint !== firstCycle.fingerprint");
+    expect(source).toContain("sanitizedIntegrationEnvironment(process.env)");
+    expect(source).toContain("ownerAssumingDatabaseUrl(roleUrls.migrator)");
+    expect(source).toContain('client.release();\n    await pool.end();');
+    expect(source).not.toContain("`POSTGRES_PASSWORD=${password}`");
+    expect(source).not.toContain("DATABASE_URL: databaseUrl");
+    for (const role of [
+      "learncoding_owner",
+      "learncoding_migrator",
+      "learncoding_app",
+      "learncoding_worker",
+      "learncoding_ops",
+    ]) {
+      expect(`${source}\n${bootstrapSource}`).toContain(role);
+    }
+    expect(bootstrapCalls).toHaveLength(4);
+    expect(migrationCalls).toHaveLength(2);
+    expect(verificationCalls).toHaveLength(2);
+    expect(bootstrapCalls[0]).toBeLessThan(migrationCalls[0]!);
+    expect(migrationCalls[0]).toBeLessThan(bootstrapCalls[1]!);
+    expect(bootstrapCalls[1]).toBeLessThan(verificationCalls[0]!);
+    expect(verificationCalls[0]).toBeLessThan(bootstrapCalls[2]!);
+    expect(bootstrapCalls[2]).toBeLessThan(migrationCalls[1]!);
+    expect(migrationCalls[1]).toBeLessThan(bootstrapCalls[3]!);
+    expect(bootstrapCalls[3]).toBeLessThan(verificationCalls[1]!);
+    expect(verificationCalls[1]).toBeLessThan(testIndex);
+    expect(source).not.toMatch(
+      /create role learncoding_(?:owner|migrator|app|worker|ops)/iu,
     );
   });
 

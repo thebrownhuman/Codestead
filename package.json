@@ -34,6 +34,8 @@
     "test:integration:vitest": "vitest run --config vitest.integration.config.ts",
     "test:mail-delivery-scope-0059:registration": "node infra/tests/mail-delivery-scope-0059-registration.test.mjs",
     "test:mail-delivery-scope-0059": "node infra/tests/mail-delivery-scope-0059.integration.mjs",
+    "test:mail-payload-immutability-0060:registration": "node infra/tests/mail-payload-immutability-0060-registration.test.mjs",
+    "test:mail-payload-immutability-0060": "node infra/tests/mail-payload-immutability-0060.integration.mjs",
     "test:e2e": "playwright test",
     "test:browser:auth": "tsx scripts/verify-authenticated-learn-runtime.ts",
     "test:load:smoke": "tsx scripts/load-projection-smoke.ts",
@@ -108,7 +110,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "check": "npm run production-load:release-gates && npm run lint && npm run test:mail-delivery-scope-0059:registration && npm run typecheck && npm run security:dependencies:known && npm run security:secrets && npm run security:encoding && npm run security:api-surface && npm run architecture:check && npm run ai:eval -- --check && npm run test:auth-boundary && npm run test:coverage && npm run content:brand:check && npm run content:validate && npm run projects:catalog:validate && npm run dsa:parity:check && npm run c-cpp:executable:check && npm run java-python:executable:check && npm run ai-code:executable:check && npm run web:executable:check && npm run audit:release && npm run evidence:verify && npm run build"
+    "check": "npm run production-load:release-gates && npm run lint && npm run test:mail-delivery-scope-0059:registration && npm run test:mail-payload-immutability-0060:registration && npm run typecheck && npm run security:dependencies:known && npm run security:secrets && npm run security:encoding && npm run security:api-surface && npm run architecture:check && npm run ai:eval -- --check && npm run test:auth-boundary && npm run test:coverage && npm run content:brand:check && npm run content:validate && npm run projects:catalog:validate && npm run dsa:parity:check && npm run c-cpp:executable:check && npm run java-python:executable:check && npm run ai-code:executable:check && npm run web:executable:check && npm run audit:release && npm run evidence:verify && npm run build"
   },
   "dependencies": {
     "@better-auth/utils": "0.4.2",

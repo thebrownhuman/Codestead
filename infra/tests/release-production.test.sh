@@ -433,7 +433,17 @@ fi
 if [[ "$1" == "--profile" && "$2" == "operations" && "$3" == "up" ]]; then
   service="${!#}"
   case "$service" in
-    database-role-bootstrap) [[ "${FAKE_SCENARIO:-}" != "role-bootstrap-failure" ]] || exit 40 ;;
+    database-role-bootstrap)
+      [[ "${FAKE_SCENARIO:-}" != "role-bootstrap-failure" ]] || exit 40
+      if [[ "${FAKE_SCENARIO:-}" == "role-reconciliation-failure" ]]; then
+        bootstrap_count="$(
+          grep -Fc \
+            $'\t--exit-code-from\tdatabase-role-bootstrap\tdatabase-role-bootstrap' \
+            "$FAKE_DOCKER_LOG" || true
+        )"
+        (( bootstrap_count < 2 )) || exit 47
+      fi
+      ;;
     database-negative-probes) [[ "${FAKE_SCENARIO:-}" != "negative-probes-failure" ]] || exit 44 ;;
     migrate) [[ "${FAKE_SCENARIO:-}" != "migration-failure" ]] || exit 41 ;;
     platform-seed) [[ "${FAKE_SCENARIO:-}" != "seed-failure" ]] || exit 42 ;;
@@ -927,7 +937,13 @@ tunnel_stop_line="$(line_number $'\tstop\t--timeout\t30\tcloudflared' "$trace")"
 mutator_stop_line="$(line_number $'\tstop\t--timeout\t60\tapp\tmail-worker' "$trace")"
 postgres_line="$(line_number $'\tup\t-d\t--wait\t--wait-timeout\t5\t--no-build\t--pull\tnever\tpostgres' "$trace")"
 session_fence_line="$(line_number $'\texec\t-T\tpostgres\tpsql\t--host=/run/learncoding-postgres' "$trace")"
-role_line="$(line_number $'\t--exit-code-from\tdatabase-role-bootstrap\tdatabase-role-bootstrap' "$trace")"
+role_lines=()
+mapfile -t role_lines < <(
+  grep -n -F -- $'\t--exit-code-from\tdatabase-role-bootstrap\tdatabase-role-bootstrap' "$trace" |
+    cut -d: -f1
+)
+role_line="${role_lines[0]:-}"
+role_reconciliation_line="${role_lines[1]:-}"
 negative_line="$(line_number $'\t--exit-code-from\tdatabase-negative-probes\tdatabase-negative-probes' "$trace")"
 migrate_line="$(line_number $'\t--exit-code-from\tmigrate\tmigrate' "$trace")"
 seed_line="$(line_number $'\t--exit-code-from\tplatform-seed\tplatform-seed' "$trace")"
@@ -938,6 +954,7 @@ tunnel_start_line="$(line_number $'\tup\t-d\t--no-deps\t--no-build\t--pull\tneve
 [[ -n "$pre_validator_line" && -n "$postgres_prep_line" && -n "$object_prep_line" \
   && -n "$full_validator_line" && -n "$tunnel_stop_line" && -n "$mutator_stop_line" \
   && -n "$postgres_line" && -n "$session_fence_line" && -n "$role_line" \
+  && "${#role_lines[@]}" -eq 2 && -n "$role_reconciliation_line" \
   && -n "$negative_line" && -n "$migrate_line" && -n "$seed_line" \
   && -n "$boundary_line" && -n "$pilot_line" && -n "$internal_smoke_line" \
   && -n "$tunnel_start_line" ]] || {
@@ -956,7 +973,8 @@ tunnel_start_line="$(line_number $'\tup\t-d\t--no-deps\t--no-build\t--pull\tneve
   && session_fence_line < role_line \
   && role_line < negative_line \
   && negative_line < migrate_line \
-  && migrate_line < seed_line \
+  && migrate_line < role_reconciliation_line \
+  && role_reconciliation_line < seed_line \
   && seed_line < boundary_line \
   && boundary_line < pilot_line \
   && pilot_line < internal_smoke_line \
@@ -976,6 +994,11 @@ for service in database-role-bootstrap database-negative-probes migrate platform
     fail "successful one-shot was not removed: $service"
   }
 done
+[[ "$(grep -Fc \
+  $'\t--profile\toperations\trm\t-f\tdatabase-role-bootstrap' \
+  "$log")" == 2 ]] || {
+  fail "successful release did not remove both role bootstrap one-shots"
+}
 assert_immutable_flags "$log"
 assert_no_secret "$RELEASE_CASE_DIR"
 echo "ok - explicit release orders pinned existing images and records rollback evidence"
@@ -1436,6 +1459,7 @@ for failure_case in \
   residual-current-user-session-failure \
   residual-session-noncanonical-failure \
   role-bootstrap-failure \
+  role-reconciliation-failure \
   negative-probes-failure \
   migration-failure \
   seed-failure \
@@ -1464,8 +1488,9 @@ for failure_case in \
   assert_no_secret "$RELEASE_CASE_DIR"
   case "$failure_case" in
     mutator-stop-failure|postgres-failure|residual-session-failure|residual-current-user-session-failure|\
-      residual-session-noncanonical-failure|role-bootstrap-failure|negative-probes-failure|migration-failure|\
-      seed-failure|bootstrap-failure|boundary-verifier-failure|pilot-failure|internal-smoke-failure|\
+      residual-session-noncanonical-failure|role-bootstrap-failure|role-reconciliation-failure|\
+      negative-probes-failure|migration-failure|seed-failure|bootstrap-failure|\
+      boundary-verifier-failure|pilot-failure|internal-smoke-failure|\
       public-smoke-failure|tunnel-failure|smoke-failure)
     grep -Fq $'\tstop\t--timeout\t30\tcloudflared' "$RELEASE_CASE_DIR/docker.log" || {
       fail "$failure_case did not quarantine cloudflared after candidate mutation"
@@ -1478,6 +1503,27 @@ for failure_case in \
     fi
     if grep -Fq $'\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tpostgres\tapp' "$RELEASE_CASE_DIR/docker.log"; then
       fail "$failure_case started application services after a failed session fence"
+    fi
+  fi
+  if [[ "$failure_case" == role-reconciliation-failure ]]; then
+    grep -Fxq 'stage=database-role-reconciliation' "$record/status.env" || {
+      fail "post-migration reconciliation failure recorded the wrong stage"
+    }
+    [[ "$(grep -Fc \
+      $'\t--exit-code-from\tdatabase-role-bootstrap\tdatabase-role-bootstrap' \
+      "$RELEASE_CASE_DIR/docker.log")" == 2 ]] || {
+      fail "post-migration reconciliation failure did not reach exactly two bootstraps"
+    }
+    for forbidden_service in platform-seed admin-bootstrap database-boundary-verifier; do
+      if grep -Fq $'\t--exit-code-from\t'"$forbidden_service"$'\t'"$forbidden_service" \
+        "$RELEASE_CASE_DIR/docker.log"; then
+        fail "post-migration reconciliation failure reached $forbidden_service"
+      fi
+    done
+    if grep -Fq \
+      $'\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tpostgres\tapp' \
+      "$RELEASE_CASE_DIR/docker.log"; then
+      fail "post-migration reconciliation failure started the candidate core"
     fi
   fi
   if grep -Fq $'\tlifecycle' "$RELEASE_CASE_DIR/docker.log"; then
