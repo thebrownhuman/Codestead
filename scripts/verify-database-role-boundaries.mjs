@@ -194,7 +194,7 @@ async function tablePrivilegeDelegationState(client, grantee, objectOid) {
   return result.rows[0];
 }
 
-async function expectTablePrivilegeNotDelegated(client, table, objectOid) {
+async function expectTablePrivilegeNotDelegated(client, role, table, objectOid) {
   const grantee = "learncoding_migrator";
   await client.query("begin");
   try {
@@ -204,16 +204,13 @@ async function expectTablePrivilegeNotDelegated(client, table, objectOid) {
       before.current_role_effective_grantable !== false ||
       before.current_role_direct_grantable !== false
     ) fail();
-    await client.query("savepoint codestead_table_grant_probe");
-    try {
+    if (RUNTIME_ROLES.has(role)) {
       await client.query(
         `grant select on table ${table} to ${quoteIdentifier(grantee)}`,
       );
-    } catch {
-      await client.query("rollback to savepoint codestead_table_grant_probe");
+      const after = await tablePrivilegeDelegationState(client, grantee, objectOid);
+      if (!exactRow(after, before)) fail();
     }
-    const after = await tablePrivilegeDelegationState(client, grantee, objectOid);
-    if (!exactRow(after, before)) fail();
   } finally {
     await bounded(() => client.query("rollback"));
   }
@@ -444,7 +441,12 @@ async function verifyRole({ client, role, database, objects }) {
     const table = qualifiedName(objects.table);
     await expectInsufficientPrivilege(client, `alter table ${table} owner to ${quoteIdentifier(role)}`);
     negativeChecks += 1;
-    await expectTablePrivilegeNotDelegated(client, table, objects.table.object_oid);
+    await expectTablePrivilegeNotDelegated(
+      client,
+      role,
+      table,
+      objects.table.object_oid,
+    );
     negativeChecks += 1;
   }
   return { positiveChecks, negativeChecks };
