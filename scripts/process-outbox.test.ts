@@ -507,6 +507,32 @@ describe("mail worker production composition", () => {
     expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
   });
 
+  it("does not report a timeout when pool shutdown wins the deadline race", async () => {
+    vi.useFakeTimers();
+    const exit = vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as typeof process.exit,
+    );
+    let monotonicMilliseconds = 0;
+    vi.spyOn(globalThis.performance, "now").mockImplementation(
+      () => monotonicMilliseconds,
+    );
+    mocks.poolEnd.mockImplementationOnce(async () => {
+      monotonicMilliseconds = 5_000;
+    });
+    process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
+
+    await import("./process-outbox");
+    await flushWorkerMicrotasks();
+
+    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+    expect(process.exitCode).toBeUndefined();
+    expect(exit).not.toHaveBeenCalled();
+    const entries = vi.mocked(console.error).mock.calls
+      .map(([entry]) => String(entry))
+      .filter((entry) => entry.includes('"event":"email.worker_cleanup_failed"'));
+    expect(entries).toEqual([]);
+  });
+
   it("bounds pool cleanup to five seconds and reports timeout without PII", async () => {
     vi.useFakeTimers();
     const exit = vi.spyOn(process, "exit").mockImplementation(
