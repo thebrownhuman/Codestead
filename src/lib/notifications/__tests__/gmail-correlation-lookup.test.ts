@@ -13,6 +13,7 @@ describe("bounded Gmail correlation lookup", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -72,6 +73,10 @@ describe("bounded Gmail correlation lookup", () => {
       body: { messages: [], nextPageToken: "next-page" },
       label: "paginated zero-result response",
     },
+    {
+      body: { messages: [], nextPageToken: "" },
+      label: "defined empty page token",
+    },
   ] as const)("treats a $label as ambiguous", async ({ body }) => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "access" }), { status: 200 }))
@@ -116,4 +121,60 @@ describe("bounded Gmail correlation lookup", () => {
       kind: "ambiguous",
     });
   });
+
+  it("requires labelIds to be an actual array before accepting a SENT match", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "access" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ messages: [{ id: "gmail-shaped" }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-shaped",
+        labelIds: "SENT",
+        payload: {
+          headers: [{ name: "Message-ID", value: MESSAGE_ID }],
+        },
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId(MESSAGE_ID)).resolves.toEqual({
+      kind: "ambiguous",
+    });
+  });
+
+  it.each(["list", "metadata"] as const)(
+    "bounds $stage response body parsing with the reconciliation deadline",
+    async (stage) => {
+      vi.useFakeTimers();
+      vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
+      const stalledResponse = {
+        ok: true,
+        json: vi.fn(() => new Promise<never>(() => undefined)),
+      } as unknown as Response;
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(new Response(
+          JSON.stringify({ access_token: "access" }),
+          { status: 200 },
+        ));
+      if (stage === "metadata") {
+        fetchMock.mockResolvedValueOnce({
+          ok: true,
+          json: vi.fn(async () => ({ messages: [{ id: "gmail-1" }] })),
+        } as unknown as Response);
+      }
+      fetchMock.mockResolvedValueOnce(stalledResponse);
+      vi.stubGlobal("fetch", fetchMock);
+
+      let outcome: unknown;
+      void findGmailMessageByMessageId(MESSAGE_ID).then(
+        (result) => { outcome = result; },
+        (error) => { outcome = error; },
+      );
+      for (let index = 0; index < 20; index += 1) await Promise.resolve();
+      expect(fetchMock).toHaveBeenCalledTimes(stage === "list" ? 2 : 3);
+
+      await vi.advanceTimersByTimeAsync(1_001);
+      await Promise.resolve();
+
+      expect(outcome).toBeInstanceOf(Error);
+      expect((outcome as Error).message).toContain("reconciliation request timed out");
+    },
+  );
 });

@@ -164,32 +164,33 @@ export async function findGmailMessageByMessageId(messageId: string) {
   listUrl.searchParams.set("maxResults", "2");
   listUrl.searchParams.set("q", `rfc822msgid:${correlation.header}`);
   listUrl.searchParams.append("labelIds", "SENT");
-  const listResponse = await withGmailRequestDeadline(
+  const listBody = await withGmailRequestDeadline(
     "reconciliation",
     requestTimeoutMs,
-    (signal) => fetch(listUrl, {
-      headers: { authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-      signal,
-    }),
+    async (signal) => {
+      const response = await fetch(listUrl, {
+        headers: { authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+        signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Gmail reconciliation search failed (${response.status}).`);
+      }
+      return response.json() as Promise<unknown>;
+    },
   );
-  if (!listResponse.ok) {
-    throw new Error(`Gmail reconciliation search failed (${listResponse.status}).`);
+  if (
+    typeof listBody !== "object"
+    || listBody === null
+    || Array.isArray(listBody)
+  ) {
+    return { kind: "ambiguous" as const };
   }
-  const listBody = (await listResponse.json()) as {
-    messages?: unknown;
-    nextPageToken?: unknown;
-  };
-  const rawMessages = listBody.messages;
+  const listRecord = listBody as Record<string, unknown>;
+  const rawMessages = listRecord.messages;
   if (
     (rawMessages !== undefined && !Array.isArray(rawMessages))
-    || (
-      listBody.nextPageToken !== undefined
-      && (
-        typeof listBody.nextPageToken !== "string"
-        || listBody.nextPageToken.trim() !== ""
-      )
-    )
+    || listRecord.nextPageToken !== undefined
   ) {
     return { kind: "ambiguous" as const };
   }
@@ -218,30 +219,60 @@ export async function findGmailMessageByMessageId(messageId: string) {
   );
   metadataUrl.searchParams.set("format", "metadata");
   metadataUrl.searchParams.append("metadataHeaders", "Message-ID");
-  const metadataResponse = await withGmailRequestDeadline(
+  const metadata = await withGmailRequestDeadline(
     "reconciliation",
     requestTimeoutMs,
-    (signal) => fetch(metadataUrl, {
-      headers: { authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-      signal,
-    }),
+    async (signal) => {
+      const response = await fetch(metadataUrl, {
+        headers: { authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+        signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Gmail reconciliation verification failed (${response.status}).`);
+      }
+      return response.json() as Promise<unknown>;
+    },
   );
-  if (!metadataResponse.ok) {
-    throw new Error(`Gmail reconciliation verification failed (${metadataResponse.status}).`);
-  }
-  const metadata = (await metadataResponse.json()) as {
-    id?: string;
-    labelIds?: string[];
-    payload?: { headers?: Array<{ name?: string; value?: string }> };
-  };
-  const messageIdHeaders = (metadata.payload?.headers ?? [])
-    .filter(({ name }) => name?.toLowerCase() === "message-id")
-    .map(({ value }) => value?.trim() ?? "");
   if (
-    metadata.id?.trim() !== providerMessageId
+    typeof metadata !== "object"
+    || metadata === null
+    || Array.isArray(metadata)
+  ) {
+    return { kind: "ambiguous" as const };
+  }
+  const metadataRecord = metadata as Record<string, unknown>;
+  const rawLabelIds = metadataRecord.labelIds;
+  const rawPayload = metadataRecord.payload;
+  if (
+    !Array.isArray(rawLabelIds)
+    || rawLabelIds.some((label) => typeof label !== "string")
+    || typeof rawPayload !== "object"
+    || rawPayload === null
+    || Array.isArray(rawPayload)
+  ) {
+    return { kind: "ambiguous" as const };
+  }
+  const rawHeaders = (rawPayload as Record<string, unknown>).headers;
+  if (!Array.isArray(rawHeaders)) {
+    return { kind: "ambiguous" as const };
+  }
+  const messageIdHeaders = rawHeaders
+    .filter((header): header is Record<string, unknown> => (
+      typeof header === "object"
+      && header !== null
+      && !Array.isArray(header)
+    ))
+    .filter(({ name }) => (
+      typeof name === "string"
+      && name.toLowerCase() === "message-id"
+    ))
+    .map(({ value }) => (typeof value === "string" ? value.trim() : ""));
+  if (
+    typeof metadataRecord.id !== "string"
+    || metadataRecord.id.trim() !== providerMessageId
     || messageIdHeaders.length !== 1
-    || !metadata.labelIds?.includes("SENT")
+    || !rawLabelIds.includes("SENT")
     || messageIdHeaders[0] !== correlation.header
   ) {
     return { kind: "ambiguous" as const };

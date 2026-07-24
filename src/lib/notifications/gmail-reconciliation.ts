@@ -20,6 +20,7 @@ export interface GmailReconciliationStore {
     operationId: string;
   }>): Promise<
     | { readonly kind: "ready"; readonly fence: GmailReconciliationFence }
+    | { readonly kind: "already-applied" }
     | { readonly kind: "not-reconcilable" }
   >;
 
