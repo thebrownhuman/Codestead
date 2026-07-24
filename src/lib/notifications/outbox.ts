@@ -4,36 +4,7 @@ import { db } from "@/lib/db/client";
 import { emailOutbox } from "@/lib/db/schema";
 
 export type EmailTemplate =
-  | "verify-email"
-  | "reset-password"
-  | "invitation"
-  | "access-request-admin"
-  | "lost-device-proof"
-  | "access-rejected"
-  | "learning-request-updated"
-  | "new-device"
-  | "session-revocation-requested"
-  | "session-revocation-updated"
-  | "session-revoked"
-  | "account-deleted"
-  | "credential-changed"
-  | "credential-revealed"
-  | "fallback-grant-changed"
-  | "learning-plan-changed"
-  | "storage-quota-changed"
-  | "inactivity-reminder"
-  | "inactivity-reminder-followup"
-  | "inactivity-admin-notice"
-  | "daily-study-reminder"
-  | "revision-reminder"
-  | "goal-reminder"
-  | "challenge-reminder"
-  | "exam-result"
-  | "mastery-awarded"
-  | "appeal-updated"
-  | "assessment-corrected"
-  | "weekly-summary"
-  | "backup-status";
+  import("./template-authority-policy").EmailTemplate;
 
 export type AccountEmailTemplate = Exclude<
   EmailTemplate,

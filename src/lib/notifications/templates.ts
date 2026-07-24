@@ -55,7 +55,6 @@ const subjects: Record<EmailTemplate, string> = {
   "revision-reminder": "A short skill refresh is ready",
   "goal-reminder": "Plan one useful learning step this week",
   "challenge-reminder": "Your coding challenge is coming up",
-  "exam-result": "Your Codestead exam result is ready",
   "mastery-awarded": "You earned a mastery badge",
   "appeal-updated": "Your appeal has an update",
   "assessment-corrected": "Your Codestead assessment was regraded",
@@ -96,7 +95,6 @@ export function renderEmail(
     case "revision-reminder": lead = "At least one concept is due for a short retrieval practice. The review queue chooses previous learning that is most useful to recall now."; action = "Start a five-question review"; break;
     case "goal-reminder": lead = "Your active roadmap is ready for a weekly check-in. Choose a realistic next step; this reminder never invents progress or pressure."; action = "Review roadmap"; break;
     case "challenge-reminder": lead = "A coding challenge you joined is scheduled to start soon. Open Codestead for the server-authoritative start time and rules."; action = "View challenge"; break;
-    case "exam-result": lead = "Your exam result and evidence are ready. Scores remain private."; action = "View result"; break;
     case "mastery-awarded": lead = `You demonstrated independent mastery${variables.topic ? ` in ${variables.topic}` : ""}.`; action = "View badge"; break;
     case "appeal-updated": lead = appealUpdate(variables.decision); action = "View appeal"; break;
     case "assessment-corrected": lead = `A reviewed faulty assessment version was corrected and your work was deterministically regraded. The original result remains preserved. Your effective outcome is now ${variables.outcome ?? "available in Codestead"}.`; action = "View corrected result"; break;
