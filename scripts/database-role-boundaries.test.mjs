@@ -7,6 +7,7 @@ import {
   MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS,
   mailWorkerOutboxPrivilegesSql,
+  reviewedApplicationFunctionPrivilegesSql,
 } from "./bootstrap-database-roles.mjs";
 import {
   DatabaseRoleBoundaryError,
@@ -106,6 +107,68 @@ test("composes the mail worker outbox role without payload mutation authority", 
   assert.match(sql, /grant insert \([^)]+\) on table public\.email_outbox to learncoding_worker/iu);
   assert.match(sql, /grant update \([^)]+\) on table public\.email_outbox to learncoding_worker/iu);
   assert.doesNotMatch(sql, /grant delete|grant truncate/iu);
+});
+
+test("guards reviewed application grants on both role and object existence", () => {
+  const workerSql = mailWorkerOutboxPrivilegesSql();
+  assert.match(
+    workerSql,
+    /pg_catalog\.to_regrole\('learncoding_worker'\)\s+is\s+not\s+null/iu,
+  );
+  assert.match(
+    workerSql,
+    /pg_catalog\.to_regclass\('public\.email_outbox'\)\s+is\s+not\s+null/iu,
+  );
+
+  const routineSql = reviewedApplicationFunctionPrivilegesSql();
+  assert.match(
+    routineSql,
+    /pg_catalog\.to_regrole\('learncoding_ops'\)\s+is\s+not\s+null/iu,
+  );
+  assert.match(
+    routineSql,
+    /pg_catalog\.to_regprocedure\('public\.redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\)'\)\s+is\s+not\s+null/iu,
+  );
+});
+
+test("replays post-migration privilege reconciliation idempotently", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  assert.equal(
+    typeof databaseRoleBootstrap.reconcileDatabaseRolePrivileges,
+    "function",
+  );
+
+  const passes = [];
+  let currentPass = [];
+  const client = {
+    async query(sql) {
+      const normalized = String(sql).replace(/\s+/gu, " ").trim().toLowerCase();
+      currentPass.push(normalized);
+      if (
+        normalized.includes(
+          "select to_regclass('public.email_outbox') is not null present",
+        )
+      ) {
+        return { rows: [{ present: true }] };
+      }
+      if (normalized.includes("from pg_namespace")) {
+        return { rows: [{ present: false }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  for (let pass = 0; pass < 2; pass += 1) {
+    await databaseRoleBootstrap.reconcileDatabaseRolePrivileges(client);
+    passes.push(currentPass);
+    currentPass = [];
+  }
+
+  assert.deepEqual(passes[1], passes[0]);
+  assert.equal(
+    passes[0].some((sql) => sql.includes("do $codestead_mail_worker_outbox$")),
+    true,
+  );
 });
 
 test("accepts only the exact four distinct restricted-role URLs", () => {
@@ -385,4 +448,32 @@ test("CLI failure output never includes credential material", () => {
   assert.equal(result.status, 1);
   assert.doesNotMatch(`${result.stdout}${result.stderr}`, new RegExp(canary, "u"));
   assert.match(result.stderr, /"event":"database\.role_boundary_verification_failed"/u);
+});
+
+test("bootstrap CLI failure output uses a fixed code without credential material", () => {
+  const script = path.join(import.meta.dirname, "bootstrap-database-roles.mjs");
+  const canary = "BOOTSTRAP_SECRET_CANARY_123456789012345678901234567890";
+  const result = spawnSync(process.execPath, [script], {
+    encoding: "utf8",
+    env: {
+      ...minimalPlatformEnvironment(process.env),
+      POSTGRES_USER: "legacy_bootstrap",
+      POSTGRES_DB: "learncoding",
+      DATABASE_BOOTSTRAP_URL: `postgresql://legacy_bootstrap:${canary}@wrong-host:5432/learncoding`,
+      DATABASE_APP_URL: validInput().databaseAppUrl,
+      DATABASE_MIGRATOR_URL: validInput().databaseMigratorUrl,
+      DATABASE_WORKER_URL: validInput().databaseWorkerUrl,
+      DATABASE_OPS_URL: validInput().databaseOpsUrl,
+    },
+  });
+  const output = `${result.stdout}${result.stderr}`;
+  assert.equal(result.status, 1);
+  assert.doesNotMatch(output, new RegExp(canary, "u"));
+  assert.deepEqual(
+    JSON.parse(result.stderr.trim()),
+    {
+      event: "database.role_bootstrap_failed",
+      code: "DATABASE_ROLE_BOOTSTRAP_FAILED",
+    },
+  );
 });
