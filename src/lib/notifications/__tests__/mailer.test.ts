@@ -135,7 +135,7 @@ describe("notification delivery privacy", () => {
     }, undefined as never)).rejects.toThrow("Invalid Message-ID header.");
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it("aborts a blackholed OAuth request at the configured deadline and ignores its late response", async () => {
+  it("aborts OAuth at the deadline, drains its settlement, and ignores the late response", async () => {
     vi.useFakeTimers();
     vi.stubEnv("MAIL_ADAPTER", "gmail");
     vi.stubEnv("GMAIL_CLIENT_ID", "client");
@@ -146,7 +146,13 @@ describe("notification delivery privacy", () => {
     const lateOAuth = new Promise<Response>((resolve) => {
       resolveOAuth = resolve;
     });
-    const fetchMock = vi.fn<typeof fetch>(() => lateOAuth);
+    let abortObserved = false;
+    const fetchMock = vi.fn<typeof fetch>((_url, init) => {
+      init?.signal?.addEventListener("abort", () => {
+        abortObserved = true;
+      }, { once: true });
+      return lateOAuth;
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = sendEmail({
@@ -161,23 +167,24 @@ describe("notification delivery privacy", () => {
     );
 
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(outcome).toBeInstanceOf(Error);
-    expect((outcome as Error).message).toBe("Gmail OAuth request timed out.");
-    expect(classifyMailDeliveryError(outcome)).toEqual({
-      kind: "definitely-rejected",
-      code: "GMAIL_OAUTH_FAILED",
-    });
+    expect(abortObserved).toBe(true);
+    expect(outcome).toBe("pending");
     const signal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal;
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(signal?.aborted).toBe(true);
 
     resolveOAuth(new Response(JSON.stringify({ access_token: "late-token" }), { status: 200 }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(fetchMock).toHaveBeenCalledOnce();
     expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toBe("Gmail OAuth request timed out.");
+    expect(classifyMailDeliveryError(outcome)).toEqual({
+      kind: "definitely-rejected",
+      code: "GMAIL_OAUTH_FAILED",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it("aborts a blackholed Gmail delivery request at the configured deadline and ignores its late response", async () => {
+  it("aborts Gmail delivery at the deadline, drains its settlement, and ignores the late response", async () => {
     vi.useFakeTimers();
     vi.stubEnv("MAIL_ADAPTER", "gmail");
     vi.stubEnv("GMAIL_CLIENT_ID", "client");
@@ -190,7 +197,13 @@ describe("notification delivery privacy", () => {
     });
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "access" }), { status: 200 }))
-      .mockImplementationOnce(() => lateDelivery);
+      .mockImplementationOnce((_url, init: RequestInit | undefined) => {
+        init?.signal?.addEventListener("abort", () => {
+          abortObserved = true;
+        }, { once: true });
+        return lateDelivery;
+      });
+    let abortObserved = false;
     vi.stubGlobal("fetch", fetchMock);
 
     const pending = sendEmail({
@@ -207,20 +220,21 @@ describe("notification delivery privacy", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(outcome).toBeInstanceOf(Error);
-    expect((outcome as Error).message).toBe("Gmail delivery request timed out.");
-    expect(classifyMailDeliveryError(outcome)).toEqual({
-      kind: "ambiguous",
-      code: "GMAIL_DELIVERY_AMBIGUOUS",
-    });
+    expect(abortObserved).toBe(true);
+    expect(outcome).toBe("pending");
     const signal = (fetchMock.mock.calls[1]?.[1] as RequestInit | undefined)?.signal;
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(signal?.aborted).toBe(true);
 
     resolveDelivery(new Response(JSON.stringify({ id: "late-id" }), { status: 200 }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toBe("Gmail delivery request timed out.");
+    expect(classifyMailDeliveryError(outcome)).toEqual({
+      kind: "ambiguous",
+      code: "GMAIL_DELIVERY_AMBIGUOUS",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("builds a multipart Gmail message and keeps OAuth credentials out of the MIME body", async () => {
