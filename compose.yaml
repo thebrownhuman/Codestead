@@ -355,6 +355,8 @@ services:
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       MAIL_ADAPTER: ${MAIL_ADAPTER:-console}
       MAIL_FROM: ${MAIL_FROM:-Codestead <noreply@example.com>}
+      MAIL_OUTBOX_PHASE: ${MAIL_OUTBOX_PHASE:?Set MAIL_OUTBOX_PHASE to the reviewed rollout phase}
+      OUTBOX_WORKER_MODE: ${OUTBOX_WORKER_MODE:?Set OUTBOX_WORKER_MODE to the reviewed claimant}
       GMAIL_CLIENT_ID_FILE: /run/secrets/gmail_client_id
       GMAIL_CLIENT_SECRET_FILE: /run/secrets/gmail_client_secret
       GMAIL_REFRESH_TOKEN_FILE: /run/secrets/gmail_refresh_token
