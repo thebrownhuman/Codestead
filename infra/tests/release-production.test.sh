@@ -33,6 +33,18 @@ grep -Fq 'final keystroke' "$deployment_guide" || fail "deployment guide oversta
 if grep -Fq 'Browser-local crash durability remains a separate implementation' "$deployment_guide"; then
   fail "deployment guide still defers mandatory browser durability"
 fi
+grep -Fq "\`0062_mail_outbox_retention_redaction\` is a forward-only authority boundary" "$update_runbook" || {
+  fail "update runbook omits the 0062 retention-authority boundary"
+}
+grep -Fq 'PREVIOUS_RUNTIME_COMPATIBLE=true' "$update_runbook" || {
+  fail "update runbook omits the versioned compatibility evidence gate"
+}
+grep -Fq 'fenced-postgres-v1 cannot roll back to legacy-direct-v1' "$update_runbook" || {
+  fail "update runbook omits the claimant rollback boundary"
+}
+grep -Fq "never authorizes rollback across \`0062_mail_outbox_retention_redaction\`" "$deployment_guide" || {
+  fail "deployment guide overstates the schema compatibility flag across 0062"
+}
 
 chmod 0700 "$work"
 mkdir -p "$work/bin" "$work/data" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" \
@@ -808,6 +820,22 @@ grep -Fq -- '== 0:0:1777 ]] || fatal "/run/lock must be exactly root:root mode 1
   fail "release does not require exact root:root 1777 metadata for /run/lock"
 }
 echo "ok - release permits only the exact production /run/lock metadata contract"
+forward_only_records="$work/forward-only-release-records"
+RUN_RECORD_ROOT="$forward_only_records" run_release retention-authority-flag-conflict \
+  --schema-backward-compatible
+unset RUN_RECORD_ROOT
+[[ "$RELEASE_STATUS" != 0 ]] || {
+  fail "pre-0062 retention authority accepted generic automatic rollback"
+}
+assert_only_early_quarantine "$RELEASE_CASE_DIR/docker.log" "retention authority rollback refusal"
+[[ ! -e "$forward_only_records/current-release.env" ]] || {
+  fail "retention authority rollback refusal advanced the current release pointer"
+}
+grep -Fq '0062_mail_outbox_retention_redaction' "$RELEASE_CASE_DIR/stderr" || {
+  fail "retention authority rollback refusal did not name migration 0062"
+}
+echo "ok - pre-0062 retention authority cannot enable generic automatic rollback"
+
 
 run_release success
 [[ "$RELEASE_STATUS" == 0 ]] || {
@@ -818,6 +846,31 @@ run_release success
 record="$(only_record_dir "$RELEASE_CASE_DIR/records")"
 grep -Fxq 'result=completed' "$record/status.env" || fail "success record is not completed"
 grep -Fxq 'schema_rollback=not_attempted' "$record/status.env" || fail "success record omitted schema rollback boundary"
+cat >"$work/expected-forward-only-mail-contract.env" <<'EOF'
+SCHEMA_VERSION=2
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=legacy-v0
+PREVIOUS_OUTBOX_WORKER_MODE=legacy-direct-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=legacy-direct-v1
+PREVIOUS_RUNTIME_COMPATIBLE=false
+FORWARD_ONLY_MIGRATION=0062_mail_outbox_retention_redaction
+EOF
+cmp -s "$record/mail-outbox-contract.env" "$work/expected-forward-only-mail-contract.env" || {
+  fail "first ops-owner retention release omitted its exact forward-only contract"
+}
+grep -Fq '0062_mail_outbox_retention_redaction' "$record/rollback.txt" || {
+  fail "forward-only rollback evidence did not name migration 0062"
+}
+if grep -Eq '^sudo .*rollback-production\.sh.*--schema-backward-compatible$' "$record/rollback.txt"; then
+  fail "forward-only rollback evidence exposed a runnable compatibility command"
+fi
+grep -Fq -- "$record/mail-outbox-contract.env" "$RELEASE_CASE_DIR/sync.log" || {
+  fail "forward-only retention authority contract was not fsynced"
+}
+
 [[ "$(cat "$RELEASE_CASE_DIR/validate.log")" == $'operations\t--pre-privileged\noperations\t--full' ]] || {
   fail "normal release did not run both operations validation phases"
 }
@@ -1107,10 +1160,26 @@ grep -Fxq "git_commit=$second_shared_commit" "$shared_records/current-release.en
 echo "ok - consecutive releases retain the exact previous Git/release pointer"
 
 dual_contract="$second_shared_record/mail-outbox-contract.env"
-grep -Fxq 'SCHEMA_VERSION=1' "$dual_contract" || fail "dual-write release omitted its contract schema"
+grep -Fxq 'SCHEMA_VERSION=2' "$dual_contract" || fail "dual-write release omitted its contract schema"
 grep -Fxq 'MAIL_OUTBOX_PHASE=dual-write-v1' "$dual_contract" || fail "dual-write release omitted its phase"
 grep -Fxq 'OUTBOX_WORKER_MODE=fenced-postgres-v1' "$dual_contract" || fail "dual-write release omitted its fenced claimant"
+grep -Fxq 'OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1' "$dual_contract" || {
+  fail "dual-write release omitted its ops-owner retention authority"
+}
 grep -Fxq 'STORE_CUTOVER=false' "$dual_contract" || fail "dual-write release was mislabeled as a cutover"
+grep -Fxq 'PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1' "$dual_contract" || {
+  fail "later ops-aware release did not retain its compatible predecessor authority"
+}
+grep -Fxq 'PREVIOUS_RUNTIME_COMPATIBLE=true' "$dual_contract" || {
+  fail "later ops-aware release was not marked rollback eligible"
+}
+grep -Fxq 'FORWARD_ONLY_MIGRATION=none' "$dual_contract" || {
+  fail "later ops-aware release retained a stale forward-only migration boundary"
+}
+grep -Eq '^sudo .*rollback-production\.sh.*--schema-backward-compatible$' \
+  "$second_shared_record/rollback.txt" || {
+  fail "later ops-aware release omitted its explicit compatibility command"
+}
 echo "ok - dual-write release records its fenced claimant contract"
 
 printf '%s\n' '# reviewed mail store cutover release' >>"$work/repo/compose.yaml"
@@ -1201,14 +1270,19 @@ unset RUN_RECORD_ROOT
 mail_success_id="$(sed -n 's/^release_id=//p' "$mail_success_records/current-release.env")"
 mail_success_record="$mail_success_records/$mail_success_id"
 cat >"$work/expected-mail-cutover-contract.env" <<'EOF'
-SCHEMA_VERSION=1
+SCHEMA_VERSION=2
 MAIL_OUTBOX_PHASE=store-v1
 OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
 STORE_CUTOVER=true
 PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
 PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+PREVIOUS_RUNTIME_COMPATIBLE=false
+FORWARD_ONLY_MIGRATION=none
 EOF
 cmp -s "$mail_success_record/mail-outbox-contract.env" "$work/expected-mail-cutover-contract.env" || {
+  diff -u "$work/expected-mail-cutover-contract.env" "$mail_success_record/mail-outbox-contract.env" >&2 || true
   fail "successful mail cutover evidence is incomplete"
 }
 backup_lock_line="$(line_number $'\tmail-outbox-host-backup-fence\tcompleted' "$mail_success_record/stages.tsv")"
@@ -1626,6 +1700,7 @@ chmod 0700 "$work"
 [[ ! -s "$unsafe_harness_case/docker.log" ]] || fail "unsafe test harness reached Docker"
 echo "ok - the explicit test harness must be private and caller-owned"
 
+# shellcheck disable=SC2016
 grep -Fq '[[ -z "${RELEASE_LOCK_FILE+x}" ]] || fatal "RELEASE_LOCK_FILE is forbidden in production"' "$release_script" || {
   fail "release does not reject ambient production lock authority"
 }
