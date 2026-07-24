@@ -94,9 +94,12 @@ type ReconciliationRow = CandidateRow & {
   claim_owner: string | null;
   lease_expires_at: string | null;
   adapter: string;
+  status: string;
   provider_call_started: string;
-  quarantined_at: string;
-  last_error_code: string;
+  provider_message_id: string | null;
+  sent_at: string | null;
+  quarantined_at: string | null;
+  last_error_code: string | null;
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ADAPTERS = new Set(["console", "gmail"]);
@@ -743,19 +746,34 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       const result = await client.query<ReconciliationRow>(`
         select id::text, user_id, operation_id::text, delivery_scope_key,
                claim_version, claim_token::text, claim_owner,
-               lease_expires_at::text, adapter,
-               provider_call_started::text, quarantined_at::text,
-               last_error_code
+               lease_expires_at::text, adapter, status::text,
+               provider_call_started::text, provider_message_id,
+               sent_at::text, quarantined_at::text, last_error_code
         from public.email_outbox
         where operation_id = $1::uuid
-          and status = 'quarantined'
           and adapter = 'gmail'
           and provider_call_started is not null
-          and provider_message_id is null
-          and sent_at is null
-          and quarantined_at is not null
-          and last_error_code is not null
-          and btrim(last_error_code) <> ''
+          and (
+            (
+              status = 'quarantined'
+              and provider_message_id is null
+              and sent_at is null
+              and quarantined_at is not null
+              and last_error_code is not null
+              and btrim(last_error_code) <> ''
+            )
+            or (
+              status = 'sent'
+              and provider_message_id is not null
+              and btrim(provider_message_id) <> ''
+              and sent_at is not null
+              and quarantined_at is null
+              and last_error_code is null
+              and claim_token is null
+              and claim_owner is null
+              and lease_expires_at is null
+            )
+          )
           and (
             (user_id is not null and delivery_scope_key = 'a:' || user_id)
             or (user_id is null and delivery_scope_key = 's:' || operation_id::text)
@@ -766,6 +784,39 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       const scope = deliveryScope(row);
       if (!Number.isSafeInteger(row.claim_version) || row.claim_version <= 0) {
         throw new Error("Outbox reconciliation claim version is invalid.");
+      }
+      if (
+        row.adapter !== "gmail"
+        || typeof row.provider_call_started !== "string"
+      ) {
+        return { kind: "not-reconcilable" as const };
+      }
+      if (row.status === "sent") {
+        if (
+          row.claim_token === null
+          && row.claim_owner === null
+          && row.lease_expires_at === null
+          && typeof row.provider_message_id === "string"
+          && row.provider_message_id.trim() !== ""
+          && typeof row.sent_at === "string"
+          && row.quarantined_at === null
+          && row.last_error_code === null
+        ) {
+          assertBoundedText(row.provider_message_id, "Provider message ID", 512);
+          assertBoundedText(row.provider_call_started, "Provider boundary", 64);
+          assertBoundedText(row.sent_at, "Sent timestamp", 64);
+          return { kind: "already-applied" as const };
+        }
+        return { kind: "not-reconcilable" as const };
+      }
+      if (
+        row.status !== "quarantined"
+        || row.provider_message_id !== null
+        || row.sent_at !== null
+        || row.quarantined_at === null
+        || row.last_error_code === null
+      ) {
+        return { kind: "not-reconcilable" as const };
       }
       if ((row.claim_token === null) !== (row.claim_owner === null)) {
         throw new Error("Outbox reconciliation claim authority is inconsistent.");

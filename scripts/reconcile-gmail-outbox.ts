@@ -1,4 +1,5 @@
 import { pool } from "../src/lib/db/client";
+import { assertGmailReconciliationOAuthScopes } from "../src/lib/notifications/gmail-oauth-scopes";
 import {
   reconcileGmailDelivery,
 } from "../src/lib/notifications/gmail-reconciliation";
@@ -69,6 +70,7 @@ async function main() {
   if (process.env.MAIL_ADAPTER !== "gmail") {
     throw new Error("Gmail reconciliation requires MAIL_ADAPTER=gmail.");
   }
+  assertGmailReconciliationOAuthScopes(process.env.GMAIL_OAUTH_SCOPES);
   const input = commandInput(process.argv.slice(2));
   const store = new PostgresOutboxStore(pool);
   const result = await reconcileGmailDelivery(input, {

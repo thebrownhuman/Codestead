@@ -667,6 +667,40 @@ describe("PostgresOutboxStore", () => {
     })).resolves.toEqual({ kind: "lost" });
   });
 
+  it("reports an exact terminal Gmail result as already applied on unknown-commit replay", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "operation_id = $1::uuid",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 4,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          status: "sent",
+          provider_message_id: "gmail-1",
+          sent_at: "2026-07-22 19:02:00+00",
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    })).resolves.toEqual({ kind: "already-applied" });
+    expect(input.client.calls[1]!.values).toEqual([OPERATION]);
+    expect(input.client.calls[1]!.sql)
+      .toContain("lease_expires_at is null ) ) and (");
+  });
+
   it("observes only an unresolved quarantined Gmail row as an exact reconciliation fence", async () => {
     const input = harness([
       { contains: "begin" },
@@ -683,6 +717,9 @@ describe("PostgresOutboxStore", () => {
           lease_expires_at: null,
           adapter: "gmail",
           provider_call_started: "2026-07-22 19:00:05+00",
+          status: "quarantined",
+          provider_message_id: null,
+          sent_at: null,
           quarantined_at: "2026-07-22 19:01:05+00",
           last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
         }],

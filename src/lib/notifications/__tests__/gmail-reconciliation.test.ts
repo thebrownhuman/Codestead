@@ -83,6 +83,22 @@ describe("Gmail outbox reconciliation", () => {
     expect(input.finalizeGmailReconciliation).not.toHaveBeenCalled();
   });
 
+  it("short-circuits an exact terminal replay as already applied", async () => {
+    const input = harness();
+    input.findGmailReconciliationFence.mockResolvedValueOnce({
+      kind: "already-applied",
+    } as never);
+
+    await expect(reconcileGmailDelivery({
+      operationId: OPERATION_ID,
+      apply: true,
+      confirmOperationId: OPERATION_ID,
+    }, input)).resolves.toEqual({ kind: "already-applied" });
+
+    expect(input.findByMessageId).not.toHaveBeenCalled();
+    expect(input.finalizeGmailReconciliation).not.toHaveBeenCalled();
+  });
+
   it("keeps a unique dry-run match quarantined until explicitly confirmed", async () => {
     const input = harness();
 
