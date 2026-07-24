@@ -208,24 +208,50 @@ function seedFixtures(port, database) {
          '59100000-0000-4000-8000-000000000001', 'scope-worker-account',
          11, clock_timestamp() + interval '30 days', null),
         (null, 'scope-invitation@example.invalid',
-         'invitation', '1', '{"fixture":"active-invitation"}'::jsonb,
+         'invitation', '1',
+         '{"fixture":"active-invitation","_mailOperationId":"59000000-0000-4000-8000-000000000002","_mailRecipient":"scope-invitation@example.invalid","_mailProducer":"access-request-approved","_mailSourceId":"59200000-0000-4000-8000-000000000002"}'::jsonb,
          'scope-0059-active-invitation',
          '59000000-0000-4000-8000-000000000002', null, 'sending',
          '59100000-0000-4000-8000-000000000002', 'scope-worker-invitation',
          12, clock_timestamp() + interval '30 days', null),
         (null, 'scope-rejected@example.invalid',
-         'access-rejected', '1', '{"fixture":"active-access-rejected"}'::jsonb,
+         'access-rejected', '1',
+         '{"fixture":"active-access-rejected","_mailOperationId":"59000000-0000-4000-8000-000000000003","_mailRecipient":"scope-rejected@example.invalid","_mailProducer":"access-request-rejected","_mailSourceId":"59200000-0000-4000-8000-000000000003"}'::jsonb,
          'scope-0059-active-access-rejected',
          '59000000-0000-4000-8000-000000000003', null, 'sending',
          '59100000-0000-4000-8000-000000000003', 'scope-worker-rejected',
          13, clock_timestamp() + interval '30 days', null),
         (null, 'ACTIVE_ORPHAN_RECIPIENT_CANARY@example.invalid',
-         'unregistered-template', '99',
+         'invitation', '1',
          '{"fixture":"ACTIVE_ORPHAN_VARIABLE_CANARY"}'::jsonb,
          'scope-0059-active-orphan',
          '59000000-0000-4000-8000-000000000004', null, 'sending',
          '59100000-0000-4000-8000-000000000004', 'scope-worker-orphan',
-         14, clock_timestamp() + interval '30 days', null);
+         14, clock_timestamp() + interval '30 days', null),
+        (null, 'scope-admin@example.invalid',
+         'invitation', '1',
+         '{"fixture":"active-admin","_mailOperationId":"59000000-0000-4000-8000-000000000005","_mailRecipient":"scope-admin@example.invalid","_mailProducer":"access-request-admin","_mailSourceId":"59200000-0000-4000-8000-000000000005"}'::jsonb,
+         'scope-0059-active-admin',
+         '59000000-0000-4000-8000-000000000005', null, 'sending',
+         '59100000-0000-4000-8000-000000000005', 'scope-worker-admin',
+         15, clock_timestamp() + interval '30 days', null),
+        (null, 'scope-current-admin@example.invalid',
+         'access-request-admin', '1',
+         '{"fixture":"active-current-admin","_mailOperationId":"59000000-0000-4000-8000-000000000014","_mailRecipient":"scope-current-admin@example.invalid","_mailProducer":"access-request-admin","_mailSourceId":"59200000-0000-4000-8000-000000000014"}'::jsonb,
+         'scope-0059-active-current-admin',
+         '59000000-0000-4000-8000-000000000014', null, 'sending',
+         '59100000-0000-4000-8000-000000000014',
+         'scope-worker-current-admin',
+         17, clock_timestamp() + interval '30 days', null),
+        (null, 'PRESCOPED_ORPHAN_RECIPIENT_CANARY@example.invalid',
+         'invitation', '1',
+         '{"fixture":"PRESCOPED_ORPHAN_VARIABLE_CANARY"}'::jsonb,
+         'scope-0059-active-prescoped-orphan',
+         '59000000-0000-4000-8000-000000000013',
+         's:59000000-0000-4000-8000-000000000013', 'sending',
+         '59100000-0000-4000-8000-000000000013',
+         'scope-worker-prescoped-orphan',
+         16, clock_timestamp() + interval '30 days', null);
     `,
   );
 }
@@ -239,6 +265,8 @@ function assertRollback(port, database, beforeRows, beforeCatalog, failure) {
   const failureOutput = `${failure.stdout ?? ""}${failure.stderr ?? ""}`;
   assert.doesNotMatch(failureOutput, /ACTIVE_ORPHAN_RECIPIENT_CANARY/u);
   assert.doesNotMatch(failureOutput, /ACTIVE_ORPHAN_VARIABLE_CANARY/u);
+  assert.doesNotMatch(failureOutput, /PRESCOPED_ORPHAN_RECIPIENT_CANARY/u);
+  assert.doesNotMatch(failureOutput, /PRESCOPED_ORPHAN_VARIABLE_CANARY/u);
   assert.equal(
     fixtureDigest(port, database),
     beforeRows,
@@ -257,18 +285,33 @@ function assertRollback(port, database, beforeRows, beforeCatalog, failure) {
         where idempotency_key like 'scope-0059-%'
           and delivery_scope_key is null;`,
     ),
-    "4",
+    "6",
     "failed 0059 attempt did not roll active account/system classification back",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `select count(*) from public.email_outbox
+        where idempotency_key = 'scope-0059-active-prescoped-orphan'
+          and delivery_scope_key =
+            's:59000000-0000-4000-8000-000000000013';`,
+    ),
+    "1",
+    "failed 0059 attempt did not roll predecessor scope normalization back",
   );
 }
 
-function expireOrphanLease(port, database) {
+function expireUnresolvedLeases(port, database) {
   psql(
     port,
     database,
     `update public.email_outbox
         set lease_expires_at = clock_timestamp() - interval '1 minute'
-      where idempotency_key = 'scope-0059-active-orphan';`,
+      where idempotency_key in (
+        'scope-0059-active-orphan',
+        'scope-0059-active-prescoped-orphan'
+      );`,
   );
 }
 
@@ -314,6 +357,38 @@ function assertSuccessfulClassification(port, database) {
 
         if not exists (
           select 1 from public.email_outbox
+           where idempotency_key = 'scope-0059-active-admin'
+             and delivery_scope_key = 's:' || operation_id::text
+             and template = 'access-request-admin'
+             and status = 'sending'
+             and to_email = 'scope-admin@example.invalid'
+             and variables ->> '_mailProducer' = 'access-request-admin'
+             and claim_token = '59100000-0000-4000-8000-000000000005'::uuid
+             and claim_owner = 'scope-worker-admin'
+             and claim_version = 15
+             and lease_expires_at is not null
+        ) then
+          raise exception 'legacy admin envelope was not retagged and classified in place';
+        end if;
+
+        if not exists (
+          select 1 from public.email_outbox
+           where idempotency_key = 'scope-0059-active-current-admin'
+             and delivery_scope_key = 's:' || operation_id::text
+             and template = 'access-request-admin'
+             and status = 'sending'
+             and to_email = 'scope-current-admin@example.invalid'
+             and variables ->> '_mailProducer' = 'access-request-admin'
+             and claim_token = '59100000-0000-4000-8000-000000000014'::uuid
+             and claim_owner = 'scope-worker-current-admin'
+             and claim_version = 17
+             and lease_expires_at is not null
+        ) then
+          raise exception 'current admin envelope was not classified in place';
+        end if;
+
+        if not exists (
+          select 1 from public.email_outbox
            where idempotency_key = 'scope-0059-active-orphan'
              and delivery_scope_key = 'o:' || operation_id::text
              and status = 'quarantined'
@@ -327,6 +402,23 @@ function assertSuccessfulClassification(port, database) {
              and lease_expires_at is null
         ) then
           raise exception 'expired orphan was not quarantined on retry';
+        end if;
+
+        if not exists (
+          select 1 from public.email_outbox
+           where idempotency_key = 'scope-0059-active-prescoped-orphan'
+             and delivery_scope_key = 'o:' || operation_id::text
+             and status = 'quarantined'
+             and last_error_code = 'UNRESOLVED_DELIVERY_SCOPE'
+             and quarantined_at is not null
+             and to_email = 'unresolved-recipient@invalid.local'
+             and variables = '{}'::jsonb
+             and claim_token is null
+             and claim_owner is null
+             and claim_version = 17
+             and lease_expires_at is null
+        ) then
+          raise exception 'broad predecessor system scope was not quarantined on retry';
         end if;
 
         if exists (
@@ -356,6 +448,17 @@ function assertSuccessfulClassification(port, database) {
           raise exception 'strict delivery-scope check is absent or unvalidated';
         end if;
 
+        if not exists (
+          select 1
+            from pg_trigger
+           where tgrelid = 'public.email_outbox'::regclass
+             and tgname = 'email_outbox_delivery_scope_immutable'
+             and tgenabled = 'O'
+             and not tgisinternal
+        ) then
+          raise exception 'delivery-scope immutability trigger was not re-enabled';
+        end if;
+
         begin
           insert into public.email_outbox
             (to_email, template, template_version, variables,
@@ -363,7 +466,7 @@ function assertSuccessfulClassification(port, database) {
           values
             ('null-scope@example.invalid', 'invitation', '1', '{}'::jsonb,
              'scope-0059-null-rejected',
-             '59000000-0000-4000-8000-000000000005', null, 'pending');
+             '59000000-0000-4000-8000-000000000006', null, 'pending');
           raise exception 'NULL delivery scope unexpectedly succeeded';
         exception when not_null_violation then
           null;
@@ -376,12 +479,74 @@ function assertSuccessfulClassification(port, database) {
           values
             ('invalid-scope@example.invalid', 'unregistered-template', '99',
              '{}'::jsonb, 'scope-0059-invalid-rejected',
-             '59000000-0000-4000-8000-000000000006',
-             's:59000000-0000-4000-8000-000000000006', 'pending');
+             '59000000-0000-4000-8000-000000000007',
+             's:59000000-0000-4000-8000-000000000007', 'pending');
           raise exception 'invalid delivery scope unexpectedly satisfied the check';
         exception when check_violation then
           null;
         end;
+
+        begin
+          insert into public.email_outbox
+            (to_email, template, template_version, variables,
+             idempotency_key, operation_id, delivery_scope_key, status)
+          values
+            ('missing-envelope@example.invalid', 'invitation', '1', '{}'::jsonb,
+             'scope-0059-missing-envelope-rejected',
+             '59000000-0000-4000-8000-000000000008',
+             's:59000000-0000-4000-8000-000000000008', 'pending');
+          raise exception 'template-only system authority unexpectedly succeeded';
+        exception when check_violation then
+          null;
+        end;
+
+        begin
+          insert into public.email_outbox
+            (to_email, template, template_version, variables,
+             idempotency_key, operation_id, delivery_scope_key, status)
+          values
+            ('mismatched-envelope@example.invalid', 'access-request-admin', '1',
+             '{"_mailOperationId":"59000000-0000-4000-8000-000000000009","_mailRecipient":"mismatched-envelope@example.invalid","_mailProducer":"access-request-approved","_mailSourceId":"59200000-0000-4000-8000-000000000009"}'::jsonb,
+             'scope-0059-mismatched-envelope-rejected',
+             '59000000-0000-4000-8000-000000000009',
+             's:59000000-0000-4000-8000-000000000009', 'pending');
+          raise exception 'mismatched system producer/template unexpectedly succeeded';
+        exception when check_violation then
+          null;
+        end;
+
+        begin
+          insert into public.email_outbox
+            (to_email, template, template_version, variables,
+             idempotency_key, operation_id, delivery_scope_key, status)
+          values
+            ('invalid-source@example.invalid', 'access-rejected', '1',
+             '{"_mailOperationId":"59000000-0000-4000-8000-000000000010","_mailRecipient":"invalid-source@example.invalid","_mailProducer":"access-request-rejected","_mailSourceId":"not-a-uuid"}'::jsonb,
+             'scope-0059-invalid-source-rejected',
+             '59000000-0000-4000-8000-000000000010',
+             's:59000000-0000-4000-8000-000000000010', 'pending');
+          raise exception 'invalid system source authority unexpectedly succeeded';
+        exception when check_violation then
+          null;
+        end;
+
+        insert into public.email_outbox
+          (to_email, template, template_version, variables,
+           idempotency_key, operation_id, delivery_scope_key, status)
+        values
+          ('valid-admin@example.invalid', 'access-request-admin', '1',
+           '{"_mailOperationId":"59000000-0000-4000-8000-000000000012","_mailRecipient":"valid-admin@example.invalid","_mailProducer":"access-request-admin","_mailSourceId":"59200000-0000-4000-8000-000000000012"}'::jsonb,
+           'scope-0059-valid-admin-envelope',
+           '59000000-0000-4000-8000-000000000012',
+           's:59000000-0000-4000-8000-000000000012', 'pending');
+        if not exists (
+          select 1 from public.email_outbox
+           where idempotency_key = 'scope-0059-valid-admin-envelope'
+             and template = 'access-request-admin'
+             and variables ->> '_mailProducer' = 'access-request-admin'
+        ) then
+          raise exception 'valid reserved admin envelope was rejected';
+        end if;
       end
       $proof$;
     `,
@@ -400,6 +565,15 @@ function assertSuccessfulClassification(port, database) {
     /delivery_scope_key\s+IS\s+NULL\s+OR/iu,
     "0059 retained the nullable escape hatch in its delivery-scope check",
   );
+  for (const fragment of [
+    "access-request-admin",
+    "_mailOperationId",
+    "_mailRecipient",
+    "_mailProducer",
+    "_mailSourceId",
+  ]) {
+    assert.match(constraintDefinition, new RegExp(fragment, "u"));
+  }
 }
 
 async function main() {
@@ -497,7 +671,7 @@ async function main() {
     assertRollback(port, database, beforeRows, beforeCatalog, blocked);
     process.stdout.write("mail_scope_0059=active_orphan_rollback:pass\n");
 
-    expireOrphanLease(port, database);
+    expireUnresolvedLeases(port, database);
     psqlFile(port, database, strictMigration);
     assertSuccessfulClassification(port, database);
     process.stdout.write("mail_scope_0059=expired_retry_and_strictness:pass\n");

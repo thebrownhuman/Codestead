@@ -3241,9 +3241,21 @@ export const emailOutbox = pgTable(
     check(
       "email_outbox_delivery_scope_valid",
       sql`(
-        (${table.userId} IS NOT NULL AND ${table.deliveryScopeKey} = 'a:' || ${table.userId})
+        (${table.userId} IS NOT NULL
+          AND ${table.deliveryScopeKey} = 'a:' || ${table.userId})
         OR (${table.userId} IS NULL AND ${table.deliveryScopeKey} = 's:' || ${table.operationId}::text
-          AND ${table.templateVersion} = '1' AND ${table.template} IN ('invitation', 'access-rejected'))
+          AND ${table.templateVersion} = '1'
+          AND ${table.variables} ->> '_mailOperationId' IS NOT DISTINCT FROM ${table.operationId}::text
+          AND ${table.variables} ->> '_mailRecipient' IS NOT DISTINCT FROM ${table.toEmail}
+          AND COALESCE(${table.variables} ->> '_mailSourceId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', FALSE)
+          AND (
+            (${table.template} = 'access-request-admin'
+              AND ${table.variables} ->> '_mailProducer' IS NOT DISTINCT FROM 'access-request-admin')
+            OR (${table.template} = 'invitation'
+              AND ${table.variables} ->> '_mailProducer' IS NOT DISTINCT FROM 'access-request-approved')
+            OR (${table.template} = 'access-rejected'
+              AND ${table.variables} ->> '_mailProducer' IS NOT DISTINCT FROM 'access-request-rejected')
+          ))
         OR (${table.userId} IS NULL AND ${table.deliveryScopeKey} = 'o:' || ${table.operationId}::text
           AND ${table.status} IN ('sent', 'failed', 'suppressed', 'quarantined'))
       )`,
