@@ -278,14 +278,15 @@ export async function runProductionMigration(options) {
     if (cleanupFailures.length === 0) throw primaryFailure;
     throw preserveFailureWithAggregateCause(
       primaryFailure,
-      [primaryFailure, ...cleanupFailures],
+      cleanupFailures,
     );
   }
 
   if (cleanupFailures.length === 1) throw cleanupFailures[0];
   if (cleanupFailures.length > 1) {
     const outwardFailure = cleanupFailures[cleanupFailures.length - 1];
-    throw preserveFailureWithAggregateCause(outwardFailure, cleanupFailures);
+    const relatedFailures = cleanupFailures.slice(0, -1);
+    throw preserveFailureWithAggregateCause(outwardFailure, relatedFailures);
   }
 }
 
