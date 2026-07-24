@@ -115,6 +115,7 @@ describe("mail worker production composition", () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.stubEnv("MAIL_ADAPTER", "console");
+    vi.stubEnv("OUTBOX_WORKER_MODE", "fenced-postgres-v1");
     vi.stubEnv("OUTBOX_POLL_SECONDS", "10");
     vi.stubEnv("INACTIVITY_SCHEDULE_SECONDS", "60");
     process.exitCode = undefined;
@@ -138,6 +139,29 @@ describe("mail worker production composition", () => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
+
+  it.each(["", "legacy-direct-v1", "fenced-postgres-v1 "])(
+    "fails closed before scheduling or claiming for worker mode %j",
+    async (mode) => {
+      vi.stubEnv("OUTBOX_WORKER_MODE", mode);
+
+      await loadWorkerOnce();
+
+      expect(process.exitCode).toBe(1);
+      expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
+      expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
+      expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
+      expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
+      expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
+      expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+      expect(console.error).toHaveBeenCalledWith(
+        JSON.stringify({
+          event: "email.worker_failed",
+          code: "OUTBOX_WORKER_MODE_INVALID",
+        }),
+      );
+    },
+  );
 
   it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
     await loadWorkerOnce();
