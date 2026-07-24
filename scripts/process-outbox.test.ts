@@ -313,6 +313,33 @@ describe("mail worker production composition", () => {
     expect(entries[0]).not.toMatch(/row-|operation-secret|recipient|token/i);
   });
 
+  it("redacts recipient, token, and body canaries from fatal worker errors", async () => {
+    const recipient = "private.person@recipient.example";
+    const token = "bearer-token=worker-log-canary";
+    const body = "private mail body must not reach worker logs";
+    const failure = Object.assign(new Error(body), {
+      name: `WorkerFailure:${recipient}:${token}:${body}`,
+      code: `DATABASE:${token}`,
+    });
+    mocks.scheduleInactivityReminders.mockRejectedValueOnce(failure);
+
+    await loadWorkerOnce();
+
+    const entries = vi.mocked(console.error).mock.calls
+      .map(([entry]) => String(entry))
+      .filter((entry) => entry.includes('"event":"email.worker_failed"'));
+    expect(entries).toHaveLength(1);
+    expect(JSON.parse(entries[0]!)).toEqual({
+      event: "email.worker_failed",
+      code: "ERROR",
+    });
+    for (const canary of [recipient, token, body]) {
+      expect(entries[0]).not.toContain(canary);
+    }
+    expect(mocks.health.retry).toHaveBeenCalledWith(failure);
+    expect(mocks.health.terminalFailure).toHaveBeenCalledWith(failure);
+  });
+
   it("preserves one-shot scheduling, health reporting, and pool cleanup", async () => {
     await loadWorkerOnce();
 

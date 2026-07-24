@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db/client";
 import { notification, smartReminderDispatch } from "@/lib/db/schema";
 import { enqueueEmailInTransaction, type AccountEmailTemplate } from "@/lib/notifications/outbox";
+import { boundedOperationalCode, operationalErrorCode } from "@/lib/security/operational-code";
 
 export type SmartReminderKind = "daily_study" | "revision" | "goal" | "challenge" | "weekly_summary";
 
@@ -283,21 +284,22 @@ export async function scheduleSmartReminders(now = new Date(), limit = 100) {
       } catch (error) {
         failed += 1;
         const cause = error instanceof Error ? error.cause : undefined;
-        const databaseCode = typeof error === "object" && error !== null && "code" in error
-          ? String((error as { code?: unknown }).code ?? "")
-          : "";
-        const causeCode = typeof cause === "object" && cause !== null && "code" in cause
-          ? String((cause as { code?: unknown }).code ?? "")
-          : "";
+        const databaseCode = boundedOperationalCode(
+          typeof error === "object" && error !== null && "code" in error
+            ? (error as { code?: unknown }).code
+            : undefined,
+        );
+        const causeCode = boundedOperationalCode(
+          typeof cause === "object" && cause !== null && "code" in cause
+            ? (cause as { code?: unknown }).code
+            : undefined,
+        );
         console.error(JSON.stringify({
           event: "smart_reminder.dispatch_failed",
           kind: reminder.kind,
-          errorName: error instanceof Error ? error.name : "UnknownError",
+          errorName: operationalErrorCode(error),
           ...(databaseCode ? { databaseCode } : {}),
           ...(causeCode ? { causeCode } : {}),
-          ...(process.env.INTEGRATION_TEST === "1" && cause instanceof Error
-            ? { diagnosticCause: cause.message }
-            : {}),
         }));
       }
     }
