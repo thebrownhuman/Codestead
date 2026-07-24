@@ -636,6 +636,18 @@ expect(
   "Cloudflare config must be mounted read-only",
 );
 
+const gmailRequestTimeoutContract = spawnSync(
+  process.execPath,
+  ["--test", path.join(root, "infra/tests/gmail-request-timeout-config.test.mjs")],
+  { cwd: root, encoding: "utf8" },
+);
+expect(
+  gmailRequestTimeoutContract.status === 0,
+  `Gmail request timeout configuration contract failed: ${(
+    gmailRequestTimeoutContract.stderr || gmailRequestTimeoutContract.stdout
+  ).trim()}`,
+);
+
 if (failures.length > 0) {
   console.error("Semantic Compose validation failed:");
   for (const failure of failures) console.error(`- ${failure}`);
