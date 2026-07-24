@@ -155,7 +155,7 @@ async function tablePrivilegeDelegationState(client, grantee, objectOid) {
            ) current_role_effective_grantable,
            coalesce(
              bool_or(acl.is_grantable) filter (
-               where acl.grantee = current_role.oid
+               where acl.grantee = active_role.oid
                  and acl.privilege_type = 'SELECT'
              ),
              false
@@ -177,13 +177,13 @@ async function tablePrivilegeDelegationState(client, grantee, objectOid) {
              ''
            ) table_acl
       from pg_catalog.pg_class c
-      join pg_catalog.pg_roles current_role
-        on current_role.rolname = current_user
+      join pg_catalog.pg_roles active_role
+        on active_role.rolname = current_user
       cross join lateral pg_catalog.aclexplode(
         coalesce(c.relacl, pg_catalog.acldefault('r', c.relowner))
       ) acl
      where c.oid = $2::oid
-     group by c.oid, current_role.oid`,
+     group by c.oid, active_role.oid`,
     [grantee, objectOid],
   );
   if (!result.rows[0]) fail();
