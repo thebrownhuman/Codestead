@@ -80,10 +80,19 @@ describe("email outbox delivery-scope migration", () => {
 
   it("catches rolling null rows under a write lock and drains only unresolved active leases", () => {
     const normalized = migration("0059_mail_delivery_scope_contract.sql").toLowerCase();
-    const accountBackfill = normalized.indexOf("'a:' || \"user_id\"");
-    const systemBackfill = normalized.indexOf("'s:' || \"operation_id\"::text");
-    const activeLeaseGuard = normalized.indexOf("email_outbox has an active unresolved delivery-scope lease");
-    const orphanBackfill = normalized.indexOf("'o:' || \"operation_id\"::text");
+    const statements = normalized.split("--> statement-breakpoint");
+    const accountBackfill = statements.findIndex((statement) =>
+      statement.includes(`set "delivery_scope_key" = 'a:' || "user_id"`),
+    );
+    const systemBackfill = statements.findIndex((statement) =>
+      statement.includes(`set "delivery_scope_key" = 's:' || "operation_id"::text`),
+    );
+    const activeLeaseGuard = statements.findIndex((statement) =>
+      statement.includes("email_outbox has an active unresolved delivery-scope lease"),
+    );
+    const orphanBackfill = statements.findIndex((statement) =>
+      statement.includes(`set "delivery_scope_key" = 'o:' || "operation_id"::text`),
+    );
 
     expect(normalized).toContain('lock table "email_outbox" in share row exclusive mode');
     expect(accountBackfill).toBeGreaterThanOrEqual(0);
@@ -153,7 +162,11 @@ describe("email outbox delivery-scope migration", () => {
     };
     const outbox = current.tables["public.email_outbox"]!;
 
-    expect(journal.entries.at(-1)).toMatchObject({
+    expect(
+      journal.entries.find(
+        ({ tag }) => tag === "0059_mail_delivery_scope_contract",
+      ),
+    ).toMatchObject({
       idx: 59,
       tag: "0059_mail_delivery_scope_contract",
     });
