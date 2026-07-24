@@ -142,6 +142,20 @@ test("bootstrap and migration share the administration lock without broad reassi
   assert.match(migration, /session_user/u);
 });
 
+test("mail worker outbox grants allow queue state changes but deny payload mutation", () => {
+  const bootstrap = read("scripts/bootstrap-database-roles.mjs");
+  const migration = read("drizzle/0060_mail_worker_outbox_privileges.sql");
+
+  for (const source of [bootstrap, migration]) {
+    assert.match(source, /revoke all on table public\.email_outbox from learncoding_worker/iu);
+    assert.match(source, /grant select on table public\.email_outbox to learncoding_worker/iu);
+    assert.match(source, /grant insert \([^)]+\)[\s\S]+public\.email_outbox to learncoding_worker/iu);
+    assert.match(source, /grant update \([^)]+\)[\s\S]+public\.email_outbox to learncoding_worker/iu);
+    assert.doesNotMatch(source, /grant (delete|truncate) on table public\.email_outbox to learncoding_worker/iu);
+  }
+  assert.doesNotMatch(migration, /grant update \([^)]*(variables|to_email|template|user_id)/iu);
+});
+
 test("release stops mutators and rejects residual sessions before credential rotation", () => {
   const release = read("infra/ops/release-production.sh");
   const stop = release.indexOf('current_stage="stop-database-mutators"');
