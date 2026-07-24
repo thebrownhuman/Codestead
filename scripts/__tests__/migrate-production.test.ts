@@ -80,9 +80,21 @@ function roleAwareQuery(
   });
 
 describe("production migration", () => {
-  it("preserves the primary migration failure when cleanup also fails", async () => {
-    const primaryError = new Error("migration execution failed");
+  it("preserves the exact primary migration Error when cleanup also fails", async () => {
+    class MigrationExecutionError extends Error {
+      readonly code = "MIGRATION_EXECUTION_FAILED";
+      readonly context = { phase: "migrate" };
+    }
+    const originalCause = new Error("driver migration failed");
+    const primaryError = new MigrationExecutionError("migration execution failed");
     primaryError.name = "MigrationExecutionError";
+    Object.defineProperty(primaryError, "cause", {
+      value: originalCause,
+      configurable: true,
+      writable: true,
+      enumerable: false,
+    });
+    const primaryStack = primaryError.stack;
     const resetError = new Error("reset cleanup failed");
     const releaseError = new Error("release cleanup failed");
     const poolError = new Error("pool cleanup failed");
@@ -129,17 +141,27 @@ describe("production migration", () => {
       (error: unknown) => error,
     );
 
+    expect(failure).toBe(primaryError);
+    expect(failure).toBeInstanceOf(MigrationExecutionError);
     expect(failure).toMatchObject({
       name: primaryError.name,
       message: primaryError.message,
+      code: primaryError.code,
+      context: primaryError.context,
     });
-    const cause = (failure as Error & { cause?: unknown }).cause;
-    expect(cause).toBeInstanceOf(AggregateError);
-    expect((cause as AggregateError).errors).toEqual([
+    expect((failure as Error).stack).toBe(primaryStack);
+    const causeDescriptor = Object.getOwnPropertyDescriptor(failure as object, "cause");
+    expect(causeDescriptor?.enumerable).toBe(false);
+    const cleanupCause = (failure as Error & { cause?: unknown }).cause;
+    expect(cleanupCause).toBeInstanceOf(AggregateError);
+    expect((cleanupCause as AggregateError).errors).toEqual([
       resetError,
       releaseError,
       poolError,
     ]);
+    expect((cleanupCause as AggregateError & { cause?: unknown }).cause).toBe(
+      originalCause,
+    );
     expect(client.release).toHaveBeenCalledWith(true);
     expect(pool.end).toHaveBeenCalledOnce();
   });
@@ -446,6 +468,7 @@ describe("production migration", () => {
   it("does not duplicate the outward cleanup failure in its cause", async () => {
     const unlockError = new Error("unlock failed");
     const releaseError = new Error("release failed");
+    const releaseStack = releaseError.stack;
     const client = {
       query: roleAwareQuery(
         async () => { throw unlockError; },
@@ -469,10 +492,12 @@ describe("production migration", () => {
       (error: unknown) => error,
     );
 
+    expect(failure).toBe(releaseError);
     expect(failure).toMatchObject({
       name: releaseError.name,
       message: releaseError.message,
     });
+    expect((failure as Error).stack).toBe(releaseStack);
     const cause = (failure as Error & { cause?: unknown }).cause;
     expect(cause).toBeInstanceOf(AggregateError);
     expect((cause as AggregateError).errors).toEqual([unlockError]);
