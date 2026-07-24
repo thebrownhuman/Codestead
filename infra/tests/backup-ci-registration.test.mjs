@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertMailDeliveryScope0059PostgresProjection } from "./mail-delivery-scope-0059-ci-contract.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const workflowPath =
@@ -545,6 +546,7 @@ const expectedApplicationRuns = [
   "npm run build",
   "npm audit --audit-level=moderate",
   "node infra/tests/validate-static.mjs",
+  "node --test infra/tests/database-secret-ceremony.test.mjs",
   "node --test infra/tests/database-least-privilege-static.test.mjs",
   "node --test infra/tests/runtime-validator-ingress-policy.test.mjs",
   "node --test infra/tests/production-load-peer-preflight.test.mjs infra/tests/production-load-postgres-socket.test.mjs infra/tests/production-load-systemd.test.mjs",
@@ -555,7 +557,7 @@ const expectedApplicationRuns = [
   "node --test infra/tests/runner-egress-gateway.test.mjs infra/tests/runner-egress-gateway-stream-failures.test.mjs",
   "sudo apt-get update",
   "sudo apt-get install --yes bubblewrap nftables shellcheck",
-  "shellcheck --severity=warning infra/ops/capture-recovery-evidence.sh infra/ops/install-compose-ci.sh infra/ops/release-production.sh infra/ops/rollback-production.sh infra/ops/smoke-production.sh infra/ops/validate-production-load-fixture-runtime.sh infra/ops/validate-production-load-test-control-runtime.sh infra/runner-vm/install-guest.sh infra/tests/compose-release-cli-contract.test.sh infra/tests/power-evidence.test.sh infra/tests/production-load-disposable-sandbox.test.sh infra/tests/production-load-fixture-lifecycle.test.sh infra/tests/production-load-peer-credentials.test.sh infra/tests/production-load-test-control-runtime.test.sh infra/tests/recovery-evidence-entry.test.sh infra/tests/recovery-evidence-main.test.sh infra/tests/release-production.test.sh infra/tests/rollback-production.test.sh infra/tests/runner-firewall.test.sh infra/tests/runner-firewall-packets.test.sh infra/tests/runner-guest-installer.test.sh infra/tests/runner-vm-provision.test.sh infra/tests/smoke-production.test.sh",
+  "shellcheck --severity=warning infra/ops/capture-recovery-evidence.sh infra/ops/create-database-secrets.sh infra/ops/install-compose-ci.sh infra/ops/release-production.sh infra/ops/rollback-production.sh infra/ops/smoke-production.sh infra/ops/validate-production-load-fixture-runtime.sh infra/ops/validate-production-load-test-control-runtime.sh infra/runner-vm/install-guest.sh infra/tests/compose-release-cli-contract.test.sh infra/tests/power-evidence.test.sh infra/tests/production-load-disposable-sandbox.test.sh infra/tests/production-load-fixture-lifecycle.test.sh infra/tests/production-load-peer-credentials.test.sh infra/tests/production-load-test-control-runtime.test.sh infra/tests/recovery-evidence-entry.test.sh infra/tests/recovery-evidence-main.test.sh infra/tests/release-production.test.sh infra/tests/rollback-production.test.sh infra/tests/runner-firewall.test.sh infra/tests/runner-firewall-packets.test.sh infra/tests/runner-guest-installer.test.sh infra/tests/runner-vm-provision.test.sh infra/tests/smoke-production.test.sh",
   "shellcheck --severity=warning infra/tests/ingress-control-linux.test.sh",
   "shellcheck --severity=warning infra/ops/start-production-stack.sh infra/ops/recover-production-ingress.sh infra/tests/start-production-stack.test.sh infra/tests/start-production-stack-adversarial.test.sh infra/tests/ingress-recovery.test.sh",
   "shellcheck --severity=warning --exclude=SC2034 infra/ops/check-recovery.sh",
@@ -828,10 +830,38 @@ const reviewedJobContracts = new Map([
       ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
+      "      - run: npm run test:mail-delivery-scope-0059:registration",
+      "      - run: npm run test:mail-payload-immutability-0060:registration",
       "      - run: npm run test:integration",
       "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
       "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
+      "      - run: |",
+      "          set -Eeuo pipefail",
+      "          key_path=\"$RUNNER_TEMP/postgresql-pgdg.asc\"",
+      "          curl --fail --silent --show-error --location \\",
+      "            https://www.postgresql.org/media/keys/ACCC4CF8.asc \\",
+      "            --output \"$key_path\"",
+      "          fingerprint=\"$(",
+      "            gpg --batch --show-keys --with-colons \"$key_path\" \\",
+      "              | awk -F: '$1 == \"fpr\" { print $10; exit }'",
+      "          )\"",
+      "          [[ \"$fingerprint\" == B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8 ]]",
+      "          sudo install -m 0755 -d /usr/share/postgresql-common/pgdg",
+      "          sudo install -m 0644 \"$key_path\" \\",
+      "            /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc",
+      "          printf '%s\\n' \\",
+      "            'Types: deb' \\",
+      "            'URIs: https://apt.postgresql.org/pub/repos/apt' \\",
+      "            'Suites: noble-pgdg' \\",
+      "            'Architectures: amd64' \\",
+      "            'Components: main' \\",
+      "            'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \\",
+      "            | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null",
+      "          sudo apt-get update",
+      "          sudo apt-get install --yes --no-install-recommends postgresql-18",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060",
     ],
   ],
   [
@@ -995,6 +1025,21 @@ function requireReviewedExecutableContracts(blocks) {
   }
 }
 
+function requireMailDeliveryScope0059CrossGuard() {
+  const projection = reviewedJobContracts.get("postgres-integration");
+  if (projection === undefined) {
+    fail("mail-delivery-scope-0059 cross-guard projection is missing");
+  }
+  try {
+    assertMailDeliveryScope0059PostgresProjection(
+      projection.join("\n"),
+    );
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    fail(`mail-delivery-scope-0059 cross-guard changed: ${detail}`);
+  }
+}
+
 function requireCanonicalWorkflowPreamble(lines) {
   const jobsIndex = lines.indexOf("jobs:");
   const expected = [
@@ -1046,6 +1091,7 @@ function validateWorkflow(document) {
     fail("workflow job set is outside the reviewed executable allowlist");
   }
   requireReviewedExecutableContracts(blocks);
+  requireMailDeliveryScope0059CrossGuard();
   const backup = requireJob(blocks, "backup-safety");
 
   if (
