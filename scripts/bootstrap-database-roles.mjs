@@ -11,8 +11,35 @@ const APP_ROLE = "learncoding_app";
 const WORKER_ROLE = "learncoding_worker";
 const OPS_ROLE = "learncoding_ops";
 const LOGIN_ROLES = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
-// Fixed reviewed runtime-function allowlist. Empty for this release.
-export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([]);
+export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  Object.freeze({
+    signature:
+      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    role: OPS_ROLE,
+    grantSql:
+      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+  }),
+]);
+
+function sqlLiteral(value) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+export function reviewedApplicationFunctionPrivilegesSql() {
+  return REVIEWED_APPLICATION_FUNCTIONS.map((routine, index) => {
+    const blockTag = `codestead_reviewed_function_${index}`;
+    return `
+      do $${blockTag}$
+      begin
+        if pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
+             is not null then
+          execute ${sqlLiteral(routine.grantSql)};
+        end if;
+      end
+      $${blockTag}$`;
+  }).join(";\n");
+}
+
 const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "id",
   "user_id",
@@ -677,7 +704,7 @@ async function transferApplicationOwnership(client) {
           from pg_type t
           join pg_namespace n on n.oid = t.typnamespace
          where n.nspname in ('public', 'drizzle')
-           and t.typtype in ('d', 'e', 'm', 'r')
+           and t.typtype in ('d', 'e', 'r')
          order by n.nspname, t.typname
       loop
         execute format(
@@ -724,7 +751,7 @@ async function reconcilePrivileges(client) {
           from pg_type t
           join pg_namespace n on n.oid = t.typnamespace
          where n.nspname = 'public'
-           and t.typtype in ('c', 'd', 'e', 'm', 'r')
+           and t.typtype in ('c', 'd', 'e', 'r')
          order by t.oid
       loop
         execute format(
@@ -760,6 +787,8 @@ async function reconcilePrivileges(client) {
     alter default privileges for role learncoding_owner in schema public
       grant usage on types to learncoding_app, learncoding_worker, learncoding_ops`);
 
+  await client.query(reviewedApplicationFunctionPrivilegesSql());
+
   const emailOutbox = await client.query(
     "select to_regclass('public.email_outbox') is not null present",
   );
@@ -784,7 +813,7 @@ async function reconcilePrivileges(client) {
             from pg_type t
             join pg_namespace n on n.oid = t.typnamespace
            where n.nspname = 'drizzle'
-             and t.typtype in ('c', 'd', 'e', 'm', 'r')
+             and t.typtype in ('c', 'd', 'e', 'r')
            order by t.oid
         loop
           execute format(
@@ -810,7 +839,25 @@ async function reconcilePrivileges(client) {
   }
 }
 
-async function verifyInvariants(client, postgresDatabase, postgresUser) {
+function databaseRoleBootstrapInvariantError(section, details = []) {
+  const detailSuffix = details.length > 0 ? `: ${details.join(",")}` : "";
+  return new Error(
+    `database role bootstrap invariant verification failed [${section}${detailSuffix}]`,
+  );
+}
+
+function failedBooleanInvariantKeys(row) {
+  return Object.entries(row ?? {})
+    .filter(([, value]) => value !== true)
+    .map(([key]) => key)
+    .sort();
+}
+
+export async function verifyDatabaseRoleBootstrapState(
+  client,
+  postgresDatabase,
+  postgresUser,
+) {
   const roles = await client.query(`
     select rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
            rolinherit, rolreplication, rolbypassrls, rolconnlimit,
@@ -827,7 +874,7 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
      )
      order by rolname`);
   if (roles.rows.length !== 5) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError("roles-count");
   }
   for (const role of roles.rows) {
     const isOwner = role.rolname === OWNER_ROLE;
@@ -844,13 +891,26 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
       role.role_settings_empty !== true ||
       (isOwner ? role.password_is_null !== true : role.password_is_scram !== true)
     ) {
-      throw new Error("database role bootstrap invariant verification failed");
+      throw databaseRoleBootstrapInvariantError(
+        "role-properties",
+        [role.rolname],
+      );
     }
   }
 
   const memberships = await client.query(`
     select granted.rolname granted_role, member.rolname member_role,
-           membership.admin_option, membership.inherit_option, membership.set_option
+           membership.admin_option, membership.inherit_option,
+           membership.set_option,
+           pg_catalog.pg_has_role(
+             member.oid, granted.oid, 'MEMBER'
+           ) member_option,
+           pg_catalog.pg_has_role(
+             member.oid, granted.oid, 'USAGE'
+           ) usage_option,
+           pg_catalog.pg_has_role(
+             member.oid, granted.oid, 'SET'
+           ) role_set_option
       from pg_auth_members membership
       join pg_roles granted on granted.oid = membership.roleid
       join pg_roles member on member.oid = membership.member
@@ -870,9 +930,12 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
     membership?.member_role !== MIGRATOR_ROLE ||
     membership?.admin_option !== false ||
     membership?.inherit_option !== false ||
-    membership?.set_option !== true
+    membership?.set_option !== true ||
+    membership?.member_option !== true ||
+    membership?.usage_option !== false ||
+    membership?.role_set_option !== true
   ) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError("memberships");
   }
 
   const databaseSettings = await client.query(`
@@ -884,7 +947,7 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
        'learncoding_worker', 'learncoding_ops'
      )`);
   if (databaseSettings.rows[0]?.count !== 0) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError("role-settings");
   }
 
   const ownership = await client.query(
@@ -934,7 +997,10 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
     [postgresDatabase, postgresUser],
   );
   if (Object.values(ownership.rows[0] ?? {}).some((value) => value !== true)) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError(
+      "ownership",
+      failedBooleanInvariantKeys(ownership.rows[0]),
+    );
   }
 
   const privileges = await client.query(
@@ -1095,13 +1161,152 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
                 select 1
                   from unnest(array['learncoding_migrator','learncoding_app','learncoding_worker','learncoding_ops']) role_name
                  where has_function_privilege(role_name, p.oid, 'EXECUTE')
+                       is distinct from exists (
+                         select 1
+                           from pg_catalog.jsonb_to_recordset($2::jsonb)
+                                reviewed(
+                                  signature text,
+                                  allowed_role text
+                                )
+                          where reviewed.allowed_role = role_name
+                            and p.oid =
+                              pg_catalog.to_regprocedure(reviewed.signature)
+                       )
               )
             )
-       ) routine_execute_restricted`,
-    [postgresDatabase],
+       ) routine_execute_exact,
+       (
+         with observed(
+           routine_oid, grantor, grantee, privilege_type, is_grantable
+         ) as (
+           select p.oid,
+                  acl.grantor,
+                  acl.grantee,
+                  acl.privilege_type,
+                  acl.is_grantable
+             from pg_catalog.pg_proc p
+             join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+             cross join lateral pg_catalog.aclexplode(
+               coalesce(p.proacl, acldefault('f', p.proowner))
+             ) acl
+            where n.nspname in ('public', 'drizzle')
+              and acl.grantee <> p.proowner
+         ),
+         expected(
+           routine_oid, grantor, grantee, privilege_type, is_grantable
+         ) as (
+           select target.oid,
+                  target.proowner,
+                  grantee.oid,
+                  'EXECUTE'::text,
+                  false
+             from pg_catalog.jsonb_to_recordset($2::jsonb)
+                  reviewed(signature text, allowed_role text)
+             join pg_catalog.pg_proc target
+               on target.oid =
+                  pg_catalog.to_regprocedure(reviewed.signature)::oid
+             join pg_catalog.pg_roles grantee
+               on grantee.rolname = reviewed.allowed_role
+         )
+         select not exists (
+           select 1
+             from (
+               (
+                 select * from observed
+                 except all
+                 select * from expected
+               )
+               union all
+               (
+                 select * from expected
+                 except all
+                 select * from observed
+               )
+             ) difference
+         )
+       ) routine_direct_acl_exact,
+       (
+         with observed(
+           type_oid, grantor, grantee, privilege_type, is_grantable
+         ) as (
+           select t.oid,
+                  acl.grantor,
+                  acl.grantee,
+                  acl.privilege_type,
+                  acl.is_grantable
+             from pg_catalog.pg_type t
+             join pg_catalog.pg_namespace n on n.oid = t.typnamespace
+             cross join lateral pg_catalog.aclexplode(
+               coalesce(t.typacl, acldefault('T', t.typowner))
+             ) acl
+            where n.nspname in ('public', 'drizzle')
+              and not (
+                t.typelem <> 0
+                and t.typsubscript =
+                  'pg_catalog.array_subscript_handler'::pg_catalog.regproc
+              )
+              and t.typtype <> 'm'
+              and acl.grantee <> t.typowner
+         ),
+         expected(
+           type_oid, grantor, grantee, privilege_type, is_grantable
+         ) as (
+           select t.oid,
+                  t.typowner,
+                  grantee.oid,
+                  'USAGE'::text,
+                  false
+             from pg_catalog.pg_type t
+             join pg_catalog.pg_namespace n on n.oid = t.typnamespace
+             cross join unnest(
+               array[
+                 'learncoding_app',
+                 'learncoding_worker',
+                 'learncoding_ops'
+               ]
+             ) role_name
+             join pg_catalog.pg_roles grantee
+               on grantee.rolname = role_name
+            where n.nspname = 'public'
+              and not (
+                t.typelem <> 0
+                and t.typsubscript =
+                  'pg_catalog.array_subscript_handler'::pg_catalog.regproc
+              )
+              and t.typtype <> 'm'
+         )
+         select not exists (
+           select 1
+             from (
+               (
+                 select * from observed
+                 except all
+                 select * from expected
+               )
+               union all
+               (
+                 select * from expected
+                 except all
+                 select * from observed
+               )
+             ) difference
+         )
+       ) type_direct_acl_exact`,
+    [
+      postgresDatabase,
+      JSON.stringify(
+        REVIEWED_APPLICATION_FUNCTIONS.map(({ signature, role }) => ({
+          signature,
+          allowed_role: role,
+        })),
+      ),
+    ],
   );
   if (Object.values(privileges.rows[0] ?? {}).some((value) => value !== true)) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError(
+      "privileges",
+      failedBooleanInvariantKeys(privileges.rows[0]),
+    );
   }
 
   const unexpectedDirectAcls = await client.query(
@@ -1134,7 +1339,9 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
                 acl.is_grantable = false
            from pg_proc p
            join pg_namespace n on n.oid = p.pronamespace
-           cross join lateral aclexplode(p.proacl) acl
+           cross join lateral aclexplode(
+             coalesce(p.proacl, acldefault('f', p.proowner))
+           ) acl
           where n.nspname in ('public', 'drizzle')
          union all
          select case when acl.grantee = 0 then 'PUBLIC'
@@ -1142,8 +1349,16 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
                 acl.is_grantable = false
            from pg_type t
            join pg_namespace n on n.oid = t.typnamespace
-           cross join lateral aclexplode(t.typacl) acl
+           cross join lateral aclexplode(
+             coalesce(t.typacl, acldefault('T', t.typowner))
+           ) acl
           where n.nspname in ('public', 'drizzle')
+            and not (
+              t.typelem <> 0
+              and t.typsubscript =
+                'pg_catalog.array_subscript_handler'::pg_catalog.regproc
+            )
+            and t.typtype <> 'm'
        ) direct_acl
       where grantee not in (
         'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
@@ -1153,7 +1368,7 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
     [postgresDatabase],
   );
   if (unexpectedDirectAcls.rows[0]?.count !== 0) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError("direct-acls");
   }
 
   const defaultAcls = await client.query(`
@@ -1193,7 +1408,10 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
       !expectedDefaultPrivilegeKeys.has(key) ||
       observedDefaultPrivilegeKeys.has(key)
     ) {
-      throw new Error("database role bootstrap invariant verification failed");
+      throw databaseRoleBootstrapInvariantError(
+        "default-acls-unexpected",
+        [key],
+      );
     }
     observedDefaultPrivilegeKeys.add(key);
   }
@@ -1201,7 +1419,7 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
     nonOwnerDefaultPrivilegeCount !== expectedDefaultPrivilegeKeys.size ||
     observedDefaultPrivilegeKeys.size !== expectedDefaultPrivilegeKeys.size
   ) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError("default-acls-cardinality");
   }
 
   const remainingSessions = await client.query(
@@ -1210,7 +1428,7 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
     [LOGIN_ROLES],
   );
   if (remainingSessions.rows[0]?.count !== 0) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError("sessions");
   }
 
   const checks = {
@@ -1222,7 +1440,7 @@ async function verifyInvariants(client, postgresDatabase, postgresUser) {
     sessionsTerminated: true,
   };
   if (Object.values(checks).some((value) => value !== true)) {
-    throw new Error("database role bootstrap invariant verification failed");
+    throw databaseRoleBootstrapInvariantError("checks");
   }
   return checks;
 }
@@ -1382,12 +1600,20 @@ export async function runDatabaseRoleBootstrap(options) {
     await rotatePasswords(client, rolePasswords);
     await transferApplicationOwnership(client);
     await reconcilePrivileges(client);
-    await verifyInvariants(client, options.postgresDatabase, options.postgresUser);
+    await verifyDatabaseRoleBootstrapState(
+      client,
+      options.postgresDatabase,
+      options.postgresUser,
+    );
     if (options.beforeCommit) await options.beforeCommit(client);
     await client.query("commit");
     transactionOpen = false;
 
-    return await verifyInvariants(client, options.postgresDatabase, options.postgresUser);
+    return await verifyDatabaseRoleBootstrapState(
+      client,
+      options.postgresDatabase,
+      options.postgresUser,
+    );
   } catch (error) {
     destroyClient = true;
     throw error;

@@ -51,21 +51,10 @@ describe("mail outbox retention privacy", () => {
     expect(redactEnd).toBeGreaterThan(redactStart);
     const redaction = source.slice(redactStart, redactEnd);
 
-    expect(redaction).toContain("update email_outbox");
     expect(redaction).toContain(
-      "to_email = 'redacted+' || id::text || '@invalid.local'",
+      "from public.redact_unresolved_email_outbox_authority(",
     );
-    expect(redaction).toContain("variables = '{}'::jsonb");
-    expect(redaction).toContain("status = 'quarantined'");
-    expect(redaction).toContain("provider_call_started is not null");
-    expect(redaction).toContain("provider_message_id is null");
-    expect(redaction).toContain("returning id");
-    expect(redaction).not.toMatch(/user_id\s*=/u);
-    expect(redaction).not.toMatch(/delivery_scope_key\s*=/u);
-    expect(redaction).not.toMatch(/operation_id\s*=/u);
-    expect(redaction).not.toMatch(/provider_call_started\s*=/u);
-    expect(redaction).not.toMatch(/provider_message_id\s*=/u);
-    expect(redaction).not.toMatch(/claim_token\s*=/u);
-    expect(redaction).not.toMatch(/claim_owner\s*=/u);
+    expect(redaction).toContain("$1::timestamptz, $2::integer");
+    expect(redaction).not.toContain("update email_outbox");
   });
 });

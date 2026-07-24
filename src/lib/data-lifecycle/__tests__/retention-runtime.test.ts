@@ -200,7 +200,7 @@ describe("retention runtime orchestration", () => {
       String(sql).replace(/\s+/g, " ").trim().toLowerCase()
     ));
     const redacted = statements.find((sql) => (
-      sql.startsWith("update email_outbox set to_email = 'redacted+'")
+      sql.startsWith("select id::text as id from public.redact_unresolved_email_outbox_authority(")
     ));
     const eligible = statements.find((sql) => (
       sql.startsWith("select count(*)::text as count from email_outbox")
@@ -216,17 +216,10 @@ describe("retention runtime orchestration", () => {
     expect(deleted).toContain("not ( status = 'quarantined'");
     expect(deleted).toContain("provider_call_started is not null");
     expect(deleted).toContain("provider_message_id is null");
-    expect(redacted).toContain("variables = '{}'::jsonb");
-    expect(redacted).toContain("status = 'quarantined'");
-    expect(redacted).toContain("provider_call_started is not null");
-    expect(redacted).toContain("provider_message_id is null");
-    expect(redacted).not.toContain("user_id =");
-    expect(redacted).not.toContain("delivery_scope_key =");
-    expect(redacted).not.toContain("operation_id =");
-    expect(redacted).not.toContain("claim_token =");
-    expect(redacted).not.toContain("claim_owner =");
+    expect(redacted).toContain("$1::timestamptz, $2::integer");
+    expect(redacted).not.toContain("update email_outbox");
     expect(statements.findIndex((sql) => (
-      sql.startsWith("update email_outbox set to_email = 'redacted+'")
+      sql.startsWith("select id::text as id from public.redact_unresolved_email_outbox_authority(")
     ))).toBeLessThan(statements.findIndex((sql) => (
       sql.startsWith("delete from email_outbox where id in")
     )));

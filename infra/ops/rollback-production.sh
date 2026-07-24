@@ -739,7 +739,7 @@ if [[ "$record_result" == completed ]]; then
   }
 else
   case "$record_stage" in
-    postgres|migrate|platform-seed|admin-bootstrap|core-start|internal-readiness|tunnel-start|public-readiness|complete) ;;
+    postgres|migrate|database-role-reconciliation|platform-seed|admin-bootstrap|core-start|internal-readiness|tunnel-start|public-readiness|complete) ;;
     *) fatal "failed release did not reach a rollback-eligible candidate stage" ;;
   esac
   [[ "$current_release_id" == "$previous_release_id" && "$current_git_commit" == "$previous_git_commit" ]] || {

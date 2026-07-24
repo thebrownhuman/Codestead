@@ -424,10 +424,16 @@ export async function runRetention(input: {
     const unresolvedEmailAuthorityEligible = await count(
       client,
       `select count(*)::text as count from email_outbox
-        where status = 'quarantined'
+        where user_id is not null
+          and delivery_scope_key = 'a:' || user_id
+          and status = 'quarantined'
           and provider_call_started is not null
           and provider_message_id is null
-          and coalesce(sent_at, updated_at) < $1
+          and sent_at is null
+          and adapter = 'gmail'
+          and lease_expires_at is not null
+          and lease_expires_at <= statement_timestamp()
+          and updated_at < $1
           and (
             to_email is distinct from 'redacted+' || id::text || '@invalid.local'
             or variables is distinct from '{}'::jsonb
@@ -613,24 +619,11 @@ export async function runRetention(input: {
         );
 
         const redactedEmailAuthority = await client.query<IdRow>(
-          `update email_outbox
-              set to_email = 'redacted+' || id::text || '@invalid.local',
-                  variables = '{}'::jsonb,
-                  updated_at = $2
-            where id in (
-              select id from email_outbox
-               where status = 'quarantined'
-                 and provider_call_started is not null
-                 and provider_message_id is null
-                 and coalesce(sent_at, updated_at) < $1
-                 and (
-                   to_email is distinct from 'redacted+' || id::text || '@invalid.local'
-                   or variables is distinct from '{}'::jsonb
-                 )
-               order by coalesce(sent_at, updated_at) asc, id asc limit $3
-            )
-            returning id`,
-          [cutoffs.terminalEmailDeliveryRecords, now, limit],
+          `select id::text as id
+             from public.redact_unresolved_email_outbox_authority(
+               $1::timestamptz, $2::integer
+             )`,
+          [cutoffs.terminalEmailDeliveryRecords, limit],
         );
         categories.unresolvedEmailDeliveryAuthority = transitionedCategory(
           unresolvedEmailAuthorityEligible,

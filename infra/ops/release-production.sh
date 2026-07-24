@@ -1788,6 +1788,12 @@ record_event started
 run_one_shot migrate
 record_event completed
 
+current_stage="database-role-reconciliation"
+write_status running 0
+record_event started
+run_one_shot database-role-bootstrap
+record_event completed
+
 if [[ "$mail_store_cutover" == true ]]; then
   current_stage="mail-outbox-0059-catch-up"
   write_status running 0
