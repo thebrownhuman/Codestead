@@ -10,6 +10,7 @@ const MAIL_WORKER_ENVIRONMENT_ALLOWLIST = [
   "DATABASE_URL_FILE",
   "GMAIL_CLIENT_ID_FILE",
   "GMAIL_CLIENT_SECRET_FILE",
+  "GMAIL_OAUTH_SCOPES",
   "GMAIL_REFRESH_TOKEN_FILE",
   "GMAIL_REQUEST_TIMEOUT_MS",
   "LOG_LEVEL",
@@ -25,6 +26,9 @@ const MAIL_WORKER_ENVIRONMENT_ALLOWLIST = [
   "WORKER_HEALTH_MAX_AGE_SECONDS",
   "WORKER_HEALTH_MAX_FAILURES",
 ].sort();
+const RECONCILIATION_SCOPE_DECLARATION =
+  "https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.readonly";
+
 
 function sources(overrides = {}) {
   return {
@@ -85,6 +89,11 @@ function assertContract(input) {
   const infrastructureDefault = Number(
     environmentValue(input.infrastructureEnvironment, "GMAIL_REQUEST_TIMEOUT_MS"),
   );
+  const rootScopes = environmentValue(input.rootEnvironment, "GMAIL_OAUTH_SCOPES");
+  const infrastructureScopes = environmentValue(
+    input.infrastructureEnvironment,
+    "GMAIL_OAUTH_SCOPES",
+  );
   const mailWorker = serviceBlock(input.compose, "mail-worker");
   const app = serviceBlock(input.compose, "app");
 
@@ -93,6 +102,12 @@ function assertContract(input) {
     infrastructureDefault,
     defaultMs,
     "infrastructure environment default drifted from the mailer",
+  );
+  assert.equal(rootScopes, "", "developer scope declaration must default closed");
+  assert.equal(
+    infrastructureScopes,
+    RECONCILIATION_SCOPE_DECLARATION,
+    "infrastructure Gmail scope declaration drifted",
   );
   for (const [label, document] of [
     ["developer", input.rootEnvironment],
@@ -119,7 +134,13 @@ function assertContract(input) {
     /^      GMAIL_REQUEST_TIMEOUT_MS: \$\{GMAIL_REQUEST_TIMEOUT_MS:-10000\}$/mu,
     "mail-worker must forward the bounded setting with the reviewed default",
   );
+  assert.match(
+    mailWorker,
+    /^      GMAIL_OAUTH_SCOPES: \$\{GMAIL_OAUTH_SCOPES:-\}$/mu,
+    "mail-worker must forward only the explicit non-secret scope declaration",
+  );
   assert.doesNotMatch(app, /GMAIL_REQUEST_TIMEOUT_MS/u, "the app service must not receive the Gmail setting");
+  assert.doesNotMatch(app, /GMAIL_OAUTH_SCOPES/u, "the app service must not receive Gmail scopes");
   assert.match(
     input.mailer,
     /process\.env\.GMAIL_REQUEST_TIMEOUT_MS\?\.trim\(\)/u,
@@ -180,6 +201,24 @@ test("Gmail request timeout contract rejects cross-layer and safety drift", () =
         "      GMAIL_REQUEST_TIMEOUT_MS: ${GMAIL_REQUEST_TIMEOUT_MS:-10000}",
         "",
         "Compose forwarding",
+      ) },
+    ],
+    [
+      "OAuth scope declaration",
+      { infrastructureEnvironment: replaceExactly(
+        baseline.infrastructureEnvironment,
+        `GMAIL_OAUTH_SCOPES=${RECONCILIATION_SCOPE_DECLARATION}`,
+        "GMAIL_OAUTH_SCOPES=https://www.googleapis.com/auth/gmail.send",
+        "OAuth scope declaration",
+      ) },
+    ],
+    [
+      "OAuth scope forwarding",
+      { compose: replaceExactly(
+        baseline.compose,
+        "      GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-}",
+        "",
+        "OAuth scope forwarding",
       ) },
     ],
     [

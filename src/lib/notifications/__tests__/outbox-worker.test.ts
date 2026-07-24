@@ -11,10 +11,12 @@ import {
 
 type Payload = { readonly template: "invitation" };
 
+const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
+
 const claim: OutboxClaim<Payload> = {
   phase: "pre-provider",
   id: "outbox-1",
-  operationId: "operation-1",
+  operationId: OPERATION_ID,
   claimToken: "claim-1",
   claimOwner: "worker-1",
   claimVersion: 3,
@@ -126,7 +128,7 @@ describe("fenced outbox worker", () => {
       swept: 0,
       outcomes: [{
         id: "outbox-1",
-        operationId: "operation-1",
+        operationId: OPERATION_ID,
         kind: "sent",
       }],
     });
@@ -142,6 +144,26 @@ describe("fenced outbox worker", () => {
     expect(input.store.finishAfterProvider).toHaveBeenCalledWith(
       permit,
       { kind: "sent", providerMessageId: "gmail-1" },
+    );
+  });
+
+  it("derives a deterministic RFC Message-ID only after the provider permit", async () => {
+    const { input, result } = run();
+
+    await expect(result).resolves.toMatchObject({
+      outcomes: [{ kind: "sent" }],
+    });
+    expect(input.events.indexOf("boundary")).toBeLessThan(
+      input.events.indexOf("send"),
+    );
+    expect(input.send).toHaveBeenCalledWith(
+      { to: "learner@example.test" },
+      {
+        operationId: OPERATION_ID,
+        permit,
+        messageId:
+          "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+      },
     );
   });
 
@@ -193,7 +215,7 @@ describe("fenced outbox worker", () => {
       swept: 0,
       outcomes: [{
         id: "outbox-1",
-        operationId: "operation-1",
+        operationId: OPERATION_ID,
         kind: "sent",
       }],
     });

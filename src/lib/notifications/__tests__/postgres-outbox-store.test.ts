@@ -8,6 +8,7 @@ import {
   type OutboxPgClient,
   type OutboxPgPool,
 } from "../postgres-outbox-store";
+import type { GmailReconciliationFence } from "../gmail-reconciliation";
 import type {
   OutboxClaim,
   ProviderCallPermit,
@@ -161,6 +162,21 @@ const extraKeyDeletionClaim: OutboxClaim<EmailOutboxPayload> = {
       unexpected: "must-not-be-accepted",
     },
   },
+};
+
+const reconciliationFence: GmailReconciliationFence = {
+  id: ID,
+  operationId: OPERATION,
+  claimVersion: 4,
+  userId: "learner-1",
+  deliveryScopeKey: "a:learner-1",
+  claimToken: null,
+  claimOwner: null,
+  leaseExpiresAt: null,
+  adapter: "gmail",
+  providerCallStartedAt: "2026-07-22 19:00:05+00",
+  quarantinedAt: "2026-07-22 19:01:05+00",
+  lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
 };
 
 describe("PostgresOutboxStore", () => {
@@ -568,6 +584,33 @@ describe("PostgresOutboxStore", () => {
       .toHaveLength(1);
   });
 
+  it("rejects a sent update whose returned provider identity does not verify", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          status: "sent",
+          claim_version: 4,
+          adapter: "gmail",
+          provider_message_id: "gmail-other",
+          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          sent_at: new Date("2026-07-22T19:00:06.000Z"),
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finishAfterProvider(permit, {
+      kind: "sent",
+      providerMessageId: "gmail-1",
+    })).resolves.toEqual({ kind: "lost" });
+  });
+
   it("accepts an exact already-persisted provider result", async () => {
     const input = harness([
       { contains: "begin" },
@@ -622,6 +665,113 @@ describe("PostgresOutboxStore", () => {
       kind: "sent",
       providerMessageId: "gmail-1",
     })).resolves.toEqual({ kind: "lost" });
+  });
+
+  it("reports an exact terminal Gmail result as already applied on unknown-commit replay", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "operation_id = $1::uuid",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 4,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          status: "sent",
+          provider_message_id: "gmail-1",
+          sent_at: "2026-07-22 19:02:00+00",
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    })).resolves.toEqual({ kind: "already-applied" });
+    expect(input.client.calls[1]!.values).toEqual([OPERATION]);
+    expect(input.client.calls[1]!.sql)
+      .toContain("lease_expires_at is null ) ) and (");
+  });
+
+  it("observes only an unresolved quarantined Gmail row as an exact reconciliation fence", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "status = 'quarantined'",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 4,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          status: "quarantined",
+          provider_message_id: null,
+          sent_at: null,
+          quarantined_at: "2026-07-22 19:01:05+00",
+          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    })).resolves.toEqual({ kind: "ready", fence: reconciliationFence });
+
+    const sql = input.client.calls[1]!.sql;
+    expect(sql).toContain("adapter = 'gmail'");
+    expect(sql).toContain("provider_call_started is not null");
+    expect(sql).toContain("provider_message_id is null");
+    expect(sql).toContain("sent_at is null");
+  });
+
+  it("finalizes a Gmail match only under the exact fence and delivery-scope lock", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "status = 'quarantined'", rows: [scopeRow()] },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          status: "sent",
+          claim_version: 4,
+          adapter: "gmail",
+          provider_message_id: "gmail-1",
+          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          sent_at: new Date("2026-07-22T19:02:00.000Z"),
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finalizeGmailReconciliation({
+      fence: reconciliationFence,
+      providerMessageId: "gmail-1",
+    })).resolves.toEqual({ kind: "applied" });
+
+    const update = input.client.calls[3]!;
+    expect(update.sql).toContain("claim_token is not distinct from $7::uuid");
+    expect(update.sql).toContain("provider_call_started = $10::timestamptz");
+    expect(update.sql).toContain("quarantined_at = $11::timestamptz");
+    expect(update.sql).toContain("last_error_code = $12::text");
+    expect(update.sql).toContain("status = 'quarantined'");
+    expect(update.values).toContain("a:learner-1");
+    expect(update.values).toContain("gmail-1");
   });
 
   it("quarantines only expired post-boundary rows with the exact observed fence", async () => {

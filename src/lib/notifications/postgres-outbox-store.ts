@@ -12,6 +12,7 @@ import type {
   ProviderStartedClaim,
 } from "./outbox-worker";
 
+import type { GmailReconciliationFence } from "./gmail-reconciliation";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 import {
   accountDeletionNoticeBinding,
@@ -87,6 +88,19 @@ type SweepCandidateRow = CandidateRow & {
   lease_expires_at: Date | string;
 };
 
+
+type ReconciliationRow = CandidateRow & {
+  claim_token: string | null;
+  claim_owner: string | null;
+  lease_expires_at: string | null;
+  adapter: string;
+  status: string;
+  provider_call_started: string;
+  provider_message_id: string | null;
+  sent_at: string | null;
+  quarantined_at: string | null;
+  last_error_code: string | null;
+};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ADAPTERS = new Set(["console", "gmail"]);
 
@@ -726,6 +740,254 @@ function validatePermit(permit: ProviderCallPermit) {
 export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
   constructor(private readonly pool: OutboxPgPool) {}
 
+  async findGmailReconciliationFence(input: Readonly<{ operationId: string }>) {
+    assertUuid(input.operationId, "Outbox operation ID");
+    return transaction(this.pool, async (client) => {
+      const result = await client.query<ReconciliationRow>(`
+        select id::text, user_id, operation_id::text, delivery_scope_key,
+               claim_version, claim_token::text, claim_owner,
+               lease_expires_at::text, adapter, status::text,
+               provider_call_started::text, provider_message_id,
+               sent_at::text, quarantined_at::text, last_error_code
+        from public.email_outbox
+        where operation_id = $1::uuid
+          and adapter = 'gmail'
+          and provider_call_started is not null
+          and (
+            (
+              status = 'quarantined'
+              and provider_message_id is null
+              and sent_at is null
+              and quarantined_at is not null
+              and last_error_code is not null
+              and btrim(last_error_code) <> ''
+            )
+            or (
+              status = 'sent'
+              and provider_message_id is not null
+              and btrim(provider_message_id) <> ''
+              and sent_at is not null
+              and quarantined_at is null
+              and last_error_code is null
+              and claim_token is null
+              and claim_owner is null
+              and lease_expires_at is null
+            )
+          )
+          and (
+            (user_id is not null and delivery_scope_key = 'a:' || user_id)
+            or (user_id is null and delivery_scope_key = 's:' || operation_id::text)
+          )
+      `, [input.operationId]);
+      const row = result.rows[0];
+      if (!row) return { kind: "not-reconcilable" as const };
+      const scope = deliveryScope(row);
+      if (!Number.isSafeInteger(row.claim_version) || row.claim_version <= 0) {
+        throw new Error("Outbox reconciliation claim version is invalid.");
+      }
+      if (
+        row.adapter !== "gmail"
+        || typeof row.provider_call_started !== "string"
+      ) {
+        return { kind: "not-reconcilable" as const };
+      }
+      if (row.status === "sent") {
+        if (
+          row.claim_token === null
+          && row.claim_owner === null
+          && row.lease_expires_at === null
+          && typeof row.provider_message_id === "string"
+          && row.provider_message_id.trim() !== ""
+          && typeof row.sent_at === "string"
+          && row.quarantined_at === null
+          && row.last_error_code === null
+        ) {
+          assertBoundedText(row.provider_message_id, "Provider message ID", 512);
+          assertBoundedText(row.provider_call_started, "Provider boundary", 64);
+          assertBoundedText(row.sent_at, "Sent timestamp", 64);
+          return { kind: "already-applied" as const };
+        }
+        return { kind: "not-reconcilable" as const };
+      }
+      if (
+        row.status !== "quarantined"
+        || row.provider_message_id !== null
+        || row.sent_at !== null
+        || row.quarantined_at === null
+        || row.last_error_code === null
+      ) {
+        return { kind: "not-reconcilable" as const };
+      }
+      if ((row.claim_token === null) !== (row.claim_owner === null)) {
+        throw new Error("Outbox reconciliation claim authority is inconsistent.");
+      }
+      if (row.claim_token !== null) assertUuid(row.claim_token, "Outbox claim token");
+      const claimOwner = row.claim_owner === null
+        ? null
+        : assertBoundedText(row.claim_owner, "Outbox claim owner", 128);
+      const fence: GmailReconciliationFence = {
+        id: row.id,
+        operationId: row.operation_id,
+        claimVersion: row.claim_version,
+        userId: scope.userId,
+        deliveryScopeKey: scope.key,
+        claimToken: row.claim_token,
+        claimOwner,
+        leaseExpiresAt: row.lease_expires_at === null
+          ? null
+          : assertBoundedText(row.lease_expires_at, "Outbox lease expiry", 64),
+        adapter: "gmail",
+        providerCallStartedAt: assertBoundedText(
+          row.provider_call_started,
+          "Provider boundary",
+          64,
+        ),
+        quarantinedAt: assertBoundedText(row.quarantined_at, "Quarantine timestamp", 64),
+        lastErrorCode: assertBoundedText(row.last_error_code, "Outbox error code", 80),
+      };
+      return { kind: "ready" as const, fence };
+    });
+  }
+
+  async finalizeGmailReconciliation(input: Readonly<{
+    fence: GmailReconciliationFence;
+    providerMessageId: string;
+  }>) {
+    const { fence } = input;
+    assertUuid(fence.id, "Outbox ID");
+    assertUuid(fence.operationId, "Outbox operation ID");
+    if (!Number.isSafeInteger(fence.claimVersion) || fence.claimVersion <= 0) {
+      throw new Error("Outbox reconciliation claim version is invalid.");
+    }
+    if (fence.adapter !== "gmail") throw new Error("Outbox adapter is not Gmail.");
+    if ((fence.claimToken === null) !== (fence.claimOwner === null)) {
+      throw new Error("Outbox reconciliation claim authority is inconsistent.");
+    }
+    if (fence.claimToken !== null) assertUuid(fence.claimToken, "Outbox claim token");
+    if (fence.claimOwner !== null) {
+      assertBoundedText(fence.claimOwner, "Outbox claim owner", 128);
+    }
+    const scope = deliveryScope({
+      operation_id: fence.operationId,
+      user_id: fence.userId,
+      delivery_scope_key: fence.deliveryScopeKey,
+    });
+    const providerMessageId = assertBoundedText(
+      input.providerMessageId,
+      "Provider message ID",
+      512,
+    );
+    const providerCallStartedAt = assertBoundedText(
+      fence.providerCallStartedAt,
+      "Provider boundary",
+      64,
+    );
+    const quarantinedAt = assertBoundedText(
+      fence.quarantinedAt,
+      "Quarantine timestamp",
+      64,
+    );
+    const lastErrorCode = assertBoundedText(fence.lastErrorCode, "Outbox error code", 80);
+    const leaseExpiresAt = fence.leaseExpiresAt === null
+      ? null
+      : assertBoundedText(fence.leaseExpiresAt, "Outbox lease expiry", 64);
+
+    return transaction(this.pool, async (client) => {
+      const observed = await client.query<CandidateRow>(`
+        select id::text, user_id, operation_id::text, delivery_scope_key, claim_version
+        from public.email_outbox
+        where id = $1::uuid
+          and operation_id = $2::uuid
+          and claim_version = $3::integer
+          and user_id is not distinct from $4::text
+          and delivery_scope_key = $5::text
+          and adapter = $6::text
+          and claim_token is not distinct from $7::uuid
+          and claim_owner is not distinct from $8::text
+          and lease_expires_at is not distinct from $9::timestamptz
+          and provider_call_started = $10::timestamptz
+          and quarantined_at = $11::timestamptz
+          and last_error_code = $12::text
+          and provider_message_id is null
+          and sent_at is null
+          and status = 'quarantined'
+      `, [
+        fence.id,
+        fence.operationId,
+        fence.claimVersion,
+        scope.userId,
+        scope.key,
+        fence.adapter,
+        fence.claimToken,
+        fence.claimOwner,
+        leaseExpiresAt,
+        providerCallStartedAt,
+        quarantinedAt,
+        lastErrorCode,
+      ]);
+      const row = observed.rows[0];
+      if (!row) return { kind: "lost" as const };
+      const observedScope = deliveryScope(row);
+      if (observedScope.key !== scope.key) return { kind: "lost" as const };
+      await advisoryLock(client, scope.lockKey, true);
+
+      const result = await client.query<TerminalRow>(`
+        update public.email_outbox
+        set status = 'sent',
+            provider_message_id = $13::text,
+            sent_at = pg_catalog.statement_timestamp(),
+            quarantined_at = null,
+            last_error_code = null,
+            claim_token = null,
+            claim_owner = null,
+            lease_expires_at = null,
+            updated_at = pg_catalog.statement_timestamp()
+        where id = $1::uuid
+          and operation_id = $2::uuid
+          and claim_version = $3::integer
+          and user_id is not distinct from $4::text
+          and delivery_scope_key = $5::text
+          and adapter = $6::text
+          and claim_token is not distinct from $7::uuid
+          and claim_owner is not distinct from $8::text
+          and lease_expires_at is not distinct from $9::timestamptz
+          and provider_call_started = $10::timestamptz
+          and quarantined_at = $11::timestamptz
+          and last_error_code = $12::text
+          and provider_message_id is null
+          and sent_at is null
+          and status = 'quarantined'
+        returning status::text, claim_version, adapter, provider_message_id,
+                  provider_call_started, sent_at, quarantined_at, last_error_code
+      `, [
+        fence.id,
+        fence.operationId,
+        fence.claimVersion,
+        scope.userId,
+        scope.key,
+        fence.adapter,
+        fence.claimToken,
+        fence.claimOwner,
+        leaseExpiresAt,
+        providerCallStartedAt,
+        quarantinedAt,
+        lastErrorCode,
+        providerMessageId,
+      ]);
+      const updated = result.rows[0];
+      return updated
+        && updated.status === "sent"
+        && updated.claim_version === fence.claimVersion
+        && updated.adapter === fence.adapter
+        && updated.provider_message_id === providerMessageId
+        && updated.provider_call_started !== null
+        && updated.sent_at !== null
+        && updated.quarantined_at === null
+        && updated.last_error_code === null
+        ? { kind: "applied" as const }
+        : { kind: "lost" as const };
+    });
+  }
   async claimNext(input: Readonly<{ owner: string; token: string; leaseMs: number }>) {
     const owner = assertBoundedText(input.owner, "Outbox claim owner", 128);
     assertUuid(input.token, "Outbox claim token");
@@ -1207,7 +1469,20 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             code,
             scope.key,
           ]);
-      if (result.rows[0]) return { kind: "applied" };
+      const updated = result.rows[0];
+      if (updated) {
+        if (exit.kind !== "sent") return { kind: "applied" };
+        return (
+          (updated.status === "sent" || updated.status === "quarantined")
+          && updated.claim_version === permit.claimVersion
+          && updated.adapter === permit.adapter
+          && updated.provider_message_id === providerMessageId
+          && updated.provider_call_started !== null
+          && updated.sent_at !== null
+        )
+          ? { kind: "applied" }
+          : { kind: "lost" };
+      }
 
       const existing = await client.query<TerminalRow>(`
         select status::text, claim_version, adapter, provider_message_id,
