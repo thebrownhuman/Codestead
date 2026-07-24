@@ -89,6 +89,7 @@ function run(
     code: "MATERIALIZE_TRANSIENT",
     retryAt: new Date("2026-07-22T18:01:00.000Z"),
   },
+  shouldStop: () => boolean = () => false,
 ) {
   return {
     input,
@@ -98,6 +99,7 @@ function run(
       provider: input.provider,
       claimOwner: "worker-1",
       newClaimToken: () => "claim-generated",
+      shouldStop,
       clock: { now: () => new Date("2026-07-22T18:00:00.000Z") },
       retryPolicy: {
         unexpectedMaterializeError: () => retryDecision,
@@ -159,6 +161,45 @@ describe("fenced outbox worker", () => {
     });
     expect(input.send).not.toHaveBeenCalled();
     expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
+  });
+
+  it("finishes an in-flight send but stops before claiming another item", async () => {
+    const input = harness();
+    let stopping = false;
+    const secondClaim: OutboxClaim<Payload> = {
+      ...claim,
+      id: "outbox-2",
+      operationId: "operation-2",
+      claimToken: "claim-2",
+    };
+    vi.mocked(input.store.claimNext)
+      .mockReset()
+      .mockResolvedValueOnce(claim)
+      .mockResolvedValueOnce(secondClaim)
+      .mockResolvedValueOnce(null);
+    input.send.mockImplementationOnce(async () => {
+      stopping = true;
+      await Promise.resolve();
+      return {
+        kind: "accepted" as const,
+        providerMessageId: "gmail-1",
+      };
+    });
+
+    const { result } = run(input, undefined, () => stopping);
+
+    await expect(result).resolves.toEqual({
+      claimed: 1,
+      swept: 0,
+      outcomes: [{
+        id: "outbox-1",
+        operationId: "operation-1",
+        kind: "sent",
+      }],
+    });
+    expect(input.send).toHaveBeenCalledTimes(1);
+    expect(input.store.finishAfterProvider).toHaveBeenCalledTimes(1);
+    expect(input.store.claimNext).toHaveBeenCalledTimes(1);
   });
 
   it("never calls the provider when the boundary CAS is lost", async () => {

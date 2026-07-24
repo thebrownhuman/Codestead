@@ -148,6 +148,7 @@ describe("mail worker production composition", () => {
       store: unknown;
       claimOwner: string;
       newClaimToken(): string;
+      shouldStop(): boolean;
       provider: { adapter: string };
       policy: Record<string, number>;
     };
@@ -156,6 +157,7 @@ describe("mail worker production composition", () => {
     expect(dependencies.newClaimToken()).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+    expect(dependencies.shouldStop()).toBe(false);
     expect(dependencies.provider.adapter).toBe("console");
     expect(dependencies.policy).toEqual({
       batchSize: 10,
@@ -372,8 +374,49 @@ describe("mail worker production composition", () => {
     },
   );
 
+  it("exposes SIGTERM to an in-flight batch without aborting that batch", async () => {
+    process.argv = [originalArgv[0]!, originalArgv[1]!];
+    const before = process.listeners("SIGTERM");
+    let shouldStop: (() => boolean) | undefined;
+    let finishBatch: ((result: BatchResult) => void) | undefined;
+    const inFlight = new Promise<BatchResult>((resolve) => {
+      finishBatch = resolve;
+    });
+    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
+      shouldStop?: () => boolean;
+    }) => {
+      shouldStop = dependencies.shouldStop;
+      return inFlight;
+    });
+
+    await import("./process-outbox");
+    await flushWorkerMicrotasks();
+
+    const signalHandler = process.listeners("SIGTERM")
+      .find((listener) => !before.includes(listener));
+    const wiredShouldStop = shouldStop;
+    expect(signalHandler).toBeTypeOf("function");
+    signalHandler!("SIGTERM");
+    const stopObservedDuringBatch = wiredShouldStop?.();
+    expect(mocks.poolEnd).not.toHaveBeenCalled();
+
+    finishBatch?.({ claimed: 1, swept: 0, outcomes: [] });
+    await flushWorkerMicrotasks();
+
+    expect(wiredShouldStop).toBeTypeOf("function");
+    expect(stopObservedDuringBatch).toBe(true);
+    expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
+    expect(mocks.health.success).toHaveBeenCalledTimes(1);
+    expect(mocks.health.retry).not.toHaveBeenCalled();
+    expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+  });
+
   it("bounds pool cleanup to five seconds and reports timeout without PII", async () => {
     vi.useFakeTimers();
+    const exit = vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as typeof process.exit,
+    );
     mocks.poolEnd.mockImplementationOnce(
       () => new Promise<undefined>(() => undefined),
     );
@@ -395,6 +438,7 @@ describe("mail worker production composition", () => {
     await flushWorkerMicrotasks();
 
     expect(process.exitCode).toBe(1);
+    expect(exit).toHaveBeenCalledWith(1);
     const entries = vi.mocked(console.error).mock.calls
       .map(([entry]) => String(entry))
       .filter((entry) => entry.includes('"event":"email.worker_cleanup_failed"'));
