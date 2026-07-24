@@ -425,8 +425,13 @@
     {
       "idx": 60,
       "version": "7",
+<<<<<<< HEAD
       "when": 1784898036015,
       "tag": "0060_mail_outbox_payload_immutability",
+=======
+      "when": 1784921980000,
+      "tag": "0060_mail_worker_outbox_privileges",
+>>>>>>> 5f43e37 (fix(db): narrow mail worker outbox grants)
       "breakpoints": true
     }
   ]

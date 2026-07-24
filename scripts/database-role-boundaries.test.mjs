@@ -4,6 +4,11 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
+  MAIL_WORKER_OUTBOX_UPDATE_COLUMNS,
+  mailWorkerOutboxPrivilegesSql,
+} from "./bootstrap-database-roles.mjs";
+import {
   DatabaseRoleBoundaryError,
   verifyDatabaseRoleBoundaries,
   validateDatabaseRoleBoundaryUrls,
@@ -16,6 +21,62 @@ const validInput = () => ({
   databaseMigratorUrl: `postgresql://learncoding_migrator:${password("m")}@postgres:5432/learncoding`,
   databaseWorkerUrl: `postgresql://learncoding_worker:${password("w")}@postgres:5432/learncoding`,
   databaseOpsUrl: `postgresql://learncoding_ops:${password("o")}@postgres:5432/learncoding`,
+});
+
+test("composes the mail worker outbox role without payload mutation authority", () => {
+  assert.deepEqual(MAIL_WORKER_OUTBOX_INSERT_COLUMNS, [
+    "operation_id",
+    "user_id",
+    "delivery_scope_key",
+    "to_email",
+    "template",
+    "template_version",
+    "variables",
+    "idempotency_key",
+    "status",
+    "next_attempt_at",
+  ]);
+  assert.deepEqual(MAIL_WORKER_OUTBOX_UPDATE_COLUMNS, [
+    "status",
+    "attempt_count",
+    "claim_token",
+    "claim_owner",
+    "claim_version",
+    "lease_expires_at",
+    "provider_call_started",
+    "adapter",
+    "provider_message_id",
+    "next_attempt_at",
+    "sent_at",
+    "quarantined_at",
+    "last_error_code",
+    "updated_at",
+  ]);
+
+  const payloadColumns = new Set([
+    "id",
+    "operation_id",
+    "user_id",
+    "delivery_scope_key",
+    "to_email",
+    "template",
+    "template_version",
+    "variables",
+    "idempotency_key",
+    "created_at",
+  ]);
+  assert.deepEqual(
+    MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter((column) => payloadColumns.has(column)),
+    [],
+  );
+
+  const sql = mailWorkerOutboxPrivilegesSql();
+  assert.match(sql, /revoke all on table public\.email_outbox from learncoding_worker/iu);
+  assert.match(sql, /revoke all \([^)]+\) on table public\.email_outbox from learncoding_worker/iu);
+  assert.match(sql, /grant select on table public\.email_outbox to learncoding_worker/iu);
+  assert.match(sql, /grant insert \([^)]+\) on table public\.email_outbox to learncoding_worker/iu);
+  assert.match(sql, /grant update \([^)]+\) on table public\.email_outbox to learncoding_worker/iu);
+  assert.doesNotMatch(sql, /grant delete|grant truncate/iu);
 });
 
 test("accepts only the exact four distinct restricted-role URLs", () => {
