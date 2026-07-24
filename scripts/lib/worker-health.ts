@@ -13,6 +13,8 @@ import {
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join } from "node:path";
 
+import { operationalErrorCode } from "../../src/lib/security/operational-code";
+
 const HEALTH_FILE_NAME = "status.json";
 const MAX_HEALTH_FILE_BYTES = 4_096;
 const FUTURE_CLOCK_SKEW_MS = 5_000;
@@ -130,11 +132,6 @@ function writeAtomic(path: string, directory: string, record: WorkerHealthRecord
   }
 }
 
-function errorCode(error: unknown) {
-  if (!(error instanceof Error)) return "UNKNOWN";
-  return /^[A-Za-z][A-Za-z0-9_.-]{0,79}$/.test(error.name) ? error.name : "ERROR";
-}
-
 export function createWorkerHealthReporter(options: ReporterOptions) {
   assertWorkerId(options.worker);
   const directory = options.directory ?? "/tmp/codestead-worker-health";
@@ -194,7 +191,7 @@ export function createWorkerHealthReporter(options: ReporterOptions) {
         pid,
         sequence,
         consecutiveFailures,
-        code: errorCode(error),
+        code: operationalErrorCode(error),
       }));
       return record;
     },
@@ -208,7 +205,7 @@ export function createWorkerHealthReporter(options: ReporterOptions) {
         pid,
         sequence,
         consecutiveFailures,
-        code: errorCode(error),
+        code: operationalErrorCode(error),
       }));
       return record;
     },
