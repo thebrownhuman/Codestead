@@ -24,6 +24,8 @@ const PROVIDER_LEASE_MS = 300_000;
 const MAX_MATERIALIZE_ATTEMPTS = 8;
 const MAX_RETRY_DELAY_MS = 6 * 60 * 60_000;
 const TERMINAL_PERSISTENCE_ATTEMPTS = 3;
+const POOL_SHUTDOWN_TIMEOUT_MS = 5_000;
+const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT"] as const;
 
 const workerHost = hostname()
   .replace(/[^A-Za-z0-9._:-]/g, "-")
@@ -32,6 +34,88 @@ const claimOwner =
   `mail-worker:${workerHost}:${process.pid}:${randomUUID()}`.slice(0, 128);
 
 let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
+let stopping = false;
+let finishPollWait: (() => void) | undefined;
+
+class PoolShutdownTimeoutError extends Error {
+  constructor() {
+    super("Mail worker pool shutdown timed out.");
+    this.name = "PoolShutdownTimeoutError";
+  }
+}
+
+function requestStop() {
+  if (stopping) return;
+  stopping = true;
+  finishPollWait?.();
+}
+
+function installTerminationHandlers() {
+  for (const signal of TERMINATION_SIGNALS) {
+    process.once(signal, requestStop);
+  }
+}
+
+function removeTerminationHandlers() {
+  for (const signal of TERMINATION_SIGNALS) {
+    process.off(signal, requestStop);
+  }
+}
+
+function waitForNextPoll(milliseconds: number) {
+  if (stopping) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      if (finishPollWait === finish) finishPollWait = undefined;
+      resolve();
+    };
+    const timer = setTimeout(finish, milliseconds);
+    finishPollWait = finish;
+    if (stopping) finish();
+  });
+}
+
+async function endPoolWithinDeadline() {
+  const deadline = performance.now() + POOL_SHUTDOWN_TIMEOUT_MS;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const close = Promise.resolve().then(() => pool.end());
+  const expired = new Promise<never>((_, reject) => {
+    timeout = setTimeout(
+      () => reject(new PoolShutdownTimeoutError()),
+      POOL_SHUTDOWN_TIMEOUT_MS,
+    );
+  });
+
+  try {
+    await Promise.race([close, expired]);
+    if (performance.now() >= deadline) {
+      throw new PoolShutdownTimeoutError();
+    }
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
+
+async function cleanup() {
+  removeTerminationHandlers();
+  try {
+    await endPoolWithinDeadline();
+  } catch (error) {
+    process.exitCode = 1;
+    console.error(
+      JSON.stringify({
+        event: "email.worker_cleanup_failed",
+        code: error instanceof PoolShutdownTimeoutError
+          ? "POOL_SHUTDOWN_TIMEOUT"
+          : "POOL_SHUTDOWN_FAILED",
+      }),
+    );
+  }
+}
 
 function configuredAdapter(): "console" | "gmail" {
   const adapter = process.env.MAIL_ADAPTER ?? "console";
@@ -207,6 +291,7 @@ async function main() {
   let lastInactivityScheduleAt = 0;
   let lastSmartReminderScheduleAt = 0;
   do {
+    if (stopping) break;
     const scheduleAt = Date.now();
     if (
       scheduleAt - lastInactivityScheduleAt
@@ -216,6 +301,7 @@ async function main() {
       lastInactivityScheduleAt = scheduleAt;
       console.info(JSON.stringify({ event: "inactivity.schedule", ...schedule }));
     }
+    if (stopping) break;
     if (
       scheduleAt - lastSmartReminderScheduleAt
       >= inactivityScheduleSeconds * 1_000
@@ -226,16 +312,18 @@ async function main() {
         JSON.stringify({ event: "smart_reminder.schedule", ...schedule }),
       );
     }
+    if (stopping) break;
     const result = await processBatch(store, adapter);
     console.info(JSON.stringify(batchLog(result)));
     healthReporter.success();
-    if (once) break;
-    await new Promise((resolve) =>
-      setTimeout(resolve, result.claimed ? 1_000 : pollSeconds * 1_000),
+    if (once || stopping) break;
+    await waitForNextPoll(
+      result.claimed ? 1_000 : pollSeconds * 1_000,
     );
-  } while (true);
+  } while (!stopping);
 }
 
+installTerminationHandlers();
 main()
   .catch((error) => {
     healthReporter?.retry(error);
@@ -248,4 +336,4 @@ main()
     );
     process.exitCode = 1;
   })
-  .finally(() => pool.end());
+  .finally(cleanup);
