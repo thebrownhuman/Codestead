@@ -431,12 +431,53 @@ previous_release_file="$record_real/previous-release-id.txt"
 previous_git_file="$record_real/previous-git-commit.txt"
 previous_images_file="$record_real/previous-running-images.tsv"
 transition_file="$record_real/previous-runtime-transition.env"
+mail_outbox_contract_file="$record_real/mail-outbox-contract.env"
 for evidence in "$override" "$record_status_file" "$record_git_file" \
   "$previous_release_file" "$previous_git_file" "$previous_images_file"; do
   [[ -f "$evidence" && ! -L "$evidence" ]] || fatal "rollback evidence is incomplete"
 done
 [[ "$("$stat_bin" -Lc '%a' -- "$override")" == 600 ]] || fatal "rollback override must have mode 0600"
 for evidence in "$override" "$record_status_file" "$record_git_file" "$previous_release_file" "$previous_git_file" "$previous_images_file"; do assert_trusted_not_writable "$evidence" "rollback evidence"; done
+
+if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; then
+  safe_path "$mail_outbox_contract_file" "mail outbox contract evidence"
+  [[ -f "$mail_outbox_contract_file" && ! -L "$mail_outbox_contract_file" ]] || {
+    fatal "mail outbox contract evidence must be a regular non-symlink file"
+  }
+  [[ "$("$stat_bin" -Lc '%a' -- "$mail_outbox_contract_file")" == 600 ]] || {
+    fatal "mail outbox contract evidence must have mode 0600"
+  }
+  assert_trusted_not_writable "$mail_outbox_contract_file" "mail outbox contract evidence"
+  mapfile -t mail_outbox_contract_lines <"$mail_outbox_contract_file"
+  [[ "${#mail_outbox_contract_lines[@]}" == 6 \
+    && "${mail_outbox_contract_lines[0]:-}" == SCHEMA_VERSION=1 \
+    && "${mail_outbox_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+    && "${mail_outbox_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+    && "${mail_outbox_contract_lines[3]:-}" == STORE_CUTOVER=* \
+    && "${mail_outbox_contract_lines[4]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+    && "${mail_outbox_contract_lines[5]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* ]] || {
+    fatal "mail outbox contract evidence is malformed"
+  }
+  rollback_mail_phase="${mail_outbox_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+  rollback_worker_mode="${mail_outbox_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+  rollback_store_cutover="${mail_outbox_contract_lines[3]#STORE_CUTOVER=}"
+  rollback_previous_mail_phase="${mail_outbox_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+  rollback_previous_worker_mode="${mail_outbox_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+  case "$rollback_mail_phase|$rollback_worker_mode|$rollback_store_cutover|$rollback_previous_mail_phase|$rollback_previous_worker_mode" in
+    "dual-write-v1|fenced-postgres-v1|false|legacy-v0|legacy-direct-v1" \
+      |"dual-write-v1|fenced-postgres-v1|false|dual-write-v1|fenced-postgres-v1" \
+      |"store-v1|fenced-postgres-v1|true|dual-write-v1|fenced-postgres-v1" \
+      |"store-v1|fenced-postgres-v1|false|store-v1|fenced-postgres-v1") ;;
+    *) fatal "mail outbox contract evidence contains an invalid transition" ;;
+  esac
+  if [[ "$rollback_store_cutover" == true ]]; then
+    fatal "mail store cutover is forward-only; the pre-cutover artifact cannot be restored"
+  fi
+  if [[ "$rollback_mail_phase" == store-v1 \
+    && "$rollback_previous_mail_phase" != store-v1 ]]; then
+    fatal "fenced mail rollback evidence does not name a fenced previous release"
+  fi
+fi
 
 previous_release_id="$(<"$previous_release_file")"
 previous_git_commit="$(<"$previous_git_file")"

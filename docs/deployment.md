@@ -362,7 +362,9 @@ Before accepting uploads, follow [Upload scanning](runbooks/upload-scanning.md).
 
 ## Mail delivery
 
-`mail-worker` claims pending `email_outbox` rows, retries transient failures, and recovers stale claims after a worker crash. Keep `MAIL_ADAPTER=console` only for a non-delivering smoke test. For delivery, set `MAIL_ADAPTER=gmail` and populate the three root-owned Gmail OAuth secret files. The worker alone joins the dedicated outbound network; the database remains on the internal network. Confirm an invitation and password-reset message arrive before admitting learners.
+`mail-worker` claims pending `email_outbox` rows, retries transient failures, and recovers stale claims after a worker crash. Production requires an explicit reviewed `MAIL_OUTBOX_PHASE`/`OUTBOX_WORKER_MODE` pair. Follow [Mail outbox store cutover](runbooks/mail-outbox-cutover.md) for the mandatory two-release `dual-write-v1` to `store-v1` transition. Both phases require the sole `fenced-postgres-v1` claimant; never start the legacy direct loop.
+
+`MAIL_ADAPTER=console` is not a pause switch: it consumes rows and marks them delivered. Use it only in a disposable isolated smoke environment. For production delivery, set `MAIL_ADAPTER=gmail` and populate the three root-owned Gmail OAuth secret files. The worker alone joins the dedicated outbound network; the database remains on the internal network. Confirm an invitation and password-reset message arrive before admitting learners.
 
 `regrade-worker` processes only administrator-reviewed assessment corrections, with a regrade batch size of at most two. It verifies the complete immutable impact snapshot, reruns the whole deterministic form, and requires every runner response to match the reviewed image digest before appending an outcome. The same worker processes up to 20 local-only mastery projection repairs per poll; unresolved exact mappings wait 24 hours and remain visible in the admin correction view. Monitor the aggregate regrade and mastery-repair counts in `assessment_regrade.batch` and follow the [assessment correction runbook](runbooks/assessment-corrections.md); logs intentionally omit learner IDs, source, tests, result bodies, and projection snapshots.
 
@@ -384,6 +386,7 @@ Operator references:
 
 - [Firewall and network](runbooks/firewall-and-network.md)
 - [Updates and rollback](runbooks/updates-and-rollback.md)
+- [Mail outbox store cutover](runbooks/mail-outbox-cutover.md)
 - [Logs and monitoring](runbooks/logs-and-monitoring.md)
 - [Backup and restore](runbooks/backup-and-restore.md)
 - [Runner isolation](runbooks/runner-isolation.md)

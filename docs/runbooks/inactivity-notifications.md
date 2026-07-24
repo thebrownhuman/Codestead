@@ -1,6 +1,6 @@
 # Inactivity notification operations
 
-The email worker owns inactivity scheduling. Run `npm run worker:email`; the worker evaluates inactivity every `INACTIVITY_SCHEDULE_SECONDS` (default 60, allowed 10–3600) and then drains the transactional outbox. Run `npm run worker:email -- --once` for one scheduler/delivery pass during maintenance.
+The managed email worker owns inactivity scheduling. It evaluates inactivity every `INACTIVITY_SCHEDULE_SECONDS` (default 60, allowed 10–3600) and then drains the transactional outbox. Do not run `npm run worker:email -- --once` during store cutover: that entry point combines scheduling and delivery claiming. Use the release transaction and [Mail outbox store cutover](mail-outbox-cutover.md) instead.
 
 Policy `inactivity-2026-07.v2` is exact:
 

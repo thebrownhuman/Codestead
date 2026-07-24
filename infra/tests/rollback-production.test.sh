@@ -334,6 +334,24 @@ grep -Fq 'canonical lowercase public HTTPS origin' "$ROLLBACK_CASE/stderr" || {
 printf '%s\n' 'APP_URL=https://pilot.example.test' >"$work/compose.env"
 echo "ok - rollback rejects an IPv4 APP_URL before Docker"
 
+cat >"$work/records/20260719T000000Z-2/mail-outbox-contract.env" <<'EOF'
+SCHEMA_VERSION=1
+MAIL_OUTBOX_PHASE=store-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+STORE_CUTOVER=true
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+EOF
+chmod 0600 "$work/records/20260719T000000Z-2/mail-outbox-contract.env"
+run_rollback mail-store-cutover --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback restored the pre-cutover artifact across store cutover"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "mail store cutover rollback"
+grep -Fq 'mail store cutover is forward-only' "$ROLLBACK_CASE/stderr" || {
+  fail "mail store cutover rollback refusal was not explicit"
+}
+rm -f "$work/records/20260719T000000Z-2/mail-outbox-contract.env"
+echo "ok - rollback refuses the pre-cutover artifact across mail store cutover"
+
 authority_environment=(
   DOCKER_HOST
   DOCKER_CONTEXT

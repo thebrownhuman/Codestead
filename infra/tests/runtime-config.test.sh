@@ -1109,6 +1109,8 @@ CLAMAV_IMAGE=$pilot_clamav
 REQUIRE_BOOTSTRAP_ADMIN_SECRET=false
 MAIL_ADAPTER=console
 MAIL_FROM=
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
 GOOGLE_CLIENT_ID=
 SECRETS_DIR=$secrets
 CLOUDFLARE_CONFIG_FILE=$case_dir/cloudflare.yml
@@ -2477,6 +2479,18 @@ expect_failure \
   'invalid caller validation mode' \
   'fatal: VALIDATION_MODE must be pilot or operations' \
   release
+
+make_fixture invalid-mail-outbox-phase
+set_config MAIL_OUTBOX_PHASE legacy-v0
+expect_failure \
+  'unreviewed mail outbox phase' \
+  'fatal: MAIL_OUTBOX_PHASE and OUTBOX_WORKER_MODE do not name an allowed claimant pair'
+
+make_fixture legacy-outbox-worker-mode
+set_config OUTBOX_WORKER_MODE legacy-direct-v1
+expect_failure \
+  'legacy outbox worker mode' \
+  'fatal: MAIL_OUTBOX_PHASE and OUTBOX_WORKER_MODE do not name an allowed claimant pair'
 
 make_fixture google-secret-required
 set_config GOOGLE_CLIENT_ID google-client-id.apps.example.test

@@ -222,6 +222,13 @@ fi
   fatal "MAIL_ADAPTER must be console or gmail"
 }
 
+case "${MAIL_OUTBOX_PHASE:-}|${OUTBOX_WORKER_MODE:-}" in
+  "dual-write-v1|fenced-postgres-v1"|"store-v1|fenced-postgres-v1") ;;
+  *)
+    fatal "MAIL_OUTBOX_PHASE and OUTBOX_WORKER_MODE do not name an allowed claimant pair"
+    ;;
+esac
+
 case "${UPLOADS_ENABLED:-}" in
   true)
     [[ "${COMPOSE_PROFILES:-}" == uploads ]] || {

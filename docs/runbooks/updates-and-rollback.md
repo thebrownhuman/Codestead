@@ -60,6 +60,8 @@ Do not pass `--bootstrap-admin` during an ordinary update. That flag is reserved
 
 No automatic schema rollback is attempted or claimed. Automatic application restore is disabled by default. Supplying `--schema-backward-compatible` is an explicit operator assertion that the prior application understands the already-migrated schema; it may restore only the exact recorded local images. Automatic restore is never attempted after the new `/etc/learncoding/active-release.env` commit marker becomes visible; a later evidence or audit-pointer failure quarantines the tunnel and requires the explicit rollback command, which republishes matching prior runtime evidence. The transaction and rollback tool never reverse SQL. If compatibility is uncertain, restore a verified database recovery point instead.
 
+The mail store transition is a stricter boundary. Follow [Mail outbox store cutover](mail-outbox-cutover.md). `--mail-store-cutover` cannot be combined with `--schema-backward-compatible`; a record with `STORE_CUTOVER=true` is forward-only and the rollback tool will not restore its legacy claimant. Later fenced releases may roll back only to the exact reviewed previous fenced artifact.
+
 Recurring retention consumes the canonical `2026-07-14.v4` command from the Compose lifecycle service. Follow [Data lifecycle, export, and account deletion](data-lifecycle.md) for the authoritative invocation and idempotency rules rather than maintaining a second procedure here.
 
 ## Container and host updates

@@ -9,7 +9,7 @@ fatal() {
 
 usage() {
   cat >&2 <<'EOF'
-usage: release-production.sh [--bootstrap-admin] [--acquire-images] [--schema-backward-compatible] [--lock-timeout SECONDS] [--stage-timeout SECONDS] [--startup-wait SECONDS]
+usage: release-production.sh [--bootstrap-admin] [--acquire-images] [--mail-store-cutover] [--schema-backward-compatible] [--lock-timeout SECONDS] [--stage-timeout SECONDS] [--startup-wait SECONDS]
 
 Runs the explicit Codestead production release transaction. The optional
 administrator bootstrap is never run unless --bootstrap-admin is supplied;
@@ -17,6 +17,8 @@ its temporary password remains a Compose file-backed secret.
 Image acquisition is opt-in and pulls only the canonical digest references in
 the reviewed Compose configuration. A prior runtime may be restored after a
 failed candidate only with the explicit --schema-backward-compatible assertion.
+The forward-only mail store transition additionally requires the explicit
+--mail-store-cutover assertion and can never enable legacy automatic rollback.
 
 
 --test-harness-root is reserved for the standalone adversarial test. It
@@ -26,6 +28,7 @@ EOF
 
 bootstrap_admin=false
 acquire_images=false
+mail_store_cutover=false
 schema_backward_compatible=false
 lock_timeout=30
 stage_timeout=900
@@ -36,6 +39,10 @@ while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --bootstrap-admin)
       bootstrap_admin=true
+      shift
+      ;;
+    --mail-store-cutover)
+      mail_store_cutover=true
       shift
       ;;
     --acquire-images)
@@ -88,6 +95,9 @@ positive_integer "$startup_wait" || fatal "--startup-wait requires a positive in
 (( stage_timeout <= 1800 )) || fatal "--stage-timeout may not exceed 1800 seconds"
 (( startup_wait <= 1200 )) || fatal "--startup-wait may not exceed 1200 seconds"
 (( stage_timeout >= startup_wait )) || fatal "--stage-timeout must be at least --startup-wait"
+[[ ! ( "$mail_store_cutover" == true && "$schema_backward_compatible" == true ) ]] || {
+  fatal "--mail-store-cutover and --schema-backward-compatible are mutually exclusive"
+}
 
 [[ ! ${RELEASE_GIT_COMMIT+x} ]] || {
   fatal "RELEASE_GIT_COMMIT is forbidden; release evidence is derived from the verified checkout"
@@ -236,9 +246,12 @@ readonly compose_env="${COMPOSE_ENV_FILE:-/etc/learncoding/compose.env}"
 readonly compose_file="${COMPOSE_FILE_PATH:-$repo_root/compose.yaml}"
 if [[ -n "$test_harness_root" ]]; then
   readonly release_lock_file="${RELEASE_LOCK_FILE:-$test_harness_root/run/codestead-release.lock}"
+  readonly backup_lock_file="${BACKUP_LOCK_FILE:-$test_harness_root/run/learncoding-backup.lock}"
 else
   [[ -z "${RELEASE_LOCK_FILE+x}" ]] || fatal "RELEASE_LOCK_FILE is forbidden in production"
+  [[ -z "${BACKUP_LOCK_FILE+x}" ]] || fatal "BACKUP_LOCK_FILE is forbidden in production"
   readonly release_lock_file=/run/lock/codestead-release.lock
+  readonly backup_lock_file=/run/lock/learncoding-backup.lock
 fi
 readonly release_record_root="${RELEASE_RECORD_ROOT:-/var/lib/learncoding/releases}"
 readonly validate_runtime_script="${VALIDATE_RUNTIME_SCRIPT:-$repo_root/infra/ops/validate-runtime.sh}"
@@ -299,6 +312,7 @@ for path_and_label in \
   "$compose_env|Compose environment" \
   "$compose_file|Compose file" \
   "$release_lock_file|release lock file" \
+  "$backup_lock_file|host backup writer lock file" \
   "$release_record_root|release record root" \
   "$validate_runtime_script|runtime validator" \
   "$smoke_production_script|production smoke" \
@@ -500,6 +514,8 @@ previous_runtime_available=false
 runtime_state_commit_visible=false
 previous_release_id="none"
 previous_git_commit="none"
+previous_mail_outbox_phase="legacy-v0"
+previous_outbox_worker_mode="legacy-direct-v1"
 current_pointer="$release_record_root/current-release.env"
 latest_candidate_pointer="$release_record_root/latest-candidate.env"
 release_pointer_temporary=""
@@ -688,6 +704,8 @@ No automatic schema rollback was attempted or is claimed by this transaction.
 The previous-running-images.tsv file records the pre-release service/image identities.
 Application rollback may reuse a previous reviewed image only when it is compatible with the migrated schema.
 Restore a verified recovery point for an incompatible schema; never improvise reverse SQL on production data.
+A record with STORE_CUTOVER=true is forward-only: never restart its pre-cutover mail artifact and never use generic application rollback across that boundary.
+After cutover, only a later fenced-postgres-v1 release may roll back to an earlier fenced-postgres-v1 release.
 When previous-runtime.override.yaml and a previous release id are present, this paste-ready command restores only pinned local images:
 sudo '$repo_root/infra/ops/rollback-production.sh' --release-record '$record_dir' --schema-backward-compatible
 EOF
@@ -695,6 +713,53 @@ sync_evidence_file "$record_dir/rollback.txt"
 
 run_bounded() {
   "$timeout_bin" --signal=TERM --kill-after=10s "${stage_timeout}s" "$@"
+}
+
+acquire_host_backup_writer_lock() {
+  [[ "$mail_store_cutover" == true ]] || return 0
+  [[ -f "$backup_lock_file" && ! -L "$backup_lock_file" ]] || {
+    fatal "host backup writer lock must be a pre-provisioned regular non-symlink file"
+  }
+
+  local identity_before identity_path_after_open identity_fd_after_open
+  local identity_path_after_flock identity_fd_after_flock
+  identity_before="$(lock_object_identity "$backup_lock_file")"
+  assert_lock_object_identity "$identity_before" "host backup writer lock" \
+    "$expected_lock_uid" "$expected_lock_gid"
+
+  exec 8<"$backup_lock_file"
+  local descriptor_path="/proc/$$/fd/8"
+  [[ -f "$backup_lock_file" && ! -L "$backup_lock_file" ]] || {
+    fatal "host backup writer lock path changed during open"
+  }
+  identity_path_after_open="$(lock_object_identity "$backup_lock_file")"
+  identity_fd_after_open="$(lock_object_identity "$descriptor_path")"
+  assert_lock_object_identity "$identity_path_after_open" \
+    "host backup writer lock path after open" "$expected_lock_uid" "$expected_lock_gid"
+  assert_lock_object_identity "$identity_fd_after_open" \
+    "host backup writer lock descriptor after open" "$expected_lock_uid" "$expected_lock_gid"
+  [[ "$identity_before" == "$identity_path_after_open" \
+    && "$identity_path_after_open" == "$identity_fd_after_open" ]] || {
+    fatal "host backup writer lock path and descriptor split during open"
+  }
+
+  "$flock_bin" --exclusive --wait "$lock_timeout" 8 || {
+    fatal "unable to acquire the host backup writer lock"
+  }
+  [[ -f "$backup_lock_file" && ! -L "$backup_lock_file" ]] || {
+    fatal "host backup writer lock path changed while acquiring the lock"
+  }
+  identity_path_after_flock="$(lock_object_identity "$backup_lock_file")"
+  identity_fd_after_flock="$(lock_object_identity "$descriptor_path")"
+  assert_lock_object_identity "$identity_path_after_flock" \
+    "host backup writer lock path after flock" "$expected_lock_uid" "$expected_lock_gid"
+  assert_lock_object_identity "$identity_fd_after_flock" \
+    "host backup writer lock descriptor after flock" "$expected_lock_uid" "$expected_lock_gid"
+  [[ "$identity_path_after_flock" == "$identity_fd_after_flock" \
+    && "$identity_path_after_flock" == "$identity_path_after_open" \
+    && "$identity_fd_after_flock" == "$identity_fd_after_open" ]] || {
+    fatal "host backup writer lock path and descriptor split while acquiring the lock"
+  }
 }
 
 readonly -a compose=(
@@ -780,6 +845,95 @@ reject_residual_database_sessions() {
   session_count="${session_count//$'\r'/}"
   [[ "$session_count" =~ ^[0-9]+$ && "$session_count" == 0 ]] || {
     fatal "restricted database sessions remain after mutator shutdown"
+  }
+}
+
+require_mail_outbox_drain() {
+  local drain_state
+  drain_state="$(
+    run_bounded "${compose[@]}" exec -T postgres psql --host=/run/learncoding-postgres \
+      --username "$postgres_user" --dbname "$postgres_database" --no-psqlrc --quiet \
+      --no-align --tuples-only \
+      --set ON_ERROR_STOP=1 --command \
+      "/* mail-store-drain-gate-v1 */
+SELECT
+  count(*) FILTER (WHERE status = 'sending'),
+  count(*) FILTER (
+    WHERE status IN ('pending', 'sending')
+      AND lease_expires_at IS NOT NULL
+      AND lease_expires_at > now()
+  ),
+  count(*) FILTER (
+    WHERE status IN ('pending', 'sending')
+      AND provider_call_started IS NOT NULL
+  )
+FROM public.email_outbox;"
+  )" || fatal "unable to inspect pre-cutover mail claim drain state"
+  drain_state="${drain_state//$'\r'/}"
+  [[ "$drain_state" == "0|0|0" ]] || {
+    fatal "pre-cutover mail claims did not drain; keep the fenced worker stopped"
+  }
+}
+
+require_mail_outbox_0059_contract() {
+  local contract_state
+  contract_state="$(
+    run_bounded "${compose[@]}" exec -T postgres psql --host=/run/learncoding-postgres \
+      --username "$postgres_user" --dbname "$postgres_database" --no-psqlrc --quiet \
+      --no-align --tuples-only \
+      --set ON_ERROR_STOP=1 --command \
+      "/* mail-store-contract-gate-v1 */
+WITH scope_counts AS (
+  SELECT
+    count(*) FILTER (WHERE delivery_scope_key IS NULL) AS null_scopes,
+    count(*) FILTER (
+      WHERE delivery_scope_key IS NOT NULL
+        AND (
+          (user_id IS NOT NULL AND delivery_scope_key = 'a:' || user_id)
+          OR (
+            user_id IS NULL
+            AND delivery_scope_key = 's:' || operation_id::text
+            AND template_version = '1'
+            AND template IN ('invitation', 'access-rejected')
+          )
+          OR (
+            user_id IS NULL
+            AND delivery_scope_key = 'o:' || operation_id::text
+            AND status IN ('sent', 'failed', 'suppressed', 'quarantined')
+          )
+        ) IS NOT TRUE
+    ) AS invalid_scopes
+  FROM public.email_outbox
+)
+SELECT
+  COALESCE((
+    SELECT attnotnull
+    FROM pg_catalog.pg_attribute
+    WHERE attrelid = 'public.email_outbox'::regclass
+      AND attname = 'delivery_scope_key'
+      AND NOT attisdropped
+  ), false),
+  EXISTS (
+    SELECT 1 FROM pg_catalog.pg_constraint
+    WHERE conrelid = 'public.email_outbox'::regclass
+      AND conname = 'email_outbox_delivery_scope_valid'
+      AND contype = 'c'
+      AND convalidated
+  ),
+  EXISTS (
+    SELECT 1 FROM pg_catalog.pg_trigger
+    WHERE tgrelid = 'public.email_outbox'::regclass
+      AND tgname = 'email_outbox_delivery_scope_immutable'
+      AND NOT tgisinternal
+      AND tgenabled <> 'D'
+  ),
+  null_scopes,
+  invalid_scopes
+FROM scope_counts;"
+  )" || fatal "unable to inspect the 0059 delivery-scope contract"
+  contract_state="${contract_state//$'\r'/}"
+  [[ "$contract_state" == "t|t|t|0|0" ]] || {
+    fatal "0059 delivery-scope contract is incomplete; keep the fenced worker stopped"
   }
 }
 
@@ -1081,6 +1235,93 @@ postgres_database="$(compose_env_value POSTGRES_DB learncoding)"
 readonly postgres_database
 postgres_user="$(compose_env_value POSTGRES_USER learncoding)"
 readonly postgres_user
+mail_outbox_phase="$(compose_env_value MAIL_OUTBOX_PHASE)"
+readonly mail_outbox_phase
+outbox_worker_mode="$(compose_env_value OUTBOX_WORKER_MODE)"
+readonly outbox_worker_mode
+
+case "$mail_outbox_phase|$outbox_worker_mode" in
+  "dual-write-v1|fenced-postgres-v1"|"store-v1|fenced-postgres-v1") ;;
+  *)
+    fatal "MAIL_OUTBOX_PHASE and OUTBOX_WORKER_MODE do not name an allowed claimant pair"
+    ;;
+esac
+
+if [[ "$previous_release_id" != none ]]; then
+  previous_mail_contract="$release_record_root/$previous_release_id/mail-outbox-contract.env"
+  assert_safe_path "$previous_mail_contract" "previous mail outbox contract"
+  if [[ -e "$previous_mail_contract" || -L "$previous_mail_contract" ]]; then
+    [[ -f "$previous_mail_contract" && ! -L "$previous_mail_contract" ]] || {
+      fatal "previous mail outbox contract must be a regular non-symlink file"
+    }
+    previous_mail_contract_identity="$(path_identity "$previous_mail_contract")"
+    IFS=: read -r previous_mail_uid previous_mail_gid previous_mail_mode \
+      <<<"$previous_mail_contract_identity"
+    if [[ -z "$test_harness_root" ]]; then
+      [[ "$previous_mail_uid" == 0 && "$previous_mail_gid" == 0 \
+        && "$previous_mail_mode" == 600 ]] || {
+        fatal "previous mail outbox contract must be root:root mode 0600"
+      }
+    else
+      [[ "$previous_mail_uid" == "$EUID" && "$previous_mail_mode" == 600 ]] || {
+        fatal "test previous mail outbox contract must be caller-owned mode 0600"
+      }
+    fi
+    mapfile -t previous_mail_contract_lines <"$previous_mail_contract"
+    [[ "${#previous_mail_contract_lines[@]}" == 6 \
+      && "${previous_mail_contract_lines[0]:-}" == SCHEMA_VERSION=1 \
+      && "${previous_mail_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+      && "${previous_mail_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+      && "${previous_mail_contract_lines[3]:-}" == STORE_CUTOVER=* \
+      && "${previous_mail_contract_lines[4]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+      && "${previous_mail_contract_lines[5]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* ]] || {
+      fatal "previous mail outbox contract is malformed"
+    }
+    previous_mail_outbox_phase="${previous_mail_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+    previous_outbox_worker_mode="${previous_mail_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+    previous_store_cutover="${previous_mail_contract_lines[3]#STORE_CUTOVER=}"
+    recorded_previous_mail_phase="${previous_mail_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+    recorded_previous_worker_mode="${previous_mail_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+    case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$previous_store_cutover|$recorded_previous_mail_phase|$recorded_previous_worker_mode" in
+      "dual-write-v1|fenced-postgres-v1|false|legacy-v0|legacy-direct-v1" \
+        |"dual-write-v1|fenced-postgres-v1|false|dual-write-v1|fenced-postgres-v1" \
+        |"store-v1|fenced-postgres-v1|true|dual-write-v1|fenced-postgres-v1" \
+        |"store-v1|fenced-postgres-v1|false|store-v1|fenced-postgres-v1") ;;
+      *) fatal "previous mail outbox contract contains an invalid transition" ;;
+    esac
+  fi
+fi
+
+case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$mail_outbox_phase|$outbox_worker_mode|$mail_store_cutover" in
+  "legacy-v0|legacy-direct-v1|dual-write-v1|fenced-postgres-v1|false" \
+    |"dual-write-v1|fenced-postgres-v1|dual-write-v1|fenced-postgres-v1|false" \
+    |"dual-write-v1|fenced-postgres-v1|store-v1|fenced-postgres-v1|true" \
+    |"store-v1|fenced-postgres-v1|store-v1|fenced-postgres-v1|false") ;;
+  "dual-write-v1|fenced-postgres-v1|store-v1|fenced-postgres-v1|false")
+    fatal "store-v1 requires the explicit --mail-store-cutover assertion"
+    ;;
+  "legacy-v0|legacy-direct-v1|store-v1|fenced-postgres-v1|"*)
+    fatal "mail store cutover requires a completed dual-write-v1 release"
+    ;;
+  "store-v1|fenced-postgres-v1|"*)
+    fatal "mail outbox rollout is monotonic; store-v1 cannot return to dual-write-v1"
+    ;;
+  *)
+    fatal "mail outbox release transition is invalid"
+    ;;
+esac
+
+mail_outbox_contract_file="$record_dir/mail-outbox-contract.env"
+{
+  printf 'SCHEMA_VERSION=1\n'
+  printf 'MAIL_OUTBOX_PHASE=%s\n' "$mail_outbox_phase"
+  printf 'OUTBOX_WORKER_MODE=%s\n' "$outbox_worker_mode"
+  printf 'STORE_CUTOVER=%s\n' "$mail_store_cutover"
+  printf 'PREVIOUS_MAIL_OUTBOX_PHASE=%s\n' "$previous_mail_outbox_phase"
+  printf 'PREVIOUS_OUTBOX_WORKER_MODE=%s\n' "$previous_outbox_worker_mode"
+} >"$mail_outbox_contract_file"
+"$chmod_bin" 0600 "$mail_outbox_contract_file"
+sync_evidence_file "$mail_outbox_contract_file"
 
 [[ "$postgres_image" =~ ^[^@[:space:]]+@sha256:[0-9a-f]{64}$ ]] || fatal "POSTGRES_IMAGE must be a canonical digest"
 [[ "$postgres_uid" =~ ^[1-9][0-9]*$ ]] || fatal "POSTGRES_UID must be a canonical positive integer"
@@ -1494,6 +1735,14 @@ quarantine_tunnel
 update_release_pointer "$latest_candidate_pointer" latest-candidate "$release_id" "$release_commit"
 record_event completed
 
+if [[ "$mail_store_cutover" == true ]]; then
+  current_stage="mail-outbox-host-backup-fence"
+  write_status running 0
+  record_event started
+  acquire_host_backup_writer_lock
+  record_event completed
+fi
+
 current_stage="stop-database-mutators"
 write_status running 0
 record_event started
@@ -1513,6 +1762,14 @@ record_event started
 reject_residual_database_sessions
 record_event completed
 
+if [[ "$mail_store_cutover" == true ]]; then
+  current_stage="mail-outbox-drain"
+  write_status running 0
+  record_event started
+  require_mail_outbox_drain
+  record_event completed
+fi
+
 current_stage="database-role-bootstrap"
 write_status running 0
 record_event started
@@ -1530,6 +1787,14 @@ write_status running 0
 record_event started
 run_one_shot migrate
 record_event completed
+
+if [[ "$mail_store_cutover" == true ]]; then
+  current_stage="mail-outbox-0059-catch-up"
+  write_status running 0
+  record_event started
+  require_mail_outbox_0059_contract
+  record_event completed
+fi
 
 current_stage="platform-seed"
 write_status running 0
