@@ -57,6 +57,8 @@ const DEFAULT_GMAIL_REQUEST_TIMEOUT_MS = 10_000;
 const MIN_GMAIL_REQUEST_TIMEOUT_MS = 1_000;
 const MAX_GMAIL_REQUEST_TIMEOUT_MS = 25_000;
 const GMAIL_ABORT_SETTLEMENT_RESERVE_MS = 5_000;
+const MAX_GMAIL_DELIVERY_REQUEST_TIMEOUT_MS =
+  MAX_GMAIL_REQUEST_TIMEOUT_MS - GMAIL_ABORT_SETTLEMENT_RESERVE_MS;
 
 class GmailAbortSettlementError extends Error {
   constructor(stage: "OAuth" | "delivery" | "reconciliation") {
@@ -328,7 +330,10 @@ export async function authorizePreparedEmail(
     return Object.freeze({
       adapter: "gmail" as const,
       accessToken,
-      requestTimeoutMs,
+      requestTimeoutMs: Math.min(
+        requestTimeoutMs,
+        MAX_GMAIL_DELIVERY_REQUEST_TIMEOUT_MS,
+      ),
     });
   } catch (error) {
     throw deliveryError(error, {
@@ -362,7 +367,8 @@ function assertPreparedGmailAuthorization(
     || /[\r\n]/.test(authorization.accessToken)
     || !Number.isSafeInteger(authorization.requestTimeoutMs)
     || authorization.requestTimeoutMs < MIN_GMAIL_REQUEST_TIMEOUT_MS
-    || authorization.requestTimeoutMs > MAX_GMAIL_REQUEST_TIMEOUT_MS
+    || authorization.requestTimeoutMs
+      > MAX_GMAIL_DELIVERY_REQUEST_TIMEOUT_MS
   ) {
     throw new MailDeliveryError(
       "Prepared Gmail authorization is invalid.",
