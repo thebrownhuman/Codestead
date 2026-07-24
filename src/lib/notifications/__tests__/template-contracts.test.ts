@@ -1,21 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { EmailTemplate } from "../outbox";
+import { PRODUCTION_EMAIL_TEMPLATES } from "../template-authority-policy";
 import { renderEmail } from "../templates";
 
-const templates: EmailTemplate[] = [
-  "verify-email", "reset-password", "invitation", "lost-device-proof", "new-device",
-  "session-revocation-requested", "session-revocation-updated", "session-revoked", "credential-changed",
-  "account-deleted",
-  "credential-revealed", "inactivity-reminder", "inactivity-reminder-followup",
-  "inactivity-admin-notice", "daily-study-reminder", "revision-reminder",
-  "goal-reminder", "challenge-reminder", "exam-result", "mastery-awarded",
-  "appeal-updated", "weekly-summary", "backup-status",
-  "learning-plan-changed",
-];
-
 describe("email template contract", () => {
-  it.each(templates)("renders complete text and HTML for %s", (template) => {
+  it.each(PRODUCTION_EMAIL_TEMPLATES)("renders complete text and HTML for %s", (template) => {
     const rendered = renderEmail(template, {
       name: "Learner", provider: "NVIDIA NIM", topic: "Arrays",
       summary: "A private summary is available.", url: "https://learn.example.test/action?id=1&next=2",
