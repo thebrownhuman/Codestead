@@ -19,9 +19,13 @@ const DEFAULT_BATCH_SIZE = 1_000;
 const MAX_BATCH_SIZE = 5_000;
 
 type RetentionDependencies = Readonly<{
-  processFileErasures: typeof processFileErasures;
+  processFileErasures?: typeof processFileErasures;
+  acquireClient?: () => Promise<PoolClient>;
 }>;
-const defaultRetentionDependencies: RetentionDependencies = { processFileErasures };
+const defaultRetentionDependencies = {
+  processFileErasures,
+  acquireClient: () => pool.connect(),
+} satisfies Required<RetentionDependencies>;
 
 type CountRow = { count: string | number };
 type IdRow = { id: string };
@@ -317,7 +321,9 @@ export async function runRetention(input: {
   const limit = batchSize(input.batchSize);
   const idempotencyKey = validateKey(input.idempotencyKey);
   const cutoffs = retentionCutoffManifest(now);
-  const client = await pool.connect();
+  const fileErasureProcessor = dependencies.processFileErasures
+    ?? defaultRetentionDependencies.processFileErasures;
+  const client = await (dependencies.acquireClient ?? defaultRetentionDependencies.acquireClient)();
   let runId: string | null = null;
   let locked = false;
   try {
@@ -333,7 +339,7 @@ export async function runRetention(input: {
     if (claimed.replay) return claimed.replay;
     if (claimed.resume) {
       const objectRoot = input.objectStorageRoot ?? process.env.OBJECT_STORAGE_PATH ?? "./data/objects";
-      const fileSummary = await dependencies.processFileErasures({
+      const fileSummary = await fileErasureProcessor({
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });
@@ -755,7 +761,7 @@ export async function runRetention(input: {
       }
       // No unlink occurs until both the metadata deletion and its queue are
       // durable. If this process dies, claimRun resumes this checkpoint.
-      const fileSummary = await dependencies.processFileErasures({
+      const fileSummary = await fileErasureProcessor({
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });

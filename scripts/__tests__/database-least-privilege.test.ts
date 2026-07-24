@@ -115,37 +115,39 @@ describe("database least-privilege bootstrap", () => {
     expect(source).toContain("'SET'");
   });
 
-  it("brackets disposable integration migrations with the real role bootstrap", async () => {
+  it("wires the real role boundaries into the behavior-tested release cycles", async () => {
     const source = await import("node:fs/promises").then(({ readFile }) =>
       readFile("scripts/run-integration-tests.ts", "utf8"));
     const bootstrapSource = await import("node:fs/promises").then(({ readFile }) =>
       readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
-    const bootstrapCalls = [
-      ...source.matchAll(/await reconcileDisposableIntegrationRoles\(/gu),
-    ].map((match) => match.index);
-    const migrationCalls = [
-      ...source.matchAll(/await runDisposableIntegrationMigration\(/gu),
-    ].map((match) => match.index);
-    const verificationCalls = [
-      ...source.matchAll(/await verifyDisposableIntegrationTopology\(/gu),
-    ].map((match) => match.index);
+    const orchestratorIndex = source.indexOf(
+      "await runDisposableIntegrationReleaseCycles({",
+    );
     const testIndex = source.indexOf(
       'await runNpm([\n      "run",\n      "test:integration:vitest"',
     );
 
     expect(source).toContain("runDatabaseRoleBootstrap");
+    expect(source).toContain("verifyDatabaseRoleBoundaries");
     expect(source).toContain("runProductionMigration");
     expect(source).toContain(
       'migrationsFolder: path.resolve(process.cwd(), "drizzle")',
     );
     expect(source).toContain("new Pool({ connectionString: input.databaseUrl, max: 1 })");
+    expect(source).toContain("databaseAppUrl: canonicalDatabaseRoleUrl(input.roleUrls.app)");
+    expect(source).toContain("connectionUrl.hostname = scopedUrl.hostname");
+    expect(source).toContain("connectionUrl.port = scopedUrl.port");
+    expect(source).toContain("connectionString: connectionUrl.href");
     expect(source).toContain("postgresUser: input.integrationUser");
     expect(source).toContain("verifyDatabaseRoleBootstrapState");
-    expect(source).toContain("firstCycle.journal_count !== 63");
-    expect(source).toContain("secondCycle.fingerprint !== firstCycle.fingerprint");
+    expect(source).toContain("reconcileRoles: () => reconcileDisposableIntegrationRoles(topology)");
+    expect(source).toContain("verifyDisposableIntegrationRoleBoundaries({");
+    expect(source).toContain("migrate: () => runDisposableIntegrationMigration(roleUrls.migrator)");
+    expect(source).toContain("verifyTopology: () => verifyDisposableIntegrationTopology(topology)");
     expect(source).toContain("sanitizedIntegrationEnvironment(process.env)");
     expect(source).toContain("ownerAssumingDatabaseUrl(roleUrls.migrator)");
     expect(source).toContain('client.release();\n    await pool.end();');
+    expect(source).not.toContain("journal_count !== 63");
     expect(source).not.toContain("`POSTGRES_PASSWORD=${password}`");
     expect(source).not.toContain("DATABASE_URL: databaseUrl");
     for (const role of [
@@ -157,20 +159,49 @@ describe("database least-privilege bootstrap", () => {
     ]) {
       expect(`${source}\n${bootstrapSource}`).toContain(role);
     }
-    expect(bootstrapCalls).toHaveLength(4);
-    expect(migrationCalls).toHaveLength(2);
-    expect(verificationCalls).toHaveLength(2);
-    expect(bootstrapCalls[0]).toBeLessThan(migrationCalls[0]!);
-    expect(migrationCalls[0]).toBeLessThan(bootstrapCalls[1]!);
-    expect(bootstrapCalls[1]).toBeLessThan(verificationCalls[0]!);
-    expect(verificationCalls[0]).toBeLessThan(bootstrapCalls[2]!);
-    expect(bootstrapCalls[2]).toBeLessThan(migrationCalls[1]!);
-    expect(migrationCalls[1]).toBeLessThan(bootstrapCalls[3]!);
-    expect(bootstrapCalls[3]).toBeLessThan(verificationCalls[1]!);
-    expect(verificationCalls[1]).toBeLessThan(testIndex);
+    expect(orchestratorIndex).toBeGreaterThanOrEqual(0);
+    expect(orchestratorIndex).toBeLessThan(testIndex);
     expect(source).not.toMatch(
       /create role learncoding_(?:owner|migrator|app|worker|ops)/iu,
     );
+  });
+
+  it("uses the disposable ops session for ordinary integration retention", async () => {
+    const source = await import("node:fs/promises").then(({ readFile }) =>
+      readFile("integration/postgres.integration.test.ts", "utf8"));
+    const opsProofSource = await import("node:fs/promises").then(({ readFile }) =>
+      readFile("integration/retention-ops-session.integration.test.ts", "utf8"));
+    const dependencyStart = source.indexOf(
+      "const integrationRetentionDependencies = {",
+    );
+    const dependencyEnd = source.indexOf("} as const;", dependencyStart);
+    const retentionCalls = [...source.matchAll(/runRetention\(/gu)];
+    const scopedRetentionCalls = [
+      ...source.matchAll(
+        /\}, integrationRetention(?:FileErasure)?Dependencies\)(?:;|\))/gu,
+      ),
+    ];
+
+    expect(source).toContain("const integrationRetentionPool = new PgPool({");
+    expect(source).toContain("const integrationRetentionFileErasureDependencies = {");
+    expect(source).toContain(
+      "connectionString: process.env.DATABASE_OPS_URL",
+    );
+    expect(source).toContain("integrationRetentionPool.end()");
+    expect(dependencyStart).toBeGreaterThanOrEqual(0);
+    expect(dependencyEnd).toBeGreaterThan(dependencyStart);
+    expect(source.slice(dependencyStart, dependencyEnd)).toContain(
+      "acquireClient: () => integrationRetentionPool.connect()",
+    );
+    expect(retentionCalls.length).toBeGreaterThan(0);
+    expect(scopedRetentionCalls).toHaveLength(retentionCalls.length);
+    expect(opsProofSource.match(/runRetention\(/gu)).toHaveLength(1);
+    expect(opsProofSource).toContain("}, integrationRetentionDependencies);");
+    expect(opsProofSource).toContain("select current_user, session_user");
+    expect(opsProofSource).toContain('current_user: "learncoding_owner"');
+    expect(opsProofSource).toContain('session_user: "learncoding_migrator"');
+    expect(opsProofSource).toContain('current_user: "learncoding_ops"');
+    expect(opsProofSource).toContain('session_user: "learncoding_ops"');
   });
 
   it("accepts only the fixed role, postgres host, and configured database matrix", async () => {

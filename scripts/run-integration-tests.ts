@@ -5,6 +5,8 @@ import path from "node:path";
 
 import pg, { type PoolClient } from "pg";
 
+import { runDisposableIntegrationReleaseCycles } from "./lib/disposable-integration-topology";
+
 const { Client, Pool } = pg;
 
 type RoleBootstrapRunner = (options: {
@@ -30,6 +32,21 @@ type ProductionMigrationRunner = (options: {
   readonly connectionString: string;
   readonly migrationsFolder: string;
 }) => Promise<void>;
+
+type RoleBoundaryVerifier = (options: {
+  readonly postgresDatabase: string;
+  readonly databaseAppUrl: string;
+  readonly databaseMigratorUrl: string;
+  readonly databaseWorkerUrl: string;
+  readonly databaseOpsUrl: string;
+  readonly requireApplicationObjects: boolean;
+  readonly lockTimeoutMs: number;
+  readonly poolFactory: (input: Readonly<{
+    connectionString: string;
+    database: string;
+    role: string;
+  }>) => InstanceType<typeof Pool>;
+}) => Promise<unknown>;
 
 type DisposableRoleCredentials = Readonly<{
   bootstrap: string;
@@ -128,6 +145,60 @@ function disposableRoleUrls(
     worker: loopback("learncoding_worker", credentials.worker),
     ops: loopback("learncoding_ops", credentials.ops),
   };
+}
+
+const ROLE_URL_KEY_BY_DATABASE_ROLE = Object.freeze({
+  learncoding_app: "app",
+  learncoding_migrator: "migrator",
+  learncoding_worker: "worker",
+  learncoding_ops: "ops",
+} as const);
+
+function canonicalDatabaseRoleUrl(scopedConnectionString: string) {
+  const url = new URL(scopedConnectionString);
+  url.hostname = "postgres";
+  url.port = "5432";
+  return url.href;
+}
+
+async function verifyDisposableIntegrationRoleBoundaries(input: {
+  database: string;
+  roleUrls: DisposableRoleUrls;
+  requireApplicationObjects: boolean;
+}) {
+  const modulePath = "./verify-database-role-boundaries.mjs";
+  const { verifyDatabaseRoleBoundaries } = await import(
+    /* @vite-ignore */ modulePath
+  ) as { verifyDatabaseRoleBoundaries: RoleBoundaryVerifier };
+  await verifyDatabaseRoleBoundaries({
+    postgresDatabase: input.database,
+    databaseAppUrl: canonicalDatabaseRoleUrl(input.roleUrls.app),
+    databaseMigratorUrl: canonicalDatabaseRoleUrl(input.roleUrls.migrator),
+    databaseWorkerUrl: canonicalDatabaseRoleUrl(input.roleUrls.worker),
+    databaseOpsUrl: canonicalDatabaseRoleUrl(input.roleUrls.ops),
+    requireApplicationObjects: input.requireApplicationObjects,
+    lockTimeoutMs: 10_000,
+    poolFactory: ({ connectionString, role }) => {
+      const roleName = ROLE_URL_KEY_BY_DATABASE_ROLE[
+        role as keyof typeof ROLE_URL_KEY_BY_DATABASE_ROLE
+      ];
+      if (!roleName) {
+        throw new Error("disposable integration role URL mapping mismatch");
+      }
+      const connectionUrl = new URL(connectionString);
+      const scopedUrl = new URL(input.roleUrls[roleName]);
+      connectionUrl.hostname = scopedUrl.hostname;
+      connectionUrl.port = scopedUrl.port;
+      return new Pool({
+        application_name: `codestead_integration_boundary_${roleName}`,
+        connectionString: connectionUrl.href,
+        connectionTimeoutMillis: 5_000,
+        idleTimeoutMillis: 1_000,
+        max: 1,
+        statement_timeout: 5_000,
+      });
+    },
+  });
 }
 
 async function reconcileDisposableIntegrationRoles(input: {
@@ -416,60 +487,26 @@ async function main() {
       database,
       credentials: roleCredentials,
     };
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "initial-bootstrap",
-    }));
-    await reconcileDisposableIntegrationRoles(topology);
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "initial-migration",
-    }));
-    await runDisposableIntegrationMigration(roleUrls.migrator);
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "initial-reconciliation",
-    }));
-    await reconcileDisposableIntegrationRoles(topology);
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "initial-verification",
-    }));
-    const firstCycle = await verifyDisposableIntegrationTopology(topology);
-
-    // Mirror a complete subsequent release, including both canonical role
-    // reconciliation passes around the no-op migration replay.
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "replay-bootstrap",
-    }));
-    await reconcileDisposableIntegrationRoles(topology);
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "replay-migration",
-    }));
-    await runDisposableIntegrationMigration(roleUrls.migrator);
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "replay-reconciliation",
-    }));
-    await reconcileDisposableIntegrationRoles(topology);
-    console.info(JSON.stringify({
-      event: "integration.topology",
-      phase: "replay-verification",
-    }));
-    const secondCycle = await verifyDisposableIntegrationTopology(topology);
-    if (
-      !firstCycle
-      || !secondCycle
-      || firstCycle.journal_count !== 63
-      || secondCycle.journal_count !== firstCycle.journal_count
-      || secondCycle.fingerprint !== firstCycle.fingerprint
-    ) {
-      throw new Error(
-        "disposable integration migration topology changed across release replay",
-      );
-    }
+    // Mirror two complete releases, including negative probes before each
+    // migration and application-object boundary verification after reconciliation.
+    await runDisposableIntegrationReleaseCycles({
+      reconcileRoles: () => reconcileDisposableIntegrationRoles(topology),
+      verifyRoleBoundaries: (requireApplicationObjects) => (
+        verifyDisposableIntegrationRoleBoundaries({
+          database,
+          roleUrls,
+          requireApplicationObjects,
+        })
+      ),
+      migrate: () => runDisposableIntegrationMigration(roleUrls.migrator),
+      verifyTopology: () => verifyDisposableIntegrationTopology(topology),
+      onPhase: (phase) => {
+        console.info(JSON.stringify({
+          event: "integration.topology",
+          phase,
+        }));
+      },
+    });
 
     await runNpm([
       "run",
