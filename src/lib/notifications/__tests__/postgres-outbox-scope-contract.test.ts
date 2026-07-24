@@ -7,7 +7,8 @@ const source = readFileSync(
   join(process.cwd(), "src/lib/notifications/postgres-outbox-store.ts"),
   "utf8",
 );
-const normalized = source.replace(/\s+/g, " ").toLowerCase();
+const compact = source.replace(/\s+/g, " ");
+const normalized = compact.toLowerCase();
 
 describe("PostgresOutboxStore delivery authority", () => {
   it("shares the canonical user-authority advisory lock namespace", () => {
@@ -43,41 +44,81 @@ describe("PostgresOutboxStore delivery authority", () => {
     expect(normalized).not.toContain("outbox.template not in");
   });
 
-  it("fails closed for system mail unless its persisted envelope has live source authority", () => {
+  it("fails closed for system mail unless its exact-cased envelope has live source authority", () => {
     expect(normalized).not.toContain("when outbox.user_id is null then 'allowed'");
     expect(normalized).toContain("system_email_authority_invalid");
-    expect(normalized).toContain("outbox.variables ->> '_mailoperationid' = outbox.operation_id::text");
-    expect(normalized).toContain("outbox.variables ->> '_mailrecipient' = outbox.to_email");
-    expect(normalized).toContain("outbox.variables ->> '_mailproducer' = 'access-request-admin'");
+    expect(compact).toContain("outbox.variables ->> '_mailOperationId' = outbox.operation_id::text");
+    expect(compact).toContain("outbox.variables ->> '_mailRecipient' = outbox.to_email");
+    expect(compact).toContain("outbox.variables ->> '_mailSourceId'");
+    expect(compact).toContain("outbox.variables ->> '_mailProducer' = 'access-request-admin'");
     expect(normalized).toContain("outbox.template = 'access-request-admin'");
     expect(normalized).toContain("admin_recipient.status = 'active'");
     expect(normalized).toContain("admin_recipient.role = 'admin'");
+    expect(normalized).toContain("admin_recipient.banned = false");
     expect(normalized).toContain("source_request.status = 'pending'");
+    expect(normalized).toContain("source_request.adult_confirmed_at is not null");
+    expect(normalized).toContain("source_request.decided_by is null");
+    expect(normalized).toContain("source_request.decision_reason is null");
+    expect(normalized).toContain("source_request.decided_at is null");
+    expect(compact).toContain("outbox.variables ->> 'name' = 'Administrator'");
+    expect(compact).toContain("outbox.variables ->> 'url' = $13::text");
 
-    expect(normalized).toContain("outbox.variables ->> '_mailproducer' = 'access-request-approved'");
+    expect(compact).toContain("outbox.variables ->> '_mailProducer' = 'access-request-approved'");
     expect(normalized).toContain("source_invitation.access_request_id = source_request.id");
     expect(normalized).toContain("source_request.status = 'approved'");
+    expect(normalized).toContain("source_invitation.created_by = source_request.decided_by");
     expect(normalized).toContain("source_invitation.token_hash = $12::text");
     expect(normalized).toContain("source_invitation.expires_at > pg_catalog.statement_timestamp()");
     expect(normalized).toContain("source_invitation.consumed_at is null");
     expect(normalized).toContain("source_request.name = outbox.variables ->> 'name'");
 
-    expect(normalized).toContain("outbox.variables ->> '_mailproducer' = 'access-request-rejected'");
+    expect(compact).toContain("outbox.variables ->> '_mailProducer' = 'access-request-rejected'");
     expect(normalized).toContain("source_request.status = 'rejected'");
+    expect(normalized).toContain("source_request.decided_by is not null");
+    expect(normalized).toContain("source_request.decision_reason is not null");
+    expect(normalized).toContain("source_request.decided_at is not null");
     expect(normalized).toContain("not (outbox.variables ? 'url')");
   });
 
-  it("repeats an allowed authority decision under live source row locks", () => {
+  it("keeps the system producer/template/source truth table fail closed", () => {
+    expect(compact).not.toContain(
+      "outbox.template = 'invitation' and outbox.variables ->> '_mailProducer' = 'access-request-admin'",
+    );
+    expect(compact).not.toContain(
+      "outbox.template = 'access-request-admin' and outbox.variables ->> '_mailProducer' = 'access-request-approved'",
+    );
+    expect((compact.match(/variables ->> '_mailSourceId'/g) ?? []).length)
+      .toBeGreaterThanOrEqual(6);
+  });
+  it("repeats audited live authority under source row locks and in the atomic update", () => {
     expect(normalized).toContain("lockauthorityrows");
     expect(normalized).toContain("for share of account_user");
     expect(normalized).toContain("for share of source_invitation, source_request");
     expect(normalized).toContain("for share of source_request, admin_recipient");
-    expect((normalized.match(/variables ->> '_mailoperationid'/g) ?? []).length)
+    expect((compact.match(/variables ->> '_mailOperationId'/g) ?? []).length)
       .toBeGreaterThanOrEqual(2);
+    expect((compact.match(/variables ->> '_mailSourceId'/g) ?? []).length)
+      .toBeGreaterThanOrEqual(6);
+    for (const fragment of [
+      "admin_recipient.banned = false",
+      "source_request.adult_confirmed_at is not null",
+      "source_request.decided_by is null",
+      "source_request.decision_reason is null",
+      "source_request.decided_at is null",
+      "source_invitation.created_by = source_request.decided_by",
+    ]) {
+      expect(normalized.split(fragment).length - 1)
+        .toBeGreaterThanOrEqual(2);
+    }
+    expect((normalized.match(/source_request\.decided_by is not null/g) ?? []).length)
+      .toBeGreaterThanOrEqual(4);
+    expect((normalized.match(/source_request\.decision_reason is not null/g) ?? []).length)
+      .toBeGreaterThanOrEqual(4);
+    expect((normalized.match(/source_request\.decided_at is not null/g) ?? []).length)
+      .toBeGreaterThanOrEqual(4);
     expect((normalized.match(/source_invitation\.expires_at > pg_catalog\.statement_timestamp\(\)/g) ?? []).length)
       .toBeGreaterThanOrEqual(2);
   });
-
   it("binds the provider permit to the exact claimed payload", () => {
     expect(normalized).toContain("outbox.to_email = lower($8::text)");
     expect(normalized).toContain("outbox.template = $9::text");

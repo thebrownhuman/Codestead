@@ -216,12 +216,14 @@ describe("PostgresOutboxStore", () => {
       "1",
       JSON.stringify({ name: "Learner" }),
       null,
+      null,
     ]);
     expect(sql).toContain("to_email = lower($10::text)");
     expect(sql).toContain("template = $11::text");
     expect(sql).toContain("template_version = $12::text");
     expect(sql).toContain("variables = $13::jsonb");
     expect(sql).toContain("source_invitation.token_hash = $14::text");
+    expect(sql).toContain("variables ->> 'url' = $15::text");
     expect(input.client.calls[5]!.values.at(-1)).toBeNull();
   });
 

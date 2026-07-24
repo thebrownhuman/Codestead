@@ -80,8 +80,12 @@ describe("email outbox delivery-scope migration", () => {
 
   it("catches rolling null rows under a write lock and drains only unresolved active leases", () => {
     const normalized = migration("0059_mail_delivery_scope_contract.sql").toLowerCase();
-    const accountBackfill = normalized.indexOf("'a:' || \"user_id\"");
-    const systemBackfill = normalized.indexOf("'s:' || \"operation_id\"::text");
+    const accountBackfill = normalized.indexOf(
+      "set \"delivery_scope_key\" = 'a:' || \"user_id\"",
+    );
+    const systemBackfill = normalized.indexOf(
+      "set \"delivery_scope_key\" = 's:' || \"operation_id\"::text",
+    );
     const activeLeaseGuard = normalized.indexOf("email_outbox has an active unresolved delivery-scope lease");
     const orphanBackfill = normalized.indexOf("'o:' || \"operation_id\"::text");
 

@@ -270,6 +270,36 @@ async function lockPermitScope(
 
 const ACTIVATION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
+function canonicalAppOrigin(): string | null {
+  const configured = process.env.APP_URL
+    ?? (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
+  if (!configured) return null;
+
+  try {
+    const appUrl = new URL(configured);
+    const protocolAllowed = process.env.NODE_ENV === "production"
+      ? appUrl.protocol === "https:"
+      : appUrl.protocol === "http:" || appUrl.protocol === "https:";
+    return protocolAllowed && appUrl.origin === configured ? configured : null;
+  } catch {
+    return null;
+  }
+}
+
+function canonicalAdminAccessUrl(
+  claim: OutboxClaim<EmailOutboxPayload>,
+): string | null {
+  if (
+    claim.payload.userId !== null
+    || claim.payload.template !== "access-request-admin"
+    || claim.payload.templateVersion !== "1"
+    || claim.payload.variables._mailProducer !== "access-request-admin"
+  ) {
+    return null;
+  }
+  const appOrigin = canonicalAppOrigin();
+  return appOrigin ? `${appOrigin}/admin/access` : null;
+}
 function canonicalActivationTokenHash(
   claim: OutboxClaim<EmailOutboxPayload>,
 ): string | null {
@@ -282,21 +312,14 @@ function canonicalActivationTokenHash(
     return null;
   }
 
-  const configured = process.env.APP_URL
-    ?? (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
-  if (!configured) return null;
+  const appOrigin = canonicalAppOrigin();
+  if (!appOrigin) return null;
 
   try {
-    const appUrl = new URL(configured);
-    const protocolAllowed = process.env.NODE_ENV === "production"
-      ? appUrl.protocol === "https:"
-      : appUrl.protocol === "http:" || appUrl.protocol === "https:";
-    if (!protocolAllowed || appUrl.origin !== configured) return null;
-
     const activationUrl = new URL(claim.payload.variables.url);
     const tokens = activationUrl.searchParams.getAll("token");
     if (tokens.length !== 1 || !ACTIVATION_TOKEN.test(tokens[0]!)) return null;
-    const canonicalUrl = `${configured}/activate?token=${tokens[0]}`;
+    const canonicalUrl = `${appOrigin}/activate?token=${tokens[0]}`;
     if (claim.payload.variables.url !== canonicalUrl) return null;
 
     return createHash("sha256").update(tokens[0]!).digest("hex");
@@ -304,12 +327,12 @@ function canonicalActivationTokenHash(
     return null;
   }
 }
-
 async function providerBoundaryDecision(
   client: OutboxPgClient,
   claim: OutboxClaim<EmailOutboxPayload>,
   scope: DeliveryScope,
   approvedInvitationTokenHash: string | null,
+  adminAccessUrl: string | null,
   lockAuthorityRows: boolean,
 ): Promise<BoundaryDecision | null> {
   const accountUserLock = lockAuthorityRows ? "for share of account_user" : "";
@@ -334,6 +357,8 @@ async function providerBoundaryDecision(
           (
             outbox.template = 'access-request-admin'
             and outbox.variables ->> '_mailProducer' = 'access-request-admin'
+            and outbox.variables ->> 'name' = 'Administrator'
+            and outbox.variables ->> 'url' = $13::text
             and exists (
               select 1
               from public.access_request source_request
@@ -341,8 +366,13 @@ async function providerBoundaryDecision(
                 on lower(admin_recipient.email) = outbox.to_email
               where source_request.id::text = outbox.variables ->> '_mailSourceId'
                 and source_request.status = 'pending'
+                and source_request.adult_confirmed_at is not null
+                and source_request.decided_by is null
+                and source_request.decision_reason is null
+                and source_request.decided_at is null
                 and admin_recipient.status = 'active'
                 and admin_recipient.role = 'admin'
+                and admin_recipient.banned = false
               ${adminAuthorityLock}
             )
           )
@@ -356,6 +386,10 @@ async function providerBoundaryDecision(
                 on source_invitation.access_request_id = source_request.id
               where source_invitation.id::text = outbox.variables ->> '_mailSourceId'
                 and source_request.status = 'approved'
+                and source_request.decided_by is not null
+                and source_request.decision_reason is not null
+                and source_request.decided_at is not null
+                and source_invitation.created_by = source_request.decided_by
                 and lower(source_invitation.email) = outbox.to_email
                 and lower(source_request.email) = outbox.to_email
                 and source_request.name = outbox.variables ->> 'name'
@@ -374,6 +408,9 @@ async function providerBoundaryDecision(
               from public.access_request source_request
               where source_request.id::text = outbox.variables ->> '_mailSourceId'
                 and source_request.status = 'rejected'
+                and source_request.decided_by is not null
+                and source_request.decision_reason is not null
+                and source_request.decided_at is not null
                 and lower(source_request.email) = outbox.to_email
                 and source_request.name = outbox.variables ->> 'name'
               ${rejectedAuthorityLock}
@@ -460,6 +497,7 @@ async function providerBoundaryDecision(
     claim.payload.templateVersion,
     JSON.stringify(claim.payload.variables),
     approvedInvitationTokenHash,
+    adminAccessUrl,
   ]);
   return result.rows[0]?.decision ?? null;
 }
@@ -680,6 +718,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     if (!ADAPTERS.has(adapter)) throw new Error("Outbox adapter is not allowed.");
     assertLeaseMs(input.leaseMs);
     const approvedInvitationTokenHash = canonicalActivationTokenHash(claim);
+    const adminAccessUrl = canonicalAdminAccessUrl(claim);
 
     return transaction(this.pool, async (client) => {
       const scope = await lockFenceScope(client, claim, true);
@@ -690,6 +729,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         claim,
         scope,
         approvedInvitationTokenHash,
+        adminAccessUrl,
         false,
       );
       if (decision === null) return { kind: "lost" };
@@ -699,6 +739,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           claim,
           scope,
           approvedInvitationTokenHash,
+          adminAccessUrl,
           true,
         );
         if (decision === null) return { kind: "lost" };
@@ -783,6 +824,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 (
                   template = 'access-request-admin'
                   and variables ->> '_mailProducer' = 'access-request-admin'
+                  and variables ->> 'name' = 'Administrator'
+                  and variables ->> 'url' = $15::text
                   and exists (
                     select 1
                     from public.access_request source_request
@@ -790,8 +833,13 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                       on lower(admin_recipient.email) = to_email
                     where source_request.id::text = variables ->> '_mailSourceId'
                       and source_request.status = 'pending'
+                      and source_request.adult_confirmed_at is not null
+                      and source_request.decided_by is null
+                      and source_request.decision_reason is null
+                      and source_request.decided_at is null
                       and admin_recipient.status = 'active'
                       and admin_recipient.role = 'admin'
+                      and admin_recipient.banned = false
                   )
                 )
                 or (
@@ -804,6 +852,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                       on source_invitation.access_request_id = source_request.id
                     where source_invitation.id::text = variables ->> '_mailSourceId'
                       and source_request.status = 'approved'
+                      and source_request.decided_by is not null
+                      and source_request.decision_reason is not null
+                      and source_request.decided_at is not null
+                      and source_invitation.created_by = source_request.decided_by
                       and lower(source_invitation.email) = to_email
                       and lower(source_request.email) = to_email
                       and source_request.name = variables ->> 'name'
@@ -821,6 +873,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                     from public.access_request source_request
                     where source_request.id::text = variables ->> '_mailSourceId'
                       and source_request.status = 'rejected'
+                      and source_request.decided_by is not null
+                      and source_request.decision_reason is not null
+                      and source_request.decided_at is not null
                       and lower(source_request.email) = to_email
                       and source_request.name = variables ->> 'name'
                   )
@@ -844,6 +899,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         claim.payload.templateVersion,
         JSON.stringify(claim.payload.variables),
         approvedInvitationTokenHash,
+        adminAccessUrl,
       ]);
       const row = result.rows[0];
       if (!row) return { kind: "lost" };
