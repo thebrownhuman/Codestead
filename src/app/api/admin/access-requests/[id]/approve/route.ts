@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { accessRequest, invitation, session } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/http/authz";
-import { enqueueEmail } from "@/lib/notifications/outbox";
+import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 
@@ -19,7 +19,11 @@ export async function POST(
   const authz = await requireAdmin();
   if (!authz.session) return authz.response;
   const body = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return NextResponse.json({ error: "A review reason is required." }, { status: 400 });
+  if (!body.success)
+    return NextResponse.json(
+      { error: "A review reason is required." },
+      { status: 400 },
+    );
   const [authSession] = await db
     .select({ mfaVerifiedAt: session.mfaVerifiedAt })
     .from(session)
@@ -40,6 +44,7 @@ export async function POST(
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000);
   const invitationId = crypto.randomUUID();
+  const activationUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/activate?token=${rawToken}`;
 
   const candidate = await db.transaction(async (tx) => {
     const [pending] = await tx
@@ -66,18 +71,22 @@ export async function POST(
         decidedAt: new Date(),
       })
       .where(eq(accessRequest.id, pending.id));
+    await enqueueEmailInTransaction(tx, {
+      to: pending.email,
+      template: "invitation",
+      variables: { name: pending.name, url: activationUrl },
+      systemProducer: "access-request-approved",
+      sourceId: invitationId,
+      idempotencySeed: invitationId,
+    });
     return pending;
   });
-  if (!candidate) return NextResponse.json({ error: "Pending request not found." }, { status: 404 });
+  if (!candidate)
+    return NextResponse.json(
+      { error: "Pending request not found." },
+      { status: 404 },
+    );
 
-  const activationUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/activate?token=${rawToken}`;
-  await enqueueEmail({
-    to: candidate.email,
-    template: "invitation",
-    variables: { name: candidate.name, url: activationUrl },
-    systemProducer: "access-request-approved",
-    idempotencySeed: invitationId,
-  });
   await writeAuditEvent({
     actorUserId: authz.session.user.id,
     action: "access_request.approve",

@@ -34,6 +34,7 @@ const subjects: Record<EmailTemplate, string> = {
   "verify-email": "Verify your Codestead email",
   "reset-password": "Reset your Codestead password",
   invitation: "Your Codestead invitation",
+  "access-request-admin": "A Codestead access request needs review",
   "lost-device-proof": "Confirm your Codestead lost-device request",
   "access-rejected": "Your Codestead access request",
   "learning-request-updated": "Your Codestead curriculum request was reviewed",
@@ -74,6 +75,7 @@ export function renderEmail(
     case "verify-email": lead = "Confirm this email address to finish activating your private learning account."; action = "Verify email"; break;
     case "reset-password": lead = "A password reset was requested. If this was not you, do not use the link and tell the administrator."; action = "Reset password"; break;
     case "invitation": lead = "The administrator approved your private pilot access. This invitation expires and can be used once."; action = "Activate account"; break;
+    case "access-request-admin": lead = "A new private-pilot access request is waiting for administrator review."; action = "Review request"; break;
     case "lost-device-proof": lead = "Confirm that you requested help with the only active browser profile. This short-lived link is single-use and only opens an administrator review; it does not sign you in or reset a password or authenticator."; action = "Confirm lost-device request"; break;
     case "access-rejected": lead = "The administrator reviewed your private-pilot request and cannot offer a learning seat at this time. No account was created."; action = "Learn more"; break;
     case "learning-request-updated": lead = `The administrator reviewed your curriculum request${variables.subject ? ` for ${variables.subject}` : ""}. Open Codestead to see the decision and recorded reason.`; action = "View request"; break;

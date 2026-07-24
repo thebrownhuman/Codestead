@@ -4,13 +4,19 @@ import { renderEmail } from "../templates";
 
 describe("email templates", () => {
   it("escapes user-controlled values", () => {
-    const email = renderEmail("invitation", { name: "<script>alert(1)</script>", url: "https://example.test/activate" });
+    const email = renderEmail("invitation", {
+      name: "<script>alert(1)</script>",
+      url: "https://example.test/activate",
+    });
     expect(email.html).not.toContain("<script>");
     expect(email.html).toContain("&lt;script&gt;");
   });
 
   it("never embeds credential values", () => {
-    const email = renderEmail("credential-revealed", { name: "A", provider: "NVIDIA NIM" });
+    const email = renderEmail("credential-revealed", {
+      name: "A",
+      provider: "NVIDIA NIM",
+    });
     expect(email.text).toContain("never included in email");
     expect(email.text).not.toMatch(/nvapi-|sk-/);
   });
@@ -19,7 +25,22 @@ describe("email templates", () => {
     const email = renderEmail("access-rejected", { name: "Learner" });
     expect(email.subject).toBe("Your Codestead access request");
     expect(email.text).toContain("cannot offer a learning seat");
-    expect(email.text).not.toMatch(/decision reason|administrator note|password|api key/i);
+    expect(email.text).not.toMatch(
+      /decision reason|administrator note|password|api key/i,
+    );
+  });
+
+  it("gives administrators distinct review copy without claiming approval", () => {
+    const email = renderEmail("access-request-admin", {
+      name: "Administrator",
+      url: "https://learn.example.test/admin/access",
+    });
+    expect(email.subject).toBe("A Codestead access request needs review");
+    expect(email.text).toContain("new private-pilot access request");
+    expect(email.text).toContain("Review request");
+    expect(email.text).not.toMatch(
+      /approved|activate account|invitation expires/i,
+    );
   });
 
   it("links a curriculum decision without leaking the private admin reason", () => {
@@ -62,7 +83,8 @@ describe("email templates", () => {
   });
 
   it("keeps plan-revision email generic and excludes rationale or plan contents", () => {
-    const secretRationale = "Private mentor rationale with learner mistake details";
+    const secretRationale =
+      "Private mentor rationale with learner mistake details";
     const email = renderEmail("learning-plan-changed", {
       name: "Learner",
       course: "Python",
@@ -71,7 +93,9 @@ describe("email templates", () => {
       reason: secretRationale,
       plan: JSON.stringify([{ sourceCode: "private" }]),
     });
-    expect(email.text).toContain("mastery evidence and prerequisite gates were not rewritten");
+    expect(email.text).toContain(
+      "mastery evidence and prerequisite gates were not rewritten",
+    );
     expect(JSON.stringify(email)).not.toContain(secretRationale);
     expect(JSON.stringify(email)).not.toContain("sourceCode");
   });
