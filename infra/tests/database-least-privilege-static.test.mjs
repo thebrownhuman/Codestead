@@ -144,7 +144,7 @@ test("bootstrap and migration share the administration lock without broad reassi
 
 test("mail worker outbox grants allow queue state changes but deny payload mutation", () => {
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
-  const migration = read("drizzle/0060_mail_worker_outbox_privileges.sql");
+  const migration = read("drizzle/0061_mail_worker_outbox_privileges.sql");
 
   for (const source of [bootstrap, migration]) {
     assert.match(source, /revoke all on table public\.email_outbox from learncoding_worker/iu);

@@ -49,7 +49,9 @@ describe("0060 email outbox payload immutability", () => {
     const snapshotPath = resolve(metaDirectory, "0060_snapshot.json");
 
     expect(existsSync(migrationPath)).toBe(true);
-    expect(journal.entries.at(-1)).toMatchObject({
+    expect(
+      journal.entries.find((entry) => entry.tag === "0060_mail_outbox_payload_immutability"),
+    ).toMatchObject({
       idx: 60,
       tag: "0060_mail_outbox_payload_immutability",
     });
