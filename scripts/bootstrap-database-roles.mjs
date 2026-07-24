@@ -31,7 +31,9 @@ export function reviewedApplicationFunctionPrivilegesSql() {
     return `
       do $${blockTag}$
       begin
-        if pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
+        if pg_catalog.to_regrole(${sqlLiteral(routine.role)})
+             is not null
+           and pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
              is not null then
           execute ${sqlLiteral(routine.grantSql)};
         end if;
@@ -99,12 +101,23 @@ export function mailWorkerOutboxPrivilegesSql() {
   const allColumns = MAIL_WORKER_OUTBOX_COLUMNS.join(", ");
   const insertColumns = MAIL_WORKER_OUTBOX_INSERT_COLUMNS.join(", ");
   const updateColumns = MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.join(", ");
+  const statements = [
+    "revoke all on table public.email_outbox from learncoding_worker",
+    `revoke all (${allColumns}) on table public.email_outbox from learncoding_worker`,
+    "grant select on table public.email_outbox to learncoding_worker",
+    `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
+    `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
+  ];
   return `
-    revoke all on table public.email_outbox from learncoding_worker;
-    revoke all (${allColumns}) on table public.email_outbox from learncoding_worker;
-    grant select on table public.email_outbox to learncoding_worker;
-    grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker;
-    grant update (${updateColumns}) on table public.email_outbox to learncoding_worker;
+    do $codestead_mail_worker_outbox$
+    begin
+      if pg_catalog.to_regrole('learncoding_worker') is not null
+         and pg_catalog.to_regclass('public.email_outbox') is not null
+      then
+${statements.map((statement) => `        execute ${sqlLiteral(statement)};`).join("\n")}
+      end if;
+    end
+    $codestead_mail_worker_outbox$;
   `;
 }
 
@@ -717,7 +730,7 @@ async function transferApplicationOwnership(client) {
     $codestead$`);
 }
 
-async function reconcilePrivileges(client) {
+export async function reconcileDatabaseRolePrivileges(client) {
   await client.query(`
     do $codestead$
     begin
@@ -1599,7 +1612,7 @@ export async function runDatabaseRoleBootstrap(options) {
     };
     await rotatePasswords(client, rolePasswords);
     await transferApplicationOwnership(client);
-    await reconcilePrivileges(client);
+    await reconcileDatabaseRolePrivileges(client);
     await verifyDatabaseRoleBootstrapState(
       client,
       options.postgresDatabase,
@@ -1650,11 +1663,11 @@ async function main() {
 
 const entrypoint = process.argv[1];
 if (entrypoint && import.meta.url === pathToFileURL(entrypoint).href) {
-  main().catch((error) => {
+  main().catch(() => {
     console.error(
       JSON.stringify({
         event: "database.role_bootstrap_failed",
-        code: error instanceof Error ? error.name : "UNKNOWN",
+        code: "DATABASE_ROLE_BOOTSTRAP_FAILED",
       }),
     );
     process.exitCode = 1;
