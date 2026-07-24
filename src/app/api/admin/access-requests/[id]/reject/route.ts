@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { accessRequest, session } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/http/authz";
-import { enqueueEmail } from "@/lib/notifications/outbox";
+import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 
@@ -19,7 +19,10 @@ export async function POST(
   if (!authz.session) return authz.response;
   const body = bodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
-    return NextResponse.json({ error: "A review reason is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A review reason is required." },
+      { status: 400 },
+    );
   }
 
   const [authSession] = await db
@@ -54,20 +57,29 @@ export async function POST(
         decisionReason: body.data.reason,
         decidedAt: new Date(),
       })
-      .where(and(eq(accessRequest.id, pending.id), eq(accessRequest.status, "pending")));
+      .where(
+        and(
+          eq(accessRequest.id, pending.id),
+          eq(accessRequest.status, "pending"),
+        ),
+      );
+    await enqueueEmailInTransaction(tx, {
+      to: pending.email,
+      template: "access-rejected",
+      variables: { name: pending.name },
+      systemProducer: "access-request-rejected",
+      sourceId: pending.id,
+      idempotencySeed: pending.id,
+    });
     return pending;
   });
   if (!candidate) {
-    return NextResponse.json({ error: "Pending request not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Pending request not found." },
+      { status: 404 },
+    );
   }
 
-  await enqueueEmail({
-    to: candidate.email,
-    template: "access-rejected",
-    variables: { name: candidate.name },
-    systemProducer: "access-request-rejected",
-    idempotencySeed: candidate.id,
-  });
   await writeAuditEvent({
     actorUserId: authz.session.user.id,
     action: "access_request.reject",
