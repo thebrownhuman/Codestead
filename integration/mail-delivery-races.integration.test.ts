@@ -378,9 +378,10 @@ async function expiredPermit() {
   await seedOutboxRows("pending", 1);
   const claim = await requireClaim(CLAIM_TOKENS[0], "provider-worker");
   const permit = await requirePermit(claim);
+  const expiredAt = new Date(Date.now() - 120_000);
   await pool.query(
-    "update email_outbox set lease_expires_at = now() - interval '2 minutes' where id = $1",
-    [claim.id],
+    "update email_outbox set lease_expires_at = $2::timestamptz where id = $1",
+    [claim.id, expiredAt],
   );
   return { claim, permit };
 }
@@ -403,8 +404,8 @@ async function markUnresolvedQuarantined(rowId = ROW_IDS[0]) {
      where id = $1::uuid
   `, [rowId, STALE_TOKENS[0]]);
   expect(result.rowCount).toBe(1);
-
 }
+
 async function outboxState() {
   return (await pool.query<{
     id: string;
@@ -413,6 +414,7 @@ async function outboxState() {
     claim_token: string | null;
     claim_owner: string | null;
     claim_version: number;
+    lease_is_active: boolean;
     provider_call_started: Date | null;
     adapter: string | null;
     provider_message_id: string | null;
@@ -423,6 +425,8 @@ async function outboxState() {
     template: string;
   }>(`
     select id::text,status::text,attempt_count,claim_token::text,claim_owner,claim_version,
+           lease_expires_at is not null
+             and lease_expires_at >= statement_timestamp() as lease_is_active,
            provider_call_started,adapter,provider_message_id,sent_at,quarantined_at,
            last_error_code,variables,template
       from email_outbox order by created_at,id
@@ -632,6 +636,36 @@ describe("real PostgreSQL mail delivery races", () => {
     });
   });
 
+  it("permits deletion after a failed provider call is definitely rejected", async () => {
+    await seedOutboxRows("pending", 1);
+    const claim = await requireClaim(CLAIM_TOKENS[0], "definitely-rejected-worker");
+    const permit = await requirePermit(claim);
+
+    await expect(store().finishAfterProvider(permit, {
+      kind: "failed",
+      code: "PROVIDER_DEFINITELY_REJECTED",
+    })).resolves.toEqual({ kind: "applied" });
+    expect((await outboxState())[0]).toMatchObject({
+      id: claim.id,
+      status: "failed",
+      provider_message_id: null,
+      last_error_code: "PROVIDER_DEFINITELY_REJECTED",
+    });
+    expect((await outboxState())[0]!.provider_call_started).not.toBeNull();
+
+    const report = await deleteLearnerAccount(
+      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000004"),
+      zeroErasureDependencies(),
+    );
+
+    expect(report).toMatchObject({
+      primaryStoreDeletionComplete: true,
+      objectFileErasureComplete: true,
+    });
+    expect(report.deletedRows.emailOutbox).toBe(1);
+    expect((await outboxState()).some((row) => row.id === claim.id)).toBe(false);
+  });
+
   it.each([
     ["pending claimers", "pending" as const],
     ["expired reclaimers", "expired-pre-provider" as const],
@@ -667,7 +701,7 @@ describe("real PostgreSQL mail delivery races", () => {
     expect(followUp).toBeNull();
 
     const rows = await outboxState();
-    expect(rows.filter((row) => row.status === "sending")).toHaveLength(1);
+    expect(rows.filter((row) => row.status === "sending" && row.lease_is_active)).toHaveLength(1);
     expect(rows.reduce((total, row) => total + row.attempt_count, 0)).toBe(
       fixtureKind === "pending" ? 1 : 3,
     );
