@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertMailDeliveryScope0059PostgresProjection } from "./mail-delivery-scope-0059-ci-contract.mjs";
+import { assertMailRetentionRedaction0063PostgresProjection } from "./mail-retention-redaction-0063-ci-contract.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const workflowPath =
@@ -832,6 +833,7 @@ const reviewedJobContracts = new Map([
       "      - run: npm ci",
       "      - run: npm run test:mail-delivery-scope-0059:registration",
       "      - run: npm run test:mail-payload-immutability-0060:registration",
+      "      - run: npm run test:mail-retention-redaction-0063:registration",
       "      - run: npm run test:integration",
       "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
@@ -859,9 +861,11 @@ const reviewedJobContracts = new Map([
       "            'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \\",
       "            | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null",
       "          sudo apt-get update",
-      "          sudo apt-get install --yes --no-install-recommends postgresql-18",
+      "          sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
+      "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063",
     ],
   ],
   [
@@ -1040,6 +1044,21 @@ function requireMailDeliveryScope0059CrossGuard() {
   }
 }
 
+function requireMailRetentionRedaction0063CrossGuard() {
+  const projection = reviewedJobContracts.get("postgres-integration");
+  if (projection === undefined) {
+    fail("mail-retention-redaction-0063 cross-guard projection is missing");
+  }
+  try {
+    assertMailRetentionRedaction0063PostgresProjection(
+      projection.join("\n"),
+    );
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    fail(`mail-retention-redaction-0063 cross-guard changed: ${detail}`);
+  }
+}
+
 function requireCanonicalWorkflowPreamble(lines) {
   const jobsIndex = lines.indexOf("jobs:");
   const expected = [
@@ -1092,6 +1111,7 @@ function validateWorkflow(document) {
   }
   requireReviewedExecutableContracts(blocks);
   requireMailDeliveryScope0059CrossGuard();
+  requireMailRetentionRedaction0063CrossGuard();
   const backup = requireJob(blocks, "backup-safety");
 
   if (

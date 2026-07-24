@@ -66,9 +66,15 @@ for (const command of [
 const registrationIndex = postgresJob.indexOf(
   `      - run: npm run ${registrationScript}`,
 );
-const installIndex = postgresJob.indexOf(
-  "sudo apt-get install --yes --no-install-recommends postgresql-18",
+const installLines = postgresJob.match(
+  /^          sudo apt-get install --yes --no-install-recommends (?:postgresql-18|postgresql-17 postgresql-18)$/gmu,
+) ?? [];
+assert.equal(
+  installLines.length,
+  1,
+  "PostgreSQL 18 install command is missing or outside the reviewed forms",
 );
+const installIndex = postgresJob.indexOf(installLines[0]);
 const precedingHarnessIndex = postgresJob.indexOf(
   `      - run: ${precedingHarness}`,
 );
