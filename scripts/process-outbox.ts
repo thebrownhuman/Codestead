@@ -16,6 +16,7 @@ import {
   type ItemOutcome,
   type ProcessOutboxBatchResult,
 } from "../src/lib/notifications/outbox-worker";
+import { operationalErrorCode } from "../src/lib/security/operational-code";
 import { createWorkerHealthReporter } from "./lib/worker-health";
 
 const BATCH_SIZE = 10;
@@ -335,7 +336,7 @@ main()
     console.error(
       JSON.stringify({
         event: "email.worker_failed",
-        code: error instanceof Error ? error.name : "UNKNOWN",
+        code: operationalErrorCode(error),
       }),
     );
     process.exitCode = 1;
