@@ -3,6 +3,13 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
+import {
+  accountDeletionNoticeBinding,
+  ACCOUNT_DELETION_NOTICE_TEMPLATE,
+  ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION,
+  deletionNoticeSecret,
+  type AccountDeletionNoticeVariables,
+} from "@/lib/notifications/deletion-notice-capability";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 
 import {
@@ -41,6 +48,13 @@ export class AccountDeletionError extends Error {
   }
 }
 
+export type AccountDeletionNoticeReportBinding = Readonly<{
+  outboxId: string;
+  operationId: string;
+  recipientHmacSha256: string;
+  payloadSha256: string;
+}>;
+
 export type AccountDeletionReport = Readonly<{
   runId: string;
   tombstoneId: string;
@@ -56,11 +70,20 @@ export type AccountDeletionReport = Readonly<{
     | "verified_expired";
   backupRetentionUntil: string;
   backupNotice: string;
+  deletionNotice: AccountDeletionNoticeReportBinding | null;
   learnerNotificationQueued: true;
   replayed: boolean;
 }>;
 
-function normalizeCompletedDeletionReport(report: AccountDeletionReport) {
+type PersistedAccountDeletionReport =
+  | AccountDeletionReport
+  | (Omit<AccountDeletionReport, "deletionNotice"> & Readonly<{
+      deletionNotice?: AccountDeletionNoticeReportBinding | null;
+    }>);
+
+function normalizeCompletedDeletionReport(
+  report: PersistedAccountDeletionReport,
+): AccountDeletionReport {
   // Reports created before the durable-queue rollout were persisted only
   // after their synchronous unlink loop completed. Normalize those immutable
   // successful records without pretending a pending/failed run completed.
@@ -68,6 +91,7 @@ function normalizeCompletedDeletionReport(report: AccountDeletionReport) {
     ...report,
     objectFileErasureComplete: true as const,
     alreadyAbsentObjectFiles: report.alreadyAbsentObjectFiles ?? 0,
+    deletionNotice: report.deletionNotice ?? null,
   };
 }
 
@@ -103,15 +127,6 @@ export async function backupExpiryReport(now = new Date()) {
   };
 }
 
-function lifecycleSecret() {
-  const value = process.env.DELETION_TOMBSTONE_KEY
-    ?? (process.env.NODE_ENV === "production" ? undefined : process.env.BETTER_AUTH_SECRET);
-  if (!value || Buffer.byteLength(value, "utf8") < 32) {
-    throw new Error("DELETION_TOMBSTONE_KEY must contain at least 32 bytes.");
-  }
-  return value;
-}
-
 export function deletionIdentityHash(input: { userId: string; email: string }, secret: string) {
   if (Buffer.byteLength(secret, "utf8") < 32) throw new Error("Tombstone HMAC key is too short.");
   return createHmac("sha256", secret)
@@ -131,6 +146,7 @@ type LockedDeletionOutboxRow = Readonly<{
   id: string;
   status: string;
   provider_call_started: Date | string | null;
+  provider_message_id: string | null;
 }>;
 
 async function lockDeletionOutboxRows(
@@ -138,7 +154,7 @@ async function lockDeletionOutboxRows(
   input: Readonly<{ userId: string; email: string }>,
 ) {
   const result = await client.query<LockedDeletionOutboxRow>(
-    `select id, status, provider_call_started from email_outbox
+    `select id, status, provider_call_started, provider_message_id from email_outbox
       where user_id = $1 or lower(to_email) = lower($2)
       order by id
       for update`,
@@ -146,11 +162,81 @@ async function lockDeletionOutboxRows(
   );
   if (
     result.rows.some((row) =>
-      row.status === "sending" && row.provider_call_started !== null,
+      (
+        row.status === "sending" && row.provider_call_started !== null
+      ) || (
+        row.status === "quarantined" && row.provider_call_started !== null
+        && row.provider_message_id === null
+      ),
     )
   ) {
     throw new AccountDeletionError("PROVIDER_OPERATION_IN_PROGRESS");
   }
+}
+
+type DeletionNoticeOutboxRow = Readonly<{
+  id: string;
+  operation_id: string;
+  user_id: string | null;
+  delivery_scope_key: string | null;
+  to_email: string;
+  template: string;
+  template_version: string;
+  variables: unknown;
+  idempotency_key: string;
+}>;
+
+function isExactDeletionNoticeRow(
+  row: DeletionNoticeOutboxRow | undefined,
+  expected: Readonly<{
+    id: string;
+    operationId: string;
+    userId: string;
+    recipient: string;
+    variables: AccountDeletionNoticeVariables;
+    idempotencyKey: string;
+    recipientHmacSha256: string;
+    payloadSha256: string;
+    secret: string;
+  }>,
+) {
+  if (!row || !row.variables || typeof row.variables !== "object" || Array.isArray(row.variables)) {
+    return false;
+  }
+  const entries = Object.entries(row.variables);
+  if (
+    entries.length !== 3
+    || entries.some(([, value]) => typeof value !== "string")
+  ) {
+    return false;
+  }
+  const variables = row.variables as Record<string, string>;
+  if (
+    row.id !== expected.id
+    || row.operation_id !== expected.operationId
+    || row.user_id !== expected.userId
+    || row.delivery_scope_key !== `a:${expected.userId}`
+    || row.to_email !== expected.recipient.trim().toLowerCase()
+    || row.template !== ACCOUNT_DELETION_NOTICE_TEMPLATE
+    || row.template_version !== ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION
+    || row.idempotency_key !== expected.idempotencyKey
+    || variables.backupRetentionUntil !== expected.variables.backupRetentionUntil
+    || variables.tombstoneId !== expected.variables.tombstoneId
+    || variables.deletionRunId !== expected.variables.deletionRunId
+  ) {
+    return false;
+  }
+  const binding = accountDeletionNoticeBinding({
+    recipient: row.to_email,
+    variables: {
+      backupRetentionUntil: variables.backupRetentionUntil,
+      tombstoneId: variables.tombstoneId,
+      deletionRunId: variables.deletionRunId,
+    },
+    secret: expected.secret,
+  });
+  return binding.recipientHmacSha256 === expected.recipientHmacSha256
+    && binding.payloadSha256 === expected.payloadSha256;
 }
 
 async function cancelUndispatchedRunnerAdmissions(client: PoolClient, userId: string, now: Date) {
@@ -243,7 +329,14 @@ async function authorizeAndClaim(input: {
          union all
          select 1 from email_outbox
           where (user_id = $1 or lower(to_email) = lower($2))
-            and status = 'sending' and provider_call_started is not null
+            and (
+              (
+                status = 'sending' and provider_call_started is not null
+              ) or (
+                status = 'quarantined' and provider_call_started is not null
+                and provider_message_id is null
+              )
+            )
        ) as blocked`,
       [input.learnerId, target.email],
     );
@@ -803,11 +896,24 @@ export async function deleteLearnerAccount(input: {
       }
 
       const tombstoneId = randomUUID();
+      const mailOutboxId = randomUUID();
+      const mailOperationId = randomUUID();
+      const secret = deletionNoticeSecret();
       const identityHash = deletionIdentityHash(
         { userId: id, email: claim.target.email },
-        lifecycleSecret(),
+        secret,
       );
       const backupRetentionUntil = addUtcMonths(now, 12);
+      const noticeVariables: AccountDeletionNoticeVariables = {
+        backupRetentionUntil: backupRetentionUntil.toISOString(),
+        tombstoneId,
+        deletionRunId: claim.runId,
+      };
+      const noticeBinding = accountDeletionNoticeBinding({
+        recipient: claim.target.email,
+        variables: noticeVariables,
+        secret,
+      });
       const pseudonymousEmail = `deleted+${tombstoneId}@invalid.local`;
       await client.query(
         `update "user" set
@@ -833,6 +939,12 @@ export async function deleteLearnerAccount(input: {
         backupRetentionUntil: backupRetentionUntil.toISOString(),
         backupNotice:
           "Existing encrypted backups are not claimed erased. They remain subject to 7 daily, 4 weekly, and 12 monthly restore-point expiry and operator verification.",
+        deletionNotice: {
+          outboxId: mailOutboxId,
+          operationId: mailOperationId,
+          recipientHmacSha256: noticeBinding.recipientHmacSha256,
+          payloadSha256: noticeBinding.payloadSha256,
+        },
         learnerNotificationQueued: true,
         replayed: false,
       };
@@ -843,27 +955,52 @@ export async function deleteLearnerAccount(input: {
          values ($1, $2, $3, $4, $5, $6, $7, 'awaiting_retention_expiry', $8::jsonb)`,
         [tombstoneId, id, identityHash, RETENTION_POLICY_VERSION, input.actorUserId, now, backupRetentionUntil, JSON.stringify(report)],
       );
-      const mailOperationId = randomUUID();
       const mailKey = createHash("sha256")
         .update(`account-deleted:${id}:${claim.runId}`)
         .digest("hex");
-      await client.query(
+      const insertedNotice = await client.query<DeletionNoticeOutboxRow>(
         `insert into email_outbox
-          (operation_id, user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, status)
-         values ($1, $2, 'a:' || $2, lower($3), 'account-deleted', '1', $4::jsonb, $5, 'pending')
-         on conflict (idempotency_key) do nothing`,
+          (id, operation_id, user_id, delivery_scope_key, to_email, template,
+           template_version, variables, idempotency_key, status)
+         values ($1, $2, $3, 'a:' || $3, lower(btrim($4)), 'account-deleted',
+                 '1', $5::jsonb, $6, 'pending')
+         on conflict (idempotency_key) do nothing
+         returning id::text, operation_id::text, user_id, delivery_scope_key,
+                   to_email, template, template_version, variables, idempotency_key`,
         [
+          mailOutboxId,
           mailOperationId,
           id,
           claim.target.email,
-          JSON.stringify({
-            backupRetentionUntil: backupRetentionUntil.toISOString(),
-            tombstoneId,
-            deletionRunId: claim.runId,
-          }),
+          JSON.stringify(noticeVariables),
           mailKey,
         ],
       );
+      let persistedNotice = insertedNotice.rows[0];
+      if (!persistedNotice) {
+        const conflict = await client.query<DeletionNoticeOutboxRow>(
+          `select id::text, operation_id::text, user_id, delivery_scope_key,
+                  to_email, template, template_version, variables, idempotency_key
+             from email_outbox
+            where idempotency_key = $1
+            for update`,
+          [mailKey],
+        );
+        persistedNotice = conflict.rows[0];
+      }
+      if (!isExactDeletionNoticeRow(persistedNotice, {
+        id: mailOutboxId,
+        operationId: mailOperationId,
+        userId: id,
+        recipient: claim.target.email,
+        variables: noticeVariables,
+        idempotencyKey: mailKey,
+        recipientHmacSha256: noticeBinding.recipientHmacSha256,
+        payloadSha256: noticeBinding.payloadSha256,
+        secret,
+      })) {
+        throw new Error("Deletion notice idempotency state mismatch.");
+      }
       await client.query(
         `update data_lifecycle_run set status = 'succeeded', report = $2::jsonb,
           completed_at = $3, updated_at = $3 where id = $1`,

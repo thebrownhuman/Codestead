@@ -11,6 +11,13 @@ import type {
 } from "./outbox-worker";
 
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import {
+  accountDeletionNoticeBinding,
+  ACCOUNT_DELETION_NOTICE_TEMPLATE,
+  ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION,
+  deletionNoticeSecret,
+  type AccountDeletionNoticeVariables,
+} from "./deletion-notice-capability";
 
 export type EmailOutboxPayload = Readonly<{
   userId: string | null;
@@ -115,6 +122,160 @@ function variables(value: unknown): Readonly<Record<string, string>> {
   }
   return Object.fromEntries(entries) as Record<string, string>;
 }
+
+type DeletionNoticeCapabilityEvidence = Readonly<{
+  valid: boolean;
+  recipientHmacSha256: string | null;
+  payloadSha256: string | null;
+}>;
+
+const INVALID_DELETION_NOTICE_EVIDENCE: DeletionNoticeCapabilityEvidence = {
+  valid: false,
+  recipientHmacSha256: null,
+  payloadSha256: null,
+};
+
+function exactDeletionNoticeVariables(
+  value: unknown,
+): AccountDeletionNoticeVariables | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (
+    keys.length !== 3
+    || !keys.includes("backupRetentionUntil")
+    || !keys.includes("tombstoneId")
+    || !keys.includes("deletionRunId")
+    || typeof record.backupRetentionUntil !== "string"
+    || typeof record.tombstoneId !== "string"
+    || typeof record.deletionRunId !== "string"
+  ) {
+    return null;
+  }
+  return {
+    backupRetentionUntil: record.backupRetentionUntil,
+    tombstoneId: record.tombstoneId,
+    deletionRunId: record.deletionRunId,
+  };
+}
+
+function deletionNoticeCapabilityEvidence(
+  payload: EmailOutboxPayload,
+): DeletionNoticeCapabilityEvidence {
+  if (
+    payload.template !== ACCOUNT_DELETION_NOTICE_TEMPLATE
+    || payload.templateVersion !== ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION
+    || !payload.to.trim()
+  ) {
+    return INVALID_DELETION_NOTICE_EVIDENCE;
+  }
+  const parsed = exactDeletionNoticeVariables(payload.variables);
+  if (!parsed) return INVALID_DELETION_NOTICE_EVIDENCE;
+  const binding = accountDeletionNoticeBinding({
+    recipient: payload.to,
+    variables: parsed,
+    secret: deletionNoticeSecret(),
+  });
+  return { valid: true, ...binding };
+}
+
+function accountMailAuthorityPredicate(outbox: string) {
+  return `exists (
+    select 1 from public."user" account_user
+    where account_user.id = ${outbox}.user_id
+      and lower(btrim(account_user.email)) = ${outbox}.to_email
+      and (
+        (
+          ${outbox}.template = 'verify-email'
+          and account_user.status = 'pending'
+        )
+        or (
+          ${outbox}.template = 'reset-password'
+          and account_user.status in ('pending', 'active')
+        )
+        or (
+          ${outbox}.template not in (
+            'verify-email', 'reset-password', 'invitation',
+            'access-rejected', 'account-deleted'
+          )
+          and account_user.status = 'active'
+        )
+      )
+  )`;
+}
+
+function deletionNoticeCapabilityPredicate(
+  outbox: string,
+  input: Readonly<{
+    validParameter: number;
+    recipientHmacParameter: number;
+    payloadDigestParameter: number;
+  }>,
+) {
+  return `(
+    $${input.validParameter}::boolean
+    and ${outbox}.user_id is not null
+    and ${outbox}.template = 'account-deleted'
+    and ${outbox}.template_version = '1'
+    and exists (
+      select 1
+      from public.account_deletion_tombstone tombstone
+      join public.data_lifecycle_run lifecycle
+        on lifecycle.id::text = ${outbox}.variables ->> 'deletionRunId'
+      join public."user" deleted_user
+        on deleted_user.id = ${outbox}.user_id
+      where tombstone.id::text = ${outbox}.variables ->> 'tombstoneId'
+        and tombstone.user_id = ${outbox}.user_id
+        and tombstone.primary_deletion_completed_at is not null
+        and deleted_user.status = 'deleted'
+        and lifecycle.target_user_id = ${outbox}.user_id
+        and lifecycle.operation = 'account_deletion'
+        and lifecycle.status = 'succeeded'
+        and lifecycle.completed_at is not null
+        and tombstone.report ->> 'runId' = lifecycle.id::text
+        and tombstone.report ->> 'tombstoneId' = tombstone.id::text
+        and tombstone.report ->> 'backupRetentionUntil'
+              = ${outbox}.variables ->> 'backupRetentionUntil'
+        and tombstone.report ->> 'primaryStoreDeletionComplete' = 'true'
+        and tombstone.report ->> 'learnerNotificationQueued' = 'true'
+        and tombstone.report #>> '{deletionNotice,outboxId}' = ${outbox}.id::text
+        and tombstone.report #>> '{deletionNotice,operationId}' = ${outbox}.operation_id::text
+        and tombstone.report #>> '{deletionNotice,recipientHmacSha256}'
+              = $${input.recipientHmacParameter}::text
+        and tombstone.report #>> '{deletionNotice,payloadSha256}'
+              = $${input.payloadDigestParameter}::text
+        and lifecycle.report ->> 'runId' = lifecycle.id::text
+        and lifecycle.report ->> 'tombstoneId' = tombstone.id::text
+        and lifecycle.report ->> 'backupRetentionUntil'
+              = ${outbox}.variables ->> 'backupRetentionUntil'
+        and lifecycle.report ->> 'primaryStoreDeletionComplete' = 'true'
+        and lifecycle.report ->> 'learnerNotificationQueued' = 'true'
+        and lifecycle.report #>> '{deletionNotice,outboxId}' = ${outbox}.id::text
+        and lifecycle.report #>> '{deletionNotice,operationId}' = ${outbox}.operation_id::text
+        and lifecycle.report #>> '{deletionNotice,recipientHmacSha256}'
+              = $${input.recipientHmacParameter}::text
+        and lifecycle.report #>> '{deletionNotice,payloadSha256}'
+              = $${input.payloadDigestParameter}::text
+    )
+  )`;
+}
+
+const ACCOUNT_MAIL_AUTHORITY_SQL = accountMailAuthorityPredicate("outbox");
+const DECISION_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outbox", {
+  validParameter: 14,
+  recipientHmacParameter: 12,
+  payloadDigestParameter: 13,
+});
+const SUPPRESSION_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outbox", {
+  validParameter: 15,
+  recipientHmacParameter: 13,
+  payloadDigestParameter: 14,
+});
+const BOUNDARY_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outbox", {
+  validParameter: 16,
+  recipientHmacParameter: 14,
+  payloadDigestParameter: 15,
+});
 
 type DeliveryScope = Readonly<{
   key: string;
@@ -269,46 +430,17 @@ async function providerBoundaryDecision(
   client: OutboxPgClient,
   claim: OutboxClaim<EmailOutboxPayload>,
   scope: DeliveryScope,
+  evidence: DeletionNoticeCapabilityEvidence,
 ): Promise<BoundaryDecision | null> {
   const result = await client.query<{ decision: BoundaryDecision }>(`
     select case
-      when outbox.user_id is null then 'allowed'
+      when outbox.user_id is null
+        and outbox.template <> 'account-deleted'
+        then 'allowed'
       when outbox.template <> 'account-deleted'
-        and exists (
-          select 1 from public."user" account_user
-          where account_user.id = outbox.user_id
-            and lower(account_user.email) = outbox.to_email
-            and (
-              (
-                outbox.template = 'verify-email'
-                and account_user.status = 'pending'
-              )
-              or (
-                outbox.template = 'reset-password'
-                and account_user.status in ('pending', 'active')
-              )
-              or (
-                outbox.template not in (
-                  'verify-email', 'reset-password', 'invitation',
-                  'access-rejected', 'account-deleted'
-                )
-                and account_user.status = 'active'
-              )
-            )
-        ) then 'allowed'
-      when outbox.template = 'account-deleted'
-        and outbox.template_version = '1'
-        and exists (
-          select 1 from public."user" account_user
-          where account_user.id = outbox.user_id and account_user.status = 'deleted'
-        )
-        and exists (
-          select 1 from public.account_deletion_tombstone tombstone
-          where tombstone.id::text = outbox.variables ->> 'tombstoneId'
-            and tombstone.user_id = outbox.user_id
-            and tombstone.primary_deletion_completed_at is not null
-            and tombstone.report ->> 'runId' = outbox.variables ->> 'deletionRunId'
-        ) then 'allowed'
+        and ${ACCOUNT_MAIL_AUTHORITY_SQL}
+        then 'allowed'
+      when ${DECISION_DELETION_CAPABILITY_SQL} then 'allowed'
       when outbox.template = 'account-deleted'
         then 'DELETION_NOTICE_CAPABILITY_INVALID'
       else 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
@@ -321,7 +453,7 @@ async function providerBoundaryDecision(
       and outbox.claim_version = $5::integer
       and outbox.delivery_scope_key = $6::text
       and outbox.user_id is not distinct from $7::text
-      and outbox.to_email = lower($8::text)
+      and outbox.to_email = lower(btrim($8::text))
       and outbox.template = $9::text
       and outbox.template_version = $10::text
       and outbox.variables = $11::jsonb
@@ -339,6 +471,9 @@ async function providerBoundaryDecision(
     claim.payload.template,
     claim.payload.templateVersion,
     JSON.stringify(claim.payload.variables),
+    evidence.recipientHmacSha256,
+    evidence.payloadSha256,
+    evidence.valid,
   ]);
   return result.rows[0]?.decision ?? null;
 }
@@ -558,16 +693,17 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     const adapter = assertBoundedText(input.adapter, "Outbox adapter", 32);
     if (!ADAPTERS.has(adapter)) throw new Error("Outbox adapter is not allowed.");
     assertLeaseMs(input.leaseMs);
+    const evidence = deletionNoticeCapabilityEvidence(claim.payload);
 
     return transaction(this.pool, async (client) => {
       const scope = await lockFenceScope(client, claim, true);
       if (!scope) return { kind: "lost" };
 
-      const decision = await providerBoundaryDecision(client, claim, scope);
+      const decision = await providerBoundaryDecision(client, claim, scope, evidence);
       if (decision === null) return { kind: "lost" };
       if (decision !== "allowed") {
         const suppressed = await client.query<{ id: string }>(`
-          update public.email_outbox
+          update public.email_outbox as outbox
           set status = 'suppressed',
               last_error_code = $7::text,
               claim_token = null,
@@ -575,23 +711,37 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               lease_expires_at = null,
               claim_version = claim_version + 1,
               updated_at = pg_catalog.statement_timestamp()
-          where id = $1::uuid
-            and operation_id = $2::uuid
-            and claim_token = $3::uuid
-            and claim_owner = $4::text
-            and claim_version = $5::integer
-            and delivery_scope_key = $6::text
-            and user_id is not distinct from $8::text
-            and to_email = lower($9::text)
-            and template = $10::text
-            and template_version = $11::text
-            and variables = $12::jsonb
-            and provider_call_started is null
-            and adapter is null
-            and provider_message_id is null
-            and quarantined_at is null
-            and status = 'sending'
-          returning id::text
+          where outbox.id = $1::uuid
+            and outbox.operation_id = $2::uuid
+            and outbox.claim_token = $3::uuid
+            and outbox.claim_owner = $4::text
+            and outbox.claim_version = $5::integer
+            and outbox.delivery_scope_key = $6::text
+            and outbox.user_id is not distinct from $8::text
+            and outbox.to_email = lower(btrim($9::text))
+            and outbox.template = $10::text
+            and outbox.template_version = $11::text
+            and outbox.variables = $12::jsonb
+            and outbox.provider_call_started is null
+            and outbox.adapter is null
+            and outbox.provider_message_id is null
+            and outbox.quarantined_at is null
+            and outbox.lease_expires_at > pg_catalog.statement_timestamp()
+            and outbox.status = 'sending'
+            and (
+              (
+                $7::text = 'DELETION_NOTICE_CAPABILITY_INVALID'
+                and outbox.template = 'account-deleted'
+                and not (${SUPPRESSION_DELETION_CAPABILITY_SQL})
+              )
+              or (
+                $7::text = 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
+                and outbox.user_id is not null
+                and outbox.template <> 'account-deleted'
+                and not (${ACCOUNT_MAIL_AUTHORITY_SQL})
+              )
+            )
+          returning outbox.id::text
         `, [
           claim.id,
           claim.operationId,
@@ -605,6 +755,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           claim.payload.template,
           claim.payload.templateVersion,
           JSON.stringify(claim.payload.variables),
+          evidence.recipientHmacSha256,
+          evidence.payloadSha256,
+          evidence.valid,
         ]);
         return suppressed.rows[0]
           ? { kind: "suppressed", code: decision }
@@ -612,29 +765,40 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       }
 
       const result = await client.query<BoundaryRow>(`
-        update public.email_outbox
+        update public.email_outbox as outbox
         set provider_call_started = pg_catalog.statement_timestamp(),
             adapter = $6::text,
             lease_expires_at = pg_catalog.statement_timestamp() + ($7::integer * interval '1 millisecond'),
             updated_at = pg_catalog.statement_timestamp()
-        where id = $1::uuid
-          and operation_id = $2::uuid
-          and claim_token = $3::uuid
-          and claim_owner = $4::text
-          and claim_version = $5::integer
-          and adapter is null
-          and provider_message_id is null
-          and provider_call_started is null
-          and quarantined_at is null
-          and lease_expires_at > pg_catalog.statement_timestamp()
-          and status = 'sending'
-          and user_id is not distinct from $8::text
-          and delivery_scope_key = $9::text
-          and to_email = lower($10::text)
-          and template = $11::text
-          and template_version = $12::text
-          and variables = $13::jsonb
-        returning provider_call_started, lease_expires_at
+        where outbox.id = $1::uuid
+          and outbox.operation_id = $2::uuid
+          and outbox.claim_token = $3::uuid
+          and outbox.claim_owner = $4::text
+          and outbox.claim_version = $5::integer
+          and outbox.adapter is null
+          and outbox.provider_message_id is null
+          and outbox.provider_call_started is null
+          and outbox.quarantined_at is null
+          and outbox.lease_expires_at > pg_catalog.statement_timestamp()
+          and outbox.status = 'sending'
+          and outbox.user_id is not distinct from $8::text
+          and outbox.delivery_scope_key = $9::text
+          and outbox.to_email = lower(btrim($10::text))
+          and outbox.template = $11::text
+          and outbox.template_version = $12::text
+          and outbox.variables = $13::jsonb
+          and (
+            (
+              outbox.user_id is null
+              and outbox.template <> 'account-deleted'
+            )
+            or (
+              outbox.template <> 'account-deleted'
+              and ${ACCOUNT_MAIL_AUTHORITY_SQL}
+            )
+            or ${BOUNDARY_DELETION_CAPABILITY_SQL}
+          )
+        returning outbox.provider_call_started, outbox.lease_expires_at
       `, [
         claim.id,
         claim.operationId,
@@ -649,6 +813,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         claim.payload.template,
         claim.payload.templateVersion,
         JSON.stringify(claim.payload.variables),
+        evidence.recipientHmacSha256,
+        evidence.payloadSha256,
+        evidence.valid,
       ]);
       const row = result.rows[0];
       if (!row) return { kind: "lost" };
