@@ -41,6 +41,8 @@
   ],
   "exclude": [
     "node_modules",
-    "services/runner"
+    "services/runner",
+    "test-artifacts",
+    ".worktrees"
   ]
 }
