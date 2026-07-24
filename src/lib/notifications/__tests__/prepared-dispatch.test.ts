@@ -172,6 +172,32 @@ describe("prepared mail dispatch", () => {
     expect(randomUuid).not.toHaveBeenCalled();
   });
 
+  it("reserves five seconds of the 25-second provider budget for abort settlement", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
+    const prepared = prepareEmail({
+      to: "learner@example.test",
+      template: "invitation",
+      variables: {},
+    }, gmailPreparation());
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "25000");
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(
+        '{"access_token":"oauth-access-secret"}',
+        { status: 200 },
+      ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(authorizePreparedEmail(prepared)).resolves.toEqual({
+      adapter: "gmail",
+      accessToken: "oauth-access-secret",
+      requestTimeoutMs: 20_000,
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it.each([
     {
       authorization: {
@@ -185,6 +211,13 @@ describe("prepared mail dispatch", () => {
         adapter: "gmail",
         accessToken: "oauth-access-secret",
         requestTimeoutMs: 0,
+      },
+    },
+    {
+      authorization: {
+        adapter: "gmail",
+        accessToken: "oauth-access-secret",
+        requestTimeoutMs: 20_001,
       },
     },
   ] as const)("rejects malformed prepared Gmail authorization before fetch", async ({
@@ -356,7 +389,7 @@ describe("prepared mail dispatch", () => {
     const authorization: PreparedEmailAuthorization = Object.freeze({
       adapter: "gmail",
       accessToken: "oauth-access-secret",
-      requestTimeoutMs: 25_000,
+      requestTimeoutMs: 20_000,
     });
     const externalAbort = new AbortController();
     let resolveDelivery!: (response: Response) => void;
