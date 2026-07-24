@@ -333,6 +333,60 @@ grep -Fq 'canonical lowercase public HTTPS origin' "$ROLLBACK_CASE/stderr" || {
 }
 printf '%s\n' 'APP_URL=https://pilot.example.test' >"$work/compose.env"
 echo "ok - rollback rejects an IPv4 APP_URL before Docker"
+mail_contract_path="$work/records/20260719T000000Z-2/mail-outbox-contract.env"
+cp "$work/records/current-release.env" "$work/mail-boundary-current-before.env"
+cp "$work/records/latest-candidate.env" "$work/mail-boundary-candidate-before.env"
+cat >"$mail_contract_path" <<'EOF'
+SCHEMA_VERSION=1
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=legacy-v0
+PREVIOUS_OUTBOX_WORKER_MODE=legacy-direct-v1
+EOF
+chmod 0600 "$mail_contract_path"
+run_rollback fenced-worker-transition --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback restored the legacy direct mail claimant"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "fenced worker rollback refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "fenced worker rollback refusal reached smoke"
+grep -Fq 'legacy direct claimant cannot be restored' "$ROLLBACK_CASE/stderr" || {
+  fail "fenced worker rollback refusal was not explicit"
+}
+cmp -s "$work/records/current-release.env" "$work/mail-boundary-current-before.env" || {
+  fail "fenced worker rollback refusal changed the current release pointer"
+}
+cmp -s "$work/records/latest-candidate.env" "$work/mail-boundary-candidate-before.env" || {
+  fail "fenced worker rollback refusal changed the candidate pointer"
+}
+echo "ok - rollback refuses fenced-postgres-v1 to legacy-direct-v1"
+
+cat >"$mail_contract_path" <<'EOF'
+SCHEMA_VERSION=2
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=legacy-direct-v1
+PREVIOUS_RUNTIME_COMPATIBLE=false
+FORWARD_ONLY_MIGRATION=0062_mail_outbox_retention_redaction
+EOF
+chmod 0600 "$mail_contract_path"
+run_rollback retention-authority-transition --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback restored the pre-0062 retention authority"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "retention authority rollback refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "retention authority rollback refusal reached smoke"
+grep -Fq '0062_mail_outbox_retention_redaction' "$ROLLBACK_CASE/stderr" || {
+  fail "retention authority rollback refusal did not name migration 0062"
+}
+cmp -s "$work/records/current-release.env" "$work/mail-boundary-current-before.env" || {
+  fail "retention authority rollback refusal changed the current release pointer"
+}
+cmp -s "$work/records/latest-candidate.env" "$work/mail-boundary-candidate-before.env" || {
+  fail "retention authority rollback refusal changed the candidate pointer"
+}
+echo "ok - rollback refuses the pre-0062 retention authority"
 
 cat >"$work/records/20260719T000000Z-2/mail-outbox-contract.env" <<'EOF'
 SCHEMA_VERSION=1
@@ -394,6 +448,7 @@ grep -Fq -- '== 0:0:1777 ]] || fatal "/run/lock must be exactly root:root mode 1
 }
 echo "ok - rollback permits only the exact production /run/lock metadata contract"
 
+# shellcheck disable=SC2016
 grep -Fq '[[ -z "${RELEASE_LOCK_FILE+x}" ]] || fatal "RELEASE_LOCK_FILE is forbidden in production"' "$rollback" || {
   fail "rollback does not reject ambient production lock authority"
 }
@@ -649,6 +704,19 @@ chmod 0644 "$rollback_application_blob"
 echo "ok - rollback rejects a corrupted pre-existing content-addressed record"
 
 
+cat >"$mail_contract_path" <<'EOF'
+SCHEMA_VERSION=2
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+PREVIOUS_RUNTIME_COMPATIBLE=true
+FORWARD_ONLY_MIGRATION=none
+EOF
+chmod 0600 "$mail_contract_path"
 run_rollback success --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" == 0 ]] || {
   cat "$ROLLBACK_CASE/stderr" >&2

@@ -449,20 +449,76 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
   }
   assert_trusted_not_writable "$mail_outbox_contract_file" "mail outbox contract evidence"
   mapfile -t mail_outbox_contract_lines <"$mail_outbox_contract_file"
-  [[ "${#mail_outbox_contract_lines[@]}" == 6 \
-    && "${mail_outbox_contract_lines[0]:-}" == SCHEMA_VERSION=1 \
-    && "${mail_outbox_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
-    && "${mail_outbox_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
-    && "${mail_outbox_contract_lines[3]:-}" == STORE_CUTOVER=* \
-    && "${mail_outbox_contract_lines[4]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
-    && "${mail_outbox_contract_lines[5]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* ]] || {
-    fatal "mail outbox contract evidence is malformed"
-  }
-  rollback_mail_phase="${mail_outbox_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
-  rollback_worker_mode="${mail_outbox_contract_lines[2]#OUTBOX_WORKER_MODE=}"
-  rollback_store_cutover="${mail_outbox_contract_lines[3]#STORE_CUTOVER=}"
-  rollback_previous_mail_phase="${mail_outbox_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
-  rollback_previous_worker_mode="${mail_outbox_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+  mail_outbox_contract_schema="${mail_outbox_contract_lines[0]:-}"
+  rollback_retention_authority=legacy-direct-v1
+  rollback_previous_retention_authority=legacy-direct-v1
+  rollback_previous_runtime_compatible=false
+  rollback_forward_only_migration=none
+  case "$mail_outbox_contract_schema" in
+    SCHEMA_VERSION=1)
+      [[ "${#mail_outbox_contract_lines[@]}" == 6 \
+        && "${mail_outbox_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+        && "${mail_outbox_contract_lines[3]:-}" == STORE_CUTOVER=* \
+        && "${mail_outbox_contract_lines[4]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[5]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* ]] || {
+        fatal "mail outbox contract evidence is malformed"
+      }
+      rollback_mail_phase="${mail_outbox_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+      rollback_worker_mode="${mail_outbox_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+      rollback_store_cutover="${mail_outbox_contract_lines[3]#STORE_CUTOVER=}"
+      rollback_previous_mail_phase="${mail_outbox_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+      rollback_previous_worker_mode="${mail_outbox_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+      ;;
+    SCHEMA_VERSION=2)
+      [[ "${#mail_outbox_contract_lines[@]}" == 10 \
+        && "${mail_outbox_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+        && "${mail_outbox_contract_lines[3]:-}" == OUTBOX_RETENTION_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[4]:-}" == STORE_CUTOVER=* \
+        && "${mail_outbox_contract_lines[5]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[6]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* \
+        && "${mail_outbox_contract_lines[7]:-}" == PREVIOUS_OUTBOX_RETENTION_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[8]:-}" == PREVIOUS_RUNTIME_COMPATIBLE=* \
+        && "${mail_outbox_contract_lines[9]:-}" == FORWARD_ONLY_MIGRATION=* ]] || {
+        fatal "mail outbox contract evidence is malformed"
+      }
+      rollback_mail_phase="${mail_outbox_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+      rollback_worker_mode="${mail_outbox_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+      rollback_retention_authority="${mail_outbox_contract_lines[3]#OUTBOX_RETENTION_AUTHORITY=}"
+      rollback_store_cutover="${mail_outbox_contract_lines[4]#STORE_CUTOVER=}"
+      rollback_previous_mail_phase="${mail_outbox_contract_lines[5]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+      rollback_previous_worker_mode="${mail_outbox_contract_lines[6]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+      rollback_previous_retention_authority="${mail_outbox_contract_lines[7]#PREVIOUS_OUTBOX_RETENTION_AUTHORITY=}"
+      rollback_previous_runtime_compatible="${mail_outbox_contract_lines[8]#PREVIOUS_RUNTIME_COMPATIBLE=}"
+      rollback_forward_only_migration="${mail_outbox_contract_lines[9]#FORWARD_ONLY_MIGRATION=}"
+      [[ "$rollback_retention_authority" == ops-owner-security-definer-v1 ]] || {
+        fatal "mail outbox contract evidence contains an invalid retention authority"
+      }
+      case "$rollback_previous_retention_authority" in
+        legacy-direct-v1|ops-owner-security-definer-v1) ;;
+        *) fatal "mail outbox contract evidence contains an invalid previous retention authority" ;;
+      esac
+      expected_runtime_compatible=true
+      expected_forward_only_migration=none
+      if [[ "$rollback_previous_retention_authority" == legacy-direct-v1 ]]; then
+        expected_runtime_compatible=false
+        expected_forward_only_migration=0062_mail_outbox_retention_redaction
+      fi
+      if [[ "$rollback_worker_mode" == fenced-postgres-v1 \
+        && "$rollback_previous_worker_mode" == legacy-direct-v1 ]]; then
+        expected_runtime_compatible=false
+      fi
+      if [[ "$rollback_store_cutover" == true ]]; then
+        expected_runtime_compatible=false
+      fi
+      [[ "$rollback_previous_runtime_compatible" == "$expected_runtime_compatible" \
+        && "$rollback_forward_only_migration" == "$expected_forward_only_migration" ]] || {
+        fatal "mail outbox contract evidence contains inconsistent compatibility evidence"
+      }
+      ;;
+    *) fatal "mail outbox contract evidence is malformed" ;;
+  esac
   case "$rollback_mail_phase|$rollback_worker_mode|$rollback_store_cutover|$rollback_previous_mail_phase|$rollback_previous_worker_mode" in
     "dual-write-v1|fenced-postgres-v1|false|legacy-v0|legacy-direct-v1" \
       |"dual-write-v1|fenced-postgres-v1|false|dual-write-v1|fenced-postgres-v1" \
@@ -470,8 +526,19 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
       |"store-v1|fenced-postgres-v1|false|store-v1|fenced-postgres-v1") ;;
     *) fatal "mail outbox contract evidence contains an invalid transition" ;;
   esac
+  if [[ "$rollback_forward_only_migration" == 0062_mail_outbox_retention_redaction ]]; then
+    fatal "0062_mail_outbox_retention_redaction is forward-only; the pre-0062 retention authority cannot be restored"
+  fi
+  if [[ "$rollback_worker_mode" == fenced-postgres-v1 \
+    && "$rollback_previous_worker_mode" == legacy-direct-v1 ]]; then
+    fatal "the fenced-postgres-v1 claimant transition is forward-only; the legacy direct claimant cannot be restored"
+  fi
   if [[ "$rollback_store_cutover" == true ]]; then
     fatal "mail store cutover is forward-only; the pre-cutover artifact cannot be restored"
+  fi
+  if [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=2 \
+    && "$rollback_previous_runtime_compatible" != true ]]; then
+    fatal "mail outbox contract evidence does not permit automatic rollback"
   fi
   if [[ "$rollback_mail_phase" == store-v1 \
     && "$rollback_previous_mail_phase" != store-v1 ]]; then

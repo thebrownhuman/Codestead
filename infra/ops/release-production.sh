@@ -516,6 +516,11 @@ previous_release_id="none"
 previous_git_commit="none"
 previous_mail_outbox_phase="legacy-v0"
 previous_outbox_worker_mode="legacy-direct-v1"
+previous_outbox_retention_authority="legacy-direct-v1"
+previous_store_cutover=false
+readonly outbox_retention_authority="ops-owner-security-definer-v1"
+previous_runtime_compatible=false
+forward_only_migration=none
 current_pointer="$release_record_root/current-release.env"
 latest_candidate_pointer="$release_record_root/latest-candidate.env"
 release_pointer_temporary=""
@@ -706,10 +711,41 @@ Application rollback may reuse a previous reviewed image only when it is compati
 Restore a verified recovery point for an incompatible schema; never improvise reverse SQL on production data.
 A record with STORE_CUTOVER=true is forward-only: never restart its pre-cutover mail artifact and never use generic application rollback across that boundary.
 After cutover, only a later fenced-postgres-v1 release may roll back to an earlier fenced-postgres-v1 release.
+Compatibility evidence has not been established; this record intentionally provides no runnable rollback command.
+EOF
+sync_evidence_file "$record_dir/rollback.txt"
+write_rollback_instructions() {
+  "$cat_bin" >"$record_dir/rollback.txt" <<EOF
+No automatic schema rollback was attempted or is claimed by this transaction.
+The previous-running-images.tsv file records the pre-release service/image identities.
+Application rollback may reuse a previous reviewed image only when it is compatible with the migrated schema.
+Restore a verified recovery point for an incompatible schema; never improvise reverse SQL on production data.
+A record with STORE_CUTOVER=true is forward-only: never restart its pre-cutover mail artifact and never use generic application rollback across that boundary.
+After cutover, only a later fenced-postgres-v1 release may roll back to an earlier fenced-postgres-v1 release.
+EOF
+  if [[ "$previous_runtime_compatible" == true ]]; then
+    "$cat_bin" >>"$record_dir/rollback.txt" <<EOF
 When previous-runtime.override.yaml and a previous release id are present, this paste-ready command restores only pinned local images:
 sudo '$repo_root/infra/ops/rollback-production.sh' --release-record '$record_dir' --schema-backward-compatible
 EOF
-sync_evidence_file "$record_dir/rollback.txt"
+  else
+    if [[ "$forward_only_migration" == 0062_mail_outbox_retention_redaction ]]; then
+      printf '%s\n' \
+        'Migration 0062_mail_outbox_retention_redaction is forward-only for the pre-0062 retention authority.' \
+        >>"$record_dir/rollback.txt"
+    fi
+    if [[ "$outbox_worker_mode" == fenced-postgres-v1 \
+      && "$previous_outbox_worker_mode" == legacy-direct-v1 ]]; then
+      printf '%s\n' \
+        'The fenced-postgres-v1 mail claimant transition cannot restore the legacy direct claimant.' \
+        >>"$record_dir/rollback.txt"
+    fi
+    printf '%s\n' \
+      'This record intentionally provides no runnable --schema-backward-compatible command.' \
+      >>"$record_dir/rollback.txt"
+  fi
+  sync_evidence_file "$record_dir/rollback.txt"
+}
 
 run_bounded() {
   "$timeout_bin" --signal=TERM --kill-after=10s "${stage_timeout}s" "$@"
@@ -1268,20 +1304,71 @@ if [[ "$previous_release_id" != none ]]; then
       }
     fi
     mapfile -t previous_mail_contract_lines <"$previous_mail_contract"
-    [[ "${#previous_mail_contract_lines[@]}" == 6 \
-      && "${previous_mail_contract_lines[0]:-}" == SCHEMA_VERSION=1 \
-      && "${previous_mail_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
-      && "${previous_mail_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
-      && "${previous_mail_contract_lines[3]:-}" == STORE_CUTOVER=* \
-      && "${previous_mail_contract_lines[4]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
-      && "${previous_mail_contract_lines[5]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* ]] || {
-      fatal "previous mail outbox contract is malformed"
-    }
-    previous_mail_outbox_phase="${previous_mail_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
-    previous_outbox_worker_mode="${previous_mail_contract_lines[2]#OUTBOX_WORKER_MODE=}"
-    previous_store_cutover="${previous_mail_contract_lines[3]#STORE_CUTOVER=}"
-    recorded_previous_mail_phase="${previous_mail_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
-    recorded_previous_worker_mode="${previous_mail_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+    case "${previous_mail_contract_lines[0]:-}" in
+      SCHEMA_VERSION=1)
+        [[ "${#previous_mail_contract_lines[@]}" == 6 \
+          && "${previous_mail_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+          && "${previous_mail_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+          && "${previous_mail_contract_lines[3]:-}" == STORE_CUTOVER=* \
+          && "${previous_mail_contract_lines[4]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+          && "${previous_mail_contract_lines[5]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* ]] || {
+          fatal "previous mail outbox contract is malformed"
+        }
+        previous_mail_outbox_phase="${previous_mail_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+        previous_outbox_worker_mode="${previous_mail_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+        previous_store_cutover="${previous_mail_contract_lines[3]#STORE_CUTOVER=}"
+        recorded_previous_mail_phase="${previous_mail_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+        recorded_previous_worker_mode="${previous_mail_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+        ;;
+      SCHEMA_VERSION=2)
+        [[ "${#previous_mail_contract_lines[@]}" == 10 \
+          && "${previous_mail_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+          && "${previous_mail_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+          && "${previous_mail_contract_lines[3]:-}" == OUTBOX_RETENTION_AUTHORITY=* \
+          && "${previous_mail_contract_lines[4]:-}" == STORE_CUTOVER=* \
+          && "${previous_mail_contract_lines[5]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+          && "${previous_mail_contract_lines[6]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* \
+          && "${previous_mail_contract_lines[7]:-}" == PREVIOUS_OUTBOX_RETENTION_AUTHORITY=* \
+          && "${previous_mail_contract_lines[8]:-}" == PREVIOUS_RUNTIME_COMPATIBLE=* \
+          && "${previous_mail_contract_lines[9]:-}" == FORWARD_ONLY_MIGRATION=* ]] || {
+          fatal "previous mail outbox contract is malformed"
+        }
+        previous_mail_outbox_phase="${previous_mail_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+        previous_outbox_worker_mode="${previous_mail_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+        previous_outbox_retention_authority="${previous_mail_contract_lines[3]#OUTBOX_RETENTION_AUTHORITY=}"
+        previous_store_cutover="${previous_mail_contract_lines[4]#STORE_CUTOVER=}"
+        recorded_previous_mail_phase="${previous_mail_contract_lines[5]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+        recorded_previous_worker_mode="${previous_mail_contract_lines[6]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+        recorded_previous_retention_authority="${previous_mail_contract_lines[7]#PREVIOUS_OUTBOX_RETENTION_AUTHORITY=}"
+        recorded_previous_runtime_compatible="${previous_mail_contract_lines[8]#PREVIOUS_RUNTIME_COMPATIBLE=}"
+        recorded_forward_only_migration="${previous_mail_contract_lines[9]#FORWARD_ONLY_MIGRATION=}"
+        [[ "$previous_outbox_retention_authority" == ops-owner-security-definer-v1 ]] || {
+          fatal "previous mail outbox contract contains an invalid retention authority"
+        }
+        case "$recorded_previous_retention_authority" in
+          legacy-direct-v1|ops-owner-security-definer-v1) ;;
+          *) fatal "previous mail outbox contract contains an invalid previous retention authority" ;;
+        esac
+        expected_recorded_runtime_compatible=true
+        expected_recorded_forward_only_migration=none
+        if [[ "$recorded_previous_retention_authority" == legacy-direct-v1 ]]; then
+          expected_recorded_runtime_compatible=false
+          expected_recorded_forward_only_migration=0062_mail_outbox_retention_redaction
+        fi
+        if [[ "$previous_outbox_worker_mode" == fenced-postgres-v1 \
+          && "$recorded_previous_worker_mode" == legacy-direct-v1 ]]; then
+          expected_recorded_runtime_compatible=false
+        fi
+        if [[ "$previous_store_cutover" == true ]]; then
+          expected_recorded_runtime_compatible=false
+        fi
+        [[ "$recorded_previous_runtime_compatible" == "$expected_recorded_runtime_compatible" \
+          && "$recorded_forward_only_migration" == "$expected_recorded_forward_only_migration" ]] || {
+          fatal "previous mail outbox contract contains inconsistent compatibility evidence"
+        }
+        ;;
+      *) fatal "previous mail outbox contract is malformed" ;;
+    esac
     case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$previous_store_cutover|$recorded_previous_mail_phase|$recorded_previous_worker_mode" in
       "dual-write-v1|fenced-postgres-v1|false|legacy-v0|legacy-direct-v1" \
         |"dual-write-v1|fenced-postgres-v1|false|dual-write-v1|fenced-postgres-v1" \
@@ -1311,17 +1398,52 @@ case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$mail_outbox_phas
     ;;
 esac
 
+previous_runtime_compatible=true
+forward_only_migration=none
+case "$previous_outbox_retention_authority" in
+  legacy-direct-v1)
+    previous_runtime_compatible=false
+    forward_only_migration=0062_mail_outbox_retention_redaction
+    ;;
+  ops-owner-security-definer-v1) ;;
+  *) fatal "previous mail outbox retention authority is invalid" ;;
+esac
+if [[ "$outbox_worker_mode" == fenced-postgres-v1 \
+  && "$previous_outbox_worker_mode" == legacy-direct-v1 ]]; then
+  previous_runtime_compatible=false
+fi
+if [[ "$mail_store_cutover" == true ]]; then
+  previous_runtime_compatible=false
+fi
+
+if [[ "$schema_backward_compatible" == true \
+  && "$previous_runtime_compatible" != true ]]; then
+  if [[ "$forward_only_migration" == 0062_mail_outbox_retention_redaction ]]; then
+    fatal "0062_mail_outbox_retention_redaction is forward-only; --schema-backward-compatible cannot restore the pre-0062 retention authority"
+  fi
+  if [[ "$outbox_worker_mode" == fenced-postgres-v1 \
+    && "$previous_outbox_worker_mode" == legacy-direct-v1 ]]; then
+    fatal "the fenced-postgres-v1 claimant transition is forward-only; the legacy direct claimant cannot be restored"
+  fi
+  fatal "--schema-backward-compatible contradicts the recorded mail outbox transition"
+fi
+
 mail_outbox_contract_file="$record_dir/mail-outbox-contract.env"
 {
-  printf 'SCHEMA_VERSION=1\n'
+  printf 'SCHEMA_VERSION=2\n'
   printf 'MAIL_OUTBOX_PHASE=%s\n' "$mail_outbox_phase"
   printf 'OUTBOX_WORKER_MODE=%s\n' "$outbox_worker_mode"
+  printf 'OUTBOX_RETENTION_AUTHORITY=%s\n' "$outbox_retention_authority"
   printf 'STORE_CUTOVER=%s\n' "$mail_store_cutover"
   printf 'PREVIOUS_MAIL_OUTBOX_PHASE=%s\n' "$previous_mail_outbox_phase"
   printf 'PREVIOUS_OUTBOX_WORKER_MODE=%s\n' "$previous_outbox_worker_mode"
+  printf 'PREVIOUS_OUTBOX_RETENTION_AUTHORITY=%s\n' "$previous_outbox_retention_authority"
+  printf 'PREVIOUS_RUNTIME_COMPATIBLE=%s\n' "$previous_runtime_compatible"
+  printf 'FORWARD_ONLY_MIGRATION=%s\n' "$forward_only_migration"
 } >"$mail_outbox_contract_file"
 "$chmod_bin" 0600 "$mail_outbox_contract_file"
 sync_evidence_file "$mail_outbox_contract_file"
+write_rollback_instructions
 
 [[ "$postgres_image" =~ ^[^@[:space:]]+@sha256:[0-9a-f]{64}$ ]] || fatal "POSTGRES_IMAGE must be a canonical digest"
 [[ "$postgres_uid" =~ ^[1-9][0-9]*$ ]] || fatal "POSTGRES_UID must be a canonical positive integer"
