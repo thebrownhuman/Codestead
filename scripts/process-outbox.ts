@@ -25,6 +25,14 @@ const PROVIDER_LEASE_MS = 300_000;
 const MAX_MATERIALIZE_ATTEMPTS = 8;
 const MAX_RETRY_DELAY_MS = 6 * 60 * 60_000;
 const TERMINAL_PERSISTENCE_ATTEMPTS = 3;
+const FENCED_WORKER_MODE = "fenced-postgres-v1";
+
+class OutboxWorkerModeError extends Error {
+  constructor() {
+    super(`OUTBOX_WORKER_MODE must be exactly ${FENCED_WORKER_MODE}.`);
+    this.name = "OUTBOX_WORKER_MODE_INVALID";
+  }
+}
 const POOL_SHUTDOWN_TIMEOUT_MS = 5_000;
 const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT"] as const;
 
@@ -265,6 +273,10 @@ function batchLog(result: ProcessOutboxBatchResult) {
 }
 
 async function main() {
+  if (process.env.OUTBOX_WORKER_MODE !== FENCED_WORKER_MODE) {
+    throw new OutboxWorkerModeError();
+  }
+
   const pollSeconds = Number.parseInt(
     process.env.OUTBOX_POLL_SECONDS ?? "10",
     10,
