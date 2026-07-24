@@ -1,18 +1,18 @@
 # Mail outbox store cutover
 
-This is a two-release, forward-only production change. It moves the only mail claimant from the reviewed legacy direct loop to the fenced `PostgresOutboxStore` worker after migration `0059_mail_delivery_scope_contract.sql` closes the delivery-scope expansion window.
+This is a two-release, forward-only production change. It stages only the fenced `PostgresOutboxStore` claimant in a dual-write compatibility artifact, then uses migration `0059_mail_delivery_scope_contract.sql` to close the delivery-scope expansion window. The claimant mode stays fenced across both releases; the phase marker and authenticated release evidence control the forward transition.
 
 Do not combine the two releases. Record both reviewed Git SHAs, image digests, release IDs, and the operator UTC window before starting.
 
 ## Phase 1: dual-write compatibility
 
-The first exact artifact must still contain the reviewed legacy worker, while every production outbox writer populates both the legacy fields and `delivery_scope_key`.
+The first exact artifact must contain only the reviewed fenced worker and fail closed unless its exact mode is selected, while every production outbox writer populates both the legacy fields and `delivery_scope_key`.
 
 Set:
 
 ```dotenv
 MAIL_OUTBOX_PHASE=dual-write-v1
-OUTBOX_WORKER_MODE=legacy-direct-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
 ```
 
 Deploy normally, without `--mail-store-cutover` and without claiming schema backward compatibility:
@@ -21,7 +21,7 @@ Deploy normally, without `--mail-store-cutover` and without claiming schema back
 sudo bash /opt/learncoding/infra/ops/release-production.sh --acquire-images
 ```
 
-Retain the completed release record. Its `mail-outbox-contract.env` must name `dual-write-v1`, `legacy-direct-v1`, and `STORE_CUTOVER=false`. Soak this exact artifact through real invitation, password-reset, account-deletion, backup-status, and scheduled-notification writes. Verify every newly inserted row has the expected account (`a:`) or registered system (`s:`) scope. Resolve writer omissions before continuing.
+Retain the completed release record. Its `mail-outbox-contract.env` must name `dual-write-v1`, `fenced-postgres-v1`, and `STORE_CUTOVER=false`. Soak this exact artifact through real invitation, password-reset, account-deletion, backup-status, and scheduled-notification writes. Verify every newly inserted row has the expected account (`a:`) or registered system (`s:`) scope. Resolve writer omissions before continuing.
 
 Do not set `MAIL_ADAPTER=console` to pause delivery: the console adapter consumes rows and records successful delivery. Do not run `npm run worker:email -- --once`; that entry point combines scheduling and claiming and is not a cutover tool.
 
@@ -41,7 +41,7 @@ Take and verify the pre-cutover encrypted recovery point before stopping the tim
 
 ## Phase 2: fenced store cutover
 
-The candidate artifact must contain the fenced worker and fail closed unless its exact claimant mode is selected. Set:
+The candidate artifact must retain the same fenced worker and exact claimant mode; only the reviewed phase and schema contract advance. Set:
 
 ```dotenv
 MAIL_OUTBOX_PHASE=store-v1
@@ -56,7 +56,7 @@ sudo bash /opt/learncoding/infra/ops/release-production.sh \
   --mail-store-cutover
 ```
 
-`--mail-store-cutover` and `--schema-backward-compatible` are mutually exclusive. The transaction permits this transition only from the currently linked, completed `dual-write-v1` release. It then:
+`--mail-store-cutover` and `--schema-backward-compatible` are mutually exclusive. The transaction permits this transition only from the currently linked, completed `dual-write-v1` release whose contract records the same fenced claimant. It then:
 
 1. quarantines public ingress;
 2. acquires the trusted host backup writer lock;
@@ -92,8 +92,8 @@ sudo systemctl list-timers learncoding-backup.timer
 
 ## Failure and rollback boundary
 
-Any failed gate keeps the tunnel quarantined and never starts the fenced worker. Do not manually clear leases, rewrite provider-boundary rows, replay quarantined mail, or start either claimant outside the release transaction.
+Any failed gate keeps the tunnel quarantined and never starts the candidate mail worker. Do not manually clear leases, rewrite provider-boundary rows, replay quarantined mail, or start any mail claimant outside the release transaction.
 
-Once the cutover transaction may have run 0059, the legacy claimant is not a rollback target. The release record has `STORE_CUTOVER=true`, and `rollback-production.sh` refuses it even when `--schema-backward-compatible` is supplied. Repair forward with a reviewed fenced artifact or restore the verified pre-cutover recovery point while ingress and both claimants remain stopped.
+Once the cutover transaction may have run 0059, the pre-cutover dual-write artifact is not a rollback target. The release record has `STORE_CUTOVER=true`, and `rollback-production.sh` refuses it even when `--schema-backward-compatible` is supplied. Repair forward with a reviewed fenced artifact or restore the verified pre-cutover recovery point while ingress and the mail worker remain stopped.
 
 A later `store-v1` release may use the ordinary explicit rollback tool only to restore the exact pinned previous `store-v1`/`fenced-postgres-v1` artifact whose schema compatibility was reviewed. Generic schema compatibility never overrides a cutover marker.

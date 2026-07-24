@@ -48,7 +48,7 @@ POSTGRES_GID=999
 LEARN_DATA_ROOT=$work/data
 UPLOADS_ENABLED=false
 MAIL_OUTBOX_PHASE=dual-write-v1
-OUTBOX_WORKER_MODE=legacy-direct-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
 EOF
 printf '%s\n' 'reviewed host firewall fixture' >"$work/repo/infra/runner-vm/host-runner.nft"
 cp "$repo_root/infra/ops/package-release-tree.py" "$work/repo/infra/ops/package-release-tree.py"
@@ -753,7 +753,7 @@ POSTGRES_GID=999
 LEARN_DATA_ROOT=$work/data
 UPLOADS_ENABLED=false
 MAIL_OUTBOX_PHASE=dual-write-v1
-OUTBOX_WORKER_MODE=legacy-direct-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
 EOF
 echo "ok - release rejects an IPv4 APP_URL before Docker"
 
@@ -1086,9 +1086,9 @@ echo "ok - consecutive releases retain the exact previous Git/release pointer"
 dual_contract="$second_shared_record/mail-outbox-contract.env"
 grep -Fxq 'SCHEMA_VERSION=1' "$dual_contract" || fail "dual-write release omitted its contract schema"
 grep -Fxq 'MAIL_OUTBOX_PHASE=dual-write-v1' "$dual_contract" || fail "dual-write release omitted its phase"
-grep -Fxq 'OUTBOX_WORKER_MODE=legacy-direct-v1' "$dual_contract" || fail "dual-write release omitted its legacy claimant"
+grep -Fxq 'OUTBOX_WORKER_MODE=fenced-postgres-v1' "$dual_contract" || fail "dual-write release omitted its fenced claimant"
 grep -Fxq 'STORE_CUTOVER=false' "$dual_contract" || fail "dual-write release was mislabeled as a cutover"
-echo "ok - dual-write release records its legacy claimant contract"
+echo "ok - dual-write release records its fenced claimant contract"
 
 printf '%s\n' '# reviewed mail store cutover release' >>"$work/repo/compose.yaml"
 git -C "$work/repo" add compose.yaml
@@ -1138,17 +1138,17 @@ cp -a "$mail_cutover_base" "$mail_drain_records"
 cp "$mail_drain_records/current-release.env" "$work/mail-drain-pointer-before.env"
 RUN_RECORD_ROOT="$mail_drain_records" run_release mail-drain-failure --mail-store-cutover
 unset RUN_RECORD_ROOT
-[[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted an in-flight legacy claim"
-grep -Fq 'legacy mail claims did not drain' "$RELEASE_CASE_DIR/stderr" || {
-  fail "legacy mail drain refusal was not explicit"
+[[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted an in-flight pre-cutover claim"
+grep -Fq 'pre-cutover mail claims did not drain' "$RELEASE_CASE_DIR/stderr" || {
+  fail "pre-cutover mail drain refusal was not explicit"
 }
 if grep -Fq $'\t--exit-code-from\tmigrate\tmigrate' "$RELEASE_CASE_DIR/docker.log"; then
-  fail "mail cutover migrated before the legacy claimant drained"
+  fail "mail cutover migrated before the pre-cutover claimant drained"
 fi
 cmp -s "$mail_drain_records/current-release.env" "$work/mail-drain-pointer-before.env" || {
   fail "mail drain refusal advanced the release pointer"
 }
-echo "ok - mail cutover drains the legacy claimant before 0059"
+echo "ok - mail cutover drains the pre-cutover claimant before 0059"
 
 mail_contract_records="$work/mail-cutover-contract-failure"
 cp -a "$mail_cutover_base" "$mail_contract_records"
@@ -1183,7 +1183,7 @@ MAIL_OUTBOX_PHASE=store-v1
 OUTBOX_WORKER_MODE=fenced-postgres-v1
 STORE_CUTOVER=true
 PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
-PREVIOUS_OUTBOX_WORKER_MODE=legacy-direct-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
 EOF
 cmp -s "$mail_success_record/mail-outbox-contract.env" "$work/expected-mail-cutover-contract.env" || {
   fail "successful mail cutover evidence is incomplete"
@@ -1200,7 +1200,7 @@ core_line="$(line_number $'\tcore-start\tstarted' "$mail_success_record/stages.t
 }
 echo "ok - mail store cutover is ordered and durably evidenced"
 
-set_mail_release_contract dual-write-v1 legacy-direct-v1
+set_mail_release_contract dual-write-v1 fenced-postgres-v1
 
 publication_records="$work/publication-release-records"
 publication_runtime_state="$work/publication-runtime-state"

@@ -362,7 +362,7 @@ Before accepting uploads, follow [Upload scanning](runbooks/upload-scanning.md).
 
 ## Mail delivery
 
-`mail-worker` claims pending `email_outbox` rows, retries transient failures, and recovers stale claims after a worker crash. Production requires an explicit reviewed `MAIL_OUTBOX_PHASE`/`OUTBOX_WORKER_MODE` pair. Follow [Mail outbox store cutover](runbooks/mail-outbox-cutover.md) for the mandatory two-release `dual-write-v1` to `store-v1` transition; never run both claimants.
+`mail-worker` claims pending `email_outbox` rows, retries transient failures, and recovers stale claims after a worker crash. Production requires an explicit reviewed `MAIL_OUTBOX_PHASE`/`OUTBOX_WORKER_MODE` pair. Follow [Mail outbox store cutover](runbooks/mail-outbox-cutover.md) for the mandatory two-release `dual-write-v1` to `store-v1` transition. Both phases require the sole `fenced-postgres-v1` claimant; never start the legacy direct loop.
 
 `MAIL_ADAPTER=console` is not a pause switch: it consumes rows and marks them delivered. Use it only in a disposable isolated smoke environment. For production delivery, set `MAIL_ADAPTER=gmail` and populate the three root-owned Gmail OAuth secret files. The worker alone joins the dedicated outbound network; the database remains on the internal network. Confirm an invitation and password-reset message arrive before admitting learners.
 

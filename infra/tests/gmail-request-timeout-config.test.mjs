@@ -16,8 +16,10 @@ const MAIL_WORKER_ENVIRONMENT_ALLOWLIST = [
   "LOST_DEVICE_PROOF_KEY_FILE",
   "MAIL_ADAPTER",
   "MAIL_FROM",
+  "MAIL_OUTBOX_PHASE",
   "NODE_ENV",
   "OUTBOX_POLL_SECONDS",
+  "OUTBOX_WORKER_MODE",
   "REQUIRE_LOST_DEVICE_PROOF_KEY",
   "WORKER_HEALTH_ID",
   "WORKER_HEALTH_MAX_AGE_SECONDS",
@@ -92,6 +94,21 @@ function assertContract(input) {
     defaultMs,
     "infrastructure environment default drifted from the mailer",
   );
+  for (const [label, document] of [
+    ["developer", input.rootEnvironment],
+    ["infrastructure", input.infrastructureEnvironment],
+  ]) {
+    assert.equal(
+      environmentValue(document, "MAIL_OUTBOX_PHASE"),
+      "dual-write-v1",
+      `${label} environment mail phase drifted`,
+    );
+    assert.equal(
+      environmentValue(document, "OUTBOX_WORKER_MODE"),
+      "fenced-postgres-v1",
+      `${label} environment mail claimant drifted`,
+    );
+  }
   assert.deepEqual(
     environmentKeys(mailWorker),
     MAIL_WORKER_ENVIRONMENT_ALLOWLIST,

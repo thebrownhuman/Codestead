@@ -464,14 +464,14 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
   rollback_previous_mail_phase="${mail_outbox_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
   rollback_previous_worker_mode="${mail_outbox_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
   case "$rollback_mail_phase|$rollback_worker_mode|$rollback_store_cutover|$rollback_previous_mail_phase|$rollback_previous_worker_mode" in
-    "dual-write-v1|legacy-direct-v1|false|legacy-v0|legacy-direct-v1" \
-      |"dual-write-v1|legacy-direct-v1|false|dual-write-v1|legacy-direct-v1" \
-      |"store-v1|fenced-postgres-v1|true|dual-write-v1|legacy-direct-v1" \
+    "dual-write-v1|fenced-postgres-v1|false|legacy-v0|legacy-direct-v1" \
+      |"dual-write-v1|fenced-postgres-v1|false|dual-write-v1|fenced-postgres-v1" \
+      |"store-v1|fenced-postgres-v1|true|dual-write-v1|fenced-postgres-v1" \
       |"store-v1|fenced-postgres-v1|false|store-v1|fenced-postgres-v1") ;;
     *) fatal "mail outbox contract evidence contains an invalid transition" ;;
   esac
   if [[ "$rollback_store_cutover" == true ]]; then
-    fatal "mail store cutover is forward-only; the legacy mail claimant cannot be restored"
+    fatal "mail store cutover is forward-only; the pre-cutover artifact cannot be restored"
   fi
   if [[ "$rollback_mail_phase" == store-v1 \
     && "$rollback_previous_mail_phase" != store-v1 ]]; then

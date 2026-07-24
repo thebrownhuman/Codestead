@@ -704,7 +704,7 @@ No automatic schema rollback was attempted or is claimed by this transaction.
 The previous-running-images.tsv file records the pre-release service/image identities.
 Application rollback may reuse a previous reviewed image only when it is compatible with the migrated schema.
 Restore a verified recovery point for an incompatible schema; never improvise reverse SQL on production data.
-A record with STORE_CUTOVER=true is forward-only: never restart its legacy mail claimant and never use generic application rollback across that boundary.
+A record with STORE_CUTOVER=true is forward-only: never restart its pre-cutover mail artifact and never use generic application rollback across that boundary.
 After cutover, only a later fenced-postgres-v1 release may roll back to an earlier fenced-postgres-v1 release.
 When previous-runtime.override.yaml and a previous release id are present, this paste-ready command restores only pinned local images:
 sudo '$repo_root/infra/ops/rollback-production.sh' --release-record '$record_dir' --schema-backward-compatible
@@ -868,10 +868,10 @@ SELECT
       AND provider_call_started IS NOT NULL
   )
 FROM public.email_outbox;"
-  )" || fatal "unable to inspect legacy mail claim drain state"
+  )" || fatal "unable to inspect pre-cutover mail claim drain state"
   drain_state="${drain_state//$'\r'/}"
   [[ "$drain_state" == "0|0|0" ]] || {
-    fatal "legacy mail claims did not drain; keep the fenced worker stopped"
+    fatal "pre-cutover mail claims did not drain; keep the fenced worker stopped"
   }
 }
 
@@ -1241,7 +1241,7 @@ outbox_worker_mode="$(compose_env_value OUTBOX_WORKER_MODE)"
 readonly outbox_worker_mode
 
 case "$mail_outbox_phase|$outbox_worker_mode" in
-  "dual-write-v1|legacy-direct-v1"|"store-v1|fenced-postgres-v1") ;;
+  "dual-write-v1|fenced-postgres-v1"|"store-v1|fenced-postgres-v1") ;;
   *)
     fatal "MAIL_OUTBOX_PHASE and OUTBOX_WORKER_MODE do not name an allowed claimant pair"
     ;;
@@ -1283,9 +1283,9 @@ if [[ "$previous_release_id" != none ]]; then
     recorded_previous_mail_phase="${previous_mail_contract_lines[4]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
     recorded_previous_worker_mode="${previous_mail_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
     case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$previous_store_cutover|$recorded_previous_mail_phase|$recorded_previous_worker_mode" in
-      "dual-write-v1|legacy-direct-v1|false|legacy-v0|legacy-direct-v1" \
-        |"dual-write-v1|legacy-direct-v1|false|dual-write-v1|legacy-direct-v1" \
-        |"store-v1|fenced-postgres-v1|true|dual-write-v1|legacy-direct-v1" \
+      "dual-write-v1|fenced-postgres-v1|false|legacy-v0|legacy-direct-v1" \
+        |"dual-write-v1|fenced-postgres-v1|false|dual-write-v1|fenced-postgres-v1" \
+        |"store-v1|fenced-postgres-v1|true|dual-write-v1|fenced-postgres-v1" \
         |"store-v1|fenced-postgres-v1|false|store-v1|fenced-postgres-v1") ;;
       *) fatal "previous mail outbox contract contains an invalid transition" ;;
     esac
@@ -1293,18 +1293,18 @@ if [[ "$previous_release_id" != none ]]; then
 fi
 
 case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$mail_outbox_phase|$outbox_worker_mode|$mail_store_cutover" in
-  "legacy-v0|legacy-direct-v1|dual-write-v1|legacy-direct-v1|false" \
-    |"dual-write-v1|legacy-direct-v1|dual-write-v1|legacy-direct-v1|false" \
-    |"dual-write-v1|legacy-direct-v1|store-v1|fenced-postgres-v1|true" \
+  "legacy-v0|legacy-direct-v1|dual-write-v1|fenced-postgres-v1|false" \
+    |"dual-write-v1|fenced-postgres-v1|dual-write-v1|fenced-postgres-v1|false" \
+    |"dual-write-v1|fenced-postgres-v1|store-v1|fenced-postgres-v1|true" \
     |"store-v1|fenced-postgres-v1|store-v1|fenced-postgres-v1|false") ;;
-  "dual-write-v1|legacy-direct-v1|store-v1|fenced-postgres-v1|false")
+  "dual-write-v1|fenced-postgres-v1|store-v1|fenced-postgres-v1|false")
     fatal "store-v1 requires the explicit --mail-store-cutover assertion"
     ;;
   "legacy-v0|legacy-direct-v1|store-v1|fenced-postgres-v1|"*)
     fatal "mail store cutover requires a completed dual-write-v1 release"
     ;;
   "store-v1|fenced-postgres-v1|"*)
-    fatal "mail outbox rollout is monotonic; a fenced claimant cannot return to legacy"
+    fatal "mail outbox rollout is monotonic; store-v1 cannot return to dual-write-v1"
     ;;
   *)
     fatal "mail outbox release transition is invalid"
