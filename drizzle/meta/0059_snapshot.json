@@ -1,5 +1,5 @@
 {
-  "id": "c62cf0f9-112f-48c1-9aa2-9cf3e23eb816",
+  "id": "e4ba0c67-6c2d-4152-a89f-b2ad3f1dd5b0",
   "prevId": "7d487939-b03e-4e6b-9f9b-dc19ae853003",
   "version": "7",
   "dialect": "postgresql",
@@ -10827,7 +10827,7 @@
         },
         "email_outbox_delivery_scope_valid": {
           "name": "email_outbox_delivery_scope_valid",
-          "value": "(\n        (\"email_outbox\".\"user_id\" IS NOT NULL AND \"email_outbox\".\"delivery_scope_key\" = 'a:' || \"email_outbox\".\"user_id\")\n        OR (\"email_outbox\".\"user_id\" IS NULL AND \"email_outbox\".\"delivery_scope_key\" = 's:' || \"email_outbox\".\"operation_id\"::text\n          AND \"email_outbox\".\"template_version\" = '1' AND \"email_outbox\".\"template\" IN ('invitation', 'access-rejected'))\n        OR (\"email_outbox\".\"user_id\" IS NULL AND \"email_outbox\".\"delivery_scope_key\" = 'o:' || \"email_outbox\".\"operation_id\"::text\n          AND \"email_outbox\".\"status\" IN ('sent', 'failed', 'suppressed', 'quarantined'))\n      )"
+          "value": "(\n        (\"email_outbox\".\"user_id\" IS NOT NULL\n          AND \"email_outbox\".\"delivery_scope_key\" = 'a:' || \"email_outbox\".\"user_id\")\n        OR (\"email_outbox\".\"user_id\" IS NULL AND \"email_outbox\".\"delivery_scope_key\" = 's:' || \"email_outbox\".\"operation_id\"::text\n          AND \"email_outbox\".\"template_version\" = '1'\n          AND \"email_outbox\".\"variables\" ->> '_mailOperationId' IS NOT DISTINCT FROM \"email_outbox\".\"operation_id\"::text\n          AND \"email_outbox\".\"variables\" ->> '_mailRecipient' IS NOT DISTINCT FROM \"email_outbox\".\"to_email\"\n          AND COALESCE(\"email_outbox\".\"variables\" ->> '_mailSourceId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', FALSE)\n          AND ((\"email_outbox\".\"template\" = 'access-request-admin' AND \"email_outbox\".\"variables\" ->> '_mailProducer' IS NOT DISTINCT FROM 'access-request-admin')\n            OR (\"email_outbox\".\"template\" = 'invitation' AND \"email_outbox\".\"variables\" ->> '_mailProducer' IS NOT DISTINCT FROM 'access-request-approved')\n            OR (\"email_outbox\".\"template\" = 'access-rejected' AND \"email_outbox\".\"variables\" ->> '_mailProducer' IS NOT DISTINCT FROM 'access-request-rejected')))\n        OR (\"email_outbox\".\"user_id\" IS NULL AND \"email_outbox\".\"delivery_scope_key\" = 'o:' || \"email_outbox\".\"operation_id\"::text\n          AND \"email_outbox\".\"status\" IN ('sent', 'failed', 'suppressed', 'quarantined'))\n      )"
         }
       },
       "isRLSEnabled": false
