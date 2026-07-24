@@ -192,6 +192,7 @@ test("accepts only the exact four distinct restricted-role URLs", () => {
 function makeClient(role, database, options) {
   const queries = [];
   let delegated = false;
+  let grantCatalogVersion = 0;
   return {
     queries,
     release() {},
@@ -227,6 +228,19 @@ function makeClient(role, database, options) {
           schema_create: false,
         }] };
       }
+      if (
+        normalized.includes("pg_catalog.aclexplode") &&
+        normalized.includes("current_role_direct_grantable")
+      ) {
+        return { rows: [{
+          delegated,
+          current_role_effective_grantable:
+            options.currentRoleEffectiveGrantable === true,
+          current_role_direct_grantable:
+            options.currentRoleDirectGrantable === true,
+          table_acl: `catalog-version-${grantCatalogVersion}`,
+        }] };
+      }
       if (normalized.startsWith("select has_table_privilege")) {
         if (
           role === "learncoding_migrator" &&
@@ -251,9 +265,20 @@ function makeClient(role, database, options) {
       }
       if (
         normalized.startsWith("grant select on table ") &&
-        options.grantWithoutGrantOptionIsNoop === true
+        options.grantProbeErrorCode
       ) {
-        if (options.grantActuallyDelegates === true) delegated = true;
+        throw Object.assign(new Error("redacted grant probe failure"), {
+          code: options.grantProbeErrorCode,
+        });
+      }
+      if (normalized.startsWith("grant select on table ")) {
+        if (options.grantActuallyDelegates === true) {
+          delegated = true;
+          grantCatalogVersion += 1;
+        }
+        if (options.grantChangesCatalogWithoutDelegating === true) {
+          grantCatalogVersion += 1;
+        }
         return { rows: [] };
       }
       const forbidden =
@@ -261,7 +286,6 @@ function makeClient(role, database, options) {
         normalized.startsWith("create table ") ||
         normalized.startsWith("grant learncoding_owner ") ||
         normalized.startsWith("alter table ") ||
-        normalized.startsWith("grant select on table ") ||
         (normalized === "set role learncoding_owner" && role !== "learncoding_migrator");
       if (forbidden && options.allowForbidden !== true) {
         const error = new Error("redacted database rejection");
@@ -341,9 +365,8 @@ test("proves application-object access without mutating application rows", async
   }
 });
 
-test("accepts PostgreSQL's no-op GRANT only when the privilege remains undelegated", async () => {
+test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and catalog state", async () => {
   const harness = makePoolHarness({
-    grantWithoutGrantOptionIsNoop: true,
     migratorCannotResolveRelationName: true,
   });
 
@@ -359,9 +382,27 @@ test("accepts PostgreSQL's no-op GRANT only when the privilege remains undelegat
     positiveChecks: 31,
     negativeChecks: 23,
   });
+  for (const role of [
+    "learncoding_app",
+    "learncoding_migrator",
+    "learncoding_worker",
+    "learncoding_ops",
+  ]) {
+    const queries = harness.clients.get(role).queries;
+    assert.equal(
+      queries.filter((sql) =>
+        sql.includes("aclexplode") &&
+        sql.includes("current_role_direct_grantable")
+      ).length,
+      2,
+    );
+    assert.equal(
+      queries.filter((sql) => sql.startsWith("grant select on table ")).length,
+      1,
+    );
+  }
 
   const delegated = makePoolHarness({
-    grantWithoutGrantOptionIsNoop: true,
     grantActuallyDelegates: true,
   });
   await assert.rejects(
@@ -374,6 +415,79 @@ test("accepts PostgreSQL's no-op GRANT only when the privilege remains undelegat
     DatabaseRoleBoundaryError,
   );
   assert.equal(delegated.pools.every((pool) => pool.ended), true);
+
+  const catalogChanged = makePoolHarness({
+    grantChangesCatalogWithoutDelegating: true,
+  });
+  await assert.rejects(
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: catalogChanged.factory,
+      lockTimeoutMs: 50,
+      requireApplicationObjects: true,
+    }),
+    DatabaseRoleBoundaryError,
+  );
+  assert.equal(catalogChanged.pools.every((pool) => pool.ended), true);
+});
+
+test("rejects current-role grantability even when the target stays undelegated", async () => {
+  for (const grantability of [
+    { currentRoleDirectGrantable: true },
+    { currentRoleEffectiveGrantable: true },
+  ]) {
+    const harness = makePoolHarness({
+      ...grantability,
+    });
+    await assert.rejects(
+      verifyDatabaseRoleBoundaries({
+        ...validInput(),
+        poolFactory: harness.factory,
+        lockTimeoutMs: 50,
+        requireApplicationObjects: true,
+      }),
+      DatabaseRoleBoundaryError,
+    );
+    assert.equal(harness.pools.every((pool) => pool.ended), true);
+  }
+});
+
+test("rechecks catalog state after a savepointed GRANT error without trusting its code", async () => {
+  for (const grantProbeErrorCode of ["42501", "XX000"]) {
+    const harness = makePoolHarness({ grantProbeErrorCode });
+    const result = await verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: harness.factory,
+      lockTimeoutMs: 50,
+      requireApplicationObjects: true,
+    });
+
+    assert.deepEqual(result, {
+      rolesAuthenticated: 4,
+      positiveChecks: 31,
+      negativeChecks: 23,
+    });
+    for (const role of [
+      "learncoding_app",
+      "learncoding_migrator",
+      "learncoding_worker",
+      "learncoding_ops",
+    ]) {
+      const queries = harness.clients.get(role).queries;
+      const grantIndex = queries.findIndex((sql) =>
+        sql.startsWith("grant select on table ")
+      );
+      const rollbackIndex = queries.indexOf(
+        "rollback to savepoint codestead_table_grant_probe",
+      );
+      const catalogIndexes = queries.flatMap((sql, index) =>
+        sql.includes("current_role_direct_grantable") ? [index] : []
+      );
+      assert.equal(catalogIndexes.length, 2);
+      assert.equal(grantIndex < rollbackIndex, true);
+      assert.equal(rollbackIndex < catalogIndexes[1], true);
+    }
+  }
 });
 
 test("fails closed when a forbidden statement succeeds or the lock remains held", async () => {
