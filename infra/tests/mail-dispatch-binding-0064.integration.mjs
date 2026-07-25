@@ -2,8 +2,10 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   cpSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -19,6 +21,10 @@ import { Client } from "pg";
 
 import { verifyPostMigrationReviewedContractsBeforeReconciliation } from "../../scripts/bootstrap-database-roles.mjs";
 import { allocateDisposableLoopbackPort } from "../../scripts/lib/disposable-loopback-port.mjs";
+import {
+  REVIEWED_MIGRATION_LEDGER,
+  reviewedMigrationLedgerSha256,
+} from "../../scripts/lib/reviewed-migration-ledger.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
@@ -172,6 +178,169 @@ function stagedMigrationsThrough(temporaryRoot, maximumIndex) {
     "utf8",
   );
   return staged;
+}
+
+function prefixMigrationVerifier(maximumIndex) {
+  assert.ok(
+    Number.isInteger(maximumIndex) &&
+      maximumIndex >= 0 &&
+      maximumIndex <= REVIEWED_MIGRATION_LEDGER.at(-1).idx,
+    "staged migration verifier index is outside the reviewed ledger",
+  );
+  const expectedLedger = REVIEWED_MIGRATION_LEDGER.slice(0, maximumIndex + 1);
+  const expectedLedgerSha256 = reviewedMigrationLedgerSha256(expectedLedger);
+  const expectedTail = expectedLedger.at(-1);
+
+  function verifyReviewedMigrationRepository({ drizzleDirectory }) {
+    const resolvedDirectory = path.resolve(drizzleDirectory);
+    const journalPath = path.join(resolvedDirectory, "meta", "_journal.json");
+    const journalMetadata = lstatSync(journalPath);
+    assert.ok(
+      journalMetadata.isFile() && !journalMetadata.isSymbolicLink(),
+      "staged migration journal must be a regular file",
+    );
+    const journal = JSON.parse(readFileSync(journalPath, "utf8"));
+    assert.deepEqual(
+      Object.keys(journal).sort(),
+      ["dialect", "entries", "version"],
+      "staged migration journal root shape changed",
+    );
+    assert.equal(journal.version, "7");
+    assert.equal(journal.dialect, "postgresql");
+    assert.ok(Array.isArray(journal.entries));
+    assert.equal(
+      journal.entries.length,
+      expectedLedger.length,
+      "staged migration journal length changed",
+    );
+    journal.entries.forEach((entry, index) => {
+      const reviewed = expectedLedger[index];
+      assert.deepEqual(
+        Object.keys(entry).sort(),
+        ["breakpoints", "idx", "tag", "version", "when"],
+        `staged migration journal entry ${index} shape changed`,
+      );
+      assert.deepEqual(entry, {
+        idx: reviewed.idx,
+        version: reviewed.version,
+        when: reviewed.when,
+        tag: reviewed.tag,
+        breakpoints: reviewed.breakpoints,
+      });
+    });
+
+    const actualSqlNames = readdirSync(resolvedDirectory, {
+      withFileTypes: true,
+    })
+      .filter(
+        (entry) =>
+          entry.isFile() && /^[0-9]{4}_[a-z0-9_]+\.sql$/u.test(entry.name),
+      )
+      .map((entry) => entry.name)
+      .sort();
+    const expectedSqlNames = expectedLedger.map(
+      (entry) => `${entry.tag}.sql`,
+    );
+    assert.deepEqual(
+      actualSqlNames,
+      expectedSqlNames,
+      "staged migration SQL inventory changed",
+    );
+
+    for (const entry of expectedLedger) {
+      const migrationPath = path.join(resolvedDirectory, `${entry.tag}.sql`);
+      const migrationMetadata = lstatSync(migrationPath);
+      assert.ok(
+        migrationMetadata.isFile() && !migrationMetadata.isSymbolicLink(),
+        `staged migration ${entry.tag} must be a regular file`,
+      );
+      assert.equal(
+        createHash("sha256")
+          .update(readFileSync(migrationPath))
+          .digest("hex"),
+        entry.sqlSha256,
+        `staged migration ${entry.tag} digest changed`,
+      );
+    }
+
+    return Object.freeze({
+      entryCount: expectedLedger.length,
+      ledgerSha256: expectedLedgerSha256,
+      tailIndex: expectedTail.idx,
+      tailTag: expectedTail.tag,
+    });
+  }
+
+  async function verifyAppliedMigrationLedger(
+    client,
+    { requireComplete = false } = {},
+  ) {
+    const presence = await client.query(`
+      SELECT pg_catalog.to_regclass(
+               'drizzle.__drizzle_migrations'
+             ) IS NOT NULL reviewed_migration_journal_present`);
+    assert.equal(presence?.rows?.length, 1);
+    const present = presence.rows[0]?.reviewed_migration_journal_present;
+    assert.equal(typeof present, "boolean");
+    if (!present) {
+      assert.equal(
+        requireComplete,
+        false,
+        "staged database migration ledger is incomplete",
+      );
+      return Object.freeze({
+        appliedCount: 0,
+        complete: false,
+        ledgerSha256: expectedLedgerSha256,
+      });
+    }
+
+    const result = await client.query(`
+      SELECT journal.id::text id,
+             journal.hash::text hash,
+             journal.created_at::text created_at
+        FROM drizzle.__drizzle_migrations journal
+       ORDER BY journal.id
+       /* reviewed_staged_migration_journal_rows */`);
+    assert.ok(Array.isArray(result?.rows));
+    assert.ok(
+      result.rows.length <= expectedLedger.length,
+      "staged database migration ledger contains extra rows",
+    );
+    let previousId = -1n;
+    result.rows.forEach((row, index) => {
+      const reviewed = expectedLedger[index];
+      assert.deepEqual(
+        Object.keys(row).sort(),
+        ["created_at", "hash", "id"],
+        `staged database migration row ${index} shape changed`,
+      );
+      assert.equal(typeof row.id, "string");
+      assert.match(row.id, /^[0-9]+$/u);
+      const id = BigInt(row.id);
+      assert.ok(id > previousId, "staged database migration IDs are unordered");
+      assert.equal(row.hash, reviewed.sqlSha256);
+      assert.equal(row.created_at, String(reviewed.when));
+      previousId = id;
+    });
+    if (requireComplete) {
+      assert.equal(
+        result.rows.length,
+        expectedLedger.length,
+        "staged database migration ledger is incomplete",
+      );
+    }
+    return Object.freeze({
+      appliedCount: result.rows.length,
+      complete: result.rows.length === expectedLedger.length,
+      ledgerSha256: expectedLedgerSha256,
+    });
+  }
+
+  return Object.freeze({
+    verifyReviewedMigrationRepository,
+    verifyAppliedMigrationLedger,
+  });
 }
 
 function ownerSql(port, database, sql) {
@@ -1341,6 +1510,14 @@ async function proveExtendedTransitionMatrix(port, database) {
 
 async function main() {
   assertMigrationLineage();
+  const fullReviewedMigrationCount = String(
+    JSON.parse(
+      readFileSync(
+        path.join(migrationDirectory, "meta", "_journal.json"),
+        "utf8",
+      ),
+    ).entries.length,
+  );
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(
     version,
@@ -1351,10 +1528,18 @@ async function main() {
     path.join(os.tmpdir(), `codestead-mail-0064-pg${postgresMajor}-`),
   );
   const dataDirectory = path.join(temporaryRoot, "data");
+  const socketDirectory = path.join(temporaryRoot, "socket");
+  mkdirSync(socketDirectory);
+  const socketOption =
+    process.platform === "win32"
+      ? ""
+      : ` -k "${socketDirectory}"`;
   const logFile = path.join(temporaryRoot, "postgres.log");
   const database = "mail_dispatch_binding_0064";
   const stagedMigrations0062 = stagedMigrationsThrough(temporaryRoot, 62);
   const stagedMigrations0063 = stagedMigrationsThrough(temporaryRoot, 63);
+  const stagedVerifier0062 = prefixMigrationVerifier(62);
+  const stagedVerifier0063 = prefixMigrationVerifier(63);
   const port = await allocateDisposableLoopbackPort();
   let operationError;
   let startAttempted = false;
@@ -1383,7 +1568,7 @@ async function main() {
         "-l",
         logFile,
         "-o",
-        `-p ${port} -h 127.0.0.1 -c max_connections=20`,
+        `-p ${port} -h 127.0.0.1${socketOption} -c max_connections=20`,
         "-w",
         "start",
       ],
@@ -1428,6 +1613,7 @@ CREATE ROLE learncoding_migrator LOGIN NOINHERIT;
 CREATE ROLE learncoding_app LOGIN NOINHERIT;
 CREATE ROLE learncoding_worker LOGIN NOINHERIT;
 CREATE ROLE learncoding_ops LOGIN NOINHERIT;
+CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;
 GRANT learncoding_owner TO learncoding_migrator
   WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;`,
     );
@@ -1446,6 +1632,7 @@ GRANT learncoding_owner TO learncoding_migrator
     await runProductionMigration({
       connectionString,
       migrationsFolder: stagedMigrations0062,
+      ...stagedVerifier0062,
     });
     assert.equal(
       scalar(
@@ -1460,6 +1647,7 @@ GRANT learncoding_owner TO learncoding_migrator
     await runProductionMigration({
       connectionString,
       migrationsFolder: stagedMigrations0063,
+      ...stagedVerifier0063,
     });
     assert.equal(
       scalar(
@@ -1600,7 +1788,7 @@ INSERT INTO public.email_outbox (
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      "65",
+      fullReviewedMigrationCount,
     );
     assert.equal(
       scalar(
@@ -1668,7 +1856,7 @@ INSERT INTO public.email_outbox (
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      "65",
+      fullReviewedMigrationCount,
     );
 
     process.stdout.write(

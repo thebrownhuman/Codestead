@@ -320,4 +320,33 @@ describe("0064 email outbox dispatch binding", () => {
     expect(harness).toContain("privilege_contract:pass");
     expect(harness).toContain("migration_replay:pass");
   });
+
+  it("verifies every staged migration directory and its applied prefix exactly", () => {
+    const harness = readFileSync(harnessPath, "utf8");
+
+    expect(harness).toContain(
+      "function prefixMigrationVerifier(maximumIndex)",
+    );
+    expect(harness).toContain(
+      "verifyReviewedMigrationRepository({ drizzleDirectory })",
+    );
+    expect(harness).toContain(
+      "async function verifyAppliedMigrationLedger(",
+    );
+    expect(harness).toContain(
+      "CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;",
+    );
+    for (const maximumIndex of [62, 63]) {
+      const suffix = String(maximumIndex).padStart(4, "0");
+      expect(harness).toContain(
+        `const stagedVerifier${suffix} = prefixMigrationVerifier(${maximumIndex});`,
+      );
+      expect(harness).toMatch(
+        new RegExp(
+          String.raw`runProductionMigration\(\{\s*connectionString,\s*migrationsFolder: stagedMigrations${suffix},\s*\.\.\.stagedVerifier${suffix},\s*\}\)`,
+          "u",
+        ),
+      );
+    }
+  });
 });
