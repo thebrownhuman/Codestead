@@ -559,6 +559,20 @@ function retainLiveTx2OrTerminate(
   return terminateMailDispatchImmediately();
 }
 
+function discardGuardOrTerminate(
+  channel: StoreBoundPreparedDispatchChannel,
+  permit: ProviderCallPermit,
+  guarded: GuardedPreparedDispatch,
+  watchdog: ArmedMailDispatchHardWatchdog,
+): void {
+  try {
+    if (channel.discardGuard(permit, guarded)) return;
+  } catch {
+    return retainLiveTx2OrTerminate(watchdog);
+  }
+  return retainLiveTx2OrTerminate(watchdog);
+}
+
 function deadlineBoundClient(
   lease: MailDispatchDbClientLease<OutboxPgClient>,
   deadline: MailDispatchDbDeadline,
@@ -831,7 +845,7 @@ async function confirmSettledTransactionAndLockReleaseOrTerminate(
     try {
       proofLease.release();
     } catch {
-      // COMMIT ACK released the independent transaction-level barrier lock.
+      return retainLiveTx2OrTerminate(watchdog);
     }
     state.teardownConfirmed = true;
     return;
@@ -958,7 +972,7 @@ async function releaseBeforePhysicalInitiation(
   try {
     lease.release();
   } catch {
-    // ROLLBACK ACK is the authoritative server-side lock-release proof.
+    return retainLiveTx2OrTerminate(watchdog);
   }
 }
 
@@ -1099,18 +1113,21 @@ export function guardedDispatchResultSafeToDisarm(
   watchdog: ArmedMailDispatchHardWatchdog,
   result: GuardedDispatchResult,
 ): boolean {
-  if (!result || typeof result !== "object" || !Object.isFrozen(result)) {
+  try {
+    if (!result || typeof result !== "object") return false;
+    const issued = SAFE_GUARDED_DISPATCH_RESULTS.get(result);
+    if (
+      !issued
+      || issued.store !== store
+      || issued.watchdog !== watchdog
+      || CLAIMED_HARD_WATCHDOGS.get(watchdog) !== store
+      || !Object.isFrozen(result)
+    ) return false;
+    SAFE_GUARDED_DISPATCH_RESULTS.delete(result);
+    return true;
+  } catch {
     return false;
   }
-  const issued = SAFE_GUARDED_DISPATCH_RESULTS.get(result);
-  if (
-    !issued
-    || issued.store !== store
-    || issued.watchdog !== watchdog
-    || CLAIMED_HARD_WATCHDOGS.get(watchdog) !== store
-  ) return false;
-  SAFE_GUARDED_DISPATCH_RESULTS.delete(result);
-  return true;
 }
 
 function permitState(
@@ -2751,7 +2768,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         deadline: acquireDeadline,
       });
     } catch {
-      channel.discardGuard(capability, guarded);
+      discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
       return safeResult({ kind: "lost" });
     }
 
@@ -2794,7 +2816,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           began,
           armedWatchdog,
         );
-        channel.discardGuard(capability, guarded);
+        discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
         return safeResult({ kind: "lost" });
       }
 
@@ -2865,7 +2892,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           began,
           armedWatchdog,
         );
-        channel.discardGuard(capability, guarded);
+        discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
         return safeResult({ kind: "lost" });
       }
       const lockedRow = locked.rows[0]!;
@@ -2881,7 +2913,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           began,
           armedWatchdog,
         );
-        channel.discardGuard(capability, guarded);
+        discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
         return safeResult({ kind: "lost" });
       }
 
@@ -2909,7 +2946,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           began,
           armedWatchdog,
         );
-        channel.discardGuard(capability, guarded);
+        discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
         return safeResult({ kind: "lost" });
       }
 
@@ -2926,7 +2968,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           began,
           armedWatchdog,
         );
-        channel.discardGuard(capability, guarded);
+        discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
         return safeResult({ kind: "lost" });
       }
 
@@ -2950,7 +2997,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           began,
           armedWatchdog,
         );
-        channel.discardGuard(capability, guarded);
+        discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
         return safeResult({ kind: "lost" });
       }
 
@@ -3017,7 +3069,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           began,
           armedWatchdog,
         );
-        channel.discardGuard(capability, guarded);
+        discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
         return safeResult({ kind: "lost" });
       }
     } catch {
@@ -3027,7 +3084,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         began,
         armedWatchdog,
       );
-      channel.discardGuard(capability, guarded);
+      discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
       return safeResult({ kind: "lost" });
     }
 
@@ -3045,7 +3107,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         began,
         armedWatchdog,
       );
-      channel.discardGuard(capability, guarded);
+      discardGuardOrTerminate(
+        channel,
+        capability,
+        guarded,
+        armedWatchdog,
+      );
       return safeResult({ kind: "lost" });
     }
     DISPATCHED_PERMITS.add(capability);
@@ -3058,14 +3125,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         controller.signal,
       );
     } catch {
-      DISPATCHED_PERMITS.delete(capability);
-      await releaseBeforePhysicalInitiation(
-        lease,
-        preProviderDeadline,
-        began,
-        armedWatchdog,
-      );
-      return safeResult({ kind: "lost" });
+      return retainLiveTx2OrTerminate(armedWatchdog);
     }
     const providerDeadlineMs =
       runtime.startupInspection.plan.timeouts.guardedSendDeadlineMs
@@ -3290,7 +3350,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       settledProviderClient.client.release();
       settledProviderClient.closed = true;
     } catch {
-      // A pool bookkeeping failure after COMMIT ACK cannot strand TX2 locks.
+      return retainLiveTx2OrTerminate(armedWatchdog);
     }
     return safeResult({ kind: "applied" as const, exit });
   }
