@@ -365,7 +365,7 @@ function makeClient(role, database, options) {
       ) {
         const latestApplied =
           options.appliedMigrationIndex === undefined
-            ? 64
+            ? 65
             : options.appliedMigrationIndex;
         return {
           rows: REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map((phase) => {
@@ -667,10 +667,14 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
 
   for (const options of [
     { journalHashTamper: 62 },
+    { journalHashTamper: 65 },
     { missingMigrationIndex: 62 },
     { missingMigrationIndex: 63 },
+    { missingMigrationIndex: 64 },
+    { missingMigrationIndex: 65 },
     { appliedMigrationIndex: 63, bindingColumnCount: 2 },
     { appliedMigrationIndex: 64, bindingColumnCount: 0 },
+    { appliedMigrationIndex: 65, bindingColumnCount: 0 },
     { journalPresent: false, bindingColumnCount: 2 },
     {
       journalPresent: false,
