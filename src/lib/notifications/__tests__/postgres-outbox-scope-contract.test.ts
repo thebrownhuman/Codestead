@@ -16,9 +16,14 @@ const normalized = compact.toLowerCase();
 
 describe("PostgresOutboxStore delivery authority", () => {
   it("shares the canonical user-authority advisory lock namespace", () => {
-    expect(source).toContain('import { userAuthorityLockKey } from "@/lib/security/user-authority-lock"');
-    expect(normalized).toContain("pg_advisory_xact_lock(pg_catalog.hashtext($1))");
-    expect(normalized).toContain("pg_try_advisory_xact_lock(pg_catalog.hashtext($1))");
+    expect(source).toContain("USER_AUTHORITY_ADVISORY_LOCK_SQL");
+    expect(source).toContain("USER_AUTHORITY_TRY_ADVISORY_LOCK_SQL");
+    expect(normalized).not.toContain(
+      "pg_advisory_xact_lock(pg_catalog.hashtext($1))",
+    );
+    expect(normalized).not.toContain(
+      "pg_try_advisory_xact_lock(pg_catalog.hashtext($1))",
+    );
     expect(normalized).not.toContain("hashtextextended");
   });
 

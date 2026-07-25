@@ -10,7 +10,7 @@ import {
   deletionNoticeSecret,
   type AccountDeletionNoticeVariables,
 } from "@/lib/notifications/deletion-notice-capability";
-import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock";
 
 import {
   enqueueFileErasures,
@@ -272,7 +272,7 @@ async function authorizeAndClaim(input: {
   const client = await pool.connect();
   try {
     await client.query("begin");
-    await client.query("select pg_advisory_xact_lock(hashtext($1))", [userAuthorityLockKey(input.learnerId)]);
+    await lockUserAuthorityOnPgClient(client, input.learnerId);
     await client.query("select pg_advisory_xact_lock(hashtext($1))", [`runner-learner:${input.learnerId}`]);
     await client.query("select pg_advisory_xact_lock(hashtext($1))", [`account-delete:${input.learnerId}`]);
     const actor = await client.query<{ role: string | null; status: string }>(
@@ -447,7 +447,7 @@ export async function deleteLearnerAccount(input: {
     const client = await pool.connect();
     try {
       await client.query("begin");
-      await client.query("select pg_advisory_xact_lock(hashtext($1))", [userAuthorityLockKey(input.learnerId)]);
+      await lockUserAuthorityOnPgClient(client, input.learnerId);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`runner-learner:${input.learnerId}`]);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`account-delete:${input.learnerId}`]);
       const current = await client.query<{ status: string }>(
@@ -871,7 +871,7 @@ export async function deleteLearnerAccount(input: {
       }
 
       await client.query("begin");
-      await client.query("select pg_advisory_xact_lock(hashtext($1))", [userAuthorityLockKey(input.learnerId)]);
+      await lockUserAuthorityOnPgClient(client, input.learnerId);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`runner-learner:${input.learnerId}`]);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`account-delete:${input.learnerId}`]);
       const finalUser = await client.query<{ status: string }>(

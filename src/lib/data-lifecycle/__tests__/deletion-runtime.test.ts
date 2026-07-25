@@ -358,10 +358,11 @@ describe("account deletion runtime orchestration", () => {
     ));
     expect(JSON.parse(String(runSuccessUpdate?.[1]?.[1])).deletionNotice)
       .toEqual(report.deletionNotice);
-    const authorityLocks = (mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>)
-      .filter(([sql]) => String(sql).includes("pg_advisory_xact_lock(hashtext($1))"))
-      .map(([, values]) => (values as string[] | undefined)?.[0]);
-    expect(authorityLocks).toEqual([
+    const authorityLockCalls = (mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>)
+      .filter(([sql]) => String(sql).includes("pg_advisory_xact_lock"));
+    expect(
+      authorityLockCalls.map(([, values]) => (values as string[] | undefined)?.[0]),
+    ).toEqual([
       "user-authority:learner-1",
       "runner-learner:learner-1",
       "account-delete:learner-1",
@@ -372,6 +373,11 @@ describe("account deletion runtime orchestration", () => {
       "runner-learner:learner-1",
       "account-delete:learner-1",
     ]);
+    for (const index of [0, 3, 6]) {
+      expect(String(authorityLockCalls[index]?.[0])).toContain(
+        "pg_advisory_xact_lock(pg_catalog.hashtext($1)::pg_catalog.int8)",
+      );
+    }
     expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("commit");
   });
 
