@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+
+import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 import { describe, expect, it, vi } from "vitest";
 
 const APPLICATION_URL = "https://learn.example.test";
@@ -9,6 +12,8 @@ const EPISODE_ID = "40000000-0000-4000-8000-000000000004";
 const DISPATCH_ID = "50000000-0000-4000-8000-000000000005";
 const RESET_TOKEN = "AbCdEfGhIjKlMnOpQrStUvWx";
 const RESET_URL = `${APPLICATION_URL}/api/auth/reset-password/${RESET_TOKEN}?callbackURL=${encodeURIComponent(`${APPLICATION_URL}/reset-password`)}`;
+const LOST_RAW_PROOF = "A".repeat(43);
+const LOST_PROOF_HASH = createHash("sha256").update(LOST_RAW_PROOF).digest("hex");
 
 async function subject() {
   return import("../revocable-source-authority");
@@ -26,7 +31,7 @@ const exactCases = [
     name: "Learner", recoveryRequestId: LOST_PROOF_ID,
   }],
   ["session-revocation-requested", "1", {
-    device: "Chrome on laptop", name: "Administrator", revocationRequestId: REVOCATION_ID,
+    device: "an approved browser profile", name: "Administrator", revocationRequestId: REVOCATION_ID,
     url: `${APPLICATION_URL}/admin/learners/learner-1`,
   }],
   ["inactivity-reminder", "2", {
@@ -77,7 +82,7 @@ describe("revocable mail source variable contracts", () => {
       name: "Learner", url: `${APPLICATION_URL}/learn`,
     } }],
     ["cross origin", { template: "session-revocation-requested", templateVersion: "1", variables: {
-      name: "Admin", device: "Laptop", revocationRequestId: REVOCATION_ID,
+      ...exactCases[2][2],
       url: "https://attacker.example/admin/learners/learner-1",
     } }],
     ["reset endpoint drift", { template: "reset-password", templateVersion: "1", variables: {
@@ -89,9 +94,39 @@ describe("revocable mail source variable contracts", () => {
       smartReminderPeriodKey: "2026-07-25", smartReminderPolicyVersion: "smart-reminders-2026-07.v1",
       url: `${APPLICATION_URL}/review`,
     } }],
+    ["mutable session device copy", { template: "session-revocation-requested", templateVersion: "1", variables: {
+      ...exactCases[2][2], device: "Chrome on laptop",
+    } }],
+    ["impossible daily period", { template: "revision-reminder", templateVersion: "1", variables: {
+      ...exactCases[5][2], smartReminderPeriodKey: "2026-02-30",
+    } }],
+    ["impossible calendar month", { template: "revision-reminder", templateVersion: "1", variables: {
+      ...exactCases[5][2], smartReminderPeriodKey: "2026-13-01",
+    } }],
+    ["impossible ISO week", { template: "weekly-summary", templateVersion: "1", variables: {
+      ...exactCases[6][2], smartReminderPeriodKey: "2026-W54",
+    } }],
+    ["non-leap February", { template: "revision-reminder", templateVersion: "1", variables: {
+      ...exactCases[5][2], smartReminderPeriodKey: "2025-02-29",
+    } }],
+    ["year without ISO week 53", { template: "weekly-summary", templateVersion: "1", variables: {
+      ...exactCases[6][2], smartReminderPeriodKey: "2025-W53",
+    } }],
   ])("fails closed for %s evidence", async (_label, input) => {
     const authority = await subject();
     expect(authority.parseRevocableSourceVariables({ applicationUrl: APPLICATION_URL, ...input })).toBeNull();
+  });
+
+  it.each([
+    ["leap day", { template: "revision-reminder", templateVersion: "1", variables: {
+      ...exactCases[5][2], smartReminderPeriodKey: "2024-02-29",
+    } }],
+    ["valid ISO week 53", { template: "weekly-summary", templateVersion: "1", variables: {
+      ...exactCases[6][2], smartReminderPeriodKey: "2026-W53",
+    } }],
+  ])("accepts the real %s period boundary", async (_label, input) => {
+    const authority = await subject();
+    expect(authority.parseRevocableSourceVariables({ applicationUrl: APPLICATION_URL, ...input })).not.toBeNull();
   });
 
   it("fails closed without coercing untrusted template values", async () => {
@@ -142,16 +177,21 @@ describe("revocable mail source variable contracts", () => {
 
 describe("revocable mail source authority SQL", () => {
   it.each([
-    [exactCases[0], ["public.verification source_verification", "source_verification.identifier = $3", "source_verification.value = mail.user_id", "source_verification.expires_at > $4", "for share of recipient_user, source_verification"]],
-    [exactCases[1], ["public.lost_device_proof source_proof", "source_proof.proof_hash = $3", "source_session.revoked_at is null", "source_session.expires_at > $4", "for share of recipient_user, source_proof, source_session"]],
-    [exactCases[2], ["public.session_revocation_request source_request", "source_request.status = 'pending'", "recipient_user.role = 'admin'", "recipient_user.banned = false", "for share of recipient_user, source_request"]],
-    [exactCases[3], ["public.inactivity_episode source_episode", "source_episode.closed_at is null", "latest_consent.decision = 'accepted'", "inactivity_paused_until", "learner_first_queued_at is not null", "for share of recipient_user, learner_user, source_episode"]],
-    [exactCases[5], ["public.smart_reminder_dispatch source_dispatch", "source_dispatch.user_id = mail.user_id", "source_dispatch.kind = $3", "source_dispatch.local_period_key = $4", "recipient_preference.learning_email_enabled = true", "recipient_preference.revision_enabled = true", "for share of recipient_user, recipient_preference, source_dispatch"]],
-  ])("builds a parameterized, lock-holding predicate for %s", async ([template, templateVersion, variables], fragments) => {
+    [exactCases[0], ["public.verification source_verification", "source_verification.identifier = $3", "source_verification.value = mail.user_id", "source_verification.expires_at > $4", "mail.variables ->> 'name' = recipient_user.name", "for share of recipient_user, source_verification"]],
+    [exactCases[1], ["public.lost_device_proof source_proof", "source_proof.proof_hash = $3", "source_session.revoked_at is null", "source_session.expires_at > $4", "mail.variables ->> 'name' = recipient_user.name", "for share of recipient_user, source_proof, source_session"]],
+    [exactCases[2], ["public.session_revocation_request source_request", "source_request.status = 'pending'", "recipient_user.role = 'admin'", "recipient_user.banned = false", "mail.variables ->> 'device' = $4", "for share of recipient_user, source_request"]],
+    [exactCases[3], ["public.inactivity_episode source_episode", "source_episode.closed_at is null", "latest_consent.decision = 'accepted'", "inactivity_paused_until", "learner_first_queued_at between source_episode.eligible_at and $3", "learner_second_queued_at between source_episode.second_eligible_at and $3", "for share of recipient_user, learner_user, source_episode"]],
+    [exactCases[5], ["public.smart_reminder_dispatch source_dispatch", "pg_catalog.pg_timezone_names source_timezone", "source_dispatch.timezone = recipient_preference.timezone", "source_dispatch.local_period_key = $4", "source_dispatch.scheduled_for <= $8", "source_dispatch.dispatched_at >= source_dispatch.scheduled_for", "recipient_preference.learning_email_enabled = true", "recipient_preference.revision_enabled = true", "for share of recipient_user, recipient_preference, source_dispatch"]],
+  ])("builds a parameterized authority query plan for %s", async ([template, templateVersion, variables], fragments) => {
     const authority = await subject();
+    const authorityEvidence = template === "lost-device-proof"
+      ? authority.createLostDeviceAuthorityEvidence({
+          sourceId: LOST_PROOF_ID, rawProof: LOST_RAW_PROOF, storedProofHash: LOST_PROOF_HASH,
+        }) ?? undefined
+      : undefined;
     const query = authority.buildRevocableSourceAuthorityQuery({
       applicationUrl: APPLICATION_URL,
-      expectedLostDeviceProofHash: template === "lost-device-proof" ? "a".repeat(64) : undefined,
+      authorityEvidence,
       now: NOW,
       outboxId: OUTBOX_ID,
       template,
@@ -167,6 +207,32 @@ describe("revocable mail source authority SQL", () => {
     expect(Object.isFrozen(query!.values)).toBe(true);
   });
 
+  it("accepts only opaque evidence computed from the exact rendered lost-device proof", async () => {
+    const authority = await subject();
+    const evidence = authority.createLostDeviceAuthorityEvidence({
+      sourceId: LOST_PROOF_ID, rawProof: LOST_RAW_PROOF, storedProofHash: LOST_PROOF_HASH,
+    });
+    expect(evidence).toMatchObject({ kind: "lost-device-proof", sourceId: LOST_PROOF_ID, proofHash: LOST_PROOF_HASH });
+    expect(Object.isFrozen(evidence)).toBe(true);
+    const oneByteMutation = `B${LOST_RAW_PROOF.slice(1)}`;
+    expect(authority.createLostDeviceAuthorityEvidence({
+      sourceId: LOST_PROOF_ID, rawProof: oneByteMutation, storedProofHash: LOST_PROOF_HASH,
+    })).toBeNull();
+    const forged = Object.freeze({
+      kind: "lost-device-proof", sourceId: LOST_PROOF_ID, proofHash: LOST_PROOF_HASH,
+    });
+    const input = {
+      applicationUrl: APPLICATION_URL, now: NOW, outboxId: OUTBOX_ID,
+      template: "lost-device-proof", templateVersion: "1", variables: exactCases[1][2],
+    } as const;
+    expect(authority.buildRevocableSourceAuthorityQuery({
+      ...input, authorityEvidence: evidence!,
+    })).not.toBeNull();
+    expect(authority.buildRevocableSourceAuthorityQuery({
+      ...input, authorityEvidence: forged as never,
+    })).toBeNull();
+  });
+
   it("binds reset authority to both stable row id and exact live bearer identifier", async () => {
     const authority = await subject();
     const query = authority.buildRevocableSourceAuthorityQuery({
@@ -176,14 +242,40 @@ describe("revocable mail source authority SQL", () => {
     expect(query?.values).toEqual([OUTBOX_ID, "verification_source_01", `reset-password:${RESET_TOKEN}`, NOW]);
   });
 
-  it("binds inactivity authority to the exact parsed template", async () => {
+  it("binds inactivity to the canonical consent and coherent non-future stage markers", async () => {
     const authority = await subject();
     const query = authority.buildRevocableSourceAuthorityQuery({
       applicationUrl: APPLICATION_URL, now: NOW, outboxId: OUTBOX_ID,
       template: "inactivity-reminder", templateVersion: "2", variables: exactCases[3][2],
     });
-    expect(normalized(query!.text)).toContain("mail.template = $7");
+    const text = normalized(query!.text);
+    expect(text).toContain("mail.template = $7");
+    expect(text).toContain("learner_first_queued_at between source_episode.eligible_at and $3");
+    expect(text).toContain("learner_second_queued_at between source_episode.second_eligible_at and $3");
     expect(query!.values.at(-1)).toBe("inactivity-reminder");
+    expect(query!.values[3]).toBe(ENROLLMENT_DISCLOSURE_VERSION);
+    const admin = authority.buildRevocableSourceAuthorityQuery({
+      applicationUrl: APPLICATION_URL, now: NOW, outboxId: OUTBOX_ID,
+      template: "inactivity-admin-notice", templateVersion: "2", variables: exactCases[4][2],
+    });
+    const adminText = normalized(admin!.text);
+    expect(adminText).toContain("admin_notice_queued_at <= $3");
+    expect(adminText).toContain("learner_first_queued_at <= source_episode.admin_notice_queued_at");
+  });
+
+  it("binds smart-reminder periods to dispatch time and the still-current timezone", async () => {
+    const authority = await subject();
+    const daily = authority.buildRevocableSourceAuthorityQuery({
+      applicationUrl: APPLICATION_URL, now: NOW, outboxId: OUTBOX_ID,
+      template: "revision-reminder", templateVersion: "1", variables: exactCases[5][2],
+    });
+    expect(daily!.values[6]).toBe("YYYY-MM-DD");
+    expect(daily!.values[7]).toBe(NOW);
+    const weekly = authority.buildRevocableSourceAuthorityQuery({
+      applicationUrl: APPLICATION_URL, now: NOW, outboxId: OUTBOX_ID,
+      template: "weekly-summary", templateVersion: "1", variables: exactCases[6][2],
+    });
+    expect(weekly!.values[6]).toBe('IYYY-"W"IW');
   });
 
   it("fails closed before querying for malformed evidence or a missing proof verifier", async () => {

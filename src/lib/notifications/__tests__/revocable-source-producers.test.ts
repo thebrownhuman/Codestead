@@ -23,6 +23,8 @@ describe("revocable source producer integration", () => {
     expect(recovery.match(/eq\(user\.banned, false\)/g)).toHaveLength(3);
     expect(recovery.match(/createLostDeviceProofSourceVariables\(/g)).toHaveLength(2);
     expect(recovery).not.toMatch(/variables:\s*\{[^}]*rawProof/);
+    expect(recovery).toContain("materializeLostDeviceProofDelivery");
+    expect(recovery).toContain("createLostDeviceAuthorityEvidence");
   });
 
   it("binds both session-revocation producers to a pending request and active unbanned admins", () => {
@@ -33,6 +35,11 @@ describe("revocable source producer integration", () => {
       expect(producer).toMatch(/requestId(?:\s*:|\s*,)/);
       expect(producer).toContain("eq(user.status, \"active\")");
       expect(producer).toContain("eq(user.banned, false)");
+      const sourceVariableCalls = producer.match(
+        /createSessionRevocationSourceVariables\(\{[\s\S]*?\}\)/g,
+      );
+      expect(sourceVariableCalls).toHaveLength(1);
+      expect(sourceVariableCalls?.[0]).not.toMatch(/\bdevice\s*[:,]/);
     }
   });
 
@@ -51,6 +58,9 @@ describe("revocable source producer integration", () => {
     );
     const authority = source("src/lib/notifications/revocable-source-authority.ts");
     expect(authority).toContain("smartReminderPolicyVersion");
+    expect(authority).toContain("import { ENROLLMENT_DISCLOSURE_VERSION }");
+    expect(authority).not.toContain("enrollment-disclosure-2026-07-12.v2");
+    expect(authority).not.toContain("expectedLostDeviceProofHash");
   });
 
   it("documents the central lock order and producer atomicity limits", () => {
@@ -62,5 +72,10 @@ describe("revocable source producer integration", () => {
     expect(runbook).toContain("notification_preference -> smart_reminder_dispatch");
     expect(runbook).toContain("Better Auth creates the verification row before invoking");
     expect(runbook).toContain("authenticated session-revocation route");
+    expect(runbook).toContain("This component is not live authority");
+    expect(runbook).toContain("central TX1/TX2 integration is still pending");
+    expect(runbook).toContain("variables-only compatibility adapter");
+    expect(runbook).toContain("dispatch-time local period");
+    expect(runbook).toContain("timezone change revokes");
   });
 });
