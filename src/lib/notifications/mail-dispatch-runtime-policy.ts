@@ -13,6 +13,7 @@ export const MAIL_DISPATCH_RUNTIME_LIMITS = Object.freeze({
   maximumPostProviderInitiationTransactionTimeoutMs: 60_000,
   maximumPostProviderInitiationIdleInTransactionSessionTimeoutMs: 60_000,
   maximumAggregateTx2PhaseMs: 15_000,
+  minimumPostProviderDatabaseFallbackLeadMs: 5_000,
   maximumWatchdogArmAckMs: 2_000,
   maximumWatchdogDisarmDeliveryMs: 2_000,
   maximumHardWatchdogMs: 55_000,
@@ -49,7 +50,7 @@ export const MAIL_DISPATCH_RUNTIME_DEFAULTS = Object.freeze({
   fatalExitMarginMs: 5_000,
   preProviderInitiationIdleInTransactionSessionTimeoutMs: 0,
   preProviderInitiationTransactionTimeoutMs: 0,
-  postProviderInitiationIdleInTransactionSessionTimeoutMs: 35_000,
+  postProviderInitiationIdleInTransactionSessionTimeoutMs: 60_000,
   postProviderInitiationTransactionTimeoutMs: 60_000,
   preProviderTx2PhaseBudgetMs: 6_000,
   postProviderTx2PhaseBudgetMs: 6_000,
@@ -185,17 +186,24 @@ export type MailDispatchRuntimePlan = Readonly<{
    * final live fence, so a database timer cannot open a pre-call revocation
    * seam. Physical fetch initiation is a direct synchronous call, never a
    * deferred Promise callback. Immediately after initiation, finite
-   * starvation fallbacks are armed before awaiting the already-live request.
-   * PostgreSQL 16 uses the post-initiation idle timeout plus finite query
-   * guards; transaction_timeout is additionally applied on PostgreSQL 17+.
+   * starvation fallbacks are armed before awaiting the already-live request,
+   * but both remain at least five seconds behind the independent watchdog.
+   * PostgreSQL 17+ is required. When the post-initiation idle and transaction
+   * values are equal, PostgreSQL 17 schedules transaction_timeout as the
+   * effective fallback; it does not simultaneously schedule the equal
+   * idle_in_transaction_session_timeout.
    *
    * A main-event-loop-independent child starts the hard watchdog timer before
    * acknowledging each per-dispatch ARM. The parent must receive ARMED within
    * the returned ARM/ACK bound before pool checkout. It kills the process and
    * closes database/provider transports if the main loop freezes before
    * post-initiation timers are armed. Failure to arm those timers after
-   * provider initiation is fatal/unknown and cannot retry. The watchdog
-   * covers both bounded control-plane deliveries, the bounded pool checkout,
+   * provider initiation is fatal/unknown and cannot retry.
+   * If the fatal terminator returns or throws, integration must enter a
+   * non-returning park with the TX2 client and locks retained and the watchdog
+   * armed, never reaching release or DISARM. Only a private non-production
+   * test sentinel may escape that park. The watchdog covers both bounded
+   * control-plane deliveries, the bounded pool checkout,
    * and TX2. The pre-provider and post-provider phase budgets are aggregate
    * runtime deadlines, not aliases for a per-query timeout; integration must
    * enforce each across all statements in its phase.
@@ -226,6 +234,9 @@ export type MailDispatchRuntimePlan = Readonly<{
       idleInTransactionSessionTimeoutMs: number;
       transactionTimeoutMs: number;
       transactionTimeoutMinimumPostgresMajor: 17;
+      minimumSupportedPostgresMajor: 17;
+      postgres17EffectiveTimeoutAtEquality: "transaction_timeout";
+      postgres17SchedulesEqualIdleTimeout: false;
     }>;
   }>;
   /**
@@ -799,23 +810,6 @@ export function planMailDispatchRuntime(
   const lockedProviderWindowMs = guardedSendDeadlineMs
     + providerAbortSettlementTimeoutMs
     + fatalExitMarginMs;
-  if (
-    !Number.isSafeInteger(lockedProviderWindowMs)
-    || lockedProviderWindowMs
-      >= postProviderInitiationIdleInTransactionSessionTimeoutMs
-  ) {
-    throw new Error(
-      "Mail locked provider window must finish before the idle-in-transaction session timeout.",
-    );
-  }
-  if (
-    postProviderInitiationIdleInTransactionSessionTimeoutMs
-    >= postProviderInitiationTransactionTimeoutMs
-  ) {
-    throw new Error(
-      "Mail idle-in-transaction session timeout must finish inside the TX2 transaction timeout.",
-    );
-  }
 
   const tx2PathMs = preProviderTx2PhaseBudgetMs
     + lockedProviderWindowMs
@@ -834,9 +828,24 @@ export function planMailDispatchRuntime(
       "Mail watchdog control path must finish before the hard watchdog.",
     );
   }
-  if (hardWatchdogMs >= postProviderInitiationTransactionTimeoutMs) {
+  const minimumDatabaseFallbackMs = hardWatchdogMs
+    + MAIL_DISPATCH_RUNTIME_LIMITS
+      .minimumPostProviderDatabaseFallbackLeadMs;
+  if (
+    !Number.isSafeInteger(minimumDatabaseFallbackMs)
+    || postProviderInitiationIdleInTransactionSessionTimeoutMs
+      < minimumDatabaseFallbackMs
+  ) {
     throw new Error(
-      "Mail hard watchdog must fire before the post-provider transaction timeout.",
+      "Mail post-provider idle-in-transaction session timeout must remain at least 5000ms after the hard watchdog.",
+    );
+  }
+  if (
+    postProviderInitiationTransactionTimeoutMs
+    < minimumDatabaseFallbackMs
+  ) {
+    throw new Error(
+      "Mail post-provider transaction timeout must remain at least 5000ms after the hard watchdog.",
     );
   }
 
@@ -984,6 +993,9 @@ export function planMailDispatchRuntime(
       postProviderInitiationIdleInTransactionSessionTimeoutMs,
     transactionTimeoutMs: postProviderInitiationTransactionTimeoutMs,
     transactionTimeoutMinimumPostgresMajor: 17 as const,
+    minimumSupportedPostgresMajor: 17 as const,
+    postgres17EffectiveTimeoutAtEquality: "transaction_timeout" as const,
+    postgres17SchedulesEqualIdleTimeout: false as const,
   });
   const liveProviderTx2DatabaseTimeouts = Object.freeze({
     preProviderInitiation,
