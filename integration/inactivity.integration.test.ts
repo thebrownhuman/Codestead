@@ -1,6 +1,11 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { pool } from "@/lib/db/client";
+import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
 import {
   FIRST_REMINDER_AFTER_MS,
@@ -13,6 +18,10 @@ import {
 } from "@/lib/notifications/revocable-source-authority";
 import { setInactivityPause } from "@/lib/notifications/preferences";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
+import {
+  lockUserAuthorityOnPgClient,
+  userAuthorityLockKey,
+} from "@/lib/security/user-authority-lock";
 
 const ADMIN = "inactivity-admin";
 const LEARNER = "inactivity-learner";
@@ -23,6 +32,15 @@ const BLOCKED_LEARNER = "inactivity-z-blocked-learner";
 const BLOCKED_LEARNER_PUBLIC = "b1000000-0000-4000-8000-000000000003";
 const BLOCKED_LEARNER_EMAIL = "blocked-learner-inactivity@integration.invalid";
 const NOW = new Date("2026-07-12T12:00:00.000Z");
+const ZERO_ERASURE_SUMMARY = {
+  total: 0,
+  removed: 0,
+  alreadyAbsent: 0,
+  failed: 0,
+  pending: 0,
+  complete: true,
+} as const;
+const previousDeletionKey = process.env.DELETION_TOMBSTONE_KEY;
 
 function assertDisposableDatabase() {
   const connectionString = process.env.DATABASE_URL ?? "";
@@ -132,10 +150,329 @@ async function waitForCommittedOutbox(userId: string, timeoutMs = 5_000) {
   throw new Error(`Timed out waiting for a committed reminder for ${userId}.`);
 }
 
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+async function within<T>(
+  promise: Promise<T>,
+  label: string,
+  timeoutMs = 5_000,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} did not complete within ${timeoutMs}ms.`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+class QueryPause {
+  private readonly reachedSignal = deferred();
+  private readonly releaseSignal = deferred();
+  private entered = false;
+  pid: number | null = null;
+
+  readonly reached = this.reachedSignal.promise;
+
+  async hold(pid: number) {
+    if (this.entered) return;
+    this.entered = true;
+    this.pid = pid;
+    this.reachedSignal.resolve();
+    await this.releaseSignal.promise;
+  }
+
+  release() {
+    this.releaseSignal.resolve();
+  }
+}
+
+function schedulerPoolPausedAfterAuthority(userId: string, pause: QueryPause) {
+  return {
+    connect: async () => {
+      const client = await pool.connect();
+      const pid = Number((await client.query<{ pid: number }>(
+        "select pg_backend_pid()::int pid",
+      )).rows[0]?.pid);
+      return {
+        query: async (statement: string, values: unknown[] = []) => {
+          const result = await client.query(statement, values);
+          if (
+            statement.includes("pg_advisory_xact_lock")
+            && values[0] === userAuthorityLockKey(userId)
+          ) {
+            await pause.hold(pid);
+          }
+          return result;
+        },
+        release: () => client.release(),
+      };
+    },
+  };
+}
+
+async function waitForAdvisoryWaiter(blockerPid: number) {
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    const waiting = await pool.query<{ waiting: number }>(`
+      select count(*)::int waiting
+        from pg_locks held join pg_locks waiter
+          on waiter.locktype = held.locktype
+         and waiter.database is not distinct from held.database
+         and waiter.classid is not distinct from held.classid
+         and waiter.objid is not distinct from held.objid
+         and waiter.objsubid is not distinct from held.objsubid
+       where held.pid = $1 and held.locktype = 'advisory' and held.granted
+         and waiter.pid <> held.pid and not waiter.granted
+    `, [blockerPid]);
+    if ((waiting.rows[0]?.waiting ?? 0) >= 1) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Expected an advisory waiter behind PID ${blockerPid}.`);
+}
+
+type AdminNotice = {
+  id: string;
+  user_id: string;
+  template: string;
+  template_version: string;
+  variables: Record<string, string>;
+  idempotency_key: string;
+};
+
+async function requireAdminNotice() {
+  const result = await pool.query<AdminNotice>(
+    `select id::text, user_id, template, template_version, variables,
+            idempotency_key
+       from email_outbox
+      where template = 'inactivity-admin-notice'`,
+  );
+  expect(result.rows).toHaveLength(1);
+  return result.rows[0]!;
+}
+
+// Test-only mirror of the guarded dispatch invariant: recipient account A,
+// exact outbox O, then recipient/source U rows while the callback runs. This
+// proves producer compatibility without binding the test to a moving worker
+// orchestration API; that production API has its own callback-zero gate.
+async function guardedAdminNoticeCallback(
+  outboxId: string,
+  callback: () => Promise<void> | void,
+  pauseAfterOutboxLock?: QueryPause,
+) {
+  const hint = (await pool.query<{ user_id: string }>(
+    `select user_id from email_outbox where id = $1::uuid`,
+    [outboxId],
+  )).rows[0];
+  if (!hint) return false;
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const pid = Number((await client.query<{ pid: number }>(
+      "select pg_backend_pid()::int pid",
+    )).rows[0]?.pid);
+    await lockUserAuthorityOnPgClient(client, hint.user_id);
+    const exact = (await client.query<AdminNotice>(
+      `select id::text, user_id, template, template_version, variables,
+              idempotency_key
+         from email_outbox
+        where id = $1::uuid and user_id = $2
+        for update`,
+      [outboxId, hint.user_id],
+    )).rows[0];
+    if (!exact) {
+      await client.query("commit");
+      return false;
+    }
+    await pauseAfterOutboxLock?.hold(pid);
+    const authority = buildRevocableSourceAuthorityQuery({
+      applicationUrl: "http://localhost:3000",
+      now: NOW,
+      outboxId: exact.id,
+      template: exact.template,
+      templateVersion: exact.template_version,
+      variables: exact.variables,
+    });
+    if (!authority) {
+      await client.query("commit");
+      return false;
+    }
+    const authorized = await client.query(authority.text, [...authority.values]);
+    if (authorized.rowCount !== 1) {
+      await client.query("commit");
+      return false;
+    }
+    await callback();
+    await client.query("commit");
+    return true;
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function deleteSeededLearner(requestId: string) {
+  const objectStorageRoot = await mkdtemp(
+    path.join(tmpdir(), "inactivity-authority-deletion-"),
+  );
+  try {
+    return await deleteLearnerAccount({
+      actorUserId: ADMIN,
+      learnerId: LEARNER,
+      requestId,
+      reason: "Delete the synthetic learner during the inactivity authority race.",
+      now: NOW,
+      objectStorageRoot,
+    }, {
+      processFileErasures: async () => ZERO_ERASURE_SUMMARY,
+    });
+  } finally {
+    await rm(objectStorageRoot, { recursive: true, force: true });
+  }
+}
+
+beforeAll(() => {
+  process.env.DELETION_TOMBSTONE_KEY =
+    "inactivity-authority-race-key-long-enough-for-integration";
+});
 beforeEach(truncateApplicationTables);
-afterAll(() => pool.end());
+afterAll(async () => {
+  if (previousDeletionKey === undefined) {
+    delete process.env.DELETION_TOMBSTONE_KEY;
+  } else {
+    process.env.DELETION_TOMBSTONE_KEY = previousDeletionKey;
+  }
+  await pool.end();
+});
 
 describe("real PostgreSQL inactivity episodes", () => {
+  it("serializes a replaying producer before TX2 on the same admin-notice outbox row", async () => {
+    await seedLearner({
+      lastActivityAt: new Date(NOW.getTime() - FIRST_REMINDER_AFTER_MS),
+    });
+    await scheduleInactivityReminders(NOW);
+    const notice = await requireAdminNotice();
+    const pause = new QueryPause();
+    const replayingProducer = scheduleInactivityReminders(
+      NOW,
+      schedulerPoolPausedAfterAuthority(LEARNER, pause) as never,
+    );
+    await within(pause.reached, "producer account authorities");
+
+    let callbacks = 0;
+    const dispatch = guardedAdminNoticeCallback(notice.id, () => {
+      callbacks += 1;
+    });
+    await waitForAdvisoryWaiter(pause.pid!);
+    pause.release();
+
+    const [replay, dispatched] = await Promise.all([
+      within(replayingProducer, "producer-first replay"),
+      within(dispatch, "producer-first TX2"),
+    ]);
+    expect(replay).toMatchObject({ adminNotices: 0 });
+    expect(dispatched).toBe(true);
+    expect(callbacks).toBe(1);
+    expect((await pool.query(
+      "select 1 from email_outbox where idempotency_key = $1",
+      [notice.idempotency_key],
+    )).rowCount).toBe(1);
+  });
+
+  it("serializes TX2 before a replaying producer on the same admin-notice outbox row", async () => {
+    await seedLearner({
+      lastActivityAt: new Date(NOW.getTime() - FIRST_REMINDER_AFTER_MS),
+    });
+    await scheduleInactivityReminders(NOW);
+    const notice = await requireAdminNotice();
+    const pause = new QueryPause();
+    let callbacks = 0;
+    const dispatch = guardedAdminNoticeCallback(notice.id, () => {
+      callbacks += 1;
+    }, pause);
+    await within(pause.reached, "TX2 account and outbox locks");
+
+    const replayingProducer = scheduleInactivityReminders(NOW);
+    await waitForAdvisoryWaiter(pause.pid!);
+    pause.release();
+
+    const [dispatched, replay] = await Promise.all([
+      within(dispatch, "TX2-first dispatch"),
+      within(replayingProducer, "TX2-first replay"),
+    ]);
+    expect(dispatched).toBe(true);
+    expect(callbacks).toBe(1);
+    expect(replay).toMatchObject({ adminNotices: 0 });
+    expect((await pool.query(
+      "select 1 from email_outbox where idempotency_key = $1",
+      [notice.idempotency_key],
+    )).rowCount).toBe(1);
+  });
+
+  it("lets producer authority commit before deletion, then denies the surviving admin notice at TX2", async () => {
+    await seedLearner({
+      lastActivityAt: new Date(NOW.getTime() - FIRST_REMINDER_AFTER_MS),
+    });
+    const pause = new QueryPause();
+    const producing = scheduleInactivityReminders(
+      NOW,
+      schedulerPoolPausedAfterAuthority(LEARNER, pause) as never,
+    );
+    await within(pause.reached, "producer learner authority");
+    const deleting = deleteSeededLearner(
+      "b2000000-0000-4000-8000-000000000001",
+    );
+    await waitForAdvisoryWaiter(pause.pid!);
+    pause.release();
+
+    const [produced, deletion] = await Promise.all([
+      within(producing, "producer-before-deletion"),
+      within(deleting, "deletion after producer"),
+    ]);
+    expect(produced).toMatchObject({ learnerFirst: 1, adminNotices: 1 });
+    expect(deletion.primaryStoreDeletionComplete).toBe(true);
+    const notice = await requireAdminNotice();
+    let callbacks = 0;
+    await expect(guardedAdminNoticeCallback(notice.id, () => {
+      callbacks += 1;
+    })).resolves.toBe(false);
+    expect(callbacks).toBe(0);
+  });
+
+  it("lets deletion commit before the producer hint scan and queues no inactivity authority", async () => {
+    await seedLearner({
+      lastActivityAt: new Date(NOW.getTime() - FIRST_REMINDER_AFTER_MS),
+    });
+    const deletion = await deleteSeededLearner(
+      "b2000000-0000-4000-8000-000000000002",
+    );
+    expect(deletion.primaryStoreDeletionComplete).toBe(true);
+
+    await expect(scheduleInactivityReminders(NOW)).resolves.toMatchObject({
+      learnerFirst: 0,
+      adminNotices: 0,
+    });
+    expect((await pool.query(
+      "select 1 from email_outbox where template = 'inactivity-admin-notice'",
+    )).rowCount).toBe(0);
+  });
+
   it("enforces exact 24h/72h boundaries, one admin notice, and no duplicates under concurrent workers", async () => {
     const lastActivityAt = new Date(NOW.getTime() - FIRST_REMINDER_AFTER_MS);
     await seedLearner({ lastActivityAt });
