@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  FatalProviderTransportError,
   processOutboxBatch,
   type MaterializeResult,
   type OutboxClaim,
-  type OutboxStore,
   type PreProviderExit,
+  type PostProviderExit,
   type ProviderCallPermit,
   type ProviderStartedClaim,
   type ProviderSendResult,
@@ -39,10 +40,18 @@ const started: ProviderStartedClaim = {
   leaseExpiresAt: new Date("2026-07-22T18:01:05.000Z"),
 };
 const permit = started as ProviderCallPermit;
+const prepared = Object.freeze({
+  adapter: "gmail" as const,
+  bindingVersion: "gmail-raw-v1" as const,
+  bindingSha256: "a".repeat(64),
+  authorityBindingVersion: "prepared-authority-v1" as const,
+  authorityBindingSha256: "b".repeat(64),
+  requestBody: "{\"raw\":\"immutable\"}",
+});
 
 function harness() {
   const events: string[] = [];
-  const store: OutboxStore<Payload> = {
+  const store = {
     quarantineAbandoned: vi.fn(async () => {
       events.push("sweep");
       return 0;
@@ -53,8 +62,12 @@ function harness() {
         return claim;
       })
       .mockImplementationOnce(async () => null),
-    beginProviderCall: vi.fn(async () => {
+    beginProviderCall: vi.fn(async (
+      _claim: typeof claim,
+      input: { prepared: typeof prepared },
+    ) => {
       events.push("boundary");
+      expect(input.prepared).toBe(prepared);
       return { kind: "applied" as const, permit };
     }),
     finishBeforeProvider: vi.fn(async () => {
@@ -65,16 +78,51 @@ function harness() {
       events.push(`finish-after:${exit.kind}`);
       return { kind: "applied" as const };
     }),
+    dispatchAfterProviderBoundary: vi.fn(async (
+      _permit: ProviderCallPermit,
+      input: {
+        prepared: typeof prepared;
+        invoke(signal: AbortSignal): Promise<
+          { kind: "sent"; providerMessageId: string }
+          | { kind: "failed"; code: string }
+          | { kind: "quarantined"; code: string }
+        >;
+      },
+    ) => {
+      events.push("guard");
+      const exit = await input.invoke(new AbortController().signal);
+      events.push(`finish-after:${exit.kind}`);
+      return { kind: "applied" as const, exit };
+    }),
   };
   const materialize = vi.fn(async (): Promise<
-    MaterializeResult<{ readonly to: string }>
+    MaterializeResult<typeof prepared>
   > => {
     events.push("materialize");
-    return { kind: "ready" as const, message: { to: "learner@example.test" } };
+    return { kind: "ready" as const, message: prepared };
   });
   const send = vi.fn(async (): Promise<ProviderSendResult> => {
     events.push("send");
     return { kind: "accepted" as const, providerMessageId: "gmail-1" };
+  });
+  const authorize = vi.fn(async () => {
+    events.push("authorize");
+    return Object.freeze({ accessToken: "never-log-this" });
+  });
+  let latched = false;
+  const failStop = {
+    isLatched: vi.fn(() => latched),
+    latch: vi.fn(() => {
+      latched = true;
+      events.push("fail-stop");
+    }),
+    hardExit: vi.fn((error: FatalProviderTransportError): never => {
+      events.push("hard-exit");
+      throw error;
+    }),
+  };
+  const terminate = vi.fn(async () => {
+    events.push("terminate-transport");
   });
   const onEvent = vi.fn();
 
@@ -82,8 +130,10 @@ function harness() {
     events,
     store,
     materialize,
-    provider: { adapter: "gmail", send },
+    provider: { adapter: "gmail", authorize, dispatch: send, terminate },
     send,
+    terminate,
+    failStop,
     onEvent,
   };
 }
@@ -119,11 +169,153 @@ function run(
         terminalPersistenceAttempts: 2,
       },
       onEvent: input.onEvent,
+      failStop: input.failStop,
     }),
   };
 }
 
 describe("fenced outbox worker", () => {
+  it.each([
+    "store guard",
+    "provider authorization",
+    "provider dispatch",
+  ] as const)("fails closed before all DB work without required %s", async (missing) => {
+    const input = harness();
+    if (missing === "store guard") {
+      Reflect.deleteProperty(input.store, "dispatchAfterProviderBoundary");
+    } else if (missing === "provider authorization") {
+      Reflect.deleteProperty(input.provider, "authorize");
+    } else {
+      Reflect.deleteProperty(input.provider, "dispatch");
+    }
+
+    const { result } = run(input);
+
+    await expect(result).rejects.toThrow(
+      "Mail worker guarded dispatch dependencies are required.",
+    );
+    expect(input.store.quarantineAbandoned).not.toHaveBeenCalled();
+    expect(input.store.claimNext).not.toHaveBeenCalled();
+    expect(input.send).not.toHaveBeenCalled();
+  });
+
+  it("authorizes after TX1 and invokes exactly one send inside the retained TX2 guard", async () => {
+    const events: string[] = [];
+    const prepared = Object.freeze({
+      adapter: "gmail" as const,
+      bindingVersion: "gmail-raw-v1" as const,
+      bindingSha256: "a".repeat(64),
+      authorityBindingVersion: "prepared-authority-v1" as const,
+      authorityBindingSha256: "b".repeat(64),
+      requestBody: "{\"raw\":\"immutable\"}",
+    });
+    const authorization = Object.freeze({ accessToken: "never-log-this" });
+    const dispatch = vi.fn(async (
+      _message: typeof prepared,
+      receivedAuthorization: typeof authorization,
+      context: { signal: AbortSignal },
+    ): Promise<ProviderSendResult> => {
+      events.push("provider-send");
+      expect(receivedAuthorization).toBe(authorization);
+      expect(context.signal).toBeInstanceOf(AbortSignal);
+      return { kind: "accepted", providerMessageId: "gmail-guarded-1" };
+    });
+    const finishAfterProvider = vi.fn(async () => ({
+      kind: "applied" as const,
+    }));
+    const store = {
+      quarantineAbandoned: vi.fn(async () => {
+        events.push("sweep");
+        return 0;
+      }),
+      claimNext: vi.fn()
+        .mockImplementationOnce(async () => {
+          events.push("claim");
+          return claim;
+        })
+        .mockResolvedValueOnce(null),
+      beginProviderCall: vi.fn(async (
+        _claim: typeof claim,
+        input: { prepared: typeof prepared },
+      ) => {
+        events.push("tx1-commit");
+        expect(input.prepared).toBe(prepared);
+        return { kind: "applied" as const, permit };
+      }),
+      finishBeforeProvider: vi.fn(),
+      finishAfterProvider,
+      dispatchAfterProviderBoundary: vi.fn(async (
+        _permit: ProviderCallPermit,
+        input: {
+          prepared: typeof prepared;
+          invoke(signal: AbortSignal): Promise<PostProviderExit>;
+        },
+      ) => {
+        events.push("tx2-begin");
+        expect(input.prepared).toBe(prepared);
+        const exit = await input.invoke(new AbortController().signal);
+        events.push(`tx2-terminal:${exit.kind}`);
+        return { kind: "applied" as const, exit };
+      }),
+    };
+    const provider = {
+      adapter: "gmail",
+      authorize: vi.fn(async () => {
+        events.push("oauth");
+        return authorization;
+      }),
+      dispatch,
+      terminate: vi.fn(async () => undefined),
+    };
+
+    const result = processOutboxBatch({
+      store,
+      materialize: vi.fn(async () => {
+        events.push("prepare");
+        return { kind: "ready" as const, message: prepared };
+      }),
+      provider,
+      claimOwner: "worker-1",
+      newClaimToken: () => "claim-generated",
+      shouldStop: () => false,
+      clock: { now: () => new Date("2026-07-22T18:00:00.000Z") },
+      retryPolicy: {
+        unexpectedMaterializeError: vi.fn(),
+      },
+      policy: {
+        batchSize: 2,
+        materializeLeaseMs: 30_000,
+        providerLeaseMs: 60_000,
+        maxMaterializeAttempts: 8,
+        maxRetryDelayMs: 6 * 60 * 60_000,
+        terminalPersistenceAttempts: 2,
+      },
+      failStop: {
+        isLatched: () => false,
+        latch: vi.fn(),
+        hardExit(error: FatalProviderTransportError): never {
+          throw error;
+        },
+      },
+    });
+
+    await expect(result).resolves.toMatchObject({
+      outcomes: [{ kind: "sent" }],
+    });
+    expect(events).toEqual([
+      "sweep",
+      "claim",
+      "prepare",
+      "tx1-commit",
+      "oauth",
+      "tx2-begin",
+      "provider-send",
+      "tx2-terminal:sent",
+    ]);
+    expect(dispatch).toHaveBeenCalledOnce();
+    expect(finishAfterProvider).not.toHaveBeenCalled();
+  });
+
   it("commits the provider boundary before one send and fenced sent persistence", async () => {
     const { input, result } = run();
 
@@ -141,14 +333,14 @@ describe("fenced outbox worker", () => {
       "claim",
       "materialize",
       "boundary",
+      "authorize",
+      "guard",
       "send",
       "finish-after:sent",
     ]);
     expect(input.send).toHaveBeenCalledTimes(1);
-    expect(input.store.finishAfterProvider).toHaveBeenCalledWith(
-      permit,
-      { kind: "sent", providerMessageId: "gmail-1" },
-    );
+    expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
+    expect(input.store.dispatchAfterProviderBoundary).toHaveBeenCalledOnce();
   });
 
   it("derives a deterministic RFC Message-ID only after the provider permit", async () => {
@@ -161,12 +353,14 @@ describe("fenced outbox worker", () => {
       input.events.indexOf("send"),
     );
     expect(input.send).toHaveBeenCalledWith(
-      { to: "learner@example.test" },
+      prepared,
+      expect.objectContaining({ accessToken: "never-log-this" }),
       {
         operationId: OPERATION_ID,
         permit,
         messageId:
           "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+        signal: expect.any(AbortSignal),
       },
     );
   });
@@ -224,7 +418,7 @@ describe("fenced outbox worker", () => {
       }],
     });
     expect(input.send).toHaveBeenCalledTimes(1);
-    expect(input.store.finishAfterProvider).toHaveBeenCalledTimes(1);
+    expect(input.store.dispatchAfterProviderBoundary).toHaveBeenCalledTimes(1);
     expect(input.store.claimNext).toHaveBeenCalledTimes(1);
   });
 
@@ -285,19 +479,15 @@ describe("fenced outbox worker", () => {
       outcomes: [{ kind: "quarantined", code: "PROVIDER_OUTCOME_AMBIGUOUS" }],
     });
     expect(input.send).toHaveBeenCalledTimes(1);
-    expect(input.store.finishAfterProvider).toHaveBeenCalledWith(
-      permit,
-      { kind: "quarantined", code: "PROVIDER_OUTCOME_AMBIGUOUS" },
-    );
+    expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
   });
 
 
-  it("fails stop without terminal persistence when the transport remains live after abort", async () => {
+  it("latches fail-stop, terminates transport, and rejects every later claim after an unsettled abort", async () => {
     const input = harness();
-    input.send.mockResolvedValueOnce({
-      kind: "fatal",
-      code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
-    });
+    input.send.mockRejectedValueOnce(new FatalProviderTransportError(
+      "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+    ));
     const { result } = run(input);
 
     await expect(result).rejects.toThrow(
@@ -305,6 +495,18 @@ describe("fenced outbox worker", () => {
     );
     expect(input.send).toHaveBeenCalledOnce();
     expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
+    expect(input.store.claimNext).toHaveBeenCalledOnce();
+    expect(input.failStop.latch).toHaveBeenCalledOnce();
+    expect(input.terminate).toHaveBeenCalledOnce();
+    expect(input.events.slice(-3)).toEqual([
+      "fail-stop",
+      "terminate-transport",
+      "hard-exit",
+    ]);
+
+    const later = run(input).result;
+    await expect(later).resolves.toEqual({ claimed: 0, swept: 0, outcomes: [] });
+    expect(input.store.quarantineAbandoned).toHaveBeenCalledOnce();
     expect(input.store.claimNext).toHaveBeenCalledOnce();
   });
   it("defensively quarantines an accepted response with a blank provider ID", async () => {
@@ -319,14 +521,23 @@ describe("fenced outbox worker", () => {
       outcomes: [{ kind: "quarantined", code: "PROVIDER_MESSAGE_ID_MISSING" }],
     });
     expect(input.send).toHaveBeenCalledTimes(1);
-    expect(input.store.finishAfterProvider).toHaveBeenCalledWith(
-      permit,
-      { kind: "quarantined", code: "PROVIDER_MESSAGE_ID_MISSING" },
-    );
+    expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
   });
 
-  it("retries only terminal persistence without a second provider call", async () => {
+  it("retries only captured terminal persistence after an unknown TX2 commit", async () => {
     const input = harness();
+    vi.mocked(input.store.dispatchAfterProviderBoundary).mockImplementationOnce(
+      async (_permit, guarded) => {
+        const exit = await guarded.invoke(new AbortController().signal);
+        throw Object.assign(
+          new Error("TX2 commit acknowledgement lost"),
+          {
+            name: "GuardedDispatchCommitUnknownError",
+            exit,
+          },
+        );
+      },
+    );
     vi.mocked(input.store.finishAfterProvider).mockRejectedValueOnce(
       new Error("database unavailable"),
     );
@@ -337,8 +548,20 @@ describe("fenced outbox worker", () => {
     expect(input.store.finishAfterProvider).toHaveBeenCalledTimes(2);
   });
 
-  it("reports persistence uncertainty when every terminal write fails", async () => {
+  it("never resends when TX2 commit and every DB-only finalizer are uncertain", async () => {
     const input = harness();
+    vi.mocked(input.store.dispatchAfterProviderBoundary).mockImplementationOnce(
+      async (_permit, guarded) => {
+        const exit = await guarded.invoke(new AbortController().signal);
+        throw Object.assign(
+          new Error("TX2 commit acknowledgement lost"),
+          {
+            name: "GuardedDispatchCommitUnknownError",
+            exit,
+          },
+        );
+      },
+    );
     vi.mocked(input.store.finishAfterProvider).mockRejectedValue(
       new Error("database unavailable"),
     );
