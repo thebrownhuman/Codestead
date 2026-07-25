@@ -2,7 +2,7 @@
 
 **Implementation snapshot:** 2026-07-14\
 **Database baseline:** migrations `0047_odd_drax.sql` and forward correction `0050_public_portfolio_selection_guard_fix.sql`\
-**Retention policy:** `2026-07-14.v4`\
+**Retention policy:** `2026-07-25.v5`\
 **Learner export schema:** `14`
 
 ## Product boundary
