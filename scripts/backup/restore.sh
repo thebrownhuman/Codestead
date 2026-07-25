@@ -77,6 +77,16 @@ verification_result="$(BACKUP_CONFIG_FILE="${BACKUP_CONFIG_FILE:-/etc/learncodin
 
 if [[ -n "$restore_db" ]]; then
   [[ -f "$destination/database.dump" ]] || die "database dump is missing"
+  database_version_num="$(
+    compose_cmd exec -T postgres sh -ceu \
+      'exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname=postgres --no-psqlrc --quiet --no-align --tuples-only --set ON_ERROR_STOP=1 --command "$1"' \
+      _ \
+      "select pg_catalog.current_setting('server_version_num') /* codestead-restore-pg-major-v1 */;"
+  )" || die "unable to query the live PostgreSQL server version"
+  database_version_num="${database_version_num//$'\r'/}"
+  production_postgres_version_num_is_reviewed "$database_version_num" \
+    || die "restore requires the live PostgreSQL server major to be exactly 17"
+
   exists="$(compose_cmd exec -T postgres sh -ceu \
     'psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname=postgres -tAc "$1"' _ \
     "SELECT 1 FROM pg_database WHERE datname = '$restore_db'")"

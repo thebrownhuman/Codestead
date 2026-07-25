@@ -50,6 +50,7 @@ export interface ProductionMigrationOptions {
     client: MigrationClient,
     options: { requireComplete: boolean },
   ) => Promise<AppliedMigrationLedgerSummary>;
+  requiredPostgresMajor?: 17;
   lockOptions?: MigrationLockOptions;
   cleanupTimeoutMs?: number;
   unlockTimeoutMs?: number;

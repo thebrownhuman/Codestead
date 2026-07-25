@@ -352,6 +352,17 @@ fi
 
 compose_started=1
 restore_compose up -d --wait postgres >/dev/null
+restore_database_version_num="$(
+  restore_compose exec -T postgres /bin/sh -ceu '
+    export PGPASSWORD="$(cat /run/secrets/postgres_password)"
+    exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --no-align --tuples-only --set ON_ERROR_STOP=1 --command "$1"
+  ' _ \
+    "select pg_catalog.current_setting('server_version_num') /* codestead-restore-drill-pg-major-v1 */;"
+)" || die "unable to query the isolated restore PostgreSQL server version"
+restore_database_version_num="${restore_database_version_num//$'\r'/}"
+production_postgres_version_num_is_reviewed "$restore_database_version_num" \
+  || die "isolated restore requires the live PostgreSQL server major to be exactly 17"
+
 restore_one_shot database-role-bootstrap
 # Authenticated negative probes must pass before restored bytes are accepted.
 restore_one_shot database-boundary-preflight

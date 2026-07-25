@@ -207,6 +207,7 @@ services:
       target: tooling
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
+      REQUIRE_POSTGRES_MAJOR: "17"
     secrets:
       - source: database_migrator_url
         target: database_url

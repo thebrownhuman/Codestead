@@ -12,6 +12,7 @@ export const postgresCiRuntimePolicy = Object.freeze({
   runner: "ubuntu-24.04",
   baselineTimeoutMinutes: 20,
   maximumTimeoutMinutes: 35,
+  livePg17IntegrationCommand: "npm run test:integration",
   installCommand:
     "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
   dockerPg17Image:
@@ -244,6 +245,7 @@ export function projectPostgresCiProjectionContract(
   assertCanonicalContract(contract);
   const {
     runner,
+    livePg17IntegrationCommand,
     dockerPg17Image,
     dockerPg17IntegrationCommand,
     installCommand,
@@ -261,6 +263,8 @@ export function projectPostgresCiProjectionContract(
         (script) => `      - run: npm run ${script}`,
       ),
     ),
+    livePg17IntegrationLine:
+      `      - run: ${livePg17IntegrationCommand}`,
     dockerPg17PullLine: `      - run: docker pull ${dockerPg17Image}`,
     dockerPg17IntegrationLine: `      - run: ${dockerPg17IntegrationCommand}`,
     installLine: `          ${installCommand}`,
@@ -307,6 +311,15 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
 ) {
   const { productionMajor, targetedMajor } = postgresCiRuntimePolicy;
   const expected = projectPostgresCiProjectionContract(contract);
+  const livePg17IntegrationLines =
+    postgresProjection.match(
+      /^      - run: npm run test:integration$/gmu,
+    ) ?? [];
+  assert.deepEqual(
+    livePg17IntegrationLines,
+    [expected.livePg17IntegrationLine],
+    "the live PostgreSQL 17 integration gate must appear exactly once",
+  );
   const dockerPostgresPullLines =
     postgresProjection.match(/^      - run: docker pull postgres:\S+$/gmu) ??
     [];
@@ -326,7 +339,7 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
   );
   assert.doesNotMatch(
     postgresProjection,
-    /(?:postgresql-16|POSTGRES_16_BIN|\/postgresql\/16\/bin)/u,
+    /(?:postgresql-16|POSTGRES_16_BIN|\/postgresql\/16\/bin|\bpostgres:16(?!\d))/iu,
     "PostgreSQL 16 must not appear in the canonical CI matrix",
   );
 
@@ -339,6 +352,9 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
     [expected.installLine],
     "the canonical install must contain exactly PostgreSQL 17 and PostgreSQL 18 once",
   );
+  const liveIntegrationIndex = postgresProjection.indexOf(
+    expected.livePg17IntegrationLine,
+  );
   const dockerPullIndex = postgresProjection.indexOf(
     expected.dockerPg17PullLine,
   );
@@ -346,6 +362,10 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
     expected.dockerPg17IntegrationLine,
   );
   const installIndex = postgresProjection.indexOf(expected.installLine);
+  assert.ok(
+    liveIntegrationIndex >= 0 && dockerPullIndex > liveIntegrationIndex,
+    "the live PostgreSQL 17 integration gate must precede the pinned Docker PostgreSQL 17 pull",
+  );
   assert.ok(
     dockerPullIndex >= 0 && dockerIntegrationIndex > dockerPullIndex,
     "the Docker PostgreSQL 17 pull must precede its integration gate",

@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => {
   const select = vi.fn(() => ({ from: selectFrom }));
 
   const poolEnd = vi.fn(async () => undefined);
-  const pool = { connect: vi.fn(), end: poolEnd };
+  const poolQuery = vi.fn();
+  const pool = { connect: vi.fn(), end: poolEnd, query: poolQuery };
   const store = { kind: "postgres-outbox-store" };
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
@@ -41,6 +42,7 @@ const mocks = vi.hoisted(() => {
     db: { update, select },
     pool,
     poolEnd,
+    poolQuery,
     store,
     PostgresOutboxStore,
     processOutboxBatch,
@@ -138,6 +140,9 @@ describe("mail worker production composition", () => {
       swept: 0,
       outcomes: [],
     } satisfies BatchResult);
+    mocks.poolQuery.mockResolvedValue({
+      rows: [{ server_version_num: "170000" }],
+    });
     mocks.materializeDeliveryVariables.mockResolvedValue({});
     mocks.sendEmail.mockResolvedValue({ providerId: "console-provider-1" });
     mocks.scheduleInactivityReminders.mockResolvedValue({ scheduled: 0 });
@@ -177,10 +182,39 @@ describe("mail worker production composition", () => {
     },
   );
 
+  it("fails closed before constructing the store on PostgreSQL 16", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({
+      rows: [{ server_version_num: "160011" }],
+    });
+
+    await loadWorkerOnce();
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.poolQuery).toHaveBeenCalledTimes(1);
+    expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
+    expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
+    expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
+    expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
+    expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledWith(
+      JSON.stringify({
+        event: "email.worker_failed",
+        code: "POSTGRES_RUNTIME_UNSUPPORTED",
+      }),
+    );
+  });
+
   it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
     await loadWorkerOnce();
 
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
+      "select pg_catalog.current_setting('server_version_num') as server_version_num",
+    );
     expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
+    expect(mocks.poolQuery.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.PostgresOutboxStore.mock.invocationCallOrder[0]!,
+    );
     expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
     const dependencies = mocks.processOutboxBatch.mock.calls[0]![0] as {
       store: unknown;

@@ -625,6 +625,18 @@ for (const name of Object.keys(operationCommands)) {
   expect(orderedSame(config.services?.[name]?.command ?? [], operationCommands[name]), `${name} command drifted`);
 }
 expect(config.services?.migrate?.restart === "no", "migrate must remain a one-shot service");
+expect(
+  same(keys(config.services?.migrate?.environment), [
+    "DATABASE_URL_FILE",
+    "REQUIRE_POSTGRES_MAJOR",
+  ]),
+  "migrate environment allowlist drifted",
+);
+expect(
+  config.services?.migrate?.environment?.DATABASE_URL_FILE === "/run/secrets/database_url"
+    && config.services?.migrate?.environment?.REQUIRE_POSTGRES_MAJOR === "17",
+  "migrate must require exact production PostgreSQL major 17",
+);
 const databaseBoundaryEnvironments = {
   "database-role-bootstrap": {
     DATABASE_APP_URL_FILE: "/run/secrets/database_app_url",
