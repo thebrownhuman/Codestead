@@ -95,6 +95,9 @@ test("composes the mail worker outbox role without payload mutation authority", 
     "updated_at",
     "dispatch_binding_version",
     "dispatch_binding_sha256",
+    "provider_correlation_version",
+    "provider_evidence_version",
+    "provider_evidence_sha256",
   ]);
 
   const payloadColumns = new Set([
@@ -587,6 +590,8 @@ function makeClient(role, database, options) {
               outbox_present_exact: tamper !== "table",
               outbox_owner_exact: tamper !== "owner",
               binding_columns_exact: tamper !== "binding-columns",
+              provider_evidence_columns_exact:
+                tamper !== "provider-evidence-columns",
               dispatch_constraint_exact: ![
                 "constraint",
                 "constraint-always-true",
@@ -856,10 +861,19 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
       ),
       false,
     );
-    assert.deepEqual(priorPhase.queryParameters[workerQueryIndex]?.slice(10), [
-      0,
-      false,
-    ]);
+    assert.deepEqual(
+      priorPhase.queryParameters[workerQueryIndex]?.slice(10),
+      [
+        0,
+        false,
+        [
+          "provider_correlation_version",
+          "provider_evidence_version",
+          "provider_evidence_sha256",
+        ],
+        0,
+      ],
+    );
   }
 
   const phase0064 = makeClient("learncoding_ops", "learncoding", {
@@ -1203,6 +1217,11 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   assert.deepEqual(opsClient.queryParameters[workerQueryIndex]?.[2], [
     "dispatch_binding_version",
     "dispatch_binding_sha256",
+  ]);
+  assert.deepEqual(opsClient.queryParameters[workerQueryIndex]?.[12], [
+    "provider_correlation_version",
+    "provider_evidence_version",
+    "provider_evidence_sha256",
   ]);
 
   for (const triggerContractTamper of [
