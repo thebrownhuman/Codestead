@@ -120,7 +120,22 @@ export class LearningService {
       this.content.getGraph(),
     ]);
     return this.store.transaction(async (transaction) => {
-      await transaction.lockPlanInitialization(userId);
+      const active = await transaction.lockPlanInitialization(userId);
+      if (!active) {
+        return {
+          state: "empty",
+          plans: [],
+          selectedTrackIds: [],
+          resolvedTrackIds: [],
+          missingPublications: [],
+          warnings: ["Learner account is unavailable."],
+          placement: {
+            required: true,
+            selfReportUsedAsEvidence: false,
+            reason: "Placement requires an active learner account.",
+          },
+        };
+      }
       const profile = await transaction.getPlanningProfile(userId);
       if (!profile || !profile.selectedTrackIds.length) {
         return {

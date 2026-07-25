@@ -5,6 +5,7 @@ import { pool } from "@/lib/db/client";
 import { evaluateAuthoredActivity } from "@/lib/learning-service/evidence-engine";
 import { reviewedAuthoredActivitySpecification } from "@/lib/learning-service/publication-binding";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
+import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SCORING_VERSION = "battle-score-v1";
@@ -75,9 +76,105 @@ type BattleRow = {
   submission_count: string;
 };
 
-async function activeActor(client: PoolClient, userId: string): Promise<Actor> {
+type CreateUserCandidate = Readonly<{ id: string; publicId: string }>;
+type CreateUserCandidates = Readonly<{ actorUserId: string; invitees: readonly CreateUserCandidate[] }>;
+
+async function lockUserAuthorities(client: PoolClient, userIds: readonly string[]): Promise<void> {
+  const sortedUserIds = [...new Set(userIds)].sort();
+  for (const userId of sortedUserIds) {
+    await client.query(
+      "select pg_advisory_xact_lock(hashtext($1))",
+      [userAuthorityLockKey(userId)],
+    );
+  }
+}
+
+async function resolveCreateUserCandidates(
+  client: PoolClient,
+  actorUserId: string,
+  invitedPublicIds: readonly string[],
+): Promise<CreateUserCandidates> {
+  if (!invitedPublicIds.length) return { actorUserId, invitees: [] };
+  const rows = (await client.query<{ id: string; public_id: string }>(
+    `select id,public_id::text from "user" where public_id=any($1::uuid[])`,
+    [invitedPublicIds],
+  )).rows;
+  const byPublicId = new Map(rows.map((row) => [row.public_id, row]));
+  const invitees = invitedPublicIds.map((publicId) => {
+    const candidate = byPublicId.get(publicId);
+    if (!candidate) throw new BattleError("NOT_FOUND");
+    return { id: candidate.id, publicId };
+  });
+  return { actorUserId, invitees };
+}
+
+async function lockCreateUserRows(
+  client: PoolClient,
+  candidates: CreateUserCandidates,
+): Promise<Actor> {
+  const expectedIds = [
+    candidates.actorUserId,
+    ...candidates.invitees.map(({ id }) => id),
+  ].sort();
+  const rows = (await client.query<{
+    id: string;
+    public_id: string;
+    role: string | null;
+    status: string;
+  }>(
+    `select id,public_id::text,role,status from "user"
+      where id=any($1::text[]) order by id for update`,
+    [expectedIds],
+  )).rows;
+  if (rows.length !== expectedIds.length) throw new BattleError("NOT_FOUND");
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const actor = byId.get(candidates.actorUserId);
+  if (!actor || actor.status !== "active" || (actor.role !== "admin" && actor.role !== "learner")) {
+    throw new BattleError("NOT_FOUND");
+  }
+  if (candidates.invitees.some((candidate) => {
+    const invitee = byId.get(candidate.id);
+    return !invitee
+      || invitee.public_id !== candidate.publicId
+      || invitee.status !== "active"
+      || invitee.role !== "learner"
+      || invitee.id === actor.id;
+  })) throw new BattleError("NOT_FOUND");
+  return { id: actor.id, role: actor.role };
+}
+
+async function activeInvitees(
+  client: PoolClient,
+  candidates: CreateUserCandidates,
+  actorId: string,
+): Promise<readonly { id: string; public_id: string }[]> {
+  if (!candidates.invitees.length) return [];
+  const result = await client.query<{ id: string; public_id: string }>(
+    `select u.id,u.public_id::text public_id from "user" u
+       join cohort_profile profile on profile.user_id=u.id and profile.is_published
+       join lateral (
+         select decision,policy_version from consent_record consent
+          where consent.user_id=u.id and consent.purpose='cohort_profile'
+          order by consent.occurred_at desc,consent.created_at desc,consent.id desc limit 1
+       ) consent on consent.decision='accepted' and consent.policy_version=$3
+      where u.id=any($1::text[]) and u.public_id=any($2::uuid[])
+        and u.status='active' and u.role='learner' and u.id<>$4`,
+    [candidates.invitees.map(({ id }) => id), candidates.invitees.map(({ publicId }) => publicId), ENROLLMENT_DISCLOSURE_VERSION, actorId],
+  );
+  const byId = new Map(result.rows.map((row) => [row.id, row]));
+  if (
+    result.rows.length !== candidates.invitees.length
+    || candidates.invitees.some((candidate) =>
+      byId.get(candidate.id)?.public_id !== candidate.publicId)
+  ) throw new BattleError("NOT_FOUND");
+  return result.rows;
+}
+
+async function activeActor(client: PoolClient, userId: string, lock = false): Promise<Actor> {
   const row = (await client.query<{ id: string; role: string | null }>(
-    `select id,role from "user" where id=$1 and status='active' and role in ('admin','learner')`,
+    `select u.id,u.role from "user" u
+      where u.id=$1 and u.status='active' and u.role in ('admin','learner')
+      ${lock ? "for update of u" : ""}`,
     [userId],
   )).rows[0];
   if (!row || (row.role !== "admin" && row.role !== "learner")) throw new BattleError("NOT_FOUND");
@@ -311,7 +408,7 @@ export async function createBattle(input: {
   revealDelayMinutes?: number;
   competitionKey?: string | null;
   now?: Date;
-}) {
+}, databasePool: Pick<typeof pool, "connect"> = pool) {
   const competition = input.scope === "weekly" || input.scope === "monthly";
   if (!UUID.test(input.requestId) || (!competition && (!Number.isSafeInteger(input.durationMinutes)
     || input.durationMinutes! < 5 || input.durationMinutes! > 1_440))) throw new BattleError("INVALID_INPUT");
@@ -334,11 +431,17 @@ export async function createBattle(input: {
   if (input.scope !== "invite" && invitedPublicIds.length) throw new BattleError("INVALID_INPUT");
   const fingerprint = createFingerprint({ ...input, invitedPublicIds, startsAt, endsAt, revealAt, competitionKey });
 
-  const client = await pool.connect();
+  const client = await databasePool.connect();
   try {
     await client.query("begin");
-    const actor = await activeActor(client, input.actorUserId);
+    const candidates = await resolveCreateUserCandidates(client, input.actorUserId, invitedPublicIds);
+    await lockUserAuthorities(client, [
+      candidates.actorUserId,
+      ...candidates.invitees.map(({ id }) => id),
+    ]);
+    const actor = await lockCreateUserRows(client, candidates);
     if (competition && actor.role !== "admin") throw new BattleError("NOT_FOUND");
+    const invited = input.scope === "invite" ? await activeInvitees(client, candidates, actor.id) : [];
     await client.query("select pg_advisory_xact_lock(hashtext($1))", [`battle-create:${actor.id}:${input.requestId}`]);
     const replay = (await client.query<{ id: string; create_input_hash: string }>(
       `select id,create_input_hash from coding_battle where creator_user_id=$1 and create_request_id=$2`,
@@ -350,6 +453,11 @@ export async function createBattle(input: {
       return { id: replay.id, replayed: true };
     }
     const activity = await reviewedActivity(client, input.activityId, actor);
+    for (const invitee of invited) {
+      if (!(await eligibleActivityIds(client, invitee.id, [activity.id])).has(activity.id)) {
+        throw new BattleError("NOT_FOUND");
+      }
+    }
     const grading = record(activity.specification.grading)!;
     const challengeKind = grading.kind === "runner" ? "verified_attempt" : "authored_answer";
     const snapshot: JsonRecord = {
@@ -392,28 +500,11 @@ export async function createBattle(input: {
          values ($1,$2,'creator',$3)`, [battle.id, actor.id, now],
       );
     }
-    if (input.scope === "invite") {
-      const invited = await client.query<{ id: string }>(
-        `select u.id from "user" u
-          join cohort_profile profile on profile.user_id=u.id and profile.is_published
-          join lateral (
-            select decision,policy_version from consent_record consent
-             where consent.user_id=u.id and consent.purpose='cohort_profile'
-             order by consent.occurred_at desc,consent.created_at desc,consent.id desc limit 1
-          ) consent on consent.decision='accepted' and consent.policy_version=$2
-         where u.public_id=any($1::uuid[]) and u.status='active' and u.role='learner' and u.id<>$3`,
-        [invitedPublicIds, ENROLLMENT_DISCLOSURE_VERSION, actor.id],
+    for (const invitee of invited) {
+      await client.query(
+        `insert into coding_battle_participant (battle_id,user_id,role,joined_at)
+         values ($1,$2,'invited',$3)`, [battle.id, invitee.id, now],
       );
-      if (invited.rows.length !== invitedPublicIds.length) throw new BattleError("NOT_FOUND");
-      for (const invitee of invited.rows) {
-        if (!(await eligibleActivityIds(client, invitee.id, [activity.id])).has(activity.id)) {
-          throw new BattleError("NOT_FOUND");
-        }
-        await client.query(
-          `insert into coding_battle_participant (battle_id,user_id,role,joined_at)
-           values ($1,$2,'invited',$3)`, [battle.id, invitee.id, now],
-        );
-      }
     }
     await client.query("commit");
     return { id: battle.id, replayed: false };
@@ -588,12 +679,16 @@ export async function getBattle(input: { actorUserId: string; battleId: string; 
   }
 }
 
-export async function joinBattle(input: { actorUserId: string; battleId: string; now?: Date }) {
+export async function joinBattle(
+  input: { actorUserId: string; battleId: string; now?: Date },
+  databasePool: Pick<typeof pool, "connect"> = pool,
+) {
   const now = cleanDate(input.now, new Date());
-  const client = await pool.connect();
+  const client = await databasePool.connect();
   try {
     await client.query("begin");
-    const actor = await activeActor(client, input.actorUserId);
+    await lockUserAuthorities(client, [input.actorUserId]);
+    const actor = await activeActor(client, input.actorUserId, true);
     if (actor.role !== "learner") throw new BattleError("NOT_FOUND");
     const battle = await loadAccessibleBattle(client, actor, input.battleId, true);
     if (battle.scope === "invite" && !battle.participant) throw new BattleError("NOT_FOUND");
