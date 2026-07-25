@@ -5,9 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   authorizePreparedEmail,
   classifyMailDeliveryError,
+  dispatchBinding,
   prepareEmail,
   preparedEmailBindingMatches,
   sendPreparedEmail,
+  type DispatchBinding,
   type MailDispatchAuthority,
   type PreparedEmailAuthorization,
 } from "../mailer";
@@ -97,9 +99,20 @@ describe("prepared mail dispatch", () => {
     });
     if (prepared.adapter !== "gmail") throw new Error("Expected Gmail preparation.");
     expect(prepared.bindingSha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(prepared.bindingSha256).toBe(
-      createHash("sha256").update(prepared.rfc822, "utf8").digest("hex"),
-    );
+    const expectedPayloadSha256 = createHash("sha256")
+      .update(prepared.rfc822, "utf8")
+      .digest("hex");
+    expect(prepared.bindingSha256).toBe(expectedPayloadSha256);
+    const binding = dispatchBinding(prepared);
+    expect(Object.isFrozen(binding)).toBe(true);
+    expect(Object.keys(binding)).toEqual([
+      "bindingVersion",
+      "bindingSha256",
+    ]);
+    expect(binding).toEqual({
+      bindingVersion: "gmail-raw-v1",
+      bindingSha256: expectedPayloadSha256,
+    });
     expect(prepared.authorityBindingVersion).toBe("prepared-authority-v1");
     expect(prepared.authorityBindingSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(prepared.raw).toBe(
@@ -262,8 +275,10 @@ describe("prepared mail dispatch", () => {
       ...original,
       requestBody: '{"raw":"mutated-before-authorization"}',
       rfc822: `${original.rfc822}\r\nmutated-before-authorization`,
-      bindingSha256: "0".repeat(64),
-      authorityBindingSha256: "f".repeat(64),
+      bindingSha256:
+        "0".repeat(64) as typeof original.bindingSha256,
+      authorityBindingSha256:
+        "f".repeat(64) as typeof original.authorityBindingSha256,
     };
     const mutatedAuthority: MailDispatchAuthority = {
       ...AUTHORITY,
@@ -445,6 +460,7 @@ describe("prepared mail dispatch", () => {
   });
 
   it("reserves five seconds of the 25-second provider budget for abort settlement", async () => {
+    vi.useFakeTimers();
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
     const prepared = prepareEmail({
       to: "learner@example.test",
@@ -456,22 +472,48 @@ describe("prepared mail dispatch", () => {
     vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
     vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
     vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "25000");
+    let abortObserved = false;
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(
         '{"access_token":"oauth-access-secret"}',
         { status: 200 },
+      ))
+      .mockImplementationOnce((_url, init) => new Promise<Response>(
+        (_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            abortObserved = true;
+            reject(new DOMException(
+              "The request was aborted.",
+              "AbortError",
+            ));
+          }, { once: true });
+        },
       ));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(authorizePreparedEmail(prepared, AUTHORITY))
-      .resolves.toMatchObject({
-      adapter: "gmail",
-      accessToken: "oauth-access-secret",
-      requestTimeoutMs: 20_000,
-      prepared,
-      authority: AUTHORITY,
+    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    let outcome: unknown = "pending";
+    void sendPreparedEmail(authorization).then(
+      (value) => { outcome = value; },
+      (error: unknown) => { outcome = error; },
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(abortObserved).toBe(false);
+    expect(outcome).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(abortObserved).toBe(true);
+    expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toBe(
+      "Gmail delivery request timed out.",
+    );
+    expect(classifyMailDeliveryError(outcome)).toEqual({
+      kind: "ambiguous",
+      code: "GMAIL_DELIVERY_AMBIGUOUS",
     });
-    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("fails fatally when OAuth ignores abort and never reaches Gmail delivery", async () => {
@@ -526,64 +568,113 @@ describe("prepared mail dispatch", () => {
     ))).toBe(false);
   });
 
-  it.each([
-    {
-      authorization: {
-        adapter: "gmail",
-        accessToken: "",
-        requestTimeoutMs: 1_000,
-      },
-    },
-    {
-      authorization: {
-        adapter: "gmail",
-        accessToken: "oauth-access-secret",
-        requestTimeoutMs: 0,
-      },
-    },
-    {
-      authorization: {
-        adapter: "gmail",
-        accessToken: "oauth-access-secret",
-        requestTimeoutMs: 20_001,
-      },
-    },
-  ] as const)("rejects malformed prepared Gmail authorization before fetch", async ({
-    authorization,
-  }) => {
+  it("issues a secret-free one-shot handle that clones cannot replay or rebind", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const bearerUrl =
+      "https://example.test/activate?token=opaque-handle-bearer-canary";
+    const preparedA = prepareEmail({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
-      variables: {},
+      variables: { url: bearerUrl },
     }, gmailPreparation());
+    if (preparedA.adapter !== "gmail") {
+      throw new Error("Expected Gmail preparation.");
+    }
+    const authorityB: MailDispatchAuthority = Object.freeze({
+      ...AUTHORITY,
+      id: "66666666-6666-4666-8666-666666666666",
+      operationId: "55555555-5555-4555-8555-555555555555",
+      claimToken: "77777777-7777-4777-8777-777777777777",
+      deliveryScopeKey: "a:other-learner",
+      recipient: "other-learner@example.test",
+    });
+    const preparedB = prepareEmail({
+      to: authorityB.recipient,
+      template: authorityB.template,
+      templateVersion: authorityB.templateVersion,
+      variables: { url: "https://example.test/activate?token=other" },
+    }, {
+      ...gmailPreparation(),
+      messageId: OTHER_MESSAGE_ID,
+      authority: authorityB,
+    });
     vi.stubEnv("GMAIL_CLIENT_ID", "client");
     vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
     vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
-      new Response('{"access_token":"oauth-access-secret"}', {
-        status: 200,
-      }),
-    );
+    const accessToken = "oauth-opaque-handle-secret";
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(
+        `{"access_token":"${accessToken}"}`,
+        { status: 200 },
+      ))
+      .mockResolvedValueOnce(new Response(
+        '{"id":"gmail-original-dispatch"}',
+        { status: 200 },
+      ));
     vi.stubGlobal("fetch", fetchMock);
-    const validAuthorization = await authorizePreparedEmail(
-      prepared,
+    const authorization = await authorizePreparedEmail(
+      preparedA,
       AUTHORITY,
     );
-    fetchMock.mockClear();
-    const malformedAuthorization = Object.freeze({
-      ...validAuthorization,
+
+    expect(Object.isFrozen(authorization)).toBe(true);
+    expect(Reflect.ownKeys(authorization)).toEqual([]);
+    expect(Object.getOwnPropertyDescriptors(authorization)).toEqual({});
+    expect(JSON.stringify(authorization)).toBe("{}");
+    expect(String(authorization)).toBe("[object Object]");
+    const exposed = [
+      JSON.stringify(authorization),
+      String(authorization),
+      Reflect.ownKeys(authorization).join(","),
+    ].join("\n");
+    for (const secret of [
+      accessToken,
+      AUTHORITY.recipient,
+      AUTHORITY.claimToken,
+      bearerUrl,
+      preparedA.requestBody,
+    ]) {
+      expect(exposed).not.toContain(secret);
+    }
+
+    const spreadClone = Object.freeze({
       ...authorization,
-    }) as PreparedEmailAuthorization;
+    }) as unknown as PreparedEmailAuthorization;
+    const reboundClone = Object.freeze({
+      ...authorization,
+      adapter: "gmail",
+      prepared: preparedB,
+      authority: authorityB,
+      accessToken,
+      requestTimeoutMs: 1_000,
+    }) as unknown as PreparedEmailAuthorization;
+    fetchMock.mockClear();
 
-    const error = await sendPreparedEmail(malformedAuthorization)
+    const cloneError = await sendPreparedEmail(spreadClone)
       .catch((caught: unknown) => caught);
-
-    expect(classifyMailDeliveryError(error)).toEqual({
+    expect(classifyMailDeliveryError(cloneError)).toEqual({
       kind: "definitely-rejected",
       code: "MAIL_PRE_SEND_REJECTED",
     });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await expect(sendPreparedEmail(authorization)).resolves.toEqual({
+      providerId: "gmail-original-dispatch",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    fetchMock.mockClear();
+
+    const reboundError = await sendPreparedEmail(reboundClone)
+      .catch((caught: unknown) => caught);
+    const replayError = await sendPreparedEmail(authorization)
+      .catch((caught: unknown) => caught);
+    for (const error of [reboundError, replayError]) {
+      expect(classifyMailDeliveryError(error)).toEqual({
+        kind: "definitely-rejected",
+        code: "MAIL_PRE_SEND_REJECTED",
+      });
+    }
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -872,14 +963,29 @@ describe("prepared mail dispatch", () => {
     const write = vi
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
-    expect(prepared.bindingSha256).toBe(
-      createHash("sha256").update(prepared.eventBytes, "utf8").digest("hex"),
-    );
+    const expectedPayloadSha256 = createHash("sha256")
+      .update(prepared.eventBytes, "utf8")
+      .digest("hex");
+    expect(prepared.bindingSha256).toBe(expectedPayloadSha256);
+    const binding = dispatchBinding(prepared);
+    expect(Object.isFrozen(binding)).toBe(true);
+    expect(binding).toEqual({
+      bindingVersion: "console-json-v1",
+      bindingSha256: expectedPayloadSha256,
+    });
     expect(prepared.eventLine).not.toMatch(/[\r\n]/);
     expect(prepared.eventBytes).toBe(`${prepared.eventLine}\n`);
     expect(prepared.eventBytes.endsWith("\n\n")).toBe(false);
     expect(prepared.authorityBindingVersion).toBe("prepared-authority-v1");
     expect(prepared.authorityBindingSha256).toMatch(/^[0-9a-f]{64}$/);
+    const invalidDispatchBinding: DispatchBinding = {
+      bindingVersion: prepared.bindingVersion,
+      // @ts-expect-error Authority seals cannot authorize provider bytes.
+      bindingSha256: prepared.authorityBindingSha256,
+    };
+    expect(invalidDispatchBinding.bindingSha256).not.toBe(
+      binding.bindingSha256,
+    );
     const authorization = await authorizePreparedEmail(
       prepared,
       deletionAuthority,

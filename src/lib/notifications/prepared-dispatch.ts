@@ -44,12 +44,28 @@ export type MailPreparationContext = Readonly<{
   authority: MailDispatchAuthority;
 }>;
 
+declare const providerPayloadSha256Brand: unique symbol;
+declare const authoritySealSha256Brand: unique symbol;
+
+export type ProviderPayloadSha256 = string & Readonly<{
+  [providerPayloadSha256Brand]: "ProviderPayloadSha256";
+}>;
+
+export type AuthoritySealSha256 = string & Readonly<{
+  [authoritySealSha256Brand]: "AuthoritySealSha256";
+}>;
+
+export type DispatchBinding = Readonly<{
+  bindingVersion: "gmail-raw-v1" | "console-json-v1";
+  bindingSha256: ProviderPayloadSha256;
+}>;
+
 export type PreparedGmailEmail = Readonly<{
   adapter: "gmail";
   bindingVersion: "gmail-raw-v1";
-  bindingSha256: string;
+  bindingSha256: ProviderPayloadSha256;
   authorityBindingVersion: "prepared-authority-v1";
-  authorityBindingSha256: string;
+  authorityBindingSha256: AuthoritySealSha256;
   messageId: string;
   rfc822: string;
   raw: string;
@@ -59,9 +75,9 @@ export type PreparedGmailEmail = Readonly<{
 export type PreparedConsoleEmail = Readonly<{
   adapter: "console";
   bindingVersion: "console-json-v1";
-  bindingSha256: string;
+  bindingSha256: ProviderPayloadSha256;
   authorityBindingVersion: "prepared-authority-v1";
-  authorityBindingSha256: string;
+  authorityBindingSha256: AuthoritySealSha256;
   eventLine: string;
   eventBytes: string;
   requestBody: string;
@@ -172,7 +188,9 @@ function payloadBindingSha256(
   const bytes = prepared.adapter === "gmail"
     ? prepared.rfc822
     : prepared.eventBytes;
-  return createHash("sha256").update(bytes, "utf8").digest("hex");
+  return createHash("sha256")
+    .update(bytes, "utf8")
+    .digest("hex") as ProviderPayloadSha256;
 }
 
 function authorityBindingSha256(
@@ -206,7 +224,14 @@ function authorityBindingSha256(
     updateLengthFramed(hash, prepared.requestBody);
     updateLengthFramed(hash, prepared.providerId);
   }
-  return hash.digest("hex");
+  return hash.digest("hex") as AuthoritySealSha256;
+}
+
+export function dispatchBinding(prepared: PreparedEmail): DispatchBinding {
+  return Object.freeze({
+    bindingVersion: prepared.bindingVersion,
+    bindingSha256: prepared.bindingSha256,
+  });
 }
 
 function mimeMessage(

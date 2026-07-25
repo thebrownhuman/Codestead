@@ -18,11 +18,14 @@ import {
 } from "./template-authority-policy";
 
 export {
+  dispatchBinding,
   prepareEmail,
   preparedEmailBindingMatches,
 } from "./prepared-dispatch";
 export type {
   AuthoritativeOutgoingEmail,
+  AuthoritySealSha256,
+  DispatchBinding,
   MailAdapter,
   MailDispatchAuthority,
   MailPreparationContext,
@@ -31,6 +34,7 @@ export type {
   PreparedConsoleEmail,
   PreparedEmail,
   PreparedGmailEmail,
+  ProviderPayloadSha256,
 } from "./prepared-dispatch";
 export type MailDeliveryFailure = Readonly<{
   kind: "definitely-rejected" | "ambiguous" | "fatal";
@@ -316,29 +320,38 @@ export async function findGmailMessageByMessageId(messageId: string) {
   return { kind: "matched" as const, providerMessageId };
 }
 
-const preparedEmailAuthorizationBrand = Symbol(
-  "codestead.prepared-email-authorization",
-);
+declare const preparedEmailAuthorizationBrand: unique symbol;
 
-type AuthorityBoundAuthorization<P extends PreparedEmail> = Readonly<{
-  [preparedEmailAuthorizationBrand]: true;
-  prepared: P;
-  authority: MailDispatchAuthority;
+export type PreparedEmailAuthorization = Readonly<{
+  [preparedEmailAuthorizationBrand]: "PreparedEmailAuthorization";
 }>;
 
-export type PreparedEmailAuthorization =
-  | (
-    & AuthorityBoundAuthorization<PreparedConsoleEmail>
-    & Readonly<{ adapter: "console" }>
-  )
-  | (
-    & AuthorityBoundAuthorization<PreparedGmailEmail>
-    & Readonly<{
+type PreparedEmailAuthorizationState =
+  | Readonly<{
+      adapter: "console";
+      prepared: PreparedConsoleEmail;
+      authority: MailDispatchAuthority;
+    }>
+  | Readonly<{
       adapter: "gmail";
+      prepared: PreparedGmailEmail;
+      authority: MailDispatchAuthority;
       accessToken: string;
       requestTimeoutMs: number;
-    }>
-  );
+    }>;
+
+const preparedEmailAuthorizationStates = new WeakMap<
+  object,
+  PreparedEmailAuthorizationState
+>();
+
+function issuePreparedEmailAuthorization(
+  state: PreparedEmailAuthorizationState,
+): PreparedEmailAuthorization {
+  const handle = Object.freeze({}) as PreparedEmailAuthorization;
+  preparedEmailAuthorizationStates.set(handle, Object.freeze(state));
+  return handle;
+}
 
 export async function authorizePreparedEmail(
   prepared: PreparedEmail,
@@ -354,8 +367,7 @@ export async function authorizePreparedEmail(
   }
 
   if (preparedSnapshot.adapter === "console") {
-    return Object.freeze({
-      [preparedEmailAuthorizationBrand]: true as const,
+    return issuePreparedEmailAuthorization({
       adapter: "console" as const,
       prepared: preparedSnapshot,
       authority: authoritySnapshot,
@@ -374,8 +386,7 @@ export async function authorizePreparedEmail(
 
   try {
     const accessToken = await gmailAccessToken(requestTimeoutMs);
-    return Object.freeze({
-      [preparedEmailAuthorizationBrand]: true as const,
+    return issuePreparedEmailAuthorization({
       adapter: "gmail" as const,
       prepared: preparedSnapshot,
       authority: authoritySnapshot,
@@ -408,13 +419,13 @@ function preparedBindingMismatch() {
 
 function preparedAuthorizationMismatch() {
   return new MailDeliveryError(
-    "Prepared mail authorization does not match its adapter.",
+    "Prepared mail authorization handle is invalid or already consumed.",
     { kind: "definitely-rejected", code: "MAIL_PRE_SEND_REJECTED" },
   );
 }
 
 function assertPreparedGmailAuthorization(
-  authorization: Extract<PreparedEmailAuthorization, { adapter: "gmail" }>,
+  authorization: Extract<PreparedEmailAuthorizationState, { adapter: "gmail" }>,
 ) {
   if (
     typeof authorization.accessToken !== "string"
@@ -486,48 +497,22 @@ function snapshotDispatchAuthority(
   });
 }
 
-function snapshotPreparedAuthorization(
+function consumePreparedAuthorization(
   authorization: PreparedEmailAuthorization,
-): PreparedEmailAuthorization {
-  const authorized = authorization[preparedEmailAuthorizationBrand];
-  const adapter = authorization.adapter;
-  const prepared = authorization.prepared;
-  const authority = authorization.authority;
-  if (authorized !== true) {
+): PreparedEmailAuthorizationState {
+  const state = preparedEmailAuthorizationStates.get(authorization);
+  if (!state) {
     throw preparedAuthorizationMismatch();
   }
-  if (adapter === "console") {
-    if (prepared.adapter !== "console") {
-      throw preparedAuthorizationMismatch();
-    }
-    return Object.freeze({
-      [preparedEmailAuthorizationBrand]: authorized,
-      adapter,
-      prepared,
-      authority,
-    });
-  }
-  if (adapter === "gmail") {
-    if (prepared.adapter !== "gmail") {
-      throw preparedAuthorizationMismatch();
-    }
-    return Object.freeze({
-      [preparedEmailAuthorizationBrand]: authorized,
-      adapter,
-      prepared,
-      authority,
-      accessToken: authorization.accessToken,
-      requestTimeoutMs: authorization.requestTimeoutMs,
-    });
-  }
-  throw preparedAuthorizationMismatch();
+  preparedEmailAuthorizationStates.delete(authorization);
+  return state;
 }
 
 export async function sendPreparedEmail(
   authorization: PreparedEmailAuthorization,
   options: PreparedEmailSendOptions = {},
 ) {
-  const authorizationSnapshot = snapshotPreparedAuthorization(authorization);
+  const authorizationSnapshot = consumePreparedAuthorization(authorization);
   const preparedSnapshot = authorizationSnapshot.prepared;
   const authoritySnapshot = authorizationSnapshot.authority;
   const externalSignal = options.signal;

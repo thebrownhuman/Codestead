@@ -377,7 +377,9 @@ let hardFailStop = false;
 main()
   .catch((error) => {
     hardFailStop = error instanceof FatalProviderTransportError;
-    healthReporter?.retry(error);
+    if (!hardFailStop) {
+      healthReporter?.retry(error);
+    }
     healthReporter?.terminalFailure(error);
     console.error(
       JSON.stringify({
