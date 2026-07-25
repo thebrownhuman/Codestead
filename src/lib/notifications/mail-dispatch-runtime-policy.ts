@@ -9,8 +9,9 @@ export const MAIL_DISPATCH_RUNTIME_LIMITS = Object.freeze({
   maximumLockMs: 5_000,
   maximumStatementMs: 10_000,
   maximumQueryMs: 15_000,
-  maximumTransactionMs: 60_000,
-  maximumIdleInTransactionSessionMs: 60_000,
+  maximumTx1Ms: 60_000,
+  maximumTx2ProofBudgetMs: 60_000,
+  maximumIdleInTransactionProofBudgetMs: 60_000,
   maximumProviderRequestMs: 20_000,
   maximumProviderAbortSettlementMs: 5_000,
   maximumFatalExitMarginMs: 5_000,
@@ -40,8 +41,8 @@ export const MAIL_DISPATCH_RUNTIME_DEFAULTS = Object.freeze({
   guardedSendDeadlineMs: 20_000,
   providerAbortSettlementTimeoutMs: 5_000,
   fatalExitMarginMs: 5_000,
-  idleInTransactionSessionTimeoutMs: 35_000,
-  tx2TimeoutMs: 50_000,
+  idleInTransactionProofBudgetMs: 35_000,
+  tx2ProofBudgetMs: 50_000,
   persistenceMarginMs: 5_000,
   providerLeaseMs: 90_000,
   drainTimeoutMs: 100_000,
@@ -69,8 +70,8 @@ export type MailDispatchRuntimeOverrides = Readonly<{
   guardedSendDeadlineMs?: number;
   providerAbortSettlementTimeoutMs?: number;
   fatalExitMarginMs?: number;
-  idleInTransactionSessionTimeoutMs?: number;
-  tx2TimeoutMs?: number;
+  idleInTransactionProofBudgetMs?: number;
+  tx2ProofBudgetMs?: number;
   persistenceMarginMs?: number;
   providerLeaseMs?: number;
   drainTimeoutMs?: number;
@@ -83,8 +84,12 @@ export type MailDispatchRuntimePlan = Readonly<{
   phases: Readonly<{
     providerLeaseStartsAfterTx1Commit: true;
     poolAcquireWithinTransactionBudget: false;
+    shouldStopGateBeforeOauth: true;
     oauthWithinTx2: false;
+    shouldStopGateBeforeTx2: true;
     guardedSendWithinTx2: true;
+    liveProviderTx2DatabaseTimeoutsDisabled: true;
+    synchronousFatalExitBeforeTx2Unlock: true;
   }>;
   dispatch: Readonly<{
     concurrency: number;
@@ -112,6 +117,22 @@ export type MailDispatchRuntimePlan = Readonly<{
       remainingConnections: number;
     }>;
   }>;
+  /**
+   * Required SET LOCAL values while provider I/O retains TX2 locks. Finite
+   * proof budgets below must never be substituted for these database values.
+   */
+  liveProviderTx2DatabaseTimeouts: Readonly<{
+    idleInTransactionSessionTimeoutMs: 0;
+    transactionTimeoutMs: 0;
+  }>;
+  /**
+   * Application-only proof/deadline budgets. These are not PostgreSQL session
+   * settings and cannot release locks retained around the provider callback.
+   */
+  applicationProofBudgets: Readonly<{
+    idleInTransactionMs: number;
+    tx2Ms: number;
+  }>;
   timeouts: Readonly<{
     poolAcquireMs: number;
     poolIdleMs: number;
@@ -123,8 +144,6 @@ export type MailDispatchRuntimePlan = Readonly<{
     guardedSendDeadlineMs: number;
     providerAbortSettlementMs: number;
     fatalExitMarginMs: number;
-    idleInTransactionSessionMs: number;
-    tx2Ms: number;
     persistenceMarginMs: number;
     providerLeaseMs: number;
     drainMs: number;
@@ -153,8 +172,8 @@ const OVERRIDE_KEYS = Object.freeze([
   "guardedSendDeadlineMs",
   "providerAbortSettlementTimeoutMs",
   "fatalExitMarginMs",
-  "idleInTransactionSessionTimeoutMs",
-  "tx2TimeoutMs",
+  "idleInTransactionProofBudgetMs",
+  "tx2ProofBudgetMs",
   "persistenceMarginMs",
   "providerLeaseMs",
   "drainTimeoutMs",
@@ -396,10 +415,10 @@ export function planMailDispatchRuntime(
     throw new Error("Mail fatal exit margin must not exceed 5000ms.");
   }
 
-  const tx2TimeoutMs = configured(overrides, "tx2TimeoutMs");
-  const idleInTransactionSessionTimeoutMs = configured(
+  const tx2ProofBudgetMs = configured(overrides, "tx2ProofBudgetMs");
+  const idleInTransactionProofBudgetMs = configured(
     overrides,
-    "idleInTransactionSessionTimeoutMs",
+    "idleInTransactionProofBudgetMs",
   );
   const persistenceMarginMs = configured(overrides, "persistenceMarginMs");
   const providerLeaseMs = configured(overrides, "providerLeaseMs");
@@ -415,10 +434,10 @@ export function planMailDispatchRuntime(
     ["Mail statement timeout", statementTimeoutMs],
     ["Mail query timeout", queryTimeoutMs],
     ["Mail TX1 timeout", tx1TimeoutMs],
-    ["Mail TX2 timeout", tx2TimeoutMs],
+    ["Mail TX2 proof budget", tx2ProofBudgetMs],
     [
-      "Mail idle-in-transaction session timeout",
-      idleInTransactionSessionTimeoutMs,
+      "Mail idle-in-transaction proof budget",
+      idleInTransactionProofBudgetMs,
     ],
     ["Mail persistence margin", persistenceMarginMs],
     ["Mail provider lease", providerLeaseMs],
@@ -457,18 +476,18 @@ export function planMailDispatchRuntime(
   );
   assertMaximum(
     tx1TimeoutMs,
-    MAIL_DISPATCH_RUNTIME_LIMITS.maximumTransactionMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumTx1Ms,
     "Mail TX1 timeout",
   );
   assertMaximum(
-    tx2TimeoutMs,
-    MAIL_DISPATCH_RUNTIME_LIMITS.maximumTransactionMs,
-    "Mail TX2 timeout",
+    tx2ProofBudgetMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumTx2ProofBudgetMs,
+    "Mail TX2 proof budget",
   );
   assertMaximum(
-    idleInTransactionSessionTimeoutMs,
-    MAIL_DISPATCH_RUNTIME_LIMITS.maximumIdleInTransactionSessionMs,
-    "Mail idle-in-transaction session timeout",
+    idleInTransactionProofBudgetMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumIdleInTransactionProofBudgetMs,
+    "Mail idle-in-transaction proof budget",
   );
   assertMaximum(
     persistenceMarginMs,
@@ -496,7 +515,7 @@ export function planMailDispatchRuntime(
       "Mail statement timeout must finish before query timeout.",
     );
   }
-  if (queryTimeoutMs >= tx1TimeoutMs || queryTimeoutMs >= tx2TimeoutMs) {
+  if (queryTimeoutMs >= tx1TimeoutMs || queryTimeoutMs >= tx2ProofBudgetMs) {
     throw new Error("Mail query timeout must finish inside TX1 and TX2.");
   }
 
@@ -505,17 +524,17 @@ export function planMailDispatchRuntime(
     + fatalExitMarginMs;
   if (
     !Number.isSafeInteger(lockedProviderWindowMs)
-    || lockedProviderWindowMs >= idleInTransactionSessionTimeoutMs
+    || lockedProviderWindowMs >= idleInTransactionProofBudgetMs
   ) {
     throw new Error(
-      "Mail locked provider window must finish before idle-in-transaction timeout.",
+      "Mail locked provider window must finish before the idle-in-transaction proof budget.",
     );
   }
   if (
-    idleInTransactionSessionTimeoutMs >= tx2TimeoutMs
+    idleInTransactionProofBudgetMs >= tx2ProofBudgetMs
   ) {
     throw new Error(
-      "Mail idle-in-transaction timeout must finish inside TX2.",
+      "Mail idle-in-transaction proof budget must finish inside the TX2 proof budget.",
     );
   }
 
@@ -524,13 +543,13 @@ export function planMailDispatchRuntime(
     + queryTimeoutMs;
   if (
     !Number.isSafeInteger(tx2PathMs)
-    || tx2PathMs >= tx2TimeoutMs
+    || tx2PathMs >= tx2ProofBudgetMs
   ) {
-    throw new Error("Mail TX2 path must finish before the TX2 timeout.");
+    throw new Error("Mail TX2 path must finish before the TX2 proof budget.");
   }
 
   const leasedDispatchPathMs = oauthDeadlineMs
-    + tx2TimeoutMs
+    + tx2ProofBudgetMs
     + persistenceMarginMs;
   if (
     !Number.isSafeInteger(leasedDispatchPathMs)
@@ -576,8 +595,12 @@ export function planMailDispatchRuntime(
   const phases = Object.freeze({
     providerLeaseStartsAfterTx1Commit: true as const,
     poolAcquireWithinTransactionBudget: false as const,
+    shouldStopGateBeforeOauth: true as const,
     oauthWithinTx2: false as const,
+    shouldStopGateBeforeTx2: true as const,
     guardedSendWithinTx2: true as const,
+    liveProviderTx2DatabaseTimeoutsDisabled: true as const,
+    synchronousFatalExitBeforeTx2Unlock: true as const,
   });
   const dispatch = Object.freeze({
     concurrency,
@@ -603,6 +626,14 @@ export function planMailDispatchRuntime(
     localReserves,
     serverCapacity,
   });
+  const liveProviderTx2DatabaseTimeouts = Object.freeze({
+    idleInTransactionSessionTimeoutMs: 0 as const,
+    transactionTimeoutMs: 0 as const,
+  });
+  const applicationProofBudgets = Object.freeze({
+    idleInTransactionMs: idleInTransactionProofBudgetMs,
+    tx2Ms: tx2ProofBudgetMs,
+  });
   const timeouts = Object.freeze({
     poolAcquireMs: poolAcquireTimeoutMs,
     poolIdleMs: poolIdleTimeoutMs,
@@ -614,8 +645,6 @@ export function planMailDispatchRuntime(
     guardedSendDeadlineMs,
     providerAbortSettlementMs: providerAbortSettlementTimeoutMs,
     fatalExitMarginMs,
-    idleInTransactionSessionMs: idleInTransactionSessionTimeoutMs,
-    tx2Ms: tx2TimeoutMs,
     persistenceMarginMs,
     providerLeaseMs,
     drainMs: drainTimeoutMs,
@@ -624,5 +653,12 @@ export function planMailDispatchRuntime(
     stopMs: stopTimeoutMs,
   });
 
-  return Object.freeze({ phases, dispatch, pool, timeouts });
+  return Object.freeze({
+    phases,
+    dispatch,
+    pool,
+    liveProviderTx2DatabaseTimeouts,
+    applicationProofBudgets,
+    timeouts,
+  });
 }
