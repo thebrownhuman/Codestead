@@ -153,6 +153,10 @@ readonly python_bin=/usr/bin/python3.12
 readonly sort_bin=/usr/bin/sort
 readonly stat_bin=/usr/bin/stat
 readonly timeout_bin=/usr/bin/timeout
+readonly mail_outbox_dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050b9e14c6a5d91b5
+readonly mail_outbox_dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
+readonly dispatch_binding_runtime_contract=exact-adapter-payload-sha256-before-provider-call-v1
+readonly dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 
 for trusted_command in \
   "$cat_bin" "$chmod_bin" "$date_bin" "$env_bin" "$system_flock_bin" "$git_bin" \
@@ -517,8 +521,15 @@ previous_git_commit="none"
 previous_mail_outbox_phase="legacy-v0"
 previous_outbox_worker_mode="legacy-direct-v1"
 previous_outbox_retention_authority="legacy-direct-v1"
+previous_dispatch_binding_runtime=none
+previous_dispatch_binding_privilege=none
+previous_mail_contract_schema=absent
 previous_store_cutover=false
 readonly outbox_retention_authority="ops-owner-security-definer-v1"
+dispatch_binding_runtime=none
+dispatch_binding_privilege=none
+dispatch_binding_contract_required=false
+mail_outbox_contract_schema_version=2
 previous_runtime_compatible=false
 forward_only_migration=none
 current_pointer="$release_record_root/current-release.env"
@@ -729,6 +740,12 @@ When previous-runtime.override.yaml and a previous release id are present, this 
 sudo '$repo_root/infra/ops/rollback-production.sh' --release-record '$record_dir' --schema-backward-compatible
 EOF
   else
+    if [[ "$forward_only_migration" == 0064_mail_outbox_dispatch_binding ]]; then
+      printf '%s\n' \
+        'Migration 0064_mail_outbox_dispatch_binding is forward-only for images without the exact dispatch binding capability.' \
+        'Do not restore an older or unknown mail worker after this authority boundary.' \
+        >>"$record_dir/rollback.txt"
+    fi
     if [[ "$forward_only_migration" == 0062_mail_outbox_retention_redaction ]]; then
       printf '%s\n' \
         'Migration 0062_mail_outbox_retention_redaction is forward-only for the pre-0062 retention authority.' \
@@ -749,6 +766,176 @@ EOF
 
 run_bounded() {
   "$timeout_bin" --signal=TERM --kill-after=10s "${stage_timeout}s" "$@"
+}
+
+run_local_evidence_git() {
+  run_bounded "$env_bin" GIT_GRAFT_FILE=/dev/null GIT_NO_LAZY_FETCH=1 \
+    GIT_NO_REPLACE_OBJECTS=1 \
+    "$git_bin" -C "$repo_root" "$@"
+}
+
+git_commit_is_ancestor() {
+  local ancestor="$1" descendant="$2" status
+  if run_local_evidence_git merge-base --is-ancestor \
+    "$ancestor" "$descendant" >/dev/null 2>&1; then
+    return 0
+  else
+    status=$?
+  fi
+  [[ "$status" == 1 ]] || fatal "unable to verify trusted dispatch binding lineage"
+  return 1
+}
+
+load_dispatch_binding_capability() {
+  local commit="$1" label="$2" entry metadata entry_path entry_extra
+  local mode object_type object_id metadata_extra content expected_object_id
+  local -a capability_lines=()
+  LOADED_DISPATCH_BINDING_RUNTIME=none
+  LOADED_DISPATCH_BINDING_PRIVILEGE=none
+  expected_object_id="$(
+    printf '%s\n' \
+      'SCHEMA_VERSION=1' \
+      'OUTBOX_WORKER_MODE=fenced-postgres-v1' \
+      "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
+      "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" \
+      | run_local_evidence_git hash-object --stdin
+  )" || fatal "unable to derive the exact dispatch binding capability object"
+  entry="$(run_local_evidence_git ls-tree "$commit" -- \
+    "$mail_outbox_dispatch_binding_capability_path" 2>/dev/null)" || {
+    fatal "unable to verify $label dispatch binding capability"
+  }
+  [[ -n "$entry" ]] || return 1
+  IFS=$'\t' read -r metadata entry_path entry_extra <<<"$entry"
+  IFS=' ' read -r mode object_type object_id metadata_extra <<<"$metadata"
+  [[ "$mode" == 100644 && "$object_type" == blob \
+    && "$object_id" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+    && "$entry_path" == "$mail_outbox_dispatch_binding_capability_path" \
+    && -z "$entry_extra" && -z "$metadata_extra" ]] || {
+    fatal "$label dispatch binding capability is not a canonical regular Git blob"
+  }
+  [[ "$object_id" == "$expected_object_id" ]] || {
+    fatal "$label dispatch binding capability has an absent, unknown, or mismatched version"
+  }
+  content="$(run_local_evidence_git show \
+    "$commit:$mail_outbox_dispatch_binding_capability_path" 2>/dev/null)" || {
+    fatal "unable to read $label dispatch binding capability"
+  }
+  [[ "$content" != *$'\r'* ]] || fatal "$label dispatch binding capability is malformed"
+  mapfile -t capability_lines <<<"$content"
+  [[ "${#capability_lines[@]}" == 4 \
+    && "${capability_lines[0]:-}" == SCHEMA_VERSION=1 \
+    && "${capability_lines[1]:-}" == OUTBOX_WORKER_MODE=fenced-postgres-v1 \
+    && "${capability_lines[2]:-}" == "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
+    && "${capability_lines[3]:-}" == "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" ]] || {
+    fatal "$label dispatch binding capability has an absent, unknown, or mismatched version"
+  }
+  LOADED_DISPATCH_BINDING_RUNTIME="$dispatch_binding_runtime_contract"
+  LOADED_DISPATCH_BINDING_PRIVILEGE="$dispatch_binding_privilege_contract"
+}
+
+derive_dispatch_binding_release_capability() {
+  local previous_record previous_tree_file previous_tree_identity
+  local previous_tree_uid previous_tree_gid previous_tree_mode
+  local previous_tree_from_git source_contains_boundary=false target_contains_boundary=false
+  local recorded_target_runtime="$previous_dispatch_binding_runtime"
+  local recorded_target_privilege="$previous_dispatch_binding_privilege"
+
+  if ! run_local_evidence_git cat-file -e \
+      "${mail_outbox_dispatch_binding_boundary_commit}^{commit}" >/dev/null 2>&1; then
+    if run_local_evidence_git cat-file -e \
+      "$release_commit:drizzle/0064_mail_outbox_dispatch_binding.sql" \
+      >/dev/null 2>&1; then
+      fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
+    fi
+    return 0
+  fi
+  run_local_evidence_git cat-file -e "${release_commit}^{commit}" >/dev/null 2>&1 || {
+    fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
+  }
+  if git_commit_is_ancestor \
+      "$mail_outbox_dispatch_binding_boundary_commit" "$release_commit"; then
+    source_contains_boundary=true
+  fi
+  if [[ "$source_contains_boundary" != true ]]; then
+    if run_local_evidence_git cat-file -e \
+      "$release_commit:drizzle/0064_mail_outbox_dispatch_binding.sql" \
+      >/dev/null 2>&1; then
+      fatal "0064_mail_outbox_dispatch_binding exists outside its approved Git lineage"
+    fi
+    return 0
+  fi
+
+  dispatch_binding_contract_required=true
+  mail_outbox_contract_schema_version=3
+  load_dispatch_binding_capability "$release_commit" "source image" || {
+    fatal "0064_mail_outbox_dispatch_binding requires a checked-in dispatch binding capability before release"
+  }
+  dispatch_binding_runtime="$LOADED_DISPATCH_BINDING_RUNTIME"
+  dispatch_binding_privilege="$LOADED_DISPATCH_BINDING_PRIVILEGE"
+  [[ "$outbox_worker_mode" == fenced-postgres-v1 ]] || {
+    fatal "the dispatch binding capability requires the fenced-postgres-v1 worker"
+  }
+  [[ "$previous_release_id" != none ]] || return 0
+
+  previous_record="$release_record_root/$previous_release_id"
+  previous_tree_file="$previous_record/git-tree.txt"
+  assert_safe_path "$previous_tree_file" "previous release Git tree evidence"
+  [[ -f "$previous_tree_file" && ! -L "$previous_tree_file" ]] || {
+    fatal "previous release Git tree evidence is missing or unsafe"
+  }
+  previous_tree_identity="$(path_identity "$previous_tree_file")"
+  IFS=: read -r previous_tree_uid previous_tree_gid previous_tree_mode \
+    <<<"$previous_tree_identity"
+  if [[ -z "$test_harness_root" ]]; then
+    [[ "$previous_tree_uid" == 0 && "$previous_tree_gid" == 0 \
+      && "$previous_tree_mode" == 600 ]] || {
+      fatal "previous release Git tree evidence must be root:root mode 0600"
+    }
+  else
+    [[ "$previous_tree_uid" == "$EUID" && "$previous_tree_mode" == 600 ]] || {
+      fatal "test previous release Git tree evidence must be caller-owned mode 0600"
+    }
+  fi
+  previous_git_tree="$(<"$previous_tree_file")"
+  [[ "$previous_git_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+    fatal "previous release Git tree evidence is invalid"
+  }
+  run_local_evidence_git cat-file -e "${previous_git_commit}^{commit}" >/dev/null 2>&1 || {
+    fatal "unable to verify the previous image for 0064_mail_outbox_dispatch_binding"
+  }
+  previous_tree_from_git="$(run_local_evidence_git rev-parse --verify \
+    "${previous_git_commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify the previous image Git tree"
+  }
+  [[ "$previous_tree_from_git" == "$previous_git_tree" ]] || {
+    fatal "previous image Git tree evidence does not match the exact repository object"
+  }
+  git_commit_is_ancestor "$previous_git_commit" "$release_commit" || {
+    fatal "the previous image is not an ancestor of the 0064 release image"
+  }
+
+  previous_dispatch_binding_runtime=none
+  previous_dispatch_binding_privilege=none
+  if git_commit_is_ancestor \
+      "$mail_outbox_dispatch_binding_boundary_commit" "$previous_git_commit"; then
+    target_contains_boundary=true
+  fi
+  if [[ "$target_contains_boundary" == true ]]; then
+    if load_dispatch_binding_capability "$previous_git_commit" "previous image"; then
+      if [[ "$previous_mail_contract_schema" == SCHEMA_VERSION=3 \
+        && "$recorded_target_runtime" == "$LOADED_DISPATCH_BINDING_RUNTIME" \
+        && "$recorded_target_privilege" == "$LOADED_DISPATCH_BINDING_PRIVILEGE" ]]; then
+        previous_dispatch_binding_runtime="$LOADED_DISPATCH_BINDING_RUNTIME"
+        previous_dispatch_binding_privilege="$LOADED_DISPATCH_BINDING_PRIVILEGE"
+      elif [[ "$previous_mail_contract_schema" == SCHEMA_VERSION=3 ]]; then
+        fatal "previous image dispatch binding capability does not match its V3 release evidence"
+      fi
+    elif [[ "$previous_mail_contract_schema" == SCHEMA_VERSION=3 ]]; then
+      fatal "previous V3 release evidence is missing its checked-in dispatch binding capability"
+    fi
+  elif [[ "$previous_mail_contract_schema" == SCHEMA_VERSION=3 ]]; then
+    fatal "previous V3 release evidence predates the approved 0064 authority lineage"
+  fi
 }
 
 acquire_host_backup_writer_lock() {
@@ -1255,6 +1442,26 @@ compose_public_origin() {
   printf '%s\n' "$origin"
 }
 
+release_commit="$(run_local_evidence_git rev-parse --verify HEAD 2>/dev/null || true)"
+[[ "$release_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+  fatal "unable to determine an exact lowercase release Git commit"
+}
+release_tree="$(run_local_evidence_git rev-parse --verify \
+  "${release_commit}^{tree}" 2>/dev/null || true)"
+[[ "$release_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+  fatal "unable to determine an exact lowercase release Git tree"
+}
+git_top="$(run_local_evidence_git rev-parse --show-toplevel 2>/dev/null || true)"
+[[ -n "$git_top" \
+  && "$($realpath_bin -e -- "$git_top")" == "$($realpath_bin -e -- "$repo_root")" ]] || {
+  fatal "repository root is not the verified Git worktree root"
+}
+if ! git_dirty="$(run_local_evidence_git status \
+    --porcelain=v1 --untracked-files=all 2>/dev/null)"; then
+  fatal "unable to verify that the release checkout is clean"
+fi
+[[ -z "$git_dirty" ]] || fatal "release checkout is dirty; reviewed bytes must match Git HEAD"
+
 public_origin="$(compose_public_origin)"
 readonly public_origin
 postgres_image="$(compose_env_value POSTGRES_IMAGE)"
@@ -1306,6 +1513,7 @@ if [[ "$previous_release_id" != none ]]; then
     mapfile -t previous_mail_contract_lines <"$previous_mail_contract"
     case "${previous_mail_contract_lines[0]:-}" in
       SCHEMA_VERSION=1)
+        previous_mail_contract_schema=SCHEMA_VERSION=1
         [[ "${#previous_mail_contract_lines[@]}" == 6 \
           && "${previous_mail_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
           && "${previous_mail_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
@@ -1321,6 +1529,7 @@ if [[ "$previous_release_id" != none ]]; then
         recorded_previous_worker_mode="${previous_mail_contract_lines[5]#PREVIOUS_OUTBOX_WORKER_MODE=}"
         ;;
       SCHEMA_VERSION=2)
+        previous_mail_contract_schema=SCHEMA_VERSION=2
         [[ "${#previous_mail_contract_lines[@]}" == 10 \
           && "${previous_mail_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
           && "${previous_mail_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
@@ -1367,6 +1576,80 @@ if [[ "$previous_release_id" != none ]]; then
           fatal "previous mail outbox contract contains inconsistent compatibility evidence"
         }
         ;;
+      SCHEMA_VERSION=3)
+        previous_mail_contract_schema=SCHEMA_VERSION=3
+        [[ "${#previous_mail_contract_lines[@]}" == 14 \
+          && "${previous_mail_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+          && "${previous_mail_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+          && "${previous_mail_contract_lines[3]:-}" == OUTBOX_RETENTION_AUTHORITY=* \
+          && "${previous_mail_contract_lines[4]:-}" == DISPATCH_BINDING_RUNTIME=* \
+          && "${previous_mail_contract_lines[5]:-}" == DISPATCH_BINDING_PRIVILEGE=* \
+          && "${previous_mail_contract_lines[6]:-}" == STORE_CUTOVER=* \
+          && "${previous_mail_contract_lines[7]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+          && "${previous_mail_contract_lines[8]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* \
+          && "${previous_mail_contract_lines[9]:-}" == PREVIOUS_OUTBOX_RETENTION_AUTHORITY=* \
+          && "${previous_mail_contract_lines[10]:-}" == PREVIOUS_DISPATCH_BINDING_RUNTIME=* \
+          && "${previous_mail_contract_lines[11]:-}" == PREVIOUS_DISPATCH_BINDING_PRIVILEGE=* \
+          && "${previous_mail_contract_lines[12]:-}" == PREVIOUS_RUNTIME_COMPATIBLE=* \
+          && "${previous_mail_contract_lines[13]:-}" == FORWARD_ONLY_MIGRATION=* ]] || {
+          fatal "previous mail outbox contract is malformed"
+        }
+        previous_mail_outbox_phase="${previous_mail_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+        previous_outbox_worker_mode="${previous_mail_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+        previous_outbox_retention_authority="${previous_mail_contract_lines[3]#OUTBOX_RETENTION_AUTHORITY=}"
+        previous_dispatch_binding_runtime="${previous_mail_contract_lines[4]#DISPATCH_BINDING_RUNTIME=}"
+        previous_dispatch_binding_privilege="${previous_mail_contract_lines[5]#DISPATCH_BINDING_PRIVILEGE=}"
+        previous_store_cutover="${previous_mail_contract_lines[6]#STORE_CUTOVER=}"
+        recorded_previous_mail_phase="${previous_mail_contract_lines[7]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+        recorded_previous_worker_mode="${previous_mail_contract_lines[8]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+        recorded_previous_retention_authority="${previous_mail_contract_lines[9]#PREVIOUS_OUTBOX_RETENTION_AUTHORITY=}"
+        recorded_previous_dispatch_binding_runtime="${previous_mail_contract_lines[10]#PREVIOUS_DISPATCH_BINDING_RUNTIME=}"
+        recorded_previous_dispatch_binding_privilege="${previous_mail_contract_lines[11]#PREVIOUS_DISPATCH_BINDING_PRIVILEGE=}"
+        recorded_previous_runtime_compatible="${previous_mail_contract_lines[12]#PREVIOUS_RUNTIME_COMPATIBLE=}"
+        recorded_forward_only_migration="${previous_mail_contract_lines[13]#FORWARD_ONLY_MIGRATION=}"
+        [[ "$previous_outbox_retention_authority" == ops-owner-security-definer-v1 ]] || {
+          fatal "previous mail outbox contract contains an invalid retention authority"
+        }
+        [[ "$previous_dispatch_binding_runtime" == "$dispatch_binding_runtime_contract" \
+          && "$previous_dispatch_binding_privilege" == "$dispatch_binding_privilege_contract" ]] || {
+          fatal "previous mail outbox contract contains an unknown dispatch binding capability version"
+        }
+        case "$recorded_previous_retention_authority" in
+          legacy-direct-v1|ops-owner-security-definer-v1) ;;
+          *) fatal "previous mail outbox contract contains an invalid previous retention authority" ;;
+        esac
+        case "$recorded_previous_dispatch_binding_runtime|$recorded_previous_dispatch_binding_privilege" in
+          "none|none" \
+            |"$dispatch_binding_runtime_contract|$dispatch_binding_privilege_contract") ;;
+          *) fatal "previous mail outbox contract contains an invalid prior dispatch binding capability" ;;
+        esac
+        if [[ "$recorded_previous_worker_mode" == legacy-direct-v1 \
+          && "$recorded_previous_dispatch_binding_runtime" != none ]]; then
+          fatal "previous mail outbox contract binds a legacy worker to an impossible dispatch binding capability"
+        fi
+        expected_recorded_runtime_compatible=true
+        expected_recorded_forward_only_migration=none
+        if [[ "$recorded_previous_retention_authority" == legacy-direct-v1 ]]; then
+          expected_recorded_runtime_compatible=false
+          expected_recorded_forward_only_migration=0062_mail_outbox_retention_redaction
+        fi
+        if [[ "$recorded_previous_dispatch_binding_runtime" != "$dispatch_binding_runtime_contract" \
+          || "$recorded_previous_dispatch_binding_privilege" != "$dispatch_binding_privilege_contract" ]]; then
+          expected_recorded_runtime_compatible=false
+          expected_recorded_forward_only_migration=0064_mail_outbox_dispatch_binding
+        fi
+        if [[ "$previous_outbox_worker_mode" == fenced-postgres-v1 \
+          && "$recorded_previous_worker_mode" == legacy-direct-v1 ]]; then
+          expected_recorded_runtime_compatible=false
+        fi
+        if [[ "$previous_store_cutover" == true ]]; then
+          expected_recorded_runtime_compatible=false
+        fi
+        [[ "$recorded_previous_runtime_compatible" == "$expected_recorded_runtime_compatible" \
+          && "$recorded_forward_only_migration" == "$expected_recorded_forward_only_migration" ]] || {
+          fatal "previous mail outbox contract contains inconsistent compatibility evidence"
+        }
+        ;;
       *) fatal "previous mail outbox contract is malformed" ;;
     esac
     case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$previous_store_cutover|$recorded_previous_mail_phase|$recorded_previous_worker_mode" in
@@ -1398,6 +1681,8 @@ case "$previous_mail_outbox_phase|$previous_outbox_worker_mode|$mail_outbox_phas
     ;;
 esac
 
+derive_dispatch_binding_release_capability
+
 previous_runtime_compatible=true
 forward_only_migration=none
 case "$previous_outbox_retention_authority" in
@@ -1408,6 +1693,12 @@ case "$previous_outbox_retention_authority" in
   ops-owner-security-definer-v1) ;;
   *) fatal "previous mail outbox retention authority is invalid" ;;
 esac
+if [[ "$dispatch_binding_contract_required" == true \
+  && ( "$previous_dispatch_binding_runtime" != "$dispatch_binding_runtime_contract" \
+    || "$previous_dispatch_binding_privilege" != "$dispatch_binding_privilege_contract" ) ]]; then
+  previous_runtime_compatible=false
+  forward_only_migration=0064_mail_outbox_dispatch_binding
+fi
 if [[ "$outbox_worker_mode" == fenced-postgres-v1 \
   && "$previous_outbox_worker_mode" == legacy-direct-v1 ]]; then
   previous_runtime_compatible=false
@@ -1418,6 +1709,9 @@ fi
 
 if [[ "$schema_backward_compatible" == true \
   && "$previous_runtime_compatible" != true ]]; then
+  if [[ "$forward_only_migration" == 0064_mail_outbox_dispatch_binding ]]; then
+    fatal "0064_mail_outbox_dispatch_binding is forward-only; --schema-backward-compatible cannot restore an image without the exact dispatch binding capability"
+  fi
   if [[ "$forward_only_migration" == 0062_mail_outbox_retention_redaction ]]; then
     fatal "0062_mail_outbox_retention_redaction is forward-only; --schema-backward-compatible cannot restore the pre-0062 retention authority"
   fi
@@ -1429,7 +1723,22 @@ if [[ "$schema_backward_compatible" == true \
 fi
 
 mail_outbox_contract_file="$record_dir/mail-outbox-contract.env"
-{
+if [[ "$mail_outbox_contract_schema_version" == 3 ]]; then
+  printf 'SCHEMA_VERSION=3\n'
+  printf 'MAIL_OUTBOX_PHASE=%s\n' "$mail_outbox_phase"
+  printf 'OUTBOX_WORKER_MODE=%s\n' "$outbox_worker_mode"
+  printf 'OUTBOX_RETENTION_AUTHORITY=%s\n' "$outbox_retention_authority"
+  printf 'DISPATCH_BINDING_RUNTIME=%s\n' "$dispatch_binding_runtime"
+  printf 'DISPATCH_BINDING_PRIVILEGE=%s\n' "$dispatch_binding_privilege"
+  printf 'STORE_CUTOVER=%s\n' "$mail_store_cutover"
+  printf 'PREVIOUS_MAIL_OUTBOX_PHASE=%s\n' "$previous_mail_outbox_phase"
+  printf 'PREVIOUS_OUTBOX_WORKER_MODE=%s\n' "$previous_outbox_worker_mode"
+  printf 'PREVIOUS_OUTBOX_RETENTION_AUTHORITY=%s\n' "$previous_outbox_retention_authority"
+  printf 'PREVIOUS_DISPATCH_BINDING_RUNTIME=%s\n' "$previous_dispatch_binding_runtime"
+  printf 'PREVIOUS_DISPATCH_BINDING_PRIVILEGE=%s\n' "$previous_dispatch_binding_privilege"
+  printf 'PREVIOUS_RUNTIME_COMPATIBLE=%s\n' "$previous_runtime_compatible"
+  printf 'FORWARD_ONLY_MIGRATION=%s\n' "$forward_only_migration"
+else
   printf 'SCHEMA_VERSION=2\n'
   printf 'MAIL_OUTBOX_PHASE=%s\n' "$mail_outbox_phase"
   printf 'OUTBOX_WORKER_MODE=%s\n' "$outbox_worker_mode"
@@ -1440,7 +1749,7 @@ mail_outbox_contract_file="$record_dir/mail-outbox-contract.env"
   printf 'PREVIOUS_OUTBOX_RETENTION_AUTHORITY=%s\n' "$previous_outbox_retention_authority"
   printf 'PREVIOUS_RUNTIME_COMPATIBLE=%s\n' "$previous_runtime_compatible"
   printf 'FORWARD_ONLY_MIGRATION=%s\n' "$forward_only_migration"
-} >"$mail_outbox_contract_file"
+fi >"$mail_outbox_contract_file"
 "$chmod_bin" 0600 "$mail_outbox_contract_file"
 sync_evidence_file "$mail_outbox_contract_file"
 write_rollback_instructions
@@ -1684,22 +1993,6 @@ update_release_pointer() {
 
 
 
-release_commit="$(run_bounded "$git_bin" -C "$repo_root" rev-parse --verify HEAD 2>/dev/null || true)"
-[[ "$release_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
-  fatal "unable to determine an exact lowercase release Git commit"
-}
-release_tree="$(run_bounded "$git_bin" -C "$repo_root" rev-parse --verify "${release_commit}^{tree}" 2>/dev/null || true)"
-[[ "$release_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
-  fatal "unable to determine an exact lowercase release Git tree"
-}
-git_top="$(run_bounded "$git_bin" -C "$repo_root" rev-parse --show-toplevel 2>/dev/null || true)"
-[[ -n "$git_top" && "$($realpath_bin -e -- "$git_top")" == "$($realpath_bin -e -- "$repo_root")" ]] || {
-  fatal "repository root is not the verified Git worktree root"
-}
-if ! git_dirty="$(run_bounded "$git_bin" -C "$repo_root" status --porcelain=v1 --untracked-files=all 2>/dev/null)"; then
-  fatal "unable to verify that the release checkout is clean"
-fi
-[[ -z "$git_dirty" ]] || fatal "release checkout is dirty; reviewed bytes must match Git HEAD"
 run_bounded "$python_bin" "$release_tree_packager" \
   --verify-source-manifest \
   --source "$repo_root" \

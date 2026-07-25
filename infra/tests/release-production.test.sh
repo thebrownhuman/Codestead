@@ -10,6 +10,7 @@ rollback_script="$repo_root/infra/ops/rollback-production.sh"
 ingress_control_script="$repo_root/infra/ops/ingress-control.py"
 guarded_start_script="$repo_root/infra/ops/start-production-stack.sh"
 fixture_generator="$repo_root/infra/tests/fixtures/create-release-tree-fixture.py"
+dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050b9e14c6a5d91b5
 compose_unit="$repo_root/infra/systemd/learncoding-compose.service"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -35,6 +36,15 @@ if grep -Fq 'Browser-local crash durability remains a separate implementation' "
 fi
 grep -Fq "\`0062_mail_outbox_retention_redaction\` is a forward-only authority boundary" "$update_runbook" || {
   fail "update runbook omits the 0062 retention-authority boundary"
+}
+grep -Fq "\`0064_mail_outbox_dispatch_binding\` is a second forward-only authority boundary" \
+  "$update_runbook" || fail "update runbook omits the 0064 dispatch-binding boundary"
+grep -Fq 'No 0065 introduction SHA is approved yet' "$update_runbook" || {
+  fail "update runbook invents or omits the future additive authority rule"
+}
+grep -Fq 'requires the exact checked-in dispatch-binding capability contract' \
+  "$deployment_guide" || {
+  fail "deployment guide omits the checked-in 0064 runtime capability gate"
 }
 grep -Fq 'PREVIOUS_RUNTIME_COMPATIBLE=true' "$update_runbook" || {
   fail "update runbook omits the versioned compatibility evidence gate"
@@ -80,6 +90,49 @@ git -C "$work/repo" config core.autocrlf false
 git -C "$work/repo" remote add origin https://github.com/example/codestead
 git -C "$work/repo" add .gitignore compose.yaml infra/ops/package-release-tree.py infra/ops/ingress-control.py infra/runner-vm/host-runner.nft
 git -C "$work/repo" commit -qm 'fixture release commit'
+
+declare -a source_git
+if source_git_dir="$(
+  git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null
+)"; then
+  source_git=(git -C "$repo_root")
+else
+  if ! command -v git.exe >/dev/null || ! command -v wslpath >/dev/null; then
+    fail "source Git repository is unavailable"
+  fi
+  source_repo_windows="$(wslpath -w "$repo_root")"
+  source_git=(git.exe -C "$source_repo_windows")
+  source_git_dir_windows="$(
+    "${source_git[@]}" rev-parse --path-format=absolute --git-common-dir | tr -d '\r'
+  )"
+  source_git_dir="$(wslpath -u "$source_git_dir_windows")"
+fi
+[[ -d "$source_git_dir" ]] || fail "source Git directory is unavailable"
+dispatch_binding_source_ref="$(
+  "${source_git[@]}" for-each-ref --contains "$dispatch_binding_boundary_commit" \
+    --format='%(refname)' refs/heads refs/remotes | tr -d '\r' | sed -n '1p'
+)"
+[[ "$dispatch_binding_source_ref" == refs/* ]] || {
+  fail "0064 boundary is not reachable from a trusted source ref"
+}
+dispatch_binding_source_distance="$(
+  "${source_git[@]}" rev-list --count \
+    "$dispatch_binding_boundary_commit..$dispatch_binding_source_ref" | tr -d '\r'
+)"
+[[ "$dispatch_binding_source_distance" =~ ^[0-9]+$ ]] || {
+  fail "dispatch binding boundary source distance is invalid"
+}
+dispatch_binding_source_depth="$((dispatch_binding_source_distance + 2))"
+git -C "$work/repo" remote add dispatch-binding-boundary \
+  "ext::git -c safe.directory=$source_git_dir -c uploadpack.allowFilter=true upload-pack $source_git_dir"
+git -C "$work/repo" config extensions.partialClone dispatch-binding-boundary
+git -C "$work/repo" config remote.dispatch-binding-boundary.promisor true
+git -C "$work/repo" config remote.dispatch-binding-boundary.partialclonefilter blob:none
+git -c protocol.ext.allow=always -C "$work/repo" fetch --quiet --filter=blob:none \
+  --depth="$dispatch_binding_source_depth" dispatch-binding-boundary \
+  "$dispatch_binding_source_ref" 2>/dev/null || {
+  fail "unable to import the complete 0064 boundary fixture"
+}
 
 release_fixture_generation=0
 regenerate_release_fixture() {
@@ -748,6 +801,41 @@ assert_immutable_flags() {
     [[ "$line" == *$'\t--pull\tnever'* ]] || fail "release mutation omitted --pull never: $line"
   done < <(grep -E $'compose\t.*\t(up|run)\t' "$log")
 }
+
+dispatch_binding_preflight_head="$(git -C "$work/repo" rev-parse --verify HEAD)"
+dispatch_binding_preflight_tree="$(git -C "$work/repo" rev-parse --verify 'HEAD^{tree}')"
+dispatch_binding_missing_capability_commit="$(
+  printf '%s\n' 'fixture 0064 source without a checked-in runtime capability' \
+    | git -C "$work/repo" commit-tree "$dispatch_binding_preflight_tree" \
+      -p "$dispatch_binding_preflight_head" -p "$dispatch_binding_boundary_commit"
+)"
+git -C "$work/repo" reset --quiet --hard "$dispatch_binding_missing_capability_commit"
+regenerate_release_fixture
+dispatch_binding_preflight_records="$work/dispatch-binding-preflight-records"
+RUN_RECORD_ROOT="$dispatch_binding_preflight_records" \
+  run_release dispatch-binding-capability-missing
+unset RUN_RECORD_ROOT
+[[ "$RELEASE_STATUS" != 0 ]] || {
+  fail "release started a 0064 image without a checked-in exact dispatch binding capability"
+}
+assert_only_early_quarantine \
+  "$RELEASE_CASE_DIR/docker.log" "0064 missing runtime capability refusal"
+[[ ! -s "$RELEASE_CASE_DIR/smoke.log" ]] || {
+  fail "0064 missing runtime capability refusal reached smoke"
+}
+grep -Fq '0064_mail_outbox_dispatch_binding' "$RELEASE_CASE_DIR/stderr" || {
+  fail "0064 missing runtime capability refusal did not name the authority boundary"
+}
+grep -Fq 'checked-in dispatch binding capability' "$RELEASE_CASE_DIR/stderr" || {
+  fail "0064 missing runtime capability refusal did not identify the absent contract"
+}
+if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+  "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr"; then
+  fail "0064 missing runtime capability refusal disclosed Git or capability hashes"
+fi
+git -C "$work/repo" reset --quiet --hard "$dispatch_binding_preflight_head"
+regenerate_release_fixture
+echo "ok - release fails closed after 0064 while the runtime capability identifier is absent"
 
 cat >"$work/compose.env" <<EOF
 APP_URL=https://127.0.0.1

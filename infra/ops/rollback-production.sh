@@ -123,6 +123,10 @@ readonly stat_bin=/usr/bin/stat
 readonly timeout_bin=/usr/bin/timeout
 readonly mail_outbox_contract_required_commit=abe2a67ad20215bff64317182cc306b3329e5bed
 readonly mail_outbox_retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
+readonly mail_outbox_dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050b9e14c6a5d91b5
+readonly mail_outbox_dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
+readonly dispatch_binding_runtime_contract=exact-adapter-payload-sha256-before-provider-call-v1
+readonly dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 
 if [[ -n "$test_harness_root" ]]; then
   [[ "$test_harness_root" == /* && -d "$test_harness_root" && ! -L "$test_harness_root" ]] || {
@@ -459,6 +463,10 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
   mail_outbox_contract_schema="${mail_outbox_contract_lines[0]:-}"
   rollback_retention_authority=legacy-direct-v1
   rollback_previous_retention_authority=legacy-direct-v1
+  rollback_dispatch_binding_runtime=none
+  rollback_dispatch_binding_privilege=none
+  rollback_previous_dispatch_binding_runtime=none
+  rollback_previous_dispatch_binding_privilege=none
   rollback_previous_runtime_compatible=false
   rollback_forward_only_migration=none
   case "$mail_outbox_contract_schema" in
@@ -524,6 +532,79 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
         fatal "mail outbox contract evidence contains inconsistent compatibility evidence"
       }
       ;;
+    SCHEMA_VERSION=3)
+      [[ "${#mail_outbox_contract_lines[@]}" == 14 \
+        && "${mail_outbox_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+        && "${mail_outbox_contract_lines[3]:-}" == OUTBOX_RETENTION_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[4]:-}" == DISPATCH_BINDING_RUNTIME=* \
+        && "${mail_outbox_contract_lines[5]:-}" == DISPATCH_BINDING_PRIVILEGE=* \
+        && "${mail_outbox_contract_lines[6]:-}" == STORE_CUTOVER=* \
+        && "${mail_outbox_contract_lines[7]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[8]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* \
+        && "${mail_outbox_contract_lines[9]:-}" == PREVIOUS_OUTBOX_RETENTION_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[10]:-}" == PREVIOUS_DISPATCH_BINDING_RUNTIME=* \
+        && "${mail_outbox_contract_lines[11]:-}" == PREVIOUS_DISPATCH_BINDING_PRIVILEGE=* \
+        && "${mail_outbox_contract_lines[12]:-}" == PREVIOUS_RUNTIME_COMPATIBLE=* \
+        && "${mail_outbox_contract_lines[13]:-}" == FORWARD_ONLY_MIGRATION=* ]] || {
+        fatal "mail outbox contract evidence is malformed"
+      }
+      rollback_mail_phase="${mail_outbox_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+      rollback_worker_mode="${mail_outbox_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+      rollback_retention_authority="${mail_outbox_contract_lines[3]#OUTBOX_RETENTION_AUTHORITY=}"
+      rollback_dispatch_binding_runtime="${mail_outbox_contract_lines[4]#DISPATCH_BINDING_RUNTIME=}"
+      rollback_dispatch_binding_privilege="${mail_outbox_contract_lines[5]#DISPATCH_BINDING_PRIVILEGE=}"
+      rollback_store_cutover="${mail_outbox_contract_lines[6]#STORE_CUTOVER=}"
+      rollback_previous_mail_phase="${mail_outbox_contract_lines[7]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+      rollback_previous_worker_mode="${mail_outbox_contract_lines[8]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+      rollback_previous_retention_authority="${mail_outbox_contract_lines[9]#PREVIOUS_OUTBOX_RETENTION_AUTHORITY=}"
+      rollback_previous_dispatch_binding_runtime="${mail_outbox_contract_lines[10]#PREVIOUS_DISPATCH_BINDING_RUNTIME=}"
+      rollback_previous_dispatch_binding_privilege="${mail_outbox_contract_lines[11]#PREVIOUS_DISPATCH_BINDING_PRIVILEGE=}"
+      rollback_previous_runtime_compatible="${mail_outbox_contract_lines[12]#PREVIOUS_RUNTIME_COMPATIBLE=}"
+      rollback_forward_only_migration="${mail_outbox_contract_lines[13]#FORWARD_ONLY_MIGRATION=}"
+      [[ "$rollback_retention_authority" == ops-owner-security-definer-v1 ]] || {
+        fatal "mail outbox contract evidence contains an invalid retention authority"
+      }
+      [[ "$rollback_dispatch_binding_runtime" == "$dispatch_binding_runtime_contract" \
+        && "$rollback_dispatch_binding_privilege" == "$dispatch_binding_privilege_contract" ]] || {
+        fatal "mail outbox contract evidence contains an unknown dispatch binding capability version"
+      }
+      case "$rollback_previous_retention_authority" in
+        legacy-direct-v1|ops-owner-security-definer-v1) ;;
+        *) fatal "mail outbox contract evidence contains an invalid previous retention authority" ;;
+      esac
+      case "$rollback_previous_dispatch_binding_runtime|$rollback_previous_dispatch_binding_privilege" in
+        "none|none" \
+          |"$dispatch_binding_runtime_contract|$dispatch_binding_privilege_contract") ;;
+        *) fatal "mail outbox contract evidence contains an invalid previous dispatch binding capability" ;;
+      esac
+      if [[ "$rollback_previous_worker_mode" == legacy-direct-v1 \
+        && "$rollback_previous_dispatch_binding_runtime" != none ]]; then
+        fatal "mail outbox contract evidence binds a legacy worker to an impossible dispatch binding capability"
+      fi
+      expected_runtime_compatible=true
+      expected_forward_only_migration=none
+      if [[ "$rollback_previous_retention_authority" == legacy-direct-v1 ]]; then
+        expected_runtime_compatible=false
+        expected_forward_only_migration=0062_mail_outbox_retention_redaction
+      fi
+      if [[ "$rollback_previous_dispatch_binding_runtime" != "$dispatch_binding_runtime_contract" \
+        || "$rollback_previous_dispatch_binding_privilege" != "$dispatch_binding_privilege_contract" ]]; then
+        expected_runtime_compatible=false
+        expected_forward_only_migration=0064_mail_outbox_dispatch_binding
+      fi
+      if [[ "$rollback_worker_mode" == fenced-postgres-v1 \
+        && "$rollback_previous_worker_mode" == legacy-direct-v1 ]]; then
+        expected_runtime_compatible=false
+      fi
+      if [[ "$rollback_store_cutover" == true ]]; then
+        expected_runtime_compatible=false
+      fi
+      [[ "$rollback_previous_runtime_compatible" == "$expected_runtime_compatible" \
+        && "$rollback_forward_only_migration" == "$expected_forward_only_migration" ]] || {
+        fatal "mail outbox contract evidence contains inconsistent compatibility evidence"
+      }
+      ;;
     *) fatal "mail outbox contract evidence is malformed" ;;
   esac
   case "$rollback_mail_phase|$rollback_worker_mode|$rollback_store_cutover|$rollback_previous_mail_phase|$rollback_previous_worker_mode" in
@@ -533,6 +614,9 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
       |"store-v1|fenced-postgres-v1|false|store-v1|fenced-postgres-v1") ;;
     *) fatal "mail outbox contract evidence contains an invalid transition" ;;
   esac
+  if [[ "$rollback_forward_only_migration" == 0064_mail_outbox_dispatch_binding ]]; then
+    fatal "0064_mail_outbox_dispatch_binding is forward-only; an image without the exact dispatch binding capability cannot be restored"
+  fi
   if [[ "$rollback_forward_only_migration" == 0062_mail_outbox_retention_redaction ]]; then
     fatal "0062_mail_outbox_retention_redaction is forward-only; the pre-0062 retention authority cannot be restored"
   fi
@@ -543,7 +627,8 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
   if [[ "$rollback_store_cutover" == true ]]; then
     fatal "mail store cutover is forward-only; the pre-cutover artifact cannot be restored"
   fi
-  if [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=2 \
+  if [[ ( "$mail_outbox_contract_schema" == SCHEMA_VERSION=2 \
+      || "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ) \
     && "$rollback_previous_runtime_compatible" != true ]]; then
     fatal "mail outbox contract evidence does not permit automatic rollback"
   fi
@@ -848,7 +933,9 @@ git_commit_is_strictly_before_boundary() {
 verify_legacy_mail_outbox_contract_lineage() {
   local boundary_commit commit record_tree_from_git previous_tree_from_git
   local record_predates_boundary=false previous_predates_boundary=false
-  [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=2 ]] || return 0
+  case "$mail_outbox_contract_schema" in
+    SCHEMA_VERSION=2|SCHEMA_VERSION=3) return 0 ;;
+  esac
 
   case "$mail_outbox_contract_schema" in
     absent) boundary_commit="$mail_outbox_contract_required_commit" ;;
@@ -898,6 +985,142 @@ run_local_evidence_git() {
   run_bounded "$env_bin" GIT_GRAFT_FILE=/dev/null GIT_NO_LAZY_FETCH=1 \
     GIT_NO_REPLACE_OBJECTS=1 \
     "$git_bin" -C "$repo_root" "$@"
+}
+
+load_dispatch_binding_capability() {
+  local commit="$1" label="$2" entry metadata entry_path entry_extra
+  local mode object_type object_id metadata_extra content expected_object_id
+  local -a capability_lines=()
+  LOADED_DISPATCH_BINDING_RUNTIME=none
+  LOADED_DISPATCH_BINDING_PRIVILEGE=none
+  expected_object_id="$(
+    printf '%s\n' \
+      'SCHEMA_VERSION=1' \
+      'OUTBOX_WORKER_MODE=fenced-postgres-v1' \
+      "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
+      "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" \
+      | run_local_evidence_git hash-object --stdin
+  )" || fatal "unable to derive the exact dispatch binding capability object"
+  entry="$(run_local_evidence_git ls-tree "$commit" -- \
+    "$mail_outbox_dispatch_binding_capability_path" 2>/dev/null)" || {
+    fatal "unable to verify $label dispatch binding capability"
+  }
+  [[ -n "$entry" ]] || return 1
+  IFS=$'\t' read -r metadata entry_path entry_extra <<<"$entry"
+  IFS=' ' read -r mode object_type object_id metadata_extra <<<"$metadata"
+  [[ "$mode" == 100644 && "$object_type" == blob \
+    && "$object_id" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+    && "$entry_path" == "$mail_outbox_dispatch_binding_capability_path" \
+    && -z "$entry_extra" && -z "$metadata_extra" ]] || {
+    fatal "$label dispatch binding capability is not a canonical regular Git blob"
+  }
+  [[ "$object_id" == "$expected_object_id" ]] || {
+    fatal "$label dispatch binding capability has an absent, unknown, or mismatched version"
+  }
+  content="$(run_local_evidence_git show \
+    "$commit:$mail_outbox_dispatch_binding_capability_path" 2>/dev/null)" || {
+    fatal "unable to read $label dispatch binding capability"
+  }
+  [[ "$content" != *$'\r'* ]] || fatal "$label dispatch binding capability is malformed"
+  mapfile -t capability_lines <<<"$content"
+  [[ "${#capability_lines[@]}" == 4 \
+    && "${capability_lines[0]:-}" == SCHEMA_VERSION=1 \
+    && "${capability_lines[1]:-}" == OUTBOX_WORKER_MODE=fenced-postgres-v1 \
+    && "${capability_lines[2]:-}" == "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
+    && "${capability_lines[3]:-}" == "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" ]] || {
+    fatal "$label dispatch binding capability has an absent, unknown, or mismatched version"
+  }
+  LOADED_DISPATCH_BINDING_RUNTIME="$dispatch_binding_runtime_contract"
+  LOADED_DISPATCH_BINDING_PRIVILEGE="$dispatch_binding_privilege_contract"
+}
+
+verify_dispatch_binding_rollback_contract() {
+  local record_tree_from_git previous_tree_from_git
+  local source_contains_boundary=false target_contains_boundary=false
+  local source_runtime source_privilege target_runtime target_privilege
+  if ! run_local_evidence_git cat-file -e \
+      "${mail_outbox_dispatch_binding_boundary_commit}^{commit}" >/dev/null 2>&1; then
+    if [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ]] \
+      || run_local_evidence_git cat-file -e \
+        "$record_git_commit:drizzle/0064_mail_outbox_dispatch_binding.sql" \
+        >/dev/null 2>&1; then
+      fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
+    fi
+    return 0
+  fi
+  if ! run_local_evidence_git cat-file -e \
+      "${record_git_commit}^{commit}" >/dev/null 2>&1; then
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
+      fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
+    }
+    return 0
+  fi
+  if git_commit_is_ancestor \
+      "$mail_outbox_dispatch_binding_boundary_commit" "$record_git_commit"; then
+    source_contains_boundary=true
+  fi
+  if [[ "$source_contains_boundary" != true ]]; then
+    if run_local_evidence_git cat-file -e \
+      "$record_git_commit:drizzle/0064_mail_outbox_dispatch_binding.sql" \
+      >/dev/null 2>&1; then
+      fatal "0064_mail_outbox_dispatch_binding exists outside its approved Git lineage"
+    fi
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
+      fatal "SCHEMA_VERSION=3 dispatch binding evidence is not bound to the 0064 authority lineage"
+    }
+    return 0
+  fi
+  run_local_evidence_git cat-file -e \
+    "${previous_git_commit}^{commit}" >/dev/null 2>&1 || {
+    fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
+  }
+  record_tree_from_git="$(run_local_evidence_git rev-parse --verify \
+    "${record_git_commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify trusted 0064 release Git trees"
+  }
+  previous_tree_from_git="$(run_local_evidence_git rev-parse --verify \
+    "${previous_git_commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify trusted 0064 release Git trees"
+  }
+  [[ "$record_tree_from_git" == "$record_git_tree" \
+    && "$previous_tree_from_git" == "$previous_git_tree" ]] || {
+    fatal "trusted 0064 release Git tree evidence does not match repository objects"
+  }
+  git_commit_is_ancestor "$previous_git_commit" "$record_git_commit" || {
+    fatal "the previous image is not an ancestor of the 0064 release image"
+  }
+  [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ]] || {
+    fatal "0064_mail_outbox_dispatch_binding is forward-only; SCHEMA_VERSION=3 exact dispatch binding capability evidence is required"
+  }
+  load_dispatch_binding_capability "$record_git_commit" "source image" || {
+    fatal "0064_mail_outbox_dispatch_binding requires a checked-in dispatch binding capability in the source image"
+  }
+  source_runtime="$LOADED_DISPATCH_BINDING_RUNTIME"
+  source_privilege="$LOADED_DISPATCH_BINDING_PRIVILEGE"
+  [[ "$source_runtime" == "$rollback_dispatch_binding_runtime" \
+    && "$source_privilege" == "$rollback_dispatch_binding_privilege" ]] || {
+    fatal "source image dispatch binding capability does not match its versioned release evidence"
+  }
+  if git_commit_is_ancestor \
+      "$mail_outbox_dispatch_binding_boundary_commit" "$previous_git_commit"; then
+    target_contains_boundary=true
+  fi
+  [[ "$target_contains_boundary" == true ]] || {
+    fatal "0064_mail_outbox_dispatch_binding is forward-only; the previous image predates exact dispatch binding"
+  }
+  load_dispatch_binding_capability "$previous_git_commit" "previous image" || {
+    fatal "0064_mail_outbox_dispatch_binding is forward-only; the previous image lacks the checked-in dispatch binding capability"
+  }
+  target_runtime="$LOADED_DISPATCH_BINDING_RUNTIME"
+  target_privilege="$LOADED_DISPATCH_BINDING_PRIVILEGE"
+  [[ "$target_runtime" == "$rollback_previous_dispatch_binding_runtime" \
+    && "$target_privilege" == "$rollback_previous_dispatch_binding_privilege" \
+    && "$rollback_worker_mode" == fenced-postgres-v1 \
+    && "$rollback_previous_worker_mode" == fenced-postgres-v1 \
+    && "$rollback_previous_runtime_compatible" == true \
+    && "$rollback_forward_only_migration" == none ]] || {
+    fatal "0064_mail_outbox_dispatch_binding is forward-only; source and previous image capabilities are incompatible"
+  }
 }
 
 record_rollback_runtime_state() {
@@ -1093,6 +1316,7 @@ run_bounded "$python_bin" "$release_tree_packager" \
 }
 
 verify_legacy_mail_outbox_contract_lineage
+verify_dispatch_binding_rollback_contract
 
 readonly -a compose=(
   "${docker_cli[@]}" compose --project-name learncoding
