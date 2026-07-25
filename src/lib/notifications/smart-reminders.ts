@@ -194,10 +194,27 @@ async function loadCandidates(now: Date, limit: number): Promise<Candidate[]> {
 
 async function dispatch(candidate: Candidate, kind: SmartReminderKind, periodKey: string, now: Date) {
   return db.transaction(async (tx) => {
-    // The scan is only a hint. Lock and rebuild the complete due decision in
-    // the write transaction so a concurrent opt-out, email-off change,
-    // activity, review completion, plan change, or battle change wins.
-    const locked = await tx.execute(sql<Candidate>`
+    // The scan is only a hint. Lock account and preference in canonical order,
+    // then re-read the complete due decision. Account/preference writers using
+    // the same order serialize here; source evidence is re-evaluated at this
+    // boundary. Keep each relation in its own statement so PostgreSQL's planner
+    // cannot choose a different tuple-lock order for a joined query.
+    const userLock = await tx.execute(sql<{ id: string }>`
+      select u.id
+        from "user" u
+       where u.id=${candidate.id}
+       for update of u
+    `);
+    if (!userLock.rows[0]) return false;
+    const preferenceLock = await tx.execute(sql<{ user_id: string }>`
+      select p.user_id
+        from notification_preference p
+       where p.user_id=${candidate.id}
+       for update of p
+    `);
+    if (!preferenceLock.rows[0]) return false;
+
+    const revalidated = await tx.execute(sql<Candidate>`
       select u.id,u.name,u.email,u.last_meaningful_activity_at,
              p.timezone,p.daily_study_enabled,p.revision_enabled,p.goal_enabled,
              p.challenge_enabled,p.weekly_summary_enabled,p.learning_email_enabled,
@@ -223,9 +240,8 @@ async function dispatch(candidate: Candidate, kind: SmartReminderKind, periodKey
         from "user" u
         join notification_preference p on p.user_id=u.id
        where u.id=${candidate.id} and u.role='learner' and u.status='active' and u.banned=false
-       for update of u,p
     `);
-    const current = locked.rows[0] as Candidate | undefined;
+    const current = revalidated.rows[0] as Candidate | undefined;
     if (!current) return false;
     const stillDue = dueKinds(current, now).some(
       (item) => item.kind === kind && item.periodKey === periodKey,

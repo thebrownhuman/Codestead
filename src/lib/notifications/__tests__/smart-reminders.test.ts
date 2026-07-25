@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 
@@ -44,6 +46,49 @@ describe("smart reminder policy", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+  });
+
+  it("locks the user and preference in separate deterministic order before revalidation", () => {
+    const sourcePath = "../smart-reminders.ts";
+    const source = readFileSync(
+      new URL(sourcePath, import.meta.url),
+      "utf8",
+    );
+    const dispatch = source.slice(
+      source.indexOf("async function dispatch"),
+      source.indexOf("export async function scheduleSmartReminders"),
+    );
+    const normalized = dispatch.replace(/\s+/gu, " ").toLowerCase();
+    const userLock = normalized.indexOf(
+      'select u.id from "user" u where u.id=${candidate.id} for update of u',
+    );
+    const preferenceLock = normalized.indexOf(
+      "select p.user_id from notification_preference p where p.user_id=${candidate.id} for update of p",
+    );
+    const revalidation = normalized.indexOf(
+      "select u.id,u.name,u.email,u.last_meaningful_activity_at, p.timezone",
+    );
+
+    expect(userLock).toBeGreaterThan(-1);
+    expect(preferenceLock).toBeGreaterThan(userLock);
+    expect(revalidation).toBeGreaterThan(preferenceLock);
+    expect(normalized).not.toMatch(/for update of\s+u\s*,\s*p/u);
+  });
+
+  it.each([
+    "../smart-reminders.ts",
+    "../smart-preferences.ts",
+    "../inactivity.ts",
+    "../preferences.ts",
+    "../../auth.ts",
+    "../../security/lost-device-recovery.ts",
+    "../../../app/api/session-revocation-requests/route.ts",
+    "../../../app/api/admin/session-revocation-requests/[id]/decision/route.ts",
+  ])("avoids multi-alias update locks in revocable path %s", (relativePath) => {
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    expect(source).not.toMatch(
+      /for\s+update\s+of\s+[a-z_][a-z0-9_]*\s*,/iu,
+    );
   });
 
   it("uses the learner's IANA time zone and a stable ISO week", () => {
