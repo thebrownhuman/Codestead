@@ -107,6 +107,18 @@ function requirePostgresImage(value: string): string {
   return value;
 }
 
+function requirePostgresHostPort(value: number): number {
+  if (
+    !Number.isSafeInteger(value)
+    || value <= 0
+    || value > 65_535
+    || value === 5432
+  ) {
+    throw disposableIntegrationFailure("invalid_postgres_host_port");
+  }
+  return value;
+}
+
 const SAFE_CONTAINER_CLEANUP_CODES = new Set([
   "container_probe_failed",
   "container_probe_ambiguous",
@@ -174,6 +186,7 @@ export function createDisposablePostgresContainer(input: Readonly<{
   const escapedContainerName = escapeFilterPattern(containerName);
   const runLabel = `${RUN_LABEL_KEY}=${containerName}`;
   const image = requirePostgresImage(input.image);
+  const port = requirePostgresHostPort(input.port);
   const commandTimeoutMs = requirePositiveTimeout(
     input.commandTimeoutMs ?? 30_000,
     "invalid_command_timeout",
@@ -455,7 +468,7 @@ export function createDisposablePostgresContainer(input: Readonly<{
       "--label",
       runLabel,
       "--publish",
-      `127.0.0.1:${input.port}:5432`,
+      `127.0.0.1:${port}:5432`,
       "--tmpfs",
       POSTGRES_TMPFS,
       "--mount",
@@ -495,7 +508,7 @@ export function createDisposablePostgresContainer(input: Readonly<{
     }
     return {
       containerId: expectedContainerId,
-      port: input.port,
+      port,
       database: input.database,
       username: input.username,
     };

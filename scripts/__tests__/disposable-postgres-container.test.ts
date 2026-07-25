@@ -29,6 +29,12 @@ type PasswordFileHandle = Readonly<{
 
 type DisposablePostgresContainer = Readonly<{
   cleanup: () => void;
+  getIdentity: () => Readonly<{
+    containerId: string;
+    port: number;
+    database: string;
+    username: string;
+  }>;
   start: () => void;
 }>;
 
@@ -245,7 +251,10 @@ function createFakeDocker(
 function createFixture(
   module: DisposablePostgresModule,
   fake: ReturnType<typeof createFakeDocker>,
-  input: Readonly<{ passwordCleanupFails?: boolean }> = {},
+  input: Readonly<{
+    passwordCleanupFails?: boolean;
+    port?: number;
+  }> = {},
 ) {
   const cleanup = vi.fn(() => {
     if (input.passwordCleanupFails) {
@@ -264,7 +273,7 @@ function createFixture(
     dockerCommand: "docker.exe",
     containerName: CONTAINER_NAME,
     image: PG18_IMAGE,
-    port: 54321,
+    port: input.port ?? 54321,
     database: "learncoding_integration",
     username: "learncoding_it",
     password: PASSWORD,
@@ -312,6 +321,12 @@ describe("disposable PostgreSQL container", () => {
 
     const runCall = fake.calls.find((call) => call.args[0] === "run");
     expect(runCall).toBeDefined();
+    const publishIndex = runCall?.args.indexOf("--publish") ?? -1;
+    expect(publishIndex).toBeGreaterThanOrEqual(0);
+    expect(runCall?.args[publishIndex + 1]).toBe(
+      "127.0.0.1:54321:5432",
+    );
+    expect(JSON.stringify(runCall?.args)).not.toMatch(/0\.0\.0\.0|\[?::\]?/u);
     expect(runCall?.args).toContain("PGDATA=/var/lib/postgresql/data");
     expect(runCall?.args).toContain(
       "/var/lib/postgresql/data:rw,nosuid,nodev,size=512m",
@@ -342,9 +357,27 @@ describe("disposable PostgreSQL container", () => {
         Number.isSafeInteger(call.timeoutMs) && call.timeoutMs > 0
       ),
     ).toBe(true);
+    expect(fixture.container.getIdentity()).toEqual({
+      containerId: OWNED_CONTAINER_ID,
+      port: 54321,
+      database: "learncoding_integration",
+      username: "learncoding_it",
+    });
 
     fixture.container.cleanup();
     expect(fixture.cleanup).toHaveBeenCalledOnce();
+  });
+
+  it("rejects host port 5432 before arming Docker or password cleanup", async () => {
+    const module = await loadContainerModule();
+    expect(typeof module?.createDisposablePostgresContainer).toBe("function");
+    if (!module?.createDisposablePostgresContainer) return;
+
+    const fake = createFakeDocker();
+    expect(() => createFixture(module, fake, { port: 5432 })).toThrow(
+      "invalid_postgres_host_port",
+    );
+    expect(fake.calls).toEqual([]);
   });
 
   it("arms container and password cleanup before Docker run can partially fail", async () => {
