@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  USER_AUTHORITY_ADVISORY_LOCK_SQL,
+  userAuthorityLockKey,
+} from "@/lib/security/user-authority-lock";
+
 const dbMocks = vi.hoisted(() => ({
   connect: vi.fn(),
   query: vi.fn(),
@@ -97,6 +102,9 @@ function createHarness(scenario: CreateScenario = {}) {
     if (statement === "begin" || statement === "commit") return { rows: [] };
     if (statement === "rollback") {
       if (scenario.rollbackFails) throw new Error("rollback failed");
+      return { rows: [] };
+    }
+    if (statement === normalizedSql(USER_AUTHORITY_ADVISORY_LOCK_SQL)) {
       return { rows: [] };
     }
     if (statement.startsWith("select id from \"user\" where")) {
@@ -298,6 +306,10 @@ describe("createProjectRevision transaction", () => {
       JSON.stringify({ meaningful: true, policyVersion: "project-revision-meaningful-v1" }),
       now,
     ]);
+    const authorityLockStatement = normalizedSql(USER_AUTHORITY_ADVISORY_LOCK_SQL);
+    const authorityLockIndex = harness.calls.findIndex(
+      (call) => call.statement === authorityLockStatement,
+    );
     const userLockIndex = harness.calls.findIndex(
       (call) => call.statement.startsWith("select id from \"user\" where")
         && call.statement.endsWith("for update"),
@@ -306,8 +318,24 @@ describe("createProjectRevision transaction", () => {
       (call) => call.statement.startsWith("select id from project where")
         && call.statement.endsWith("for update"),
     );
-    expect(userLockIndex).toBe(1);
-    expect(projectLockIndex).toBeGreaterThan(userLockIndex);
+    expect(harness.calls.slice(0, 4)).toEqual([
+      { statement: "begin", values: [] },
+      {
+        statement: authorityLockStatement,
+        values: [userAuthorityLockKey(userId)],
+      },
+      {
+        statement: "select id from \"user\" where id = $1 for update",
+        values: [userId],
+      },
+      {
+        statement: "select id from project where id = $1 and user_id = $2 for update",
+        values: [projectId, userId],
+      },
+    ]);
+    expect(authorityLockIndex).toBe(1);
+    expect(userLockIndex).toBe(2);
+    expect(projectLockIndex).toBe(3);
     expect(harness.calls.at(-1)?.statement).toBe("commit");
     expect(harness.released()).toBe(true);
   });
@@ -360,10 +388,23 @@ describe("createProjectRevision transaction", () => {
     const harness = createHarness({ userExists: false });
 
     await expect(createProjectRevision(baseInput())).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND" });
-    expect(harness.calls.map((call) => call.statement)).toEqual([
-      "begin",
-      "select id from \"user\" where id = $1 for update",
-      "rollback",
+    expect(harness.calls).toEqual([
+      {
+        statement: "begin",
+        values: [],
+      },
+      {
+        statement: normalizedSql(USER_AUTHORITY_ADVISORY_LOCK_SQL),
+        values: [userAuthorityLockKey(userId)],
+      },
+      {
+        statement: "select id from \"user\" where id = $1 for update",
+        values: [userId],
+      },
+      {
+        statement: "rollback",
+        values: [],
+      },
     ]);
     expect(harness.client.release).toHaveBeenCalledOnce();
   });
