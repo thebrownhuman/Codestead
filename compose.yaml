@@ -88,6 +88,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-learncoding}
       POSTGRES_USER: ${POSTGRES_USER:-learncoding}
+      REQUIRE_COMPLETE_MIGRATION_LEDGER: ${REQUIRE_COMPLETE_MIGRATION_LEDGER:-false}
       DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
       DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url

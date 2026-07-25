@@ -2206,7 +2206,8 @@ record_event completed
 current_stage="database-role-reconciliation"
 write_status running 0
 record_event started
-run_one_shot database-role-bootstrap
+REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
+  run_one_shot database-role-bootstrap
 record_event completed
 
 if [[ "$mail_store_cutover" == true ]]; then

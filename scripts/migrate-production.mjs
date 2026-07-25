@@ -6,6 +6,11 @@ import { drizzle as createDrizzle } from "drizzle-orm/node-postgres";
 import { migrate as migrateDatabase } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
+import {
+  verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract,
+  verifyReviewedMigrationRepository as verifyReviewedMigrationRepositoryContract,
+} from "./lib/reviewed-migration-ledger.mjs";
+
 const MIGRATION_LOCK_NAME = "codestead:database-administration:v1";
 const MAX_LOCK_TIMEOUT_MS = 120_000;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
@@ -222,6 +227,11 @@ export async function runProductionMigration(options) {
     options.pool ?? new Pool({ connectionString: options.connectionString, max: 1 });
   const drizzle = options.drizzle ?? createDrizzle;
   const migrate = options.migrate ?? migrateDatabase;
+  const verifyReviewedMigrationRepository =
+    options.verifyReviewedMigrationRepository ??
+    verifyReviewedMigrationRepositoryContract;
+  const verifyAppliedMigrationLedger =
+    options.verifyAppliedMigrationLedger ?? verifyAppliedMigrationLedgerContract;
   const migrationsFolder = options.migrationsFolder ?? "/app/drizzle";
   const unlockTimeoutMs = normalizeUnlockTimeoutMs(
     options.unlockTimeoutMs ?? DEFAULT_UNLOCK_TIMEOUT_MS,
@@ -247,10 +257,17 @@ export async function runProductionMigration(options) {
       throw error;
     }
     await verifyMigrationIdentity(client, "learncoding_migrator");
+    verifyReviewedMigrationRepository({ drizzleDirectory: migrationsFolder });
     await client.query("SET ROLE learncoding_owner");
     ownerRoleAssumed = true;
     await verifyMigrationIdentity(client, "learncoding_owner");
+    await verifyAppliedMigrationLedger(client, {
+      requireComplete: false,
+    });
     await migrate(drizzle(client), { migrationsFolder });
+    await verifyAppliedMigrationLedger(client, {
+      requireComplete: true,
+    });
   } catch (error) {
     destroyClient = true;
     hasPrimaryFailure = true;

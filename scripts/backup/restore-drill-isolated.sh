@@ -359,7 +359,8 @@ restore_compose exec -T postgres /bin/sh -ceu '
   export PGPASSWORD="$(cat /run/secrets/postgres_password)"
   exec pg_restore --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --role=learncoding_owner --exit-on-error --no-owner --no-acl
 ' <"$extracted/database.dump" >/dev/null
-restore_one_shot database-role-bootstrap
+REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
+  restore_one_shot database-role-bootstrap
 restore_one_shot database-boundary-verifier
 
 smoke_output="$work/smoke.out"

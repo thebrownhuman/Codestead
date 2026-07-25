@@ -65,6 +65,7 @@ FROM final-base AS tooling
 ENV NODE_ENV=production
 COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node drizzle ./drizzle
+COPY --chown=node:node scripts/lib/reviewed-migration-ledger.mjs ./scripts/lib/reviewed-migration-ledger.mjs
 COPY --chown=node:node scripts/migrate-production.mjs ./scripts/migrate-production.mjs
 COPY --chmod=0555 infra/docker/entrypoint.sh /usr/local/bin/learncoding-entrypoint
 USER node
@@ -92,6 +93,7 @@ FROM worker AS operations
 COPY --chown=node:node content ./content
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
 COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
+COPY --chown=node:node scripts/lib/reviewed-migration-ledger.mjs ./scripts/lib/reviewed-migration-ledger.mjs
 COPY --chown=node:node scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs
 COPY --chown=node:node scripts/backup/create-credential-probe.ts ./scripts/backup/create-credential-probe.ts
 COPY --chown=node:node scripts/lib/runner-power-rehearsal-cli.ts ./scripts/lib/runner-power-rehearsal-cli.ts
