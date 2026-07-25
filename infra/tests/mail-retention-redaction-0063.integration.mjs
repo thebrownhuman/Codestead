@@ -2951,6 +2951,9 @@ const invokedDirectly = process.argv[1] !== undefined
     === normalizedInvocationPath(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   runDirectHarness().catch((error) => {
+    if (process.env.CODEX_DIAGNOSTIC === "1") {
+      process.stderr.write(`${error?.stack ?? String(error)}\n`);
+    }
     const safeCode = outwardFailureCode(error);
     process.stderr.write(`mail_retention_0063=${safeCode}\n`);
     process.exitCode = 1;
