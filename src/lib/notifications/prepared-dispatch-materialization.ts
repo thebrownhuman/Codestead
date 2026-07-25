@@ -46,7 +46,12 @@ import {
   PROVIDER_CORRELATION_VERSION,
   type ProviderCorrelationVersion,
 } from "./provider-correlation";
-import { PostgresOutboxStore } from "./postgres-outbox-store";
+import {
+  bindPreparedDispatchChannel,
+  consumeCommittedPreparedDispatchReceipt,
+  preparedDispatchChannelBindingMatches,
+  type PostgresOutboxStore,
+} from "./postgres-outbox-store";
 import type { ProviderCallPermit } from "./outbox-worker";
 
 const SOURCE_AUTHORITY_DOMAIN = "codestead.mail.dispatch-source.v1";
@@ -655,20 +660,6 @@ const GUARDED_DISPATCH_STATES = new WeakMap<
   GuardedPreparedDispatch,
   GuardedState
 >();
-const CHANNEL_BOUND_STORES = new WeakSet<PostgresOutboxStore>();
-
-type PreparedDispatchChannelStore = PostgresOutboxStore & Readonly<{
-  acceptsPreparedDispatchChannelBinding(binding: object): boolean;
-  consumeCommittedPreparedDispatchReceipt(
-    binding: object,
-    receipt: CommittedPreparedDispatchReceipt,
-  ): Readonly<{
-    envelope: PreparedDispatchEnvelope;
-    permit: ProviderCallPermit;
-    view: PreparedDispatchStoreView;
-  }> | null;
-}>;
-
 export type StoreBoundPreparedDispatchChannel = Readonly<{
   binding: object;
   inspect(
@@ -691,54 +682,6 @@ export type StoreBoundPreparedDispatchChannel = Readonly<{
     guarded: GuardedPreparedDispatch,
   ): boolean;
 }>;
-
-function storeAcceptsBinding(
-  store: PreparedDispatchChannelStore,
-  binding: object,
-) {
-  try {
-    return store.acceptsPreparedDispatchChannelBinding(binding) === true;
-  } catch {
-    return false;
-  }
-}
-
-function consumeCommittedTuple(
-  store: PreparedDispatchChannelStore,
-  binding: object,
-  receipt: CommittedPreparedDispatchReceipt,
-) {
-  try {
-    const committed = store.consumeCommittedPreparedDispatchReceipt(
-      binding,
-      receipt,
-    );
-    if (
-      !committed
-      || !Object.isFrozen(committed)
-      || Object.getPrototypeOf(committed) !== Object.prototype
-    ) return null;
-    const descriptors = Object.getOwnPropertyDescriptors(committed);
-    const keys = Reflect.ownKeys(committed);
-    if (
-      keys.length !== 3
-      || keys.some((key) => typeof key !== "string")
-      || [...keys].sort().some(
-        (key, index) => key !== ["envelope", "permit", "view"][index],
-      )
-      || !["envelope", "permit", "view"].every(
-        (key) => "value" in (descriptors[key] ?? {}),
-      )
-    ) return null;
-    return Object.freeze({
-      envelope: descriptors.envelope!.value as PreparedDispatchEnvelope,
-      permit: descriptors.permit!.value as ProviderCallPermit,
-      view: descriptors.view!.value as PreparedDispatchStoreView,
-    });
-  } catch {
-    return null;
-  }
-}
 
 function fatalTransportError(error: unknown) {
   if (isFatalProviderTransportError(error)) return error;
@@ -804,23 +747,18 @@ export function createStoreBoundPreparedDispatchChannel(
   store: PostgresOutboxStore,
   runtimePlan: PreparedDispatchRuntimePlan,
 ): StoreBoundPreparedDispatchChannel {
-  if (
-    !(store instanceof PostgresOutboxStore)
-    || CHANNEL_BOUND_STORES.has(store)
-  ) {
+  const canonicalPlan = canonicalRuntimePlan(runtimePlan);
+  const binding = Object.freeze({});
+  if (!bindPreparedDispatchChannel(store, binding, canonicalPlan)) {
     throw new Error("Prepared dispatch channel owner is invalid.");
   }
-  const canonicalPlan = canonicalRuntimePlan(runtimePlan);
-  CHANNEL_BOUND_STORES.add(store);
-  const channelStore = store as PreparedDispatchChannelStore;
-  const binding = Object.freeze({});
 
   const inspect = (
     view: PreparedDispatchStoreView,
   ): PreparedDispatchStoreInspection | null => {
     if (
       !Object.isFrozen(view)
-      || !storeAcceptsBinding(channelStore, binding)
+      || !preparedDispatchChannelBindingMatches(store, binding)
     ) return null;
     return PREPARED_DISPATCH_STORE_STATES.get(view) ?? null;
   };
@@ -828,10 +766,10 @@ export function createStoreBoundPreparedDispatchChannel(
   const authorize = async (
     receipt: CommittedPreparedDispatchReceipt,
   ): Promise<GuardedPreparedDispatch> => {
-    if (!storeAcceptsBinding(channelStore, binding)) {
+    if (!preparedDispatchChannelBindingMatches(store, binding)) {
       throw new Error("Committed prepared dispatch receipt is invalid.");
     }
-    const committed = consumeCommittedTuple(channelStore, binding, receipt);
+    const committed = consumeCommittedPreparedDispatchReceipt(binding, receipt);
     if (!committed) {
       throw new Error("Committed prepared dispatch receipt is invalid.");
     }
@@ -873,7 +811,7 @@ export function createStoreBoundPreparedDispatchChannel(
     return guarded;
   };
 
-  const dispatch = async (
+  const dispatch = (
     permit: ProviderCallPermit,
     guarded: GuardedPreparedDispatch,
     signal: AbortSignal,
@@ -885,7 +823,7 @@ export function createStoreBoundPreparedDispatchChannel(
       !state
       || state.ownerBinding !== binding
       || state.permit !== permit
-      || !storeAcceptsBinding(channelStore, binding)
+      || !preparedDispatchChannelBindingMatches(store, binding)
     ) {
       throw new Error("Guarded prepared dispatch is invalid or already used.");
     }
@@ -898,8 +836,8 @@ export function createStoreBoundPreparedDispatchChannel(
     permit: ProviderCallPermit,
     receipt: CommittedPreparedDispatchReceipt,
   ): boolean => {
-    if (!storeAcceptsBinding(channelStore, binding)) return false;
-    const committed = consumeCommittedTuple(channelStore, binding, receipt);
+    if (!preparedDispatchChannelBindingMatches(store, binding)) return false;
+    const committed = consumeCommittedPreparedDispatchReceipt(binding, receipt);
     if (!committed) return false;
     const dispatch = Object.isFrozen(committed.envelope)
       ? PREPARED_DISPATCH_STATES.get(committed.envelope)
@@ -924,7 +862,7 @@ export function createStoreBoundPreparedDispatchChannel(
       !state
       || state.ownerBinding !== binding
       || state.permit !== permit
-      || !storeAcceptsBinding(channelStore, binding)
+      || !preparedDispatchChannelBindingMatches(store, binding)
     ) return false;
     GUARDED_DISPATCH_STATES.delete(guarded);
     return discardPreparedEmailAuthorization(state.authorization);

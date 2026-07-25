@@ -1,13 +1,12 @@
 import {
-  FatalProviderTransportError,
-  GuardedDispatchCommitUnknownError,
   PostProviderPersistenceUnknownError,
   ProviderBoundaryCommitUnknownError,
-} from "./outbox-worker";
+} from "./outbox-store-errors";
 import type {
   BoundaryResult,
-  FatalProviderExit,
   GuardedDispatchResult,
+  GuardedDispatchUncertainty,
+  GuardedUnknownFinishResult,
   OutboxClaim,
   OutboxStore,
   PostFinishResult,
@@ -47,15 +46,39 @@ import {
   type RevocableSourceAuthorityQuery,
 } from "./revocable-source-authority";
 import {
-  dispatchGuardedPrepared,
-  guardedDispatchStoreView,
+  createStoreBoundPreparedDispatchChannel,
   preparedDispatchStoreView,
   sourceAuthoritySha256,
   type GuardedPreparedDispatch,
   type PreparedDispatchEnvelope,
+  type PreparedDispatchRuntimePlan,
   type PreparedDispatchSource,
+  type PreparedDispatchStoreInspection,
   type PreparedDispatchStoreView,
-} from "./guarded-prepared-dispatch";
+  type StoreBoundPreparedDispatchChannel,
+} from "./prepared-dispatch-materialization";
+import {
+  isMailDispatchRuntimeStartupInspection,
+  type MailDispatchRuntimeStartupInspection,
+} from "./mail-dispatch-runtime-startup";
+import {
+  isMailDispatchHardWatchdogArmed,
+  type ArmedMailDispatchHardWatchdog,
+} from "./mail-dispatch-hard-watchdog";
+import {
+  connectMailDispatchDbWithin,
+  createMailDispatchDbDeadline,
+  queryMailDispatchDbWithin,
+  type MailDispatchDbDeadline,
+  type MailDispatchDbClientLease,
+} from "./mail-dispatch-db-deadline";
+import {
+  terminateMailDispatchImmediately,
+} from "./mail-dispatch-fatal-termination";
+import {
+  isFatalProviderTransportError,
+  type CommittedPreparedDispatchReceipt,
+} from "./provider-dispatch-contract";
 
 export type EmailOutboxPayload = Readonly<{
   userId: string | null;
@@ -76,12 +99,98 @@ export interface OutboxPgClient {
     values?: unknown[],
   ): Promise<QueryResult<Row>>;
   release(destroy?: boolean): void;
+  once?(event: "end", listener: () => void): this;
+  removeListener?(event: "end", listener: () => void): this;
 }
 
 
 
 export interface OutboxPgPool {
   connect(): Promise<OutboxPgClient>;
+}
+
+type StoreRuntimeState = {
+  readonly startupInspection: MailDispatchRuntimeStartupInspection;
+  readonly runtimePlan: PreparedDispatchRuntimePlan;
+  binding?: object;
+  channel?: StoreBoundPreparedDispatchChannel;
+};
+
+type CommittedReceiptState = Readonly<{
+  store: PostgresOutboxStore;
+  binding: object;
+  envelope: PreparedDispatchEnvelope;
+  permit: ProviderCallPermit;
+  view: PreparedDispatchStoreView;
+}>;
+
+const STORE_RUNTIME_STATES = new WeakMap<
+  PostgresOutboxStore,
+  StoreRuntimeState
+>();
+const COMMITTED_RECEIPT_STATES = new WeakMap<
+  CommittedPreparedDispatchReceipt,
+  CommittedReceiptState
+>();
+
+export function bindPreparedDispatchChannel(
+  store: PostgresOutboxStore,
+  binding: object,
+  runtimePlan: PreparedDispatchRuntimePlan,
+): boolean {
+  const state = STORE_RUNTIME_STATES.get(store);
+  if (
+    !state
+    || state.binding !== undefined
+    || state.channel !== undefined
+    || state.runtimePlan !== runtimePlan
+    || !Object.isFrozen(binding)
+    || Reflect.ownKeys(binding).length !== 0
+  ) return false;
+  state.binding = binding;
+  return true;
+}
+
+export function preparedDispatchChannelBindingMatches(
+  store: PostgresOutboxStore,
+  binding: object,
+): boolean {
+  const state = STORE_RUNTIME_STATES.get(store);
+  return Boolean(
+    state
+    && state.binding === binding
+    && state.channel?.binding === binding,
+  );
+}
+
+export function consumeCommittedPreparedDispatchReceipt(
+  binding: object,
+  receipt: CommittedPreparedDispatchReceipt,
+): Readonly<{
+  envelope: PreparedDispatchEnvelope;
+  permit: ProviderCallPermit;
+  view: PreparedDispatchStoreView;
+}> | null {
+  const committed = COMMITTED_RECEIPT_STATES.get(receipt);
+  if (
+    !committed
+    || !Object.isFrozen(receipt)
+    || Reflect.ownKeys(receipt).length !== 0
+    || committed.binding !== binding
+    || !preparedDispatchChannelBindingMatches(committed.store, binding)
+  ) return null;
+  COMMITTED_RECEIPT_STATES.delete(receipt);
+  return Object.freeze({
+    envelope: committed.envelope,
+    permit: committed.permit,
+    view: committed.view,
+  });
+}
+
+export function mailDispatchPreparedRuntimePlan(
+  store: PostgresOutboxStore,
+): PreparedDispatchRuntimePlan | null {
+  return STORE_RUNTIME_STATES.get(store)?.runtimePlan ?? null;
 }
 
 type CandidateRow = {
@@ -108,12 +217,18 @@ type BindingRow = {
   dispatch_binding_sha256: string;
 };
 
-type BoundaryRow = BindingRow & {
-  provider_call_started: string;
-  lease_expires_at: Date | string;
+type ProviderAuthorityRow = BindingRow & {
+  provider_correlation_version: string;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
 };
 
-type TerminalRow = BindingRow & {
+type BoundaryRow = ProviderAuthorityRow & {
+  provider_call_started: string;
+  lease_expires_at: string;
+};
+
+type TerminalRow = ProviderAuthorityRow & {
   status: string;
   claim_version: number;
   user_id: string | null;
@@ -364,7 +479,6 @@ function deliveryScope(
 type TransactionOptions<T> = Readonly<{
   commitUnknown?(result: T): Error;
   destroyOnWorkError?: boolean;
-  fatalExit?: FatalProviderExit;
 }>;
 
 async function transaction<T>(
@@ -392,17 +506,6 @@ async function transaction<T>(
     }
     return result;
   } catch (error) {
-    if (error instanceof FatalProviderTransportError) {
-      if (options.fatalExit) {
-        try {
-          options.fatalExit(error);
-        } catch {
-          // Test and defensive fallback: a production fatalExit never returns.
-        }
-      }
-      destroy = true;
-      throw error;
-    }
     if (began && !commitAttempted) {
       try {
         await client.query("rollback");
@@ -418,6 +521,444 @@ async function transaction<T>(
     throw error;
   } finally {
     client.release(destroy);
+  }
+}
+
+type GuardedDispatchUnknownState = Readonly<{
+  store: PostgresOutboxStore;
+  permit: ProviderCallPermit;
+  exit: PostProviderExit;
+}>;
+
+const GUARDED_DISPATCH_UNKNOWN_STATES = new WeakMap<
+  GuardedDispatchUncertainty,
+  GuardedDispatchUnknownState
+>();
+
+function issueGuardedDispatchPersistenceUnknown(
+  state: GuardedDispatchUnknownState,
+): GuardedDispatchUncertainty {
+  const uncertainty = Object.freeze({}) as GuardedDispatchUncertainty;
+  GUARDED_DISPATCH_UNKNOWN_STATES.set(uncertainty, Object.freeze(state));
+  return uncertainty;
+}
+
+function watchdogIsHealthy(
+  watchdog: ArmedMailDispatchHardWatchdog,
+): boolean {
+  try {
+    return isMailDispatchHardWatchdogArmed(watchdog);
+  } catch {
+    return false;
+  }
+}
+
+function retainLiveTx2OrTerminate(
+  _watchdog: ArmedMailDispatchHardWatchdog,
+): never {
+  return terminateMailDispatchImmediately();
+}
+
+function deadlineBoundClient(
+  lease: MailDispatchDbClientLease<OutboxPgClient>,
+  deadline: MailDispatchDbDeadline,
+): OutboxPgClient {
+  return {
+    query<Row extends Record<string, unknown> = Record<string, unknown>>(
+      text: string,
+      values?: unknown[],
+    ) {
+      return queryMailDispatchDbWithin<Row, OutboxPgClient>({
+        lease,
+        deadline,
+        text,
+        ...(values === undefined ? {} : { values }),
+      });
+    },
+    release() {
+      throw new Error("Deadline-bound clients cannot release their owner lease.");
+    },
+  };
+}
+
+async function queryRetainingLiveTx2<
+  Row extends Record<string, unknown> = Record<string, unknown>,
+>(input: Readonly<{
+  client: OutboxPgClient;
+  deadline: MailDispatchDbDeadline;
+  text: string;
+  values?: unknown[];
+  watchdog: ArmedMailDispatchHardWatchdog;
+}>): Promise<QueryResult<Row>> {
+  const remainingMs = input.deadline.remainingMs();
+  if (remainingMs <= 0) return retainLiveTx2OrTerminate(input.watchdog);
+
+  let query: Promise<QueryResult<Row>>;
+  try {
+    query = Promise.resolve(input.client.query<Row>(input.text, input.values));
+  } catch (error) {
+    throw error;
+  }
+
+  return new Promise<QueryResult<Row>>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      retainLiveTx2OrTerminate(input.watchdog);
+    }, Math.max(0, Math.floor(remainingMs)));
+    query.then(
+      (result) => {
+        if (settled) return;
+        if (input.deadline.isExpired()) {
+          settled = true;
+          clearTimeout(timer);
+          retainLiveTx2OrTerminate(input.watchdog);
+        }
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      },
+      (error: unknown) => {
+        if (settled) return;
+        if (input.deadline.isExpired()) {
+          settled = true;
+          clearTimeout(timer);
+          retainLiveTx2OrTerminate(input.watchdog);
+        }
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+type ObservedProviderSettlement =
+  | Readonly<{ kind: "fulfilled"; exit: PostProviderExit }>
+  | Readonly<{ kind: "rejected"; error: unknown }>;
+
+function observeLiveProviderWithin(
+  operation: Promise<PostProviderExit>,
+  deadlineMs: number,
+  watchdog: ArmedMailDispatchHardWatchdog,
+): Promise<ObservedProviderSettlement> {
+  try {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const observed = operation.then(
+      (exit) => Object.freeze({ kind: "fulfilled" as const, exit }),
+      (error: unknown) => {
+        if (isFatalProviderTransportError(error)) {
+          return retainLiveTx2OrTerminate(watchdog);
+        }
+        return Object.freeze({ kind: "rejected" as const, error });
+      },
+    );
+    const deadline = new Promise<never>(() => {
+      timer = setTimeout(
+        () => retainLiveTx2OrTerminate(watchdog),
+        deadlineMs,
+      );
+    });
+    return Promise.race([observed, deadline]).then(
+      (settlement) => {
+        try {
+          if (timer !== undefined) clearTimeout(timer);
+          if (!watchdogIsHealthy(watchdog)) {
+            return retainLiveTx2OrTerminate(watchdog);
+          }
+          return settlement;
+        } catch {
+          return retainLiveTx2OrTerminate(watchdog);
+        }
+      },
+      () => retainLiveTx2OrTerminate(watchdog),
+    );
+  } catch {
+    return retainLiveTx2OrTerminate(watchdog);
+  }
+}
+
+type SettledProviderClientState = {
+  readonly pool: OutboxPgPool;
+  readonly client: OutboxPgClient;
+  readonly transactionId: string;
+  readonly scopeLockKey: string;
+  readonly teardownConfirmationMs: number;
+  closed: boolean;
+  teardownConfirmed: boolean;
+};
+
+function waitForSettledProviderClientEndOrTerminate(
+  state: SettledProviderClientState,
+  deadline: MailDispatchDbDeadline,
+  watchdog: ArmedMailDispatchHardWatchdog,
+): Promise<void> {
+  if (state.closed) return Promise.resolve();
+  const once = state.client.once;
+  const removeListener = state.client.removeListener;
+  const remainingMs = deadline.remainingMs();
+  if (
+    typeof once !== "function"
+    || typeof removeListener !== "function"
+    || remainingMs <= 0
+  ) return retainLiveTx2OrTerminate(watchdog);
+
+  return new Promise<void>((resolve) => {
+    let finished = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onEnd = () => {
+      if (finished) return;
+      finished = true;
+      if (timer !== undefined) clearTimeout(timer);
+      try {
+        removeListener.call(state.client, "end", onEnd);
+      } catch {
+        return retainLiveTx2OrTerminate(watchdog);
+      }
+      state.closed = true;
+      resolve();
+    };
+
+    try {
+      once.call(state.client, "end", onEnd);
+      timer = setTimeout(() => {
+        if (finished) return;
+        finished = true;
+        try {
+          removeListener.call(state.client, "end", onEnd);
+        } catch {
+          return retainLiveTx2OrTerminate(watchdog);
+        }
+        return retainLiveTx2OrTerminate(watchdog);
+      }, Math.max(0, Math.floor(remainingMs)));
+      state.client.release(true);
+    } catch {
+      if (timer !== undefined) clearTimeout(timer);
+      try {
+        removeListener.call(state.client, "end", onEnd);
+      } catch {
+        return retainLiveTx2OrTerminate(watchdog);
+      }
+      return retainLiveTx2OrTerminate(watchdog);
+    }
+  });
+}
+
+async function confirmSettledTransactionAndLockReleaseOrTerminate(
+  state: SettledProviderClientState,
+  deadline: MailDispatchDbDeadline,
+  watchdog: ArmedMailDispatchHardWatchdog,
+): Promise<void> {
+  if (state.teardownConfirmed) return;
+  let proofLease: MailDispatchDbClientLease<OutboxPgClient>;
+  try {
+    proofLease = await connectMailDispatchDbWithin({
+      pool: state.pool,
+      deadline,
+    });
+  } catch {
+    return retainLiveTx2OrTerminate(watchdog);
+  }
+
+  try {
+    let terminal = false;
+    while (!deadline.isExpired()) {
+      const proof = await queryMailDispatchDbWithin<{
+        transaction_status: string | null;
+      }, OutboxPgClient>({
+        lease: proofLease,
+        deadline,
+        text:
+          "select pg_catalog.pg_xact_status($1::xid8)::text "
+          + "as transaction_status",
+        values: [state.transactionId],
+      });
+      const row = proof.rows.length === 1 ? proof.rows[0] : undefined;
+      if (!row || (
+        row.transaction_status !== "in progress"
+        && row.transaction_status !== "committed"
+        && row.transaction_status !== "aborted"
+      )) {
+        if (!proofLease.isReleased) proofLease.destroy();
+        return retainLiveTx2OrTerminate(watchdog);
+      }
+      if (
+        row.transaction_status === "committed"
+        || row.transaction_status === "aborted"
+      ) {
+        terminal = true;
+        break;
+      }
+      const remainingMs = deadline.remainingMs();
+      if (remainingMs <= 0) break;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, Math.min(10, Math.max(1, Math.floor(remainingMs))));
+      });
+    }
+    if (!terminal) {
+      if (!proofLease.isReleased) proofLease.destroy();
+      return retainLiveTx2OrTerminate(watchdog);
+    }
+
+    const remainingMs = deadline.remainingMs();
+    if (remainingMs <= 1) {
+      if (!proofLease.isReleased) proofLease.destroy();
+      return retainLiveTx2OrTerminate(watchdog);
+    }
+    const barrierLockMs = Math.max(1, Math.floor(remainingMs / 2));
+    await queryMailDispatchDbWithin({
+      lease: proofLease,
+      deadline,
+      text: "begin",
+    });
+    await queryMailDispatchDbWithin({
+      lease: proofLease,
+      deadline,
+      text: `set local lock_timeout = '${barrierLockMs}ms'`,
+    });
+    await queryMailDispatchDbWithin({
+      lease: proofLease,
+      deadline,
+      text: USER_AUTHORITY_ADVISORY_LOCK_SQL,
+      values: [state.scopeLockKey],
+    });
+    await queryMailDispatchDbWithin({
+      lease: proofLease,
+      deadline,
+      text: "commit",
+    });
+    try {
+      proofLease.release();
+    } catch {
+      // COMMIT ACK released the independent transaction-level barrier lock.
+    }
+    state.teardownConfirmed = true;
+    return;
+  } catch {
+    if (!proofLease.isReleased) {
+      try {
+        proofLease.destroy();
+      } catch {
+        // The canonical terminator below remains authoritative.
+      }
+    }
+    return retainLiveTx2OrTerminate(watchdog);
+  }
+
+  if (!proofLease.isReleased) {
+    try {
+      proofLease.destroy();
+    } catch {
+      // The canonical terminator below remains authoritative.
+    }
+  }
+  return retainLiveTx2OrTerminate(watchdog);
+}
+
+async function destroySettledProviderClientOrTerminate(
+  state: SettledProviderClientState,
+  watchdog: ArmedMailDispatchHardWatchdog,
+): Promise<void> {
+  if (state.teardownConfirmed) return;
+  const deadline = createMailDispatchDbDeadline({
+    phase: "post-provider",
+    budgetMs: state.teardownConfirmationMs,
+  });
+  await waitForSettledProviderClientEndOrTerminate(state, deadline, watchdog);
+  await confirmSettledTransactionAndLockReleaseOrTerminate(
+    state,
+    deadline,
+    watchdog,
+  );
+}
+
+async function queryAfterProviderWithin<
+  Row extends Record<string, unknown> = Record<string, unknown>,
+>(input: Readonly<{
+  state: SettledProviderClientState;
+  deadline: MailDispatchDbDeadline;
+  text: string;
+  values?: unknown[];
+  watchdog: ArmedMailDispatchHardWatchdog;
+}>): Promise<QueryResult<Row>> {
+  if (input.state.closed) {
+    throw new Error("Mail dispatch database client is already closed.");
+  }
+
+  const failDeadline = async (): Promise<never> => {
+    await destroySettledProviderClientOrTerminate(input.state, input.watchdog);
+    throw new Error("Post-provider database deadline exceeded.");
+  };
+  const remainingMs = input.deadline.remainingMs();
+  if (remainingMs <= 0) return failDeadline();
+
+  let query: Promise<QueryResult<Row>>;
+  try {
+    query = Promise.resolve(
+      input.state.client.query<Row>(input.text, input.values),
+    );
+  } catch (error) {
+    if (input.deadline.isExpired()) return failDeadline();
+    throw error;
+  }
+
+  return new Promise<QueryResult<Row>>((resolve, reject) => {
+    let settled = false;
+    const expire = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      void failDeadline().catch((error: unknown) => reject(error));
+    };
+    const timer = setTimeout(expire, Math.max(0, Math.floor(remainingMs)));
+    query.then(
+      (result) => {
+        if (settled) return;
+        if (input.deadline.isExpired()) {
+          expire();
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      },
+      (error: unknown) => {
+        if (settled) return;
+        if (input.deadline.isExpired()) {
+          expire();
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function releaseBeforePhysicalInitiation(
+  lease: MailDispatchDbClientLease<OutboxPgClient>,
+  deadline: MailDispatchDbDeadline,
+  began: boolean,
+  watchdog: ArmedMailDispatchHardWatchdog,
+): Promise<void> {
+  if (lease.isReleased || !began || deadline.isExpired()) {
+    return retainLiveTx2OrTerminate(watchdog);
+  }
+  try {
+    await queryMailDispatchDbWithin({
+      lease,
+      deadline,
+      text: "rollback",
+    });
+  } catch {
+    return retainLiveTx2OrTerminate(watchdog);
+  }
+  try {
+    lease.release();
+  } catch {
+    // ROLLBACK ACK is the authoritative server-side lock-release proof.
   }
 }
 
@@ -505,10 +1046,147 @@ type PermitFenceInput = ClaimFenceInput &
   Readonly<{
     adapter: string;
     providerCallStartedAt: string;
-    leaseExpiresAt: Date;
+    leaseExpiresAt: string;
     bindingVersion: DispatchBinding["bindingVersion"];
     bindingSha256: ProviderPayloadSha256;
+    sourceAuthoritySha256:
+      PreparedDispatchStoreInspection["sourceAuthoritySha256"];
+    authorityEvidence?:
+      PreparedDispatchStoreInspection["authorityEvidence"];
+    providerCorrelationVersion:
+      PreparedDispatchStoreInspection["providerCorrelationVersion"];
+    providerEvidenceVersion:
+      PreparedDispatchStoreInspection["providerEvidenceVersion"];
+    providerEvidenceSha256:
+      PreparedDispatchStoreInspection["providerEvidenceSha256"];
   }>;
+
+type PermitState = PermitFenceInput & Readonly<{
+  store: PostgresOutboxStore;
+  envelope: PreparedDispatchEnvelope;
+  view: PreparedDispatchStoreView;
+}>;
+
+const PERMIT_STATES = new WeakMap<ProviderCallPermit, PermitState>();
+const DISPATCHED_PERMITS = new WeakSet<ProviderCallPermit>();
+const CLAIMED_HARD_WATCHDOGS = new WeakMap<
+  ArmedMailDispatchHardWatchdog,
+  PostgresOutboxStore
+>();
+const SAFE_GUARDED_DISPATCH_RESULTS = new WeakMap<
+  GuardedDispatchResult,
+  Readonly<{
+    store: PostgresOutboxStore;
+    watchdog: ArmedMailDispatchHardWatchdog;
+  }>
+>();
+
+function issueSafeGuardedDispatchResult<T extends GuardedDispatchResult>(
+  store: PostgresOutboxStore,
+  watchdog: ArmedMailDispatchHardWatchdog,
+  result: T,
+): T {
+  const issued = Object.freeze(result) as T;
+  SAFE_GUARDED_DISPATCH_RESULTS.set(issued, Object.freeze({
+    store,
+    watchdog,
+  }));
+  return issued;
+}
+
+export function guardedDispatchResultSafeToDisarm(
+  store: object,
+  watchdog: ArmedMailDispatchHardWatchdog,
+  result: GuardedDispatchResult,
+): boolean {
+  if (!result || typeof result !== "object" || !Object.isFrozen(result)) {
+    return false;
+  }
+  const issued = SAFE_GUARDED_DISPATCH_RESULTS.get(result);
+  if (
+    !issued
+    || issued.store !== store
+    || issued.watchdog !== watchdog
+    || CLAIMED_HARD_WATCHDOGS.get(watchdog) !== store
+  ) return false;
+  SAFE_GUARDED_DISPATCH_RESULTS.delete(result);
+  return true;
+}
+
+function permitState(
+  permit: ProviderCallPermit,
+  store?: PostgresOutboxStore,
+): PermitState | null {
+  if (
+    !permit
+    || typeof permit !== "object"
+    || !Object.isFrozen(permit)
+    || Reflect.ownKeys(permit).length !== 0
+  ) return null;
+  const state = PERMIT_STATES.get(permit) ?? null;
+  return state && (store === undefined || state.store === store)
+    ? state
+    : null;
+}
+
+function issueProviderCallPermit(state: PermitState): ProviderCallPermit {
+  const permit = Object.freeze({}) as ProviderCallPermit;
+  PERMIT_STATES.set(permit, state);
+  return permit;
+}
+
+function issueCommittedPreparedDispatchReceipt(
+  store: PostgresOutboxStore,
+  permit: ProviderCallPermit,
+): CommittedPreparedDispatchReceipt {
+  const runtime = STORE_RUNTIME_STATES.get(store);
+  const authority = permitState(permit, store);
+  if (
+    !runtime?.binding
+    || runtime.channel?.binding !== runtime.binding
+    || !authority
+  ) {
+    throw new Error("Committed prepared dispatch authority is invalid.");
+  }
+  const receipt = Object.freeze({}) as CommittedPreparedDispatchReceipt;
+  COMMITTED_RECEIPT_STATES.set(receipt, Object.freeze({
+    store,
+    binding: runtime.binding,
+    envelope: authority.envelope,
+    permit,
+    view: authority.view,
+  }));
+  return receipt;
+}
+
+export async function authorizeCommittedPreparedDispatch(
+  store: PostgresOutboxStore,
+  receipt: CommittedPreparedDispatchReceipt,
+): Promise<GuardedPreparedDispatch> {
+  const channel = STORE_RUNTIME_STATES.get(store)?.channel;
+  if (!channel) {
+    throw new Error("Mail dispatch store is not initialized.");
+  }
+  return channel.authorize(receipt);
+}
+
+export function discardCommittedPreparedDispatchReceipt(
+  store: PostgresOutboxStore,
+  permit: ProviderCallPermit,
+  receipt: CommittedPreparedDispatchReceipt,
+): boolean {
+  const channel = STORE_RUNTIME_STATES.get(store)?.channel;
+  return channel?.discardReceipt(permit, receipt) ?? false;
+}
+
+export function discardGuardedPreparedDispatch(
+  store: PostgresOutboxStore,
+  permit: ProviderCallPermit,
+  guarded: GuardedPreparedDispatch,
+): boolean {
+  const channel = STORE_RUNTIME_STATES.get(store)?.channel;
+  return channel?.discardGuard(permit, guarded) ?? false;
+}
 
 async function lockPermitScope(
   client: OutboxPgClient,
@@ -676,7 +1354,7 @@ async function lockRevocableSourceAuthority(
   client: OutboxPgClient,
   claim: OutboxClaim<EmailOutboxPayload>,
   scope: DeliveryScope,
-  authorization: PreparedDispatchStoreView,
+  authorization: PreparedDispatchStoreInspection,
 ) {
   if (claim.payload.template === "backup-status") return false;
   const applicationUrl = canonicalAppOrigin() ?? "";
@@ -908,11 +1586,17 @@ function dispatchBinding(
   });
 }
 
-function dispatchStoreView(
+type PreparedDispatchAuthorization = Readonly<{
+  view: PreparedDispatchStoreView;
+  inspection: PreparedDispatchStoreInspection;
+}>;
+
+function dispatchStoreInspection(
+  store: PostgresOutboxStore,
   view: PreparedDispatchStoreView,
   adapter: string,
   claim: OutboxClaim<EmailOutboxPayload>,
-): PreparedDispatchStoreView {
+): PreparedDispatchStoreInspection {
   if (!templateAuthorityPolicy(claim.payload.template)) {
     throw new Error("Prepared dispatch template is invalid.");
   }
@@ -929,31 +1613,40 @@ function dispatchStoreView(
     templateVersion: claim.payload.templateVersion,
     variables: Object.freeze({ ...claim.payload.variables }),
   });
+  const channel = STORE_RUNTIME_STATES.get(store)?.channel;
+  const inspection = channel?.inspect(view) ?? null;
+  if (!inspection) {
+    throw new Error("Prepared dispatch envelope is invalid.");
+  }
   if (
     !Object.isFrozen(view) ||
-    !Object.isFrozen(view.binding) ||
-    !SHA256_HEX.test(view.sourceAuthoritySha256) ||
-    (view.authorityEvidence !== undefined &&
-      !Object.isFrozen(view.authorityEvidence)) ||
-    sourceAuthoritySha256(source, view.authorityEvidence) !==
-      view.sourceAuthoritySha256
+    !Object.isFrozen(inspection.binding) ||
+    !SHA256_HEX.test(inspection.sourceAuthoritySha256) ||
+    (inspection.authorityEvidence !== undefined &&
+      !Object.isFrozen(inspection.authorityEvidence)) ||
+    sourceAuthoritySha256(source, inspection.authorityEvidence) !==
+      inspection.sourceAuthoritySha256
   ) {
     throw new Error("Prepared dispatch envelope is invalid.");
   }
-  dispatchBinding(view.binding, adapter);
-  return view;
+  dispatchBinding(inspection.binding, adapter);
+  return inspection;
 }
 
 function preparedDispatchState(
+  store: PostgresOutboxStore,
   envelope: PreparedDispatchEnvelope,
   adapter: string,
   claim: OutboxClaim<EmailOutboxPayload>,
-): PreparedDispatchStoreView {
+): PreparedDispatchAuthorization {
   const view = preparedDispatchStoreView(envelope);
   if (!view) {
     throw new Error("Prepared dispatch envelope is invalid or already used.");
   }
-  return dispatchStoreView(view, adapter, claim);
+  return Object.freeze({
+    view,
+    inspection: dispatchStoreInspection(store, view, adapter, claim),
+  });
 }
 function exactBindingFromRow(
   row: BindingRow,
@@ -973,24 +1666,33 @@ function exactBindingFromRow(
     adapter,
   );
 }
+
+function exactProviderAuthorityRow(
+  row: ProviderAuthorityRow,
+  permit: PermitFenceInput,
+): boolean {
+  const binding = exactBindingFromRow(row, permit.adapter);
+  return binding?.bindingVersion === permit.bindingVersion
+    && binding.bindingSha256 === permit.bindingSha256
+    && row.provider_correlation_version === permit.providerCorrelationVersion
+    && row.provider_evidence_version === permit.providerEvidenceVersion
+    && row.provider_evidence_sha256 === permit.providerEvidenceSha256;
+}
+
 function exactTerminalFence(
   row: TerminalRow,
-  permit: ProviderCallPermit,
+  permit: PermitFenceInput,
 ): boolean {
   try {
-    const binding = exactBindingFromRow(row, permit.adapter);
     return (
       row.user_id === permit.userId &&
       row.delivery_scope_key === permit.deliveryScopeKey &&
       row.adapter === permit.adapter &&
-      row.provider_call_started !== null &&
-      asDate(row.provider_call_started, "Provider boundary").getTime() ===
-        asDate(permit.providerCallStartedAt, "Provider boundary").getTime() &&
+      row.provider_call_started === permit.providerCallStartedAt &&
       row.claim_token === null &&
       row.claim_owner === null &&
       row.lease_expires_at === null &&
-      binding?.bindingVersion === permit.bindingVersion &&
-      binding.bindingSha256 === permit.bindingSha256
+      exactProviderAuthorityRow(row, permit)
     );
   } catch {
     return false;
@@ -1012,7 +1714,7 @@ function exactTerminalTimestamp(
 async function providerBoundaryDecisionAfterBoundary(
   client: OutboxPgClient,
   claim: OutboxClaim<EmailOutboxPayload>,
-  permit: ProviderCallPermit,
+  permit: PermitFenceInput,
 ): Promise<BoundaryDecision | null> {
   const accountAuthoritySql = accountMailAuthorityPredicate(
     "outbox",
@@ -1124,7 +1826,12 @@ function validateClaim(claim: OutboxClaim<EmailOutboxPayload>) {
   }
 }
 
-function validatePermit(permit: ProviderCallPermit) {
+function validatePermit(
+  capability: ProviderCallPermit,
+  store: PostgresOutboxStore,
+): PermitState {
+  const permit = permitState(capability, store);
+  if (!permit) throw new Error("Outbox provider permit is invalid.");
   assertUuid(permit.id, "Outbox ID");
   assertUuid(permit.operationId, "Outbox operation ID");
   assertUuid(permit.claimToken, "Outbox claim token");
@@ -1139,6 +1846,7 @@ function validatePermit(permit: ProviderCallPermit) {
     "Provider boundary timestamp",
     64,
   );
+  assertBoundedText(permit.leaseExpiresAt, "Provider lease expiry", 64);
   const scope = deliveryScope({
     operation_id: permit.operationId,
     user_id: permit.userId,
@@ -1148,18 +1856,55 @@ function validatePermit(permit: ProviderCallPermit) {
     throw new Error("Outbox permit scope is invalid.");
   }
   dispatchBinding(permit, permit.adapter);
+  if (
+    !SHA256_HEX.test(permit.sourceAuthoritySha256)
+    || (permit.providerEvidenceSha256 !== null
+      && !SHA256_HEX.test(permit.providerEvidenceSha256))
+    || !permit.providerCorrelationVersion
+    || (permit.providerEvidenceVersion !== null
+      && !permit.providerEvidenceVersion)
+  ) {
+    throw new Error("Outbox provider authority tuple is invalid.");
+  }
+  return permit;
 }
 
 export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
-  private readonly armedDispatches = new WeakMap<
-    ProviderCallPermit,
-    Readonly<{
-      envelope: PreparedDispatchEnvelope;
-      view: PreparedDispatchStoreView;
-    }>
-  >();
-
-  constructor(private readonly pool: OutboxPgPool) {}
+  constructor(
+    private readonly pool: OutboxPgPool,
+    startupInspection: MailDispatchRuntimeStartupInspection,
+  ) {
+    if (!isMailDispatchRuntimeStartupInspection(startupInspection)) {
+      throw new Error("Mail dispatch startup inspection is invalid.");
+    }
+    const runtimePlan = Object.freeze({
+      timeouts: Object.freeze({
+        oauthDeadlineMs: startupInspection.plan.timeouts.oauthDeadlineMs,
+        guardedSendDeadlineMs:
+          startupInspection.plan.timeouts.guardedSendDeadlineMs,
+        providerAbortSettlementMs:
+          startupInspection.plan.timeouts.providerAbortSettlementMs,
+      }),
+    });
+    const state: StoreRuntimeState = {
+      startupInspection,
+      runtimePlan,
+    };
+    STORE_RUNTIME_STATES.set(this, state);
+    try {
+      const channel = createStoreBoundPreparedDispatchChannel(
+        this,
+        runtimePlan,
+      );
+      if (state.binding !== channel.binding) {
+        throw new Error("Prepared dispatch channel binding is invalid.");
+      }
+      state.channel = channel;
+    } catch (error) {
+      STORE_RUNTIME_STATES.delete(this);
+      throw error;
+    }
+  }
 
   async findGmailReconciliationFence(input: Readonly<{ operationId: string }>) {
     assertUuid(input.operationId, "Outbox operation ID");
@@ -1664,7 +2409,6 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     claim: OutboxClaim<EmailOutboxPayload>,
     input: Readonly<{
       adapter: string;
-      leaseMs: number;
       envelope: PreparedDispatchEnvelope;
     }>,
   ): Promise<BoundaryResult> {
@@ -1672,13 +2416,20 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     const adapter = assertBoundedText(input.adapter, "Outbox adapter", 32);
     if (!ADAPTERS.has(adapter))
       throw new Error("Outbox adapter is not allowed.");
-    assertLeaseMs(input.leaseMs);
+    const storeRuntime = STORE_RUNTIME_STATES.get(this);
+    if (!storeRuntime?.channel) {
+      throw new Error("Mail dispatch store is not initialized.");
+    }
+    const leaseStampMs =
+      storeRuntime.startupInspection.plan.providerLease.providerLeaseStampMs;
     const authorization = preparedDispatchState(
+      this,
       input.envelope,
       adapter,
       claim,
     );
-    const binding = dispatchBinding(authorization.binding, adapter);
+    const inspection = authorization.inspection;
+    const binding = dispatchBinding(inspection.binding, adapter);
 
     const boundary = await transaction(
       this.pool,
@@ -1708,13 +2459,14 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               client,
               claim,
               scope,
-              authorization,
+              inspection,
             ))
           ) {
             decision = "MAIL_SOURCE_AUTHORITY_INVALID";
           }
         }
 
+        if (decision === null) return { kind: "lost" as const };
         if (decision !== "allowed") {
           const suppressed = await client.query<{ id: string }>(
             `
@@ -1777,9 +2529,15 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               + ($7::integer * interval '1 millisecond'),
             dispatch_binding_version = $8::text,
             dispatch_binding_sha256 = $9::text,
+            provider_correlation_version = $16::text,
+            provider_evidence_version = $17::text,
+            provider_evidence_sha256 = $18::text,
             updated_at = pg_catalog.statement_timestamp()
         where outbox.id = $1::uuid
           and outbox.operation_id = $2::uuid
+          and outbox.provider_correlation_version is null
+          and outbox.provider_evidence_version is null
+          and outbox.provider_evidence_sha256 is null
           and outbox.claim_token = $3::uuid
           and outbox.claim_owner = $4::text
           and outbox.claim_version = $5::integer
@@ -1799,9 +2557,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and outbox.variables = $15::jsonb
 
         returning outbox.provider_call_started::text as provider_call_started,
-                  outbox.lease_expires_at,
+                  outbox.lease_expires_at::text as lease_expires_at,
                   outbox.dispatch_binding_version,
-                  outbox.dispatch_binding_sha256
+                  outbox.dispatch_binding_sha256,
+                  outbox.provider_correlation_version,
+                  outbox.provider_evidence_version,
+                  outbox.provider_evidence_sha256
       `,
           [
             claim.id,
@@ -1810,7 +2571,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             claim.claimOwner,
             claim.claimVersion,
             adapter,
-            input.leaseMs,
+            leaseStampMs,
             binding.bindingVersion,
             binding.bindingSha256,
             scope.userId,
@@ -1819,6 +2580,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             claim.payload.template,
             claim.payload.templateVersion,
             JSON.stringify(claim.payload.variables),
+            inspection.providerCorrelationVersion,
+            inspection.providerEvidenceVersion,
+            inspection.providerEvidenceSha256,
           ],
         );
         if (result.rows.length !== 1) return { kind: "lost" as const };
@@ -1827,11 +2591,15 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         if (
           persistedBinding?.bindingVersion !== binding.bindingVersion ||
           persistedBinding.bindingSha256 !== binding.bindingSha256
-        )
+          || row.provider_correlation_version !==
+            inspection.providerCorrelationVersion
+          || row.provider_evidence_version !== inspection.providerEvidenceVersion
+          || row.provider_evidence_sha256 !== inspection.providerEvidenceSha256
+        ) {
           return { kind: "lost" as const };
+        }
 
-        const permit = Object.freeze({
-          phase: "post-provider" as const,
+        const permit = issueProviderCallPermit(Object.freeze({
           id: claim.id,
           operationId: claim.operationId,
           claimToken: claim.claimToken,
@@ -1847,8 +2615,22 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             "Provider boundary",
             64,
           ),
-          leaseExpiresAt: asDate(row.lease_expires_at, "Provider lease expiry"),
-        }) as ProviderCallPermit;
+          leaseExpiresAt: assertBoundedText(
+            row.lease_expires_at,
+            "Provider lease expiry",
+            64,
+          ),
+          sourceAuthoritySha256: inspection.sourceAuthoritySha256,
+          ...(inspection.authorityEvidence
+            ? { authorityEvidence: inspection.authorityEvidence }
+            : {}),
+          providerCorrelationVersion: inspection.providerCorrelationVersion,
+          providerEvidenceVersion: inspection.providerEvidenceVersion,
+          providerEvidenceSha256: inspection.providerEvidenceSha256,
+          store: this,
+          envelope: input.envelope,
+          view: authorization.view,
+        }));
         return { kind: "applied" as const, permit };
       },
       {
@@ -1857,10 +2639,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     );
 
     if (boundary.kind === "applied") {
-      this.armedDispatches.set(boundary.permit, Object.freeze({
-        envelope: input.envelope,
-        view: authorization,
-      }));
+      return Object.freeze({
+        kind: "applied" as const,
+        permit: boundary.permit,
+        receipt: issueCommittedPreparedDispatchReceipt(this, boundary.permit),
+      });
     }
     return boundary;
   }
@@ -1932,66 +2715,107 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
   }
 
   async dispatchAfterProviderBoundary(
-    permit: ProviderCallPermit,
+    capability: ProviderCallPermit,
     guarded: GuardedPreparedDispatch,
-    fatalExit: FatalProviderExit,
+    armedWatchdog: ArmedMailDispatchHardWatchdog,
   ): Promise<GuardedDispatchResult> {
-    validatePermit(permit);
-    if (typeof fatalExit !== "function") {
-      throw new Error("Guarded dispatch fatalExit must be callable.");
+    const permit = validatePermit(capability, this);
+    const runtime = STORE_RUNTIME_STATES.get(this);
+    const channel = runtime?.channel;
+    if (!runtime || !channel) {
+      throw new Error("Mail dispatch store is not initialized.");
     }
-    const armed = this.armedDispatches.get(permit);
-    const guardedView = guardedDispatchStoreView(guarded);
-    if (
-      !armed ||
-      !guardedView ||
-      guardedView.envelope !== armed.envelope ||
-      guardedView.dispatch !== armed.view
-    ) {
-      return { kind: "lost" };
+    if (!watchdogIsHealthy(armedWatchdog)) {
+      return terminateMailDispatchImmediately();
+    }
+    if (CLAIMED_HARD_WATCHDOGS.has(armedWatchdog)) {
+      return terminateMailDispatchImmediately();
+    }
+    CLAIMED_HARD_WATCHDOGS.set(armedWatchdog, this);
+    const safeResult = <T extends GuardedDispatchResult>(result: T): T =>
+      issueSafeGuardedDispatchResult(
+        this,
+        armedWatchdog,
+        result,
+      );
+    if (DISPATCHED_PERMITS.has(capability)) return safeResult({ kind: "lost" });
+
+    const acquireDeadline = createMailDispatchDbDeadline({
+      phase: "pool-acquire",
+      budgetMs: runtime.startupInspection.plan.timeouts.poolAcquireMs,
+    });
+    let lease: MailDispatchDbClientLease<OutboxPgClient>;
+    try {
+      lease = await connectMailDispatchDbWithin({
+        pool: this.pool,
+        deadline: acquireDeadline,
+      });
+    } catch {
+      channel.discardGuard(capability, guarded);
+      return safeResult({ kind: "lost" });
     }
 
-    let callbackExit: PostProviderExit | null = null;
-    const result = await transaction(
-      this.pool,
-      async (client) => {
-        const tx2WorkStartedAt = performance.now();
-        await client.query("set local lock_timeout = '3s'");
-        await client.query("set local statement_timeout = '5s'");
-        // A server-side idle/transaction timeout must not release TX2 locks
-        // while a live provider request is awaiting its in-process fatalExit.
-        await client.query(
-          "set local idle_in_transaction_session_timeout = '0'",
-        );
-        const version = await client.query<{ server_version_num: number }>(
-          "select current_setting('server_version_num')::integer as server_version_num",
-        );
-        if (version.rows.length !== 1) {
-          throw new Error("PostgreSQL server version is unavailable.");
-        }
-        if (version.rows[0]!.server_version_num >= 170000) {
-          await client.query("set local transaction_timeout = '0'");
-        }
+    // The aggregate pre-provider clock starts immediately before BEGIN. Every
+    // query shares this same deadline; a deadline destroys the client before
+    // any physical provider call can occur.
+    const preProviderDeadline = createMailDispatchDbDeadline({
+      phase: "pre-provider",
+      budgetMs:
+        runtime.startupInspection.plan.timeouts.preProviderTx2PhaseBudgetMs,
+    });
+    const client = deadlineBoundClient(lease, preProviderDeadline);
+    let began = false;
+    let claim: OutboxClaim<EmailOutboxPayload> | null = null;
+    let transactionId: string | null = null;
 
-        const scope = deliveryScope({
-          operation_id: permit.operationId,
-          user_id: permit.userId,
-          delivery_scope_key: permit.deliveryScopeKey,
-        });
-        await advisoryLock(client, scope.lockKey, true);
-        const locked = await client.query<
-          ClaimRow &
-            BindingRow & {
-              adapter: string;
-              provider_call_started: string;
-            }
-        >(
-          `
+    try {
+      await client.query("begin");
+      began = true;
+      await client.query(
+        `set local lock_timeout = '${runtime.startupInspection.plan.timeouts.lockMs}ms'`,
+      );
+      await client.query(
+        `set local statement_timeout = '${runtime.startupInspection.plan.timeouts.statementMs}ms'`,
+      );
+      await client.query(
+        "set local idle_in_transaction_session_timeout = '0'",
+      );
+      await client.query("set local transaction_timeout = '0'");
+
+      const scope = deliveryScope({
+        operation_id: permit.operationId,
+        user_id: permit.userId,
+        delivery_scope_key: permit.deliveryScopeKey,
+      });
+      if (!(await advisoryLock(client, scope.lockKey, true))) {
+        await releaseBeforePhysicalInitiation(
+          lease,
+          preProviderDeadline,
+          began,
+          armedWatchdog,
+        );
+        channel.discardGuard(capability, guarded);
+        return safeResult({ kind: "lost" });
+      }
+
+      const locked = await client.query<
+        ClaimRow & ProviderAuthorityRow & Readonly<{
+          adapter: string;
+          provider_call_started: string;
+          lease_expires_at: string;
+          transaction_id: string;
+        }>
+      >(
+        `
         select id::text, user_id, operation_id::text, delivery_scope_key,
                claim_version, to_email, template, template_version, variables,
-               claim_token::text, claim_owner, attempt_count, lease_expires_at,
-               adapter, provider_call_started::text,
-               dispatch_binding_version, dispatch_binding_sha256
+               claim_token::text, claim_owner, attempt_count,
+               lease_expires_at::text, adapter,
+               provider_call_started::text,
+               pg_catalog.pg_current_xact_id()::text as transaction_id,
+               dispatch_binding_version, dispatch_binding_sha256,
+               provider_correlation_version, provider_evidence_version,
+               provider_evidence_sha256
         from public.email_outbox
         where id = $1::uuid
           and operation_id = $2::uuid
@@ -2004,208 +2828,365 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and provider_call_started = $9::timestamptz
           and dispatch_binding_version = $10::text
           and dispatch_binding_sha256 = $11::text
+          and lease_expires_at = $12::timestamptz
+          and provider_correlation_version = $13::text
+          and provider_evidence_version is not distinct from $14::text
+          and provider_evidence_sha256 is not distinct from $15::text
           and provider_message_id is null
           and sent_at is null
           and quarantined_at is null
+          and last_error_code is null
           and lease_expires_at > pg_catalog.statement_timestamp()
           and status = 'sending'
         for update
       `,
-          [
-            permit.id,
-            permit.operationId,
-            permit.claimToken,
-            permit.claimOwner,
-            permit.claimVersion,
-            scope.userId,
-            scope.key,
-            permit.adapter,
-            permit.providerCallStartedAt,
-            permit.bindingVersion,
-            permit.bindingSha256,
-          ],
-        );
-        if (locked.rows.length !== 1) return { kind: "lost" as const };
-        const claim = claimFromRow(locked.rows[0]!);
-        const authorization = dispatchStoreView(
-          guardedView.dispatch,
+        [
+          permit.id,
+          permit.operationId,
+          permit.claimToken,
+          permit.claimOwner,
+          permit.claimVersion,
+          scope.userId,
+          scope.key,
           permit.adapter,
-          claim,
+          permit.providerCallStartedAt,
+          permit.bindingVersion,
+          permit.bindingSha256,
+          permit.leaseExpiresAt,
+          permit.providerCorrelationVersion,
+          permit.providerEvidenceVersion,
+          permit.providerEvidenceSha256,
+        ],
+      );
+      if (locked.rows.length !== 1) {
+        await releaseBeforePhysicalInitiation(
+          lease,
+          preProviderDeadline,
+          began,
+          armedWatchdog,
         );
-        if (
-          authorization.binding.bindingVersion !== permit.bindingVersion ||
-          authorization.binding.bindingSha256 !== permit.bindingSha256
-        )
-          return { kind: "lost" as const };
-
-        if (
-          claim.userId === null ||
-          claim.payload.template === "account-deleted" ||
-          claim.payload.template === "session-revocation-requested" ||
-          claim.payload.template === "inactivity-admin-notice" ||
-          SMART_REMINDER_TEMPLATES.has(claim.payload.template)
-        )
-          return { kind: "lost" as const };
-        const decision = claim.payload.template === "backup-status"
-          ? (await backupStatusMailAuthorized(client, claim.id)
-              ? "allowed" as const
-              : "BACKUP_AUTHORITY_UNAVAILABLE" as const)
-          : await providerBoundaryDecisionAfterBoundary(
-              client,
-              claim,
-              permit,
-            );
-        if (
-          decision !== "allowed" ||
-          claim.userId === null ||
-          claim.payload.template === "account-deleted" ||
-          claim.payload.template === "session-revocation-requested" ||
-          claim.payload.template === "inactivity-admin-notice" ||
-          (REVOCABLE_SOURCE_TEMPLATES.has(claim.payload.template) &&
-            !(await lockRevocableSourceAuthority(
-              client,
-              claim,
-              scope,
-              authorization,
-            )))
-        )
-          return { kind: "lost" as const };
-
-        if (performance.now() - tx2WorkStartedAt > 5_000) {
-          return { kind: "lost" as const };
-        }
-        const liveFence = await client.query(
-          `
-          select 1
-          from public.email_outbox
-          where id = $1::uuid
-            and operation_id = $2::uuid
-            and claim_token = $3::uuid
-            and claim_owner = $4::text
-            and claim_version = $5::integer
-            and user_id is not distinct from $6::text
-            and delivery_scope_key = $7::text
-            and adapter = $8::text
-            and provider_call_started = $9::timestamptz
-            and dispatch_binding_version = $10::text
-            and dispatch_binding_sha256 = $11::text
-            and to_email = lower(btrim($12::text))
-            and template = $13::text
-            and template_version = $14::text
-            and variables = $15::jsonb
-            and provider_message_id is null
-            and sent_at is null
-            and quarantined_at is null
-            and lease_expires_at > pg_catalog.statement_timestamp()
-            and status = 'sending'
-          for update
-        `,
-          [
-            permit.id,
-            permit.operationId,
-            permit.claimToken,
-            permit.claimOwner,
-            permit.claimVersion,
-            permit.userId,
-            permit.deliveryScopeKey,
-            permit.adapter,
-            permit.providerCallStartedAt,
-            permit.bindingVersion,
-            permit.bindingSha256,
-            claim.payload.to,
-            claim.payload.template,
-            claim.payload.templateVersion,
-            JSON.stringify(claim.payload.variables),
-          ],
+        channel.discardGuard(capability, guarded);
+        return safeResult({ kind: "lost" });
+      }
+      const lockedRow = locked.rows[0]!;
+      if (
+        lockedRow.provider_call_started !== permit.providerCallStartedAt
+        || lockedRow.lease_expires_at !== permit.leaseExpiresAt
+        || !/^[1-9][0-9]{0,19}$/.test(lockedRow.transaction_id)
+        || !exactProviderAuthorityRow(lockedRow, permit)
+      ) {
+        await releaseBeforePhysicalInitiation(
+          lease,
+          preProviderDeadline,
+          began,
+          armedWatchdog,
         );
-        if (liveFence.rows.length !== 1) return { kind: "lost" as const };
-        if (performance.now() - tx2WorkStartedAt > 5_000) {
-          return { kind: "lost" as const };
-        }
-        if (!this.armedDispatches.delete(permit)) {
-          return { kind: "lost" as const };
-        }
-        const controller = new AbortController();
-        let abortTimer: ReturnType<typeof setTimeout> | undefined;
-        let hardTimer: ReturnType<typeof setTimeout> | undefined;
-        try {
-          const callback = dispatchGuardedPrepared(guarded, controller.signal);
-          abortTimer = setTimeout(() => controller.abort(), 25_000);
-          abortTimer.unref?.();
-          const hardDeadline = new Promise<never>((_resolve, reject) => {
-            hardTimer = setTimeout(() => {
-              reject(
-                new FatalProviderTransportError(
-                  "PROVIDER_CALLBACK_DID_NOT_SETTLE",
-                ),
-              );
-            }, 30_000);
-            hardTimer.unref?.();
+        channel.discardGuard(capability, guarded);
+        return safeResult({ kind: "lost" });
+      }
+
+      transactionId = lockedRow.transaction_id;
+      claim = claimFromRow(lockedRow);
+      const inspection = dispatchStoreInspection(
+        this,
+        permit.view,
+        permit.adapter,
+        claim,
+      );
+      if (
+        inspection.binding.bindingVersion !== permit.bindingVersion
+        || inspection.binding.bindingSha256 !== permit.bindingSha256
+        || inspection.sourceAuthoritySha256 !== permit.sourceAuthoritySha256
+        || inspection.providerCorrelationVersion
+          !== permit.providerCorrelationVersion
+        || inspection.providerEvidenceVersion !== permit.providerEvidenceVersion
+        || inspection.providerEvidenceSha256 !== permit.providerEvidenceSha256
+        || inspection.authorityEvidence !== permit.authorityEvidence
+      ) {
+        await releaseBeforePhysicalInitiation(
+          lease,
+          preProviderDeadline,
+          began,
+          armedWatchdog,
+        );
+        channel.discardGuard(capability, guarded);
+        return safeResult({ kind: "lost" });
+      }
+
+      if (
+        claim.userId === null
+        || claim.payload.template === "account-deleted"
+        || claim.payload.template === "session-revocation-requested"
+        || claim.payload.template === "inactivity-admin-notice"
+        || SMART_REMINDER_TEMPLATES.has(claim.payload.template)
+      ) {
+        await releaseBeforePhysicalInitiation(
+          lease,
+          preProviderDeadline,
+          began,
+          armedWatchdog,
+        );
+        channel.discardGuard(capability, guarded);
+        return safeResult({ kind: "lost" });
+      }
+
+      const decision = claim.payload.template === "backup-status"
+        ? (await backupStatusMailAuthorized(client, claim.id)
+            ? "allowed" as const
+            : "BACKUP_AUTHORITY_UNAVAILABLE" as const)
+        : await providerBoundaryDecisionAfterBoundary(client, claim, permit);
+      const sourceAuthorized = decision === "allowed"
+        && (!REVOCABLE_SOURCE_TEMPLATES.has(claim.payload.template)
+          || await lockRevocableSourceAuthority(
+            client,
+            claim,
+            scope,
+            inspection,
+          ));
+      if (!sourceAuthorized) {
+        await releaseBeforePhysicalInitiation(
+          lease,
+          preProviderDeadline,
+          began,
+          armedWatchdog,
+        );
+        channel.discardGuard(capability, guarded);
+        return safeResult({ kind: "lost" });
+      }
+
+      const finalFence = await client.query(
+        `
+        select 1
+        from public.email_outbox
+        where id = $1::uuid
+          and operation_id = $2::uuid
+          and claim_token = $3::uuid
+          and claim_owner = $4::text
+          and claim_version = $5::integer
+          and user_id is not distinct from $6::text
+          and delivery_scope_key = $7::text
+          and adapter = $8::text
+          and provider_call_started = $9::timestamptz
+          and dispatch_binding_version = $10::text
+          and dispatch_binding_sha256 = $11::text
+          and lease_expires_at = $12::timestamptz
+          and provider_correlation_version = $13::text
+          and provider_evidence_version is not distinct from $14::text
+          and provider_evidence_sha256 is not distinct from $15::text
+          and to_email = lower(btrim($16::text))
+          and template = $17::text
+          and template_version = $18::text
+          and variables = $19::jsonb
+          and provider_message_id is null
+          and sent_at is null
+          and quarantined_at is null
+          and last_error_code is null
+          and lease_expires_at > pg_catalog.statement_timestamp()
+          and status = 'sending'
+        for update
+      `,
+        [
+          permit.id,
+          permit.operationId,
+          permit.claimToken,
+          permit.claimOwner,
+          permit.claimVersion,
+          permit.userId,
+          permit.deliveryScopeKey,
+          permit.adapter,
+          permit.providerCallStartedAt,
+          permit.bindingVersion,
+          permit.bindingSha256,
+          permit.leaseExpiresAt,
+          permit.providerCorrelationVersion,
+          permit.providerEvidenceVersion,
+          permit.providerEvidenceSha256,
+          claim.payload.to,
+          claim.payload.template,
+          claim.payload.templateVersion,
+          JSON.stringify(claim.payload.variables),
+        ],
+      );
+      if (
+        finalFence.rows.length !== 1
+        || preProviderDeadline.isExpired()
+      ) {
+        await releaseBeforePhysicalInitiation(
+          lease,
+          preProviderDeadline,
+          began,
+          armedWatchdog,
+        );
+        channel.discardGuard(capability, guarded);
+        return safeResult({ kind: "lost" });
+      }
+    } catch {
+      await releaseBeforePhysicalInitiation(
+        lease,
+        preProviderDeadline,
+        began,
+        armedWatchdog,
+      );
+      channel.discardGuard(capability, guarded);
+      return safeResult({ kind: "lost" });
+    }
+
+    if (!transactionId || !watchdogIsHealthy(armedWatchdog)) {
+      return terminateMailDispatchImmediately();
+    }
+
+    // No finally/catch below this physical-initiation boundary may unwind TX2.
+    // The frozen channel validates and burns the guard synchronously, starts the
+    // provider call synchronously, and returns the only observable settlement.
+    if (DISPATCHED_PERMITS.has(capability)) {
+      await releaseBeforePhysicalInitiation(
+        lease,
+        preProviderDeadline,
+        began,
+        armedWatchdog,
+      );
+      channel.discardGuard(capability, guarded);
+      return safeResult({ kind: "lost" });
+    }
+    DISPATCHED_PERMITS.add(capability);
+    const controller = new AbortController();
+    let providerOperation: Promise<PostProviderExit>;
+    try {
+      providerOperation = channel.dispatch(
+        capability,
+        guarded,
+        controller.signal,
+      );
+    } catch {
+      DISPATCHED_PERMITS.delete(capability);
+      await releaseBeforePhysicalInitiation(
+        lease,
+        preProviderDeadline,
+        began,
+        armedWatchdog,
+      );
+      return safeResult({ kind: "lost" });
+    }
+    const providerDeadlineMs =
+      runtime.startupInspection.plan.timeouts.guardedSendDeadlineMs
+      + runtime.startupInspection.plan.timeouts.providerAbortSettlementMs
+      + runtime.startupInspection.plan.timeouts.fatalExitMarginMs;
+    const providerSettlementOperation = observeLiveProviderWithin(
+      providerOperation,
+      providerDeadlineMs,
+      armedWatchdog,
+    );
+
+    const postInitiationArmDeadline = createMailDispatchDbDeadline({
+      phase: "post-init-arm",
+      budgetMs: runtime.startupInspection.plan.timeouts.queryMs,
+    });
+    const postTimeouts =
+      runtime.startupInspection.plan.liveProviderTx2DatabaseTimeouts
+        .postProviderInitiation;
+    try {
+      await queryRetainingLiveTx2({
+        client: lease.client,
+        deadline: postInitiationArmDeadline,
+        text:
+          `set local transaction_timeout = '${postTimeouts.transactionTimeoutMs}ms'`,
+        watchdog: armedWatchdog,
+      });
+      await queryRetainingLiveTx2({
+        client: lease.client,
+        deadline: postInitiationArmDeadline,
+        text:
+          `set local idle_in_transaction_session_timeout = '${postTimeouts.idleInTransactionSessionTimeoutMs}ms'`,
+        watchdog: armedWatchdog,
+      });
+    } catch {
+      return retainLiveTx2OrTerminate(armedWatchdog);
+    }
+
+    const providerSettlement = await providerSettlementOperation;
+
+    let exit: PostProviderExit;
+    if (providerSettlement.kind === "rejected") {
+      exit = Object.freeze({
+        kind: "quarantined" as const,
+        code: "PROVIDER_OUTCOME_UNKNOWN",
+      });
+    } else {
+      const rawExit = providerSettlement.exit;
+      try {
+        if (rawExit.kind === "sent") {
+          exit = Object.freeze({
+            kind: "sent" as const,
+            providerMessageId: assertBoundedText(
+              rawExit.providerMessageId,
+              "Provider message ID",
+              512,
+            ),
           });
-          callbackExit = await Promise.race([callback, hardDeadline]);
-        } catch (error) {
-          if (error instanceof FatalProviderTransportError) throw error;
-          callbackExit = {
-            kind: "quarantined",
-            code: "PROVIDER_OUTCOME_UNKNOWN",
-          };
-        } finally {
-          if (abortTimer !== undefined) clearTimeout(abortTimer);
-          if (hardTimer !== undefined) clearTimeout(hardTimer);
+        } else if (
+          rawExit.kind === "failed"
+          || rawExit.kind === "quarantined"
+        ) {
+          exit = Object.freeze({
+            kind: rawExit.kind,
+            code: assertBoundedText(rawExit.code, "Outbox error code", 80),
+          });
+        } else {
+          throw new Error("Provider outcome is invalid.");
         }
-        const rawExit = callbackExit;
-        let providerMessageId: string | null;
-        let code: string | null;
-        let exit: PostProviderExit;
-        try {
-          if (
-            !rawExit ||
-            !["sent", "failed", "quarantined"].includes(rawExit.kind)
-          ) {
-            throw new Error("Invalid callback result.");
-          }
-          providerMessageId =
-            rawExit.kind === "sent"
-              ? assertBoundedText(
-                  rawExit.providerMessageId,
-                  "Provider message ID",
-                  512,
-                )
-              : null;
-          code =
-            rawExit.kind === "sent"
-              ? null
-              : assertBoundedText(rawExit.code, "Outbox error code", 80);
-          exit =
-            rawExit.kind === "sent"
-              ? { kind: "sent", providerMessageId: providerMessageId! }
-              : { kind: rawExit.kind, code: code! };
-          callbackExit = exit;
-        } catch {
-          providerMessageId = null;
-          code = "PROVIDER_OUTCOME_INVALID";
-          exit = { kind: "quarantined", code };
-          callbackExit = exit;
-        }
-        let terminal;
-        try {
-          terminal = await client.query<TerminalRow>(
-            `
+      } catch {
+        exit = Object.freeze({
+          kind: "quarantined" as const,
+          code: "PROVIDER_OUTCOME_INVALID",
+        });
+      }
+    }
+
+    const providerMessageId = exit.kind === "sent"
+      ? exit.providerMessageId
+      : null;
+    const code = exit.kind === "sent" ? null : exit.code;
+    const postProviderDeadline = createMailDispatchDbDeadline({
+      phase: "post-provider",
+      budgetMs:
+        runtime.startupInspection.plan.timeouts.postProviderTx2PhaseBudgetMs,
+    });
+    const settledProviderClient: SettledProviderClientState = {
+      pool: this.pool,
+      client: lease.client,
+      transactionId,
+      scopeLockKey: deliveryScope({
+        operation_id: permit.operationId,
+        user_id: permit.userId,
+        delivery_scope_key: permit.deliveryScopeKey,
+      }).lockKey,
+      teardownConfirmationMs:
+        runtime.startupInspection.plan.timeouts.watchdogDisarmDeliveryMs,
+      closed: false,
+      teardownConfirmed: false,
+    };
+
+    try {
+      const terminal = await queryAfterProviderWithin<TerminalRow>({
+        state: settledProviderClient,
+        deadline: postProviderDeadline,
+        watchdog: armedWatchdog,
+        text: `
           update public.email_outbox
-          set status = case $12::text
+          set status = case $15::text
                 when 'sent' then 'sent'::public.notification_status
                 when 'failed' then 'failed'::public.notification_status
                 when 'quarantined' then 'quarantined'::public.notification_status
               end,
-              provider_message_id = case when $12::text = 'sent'
-                then $13::text else null end,
-              sent_at = case when $12::text = 'sent'
+              provider_message_id = case when $15::text = 'sent'
+                then $16::text else null end,
+              sent_at = case when $15::text = 'sent'
                 then pg_catalog.statement_timestamp() else null end,
-              quarantined_at = case when $12::text = 'quarantined'
+              quarantined_at = case when $15::text = 'quarantined'
                 then pg_catalog.statement_timestamp() else null end,
-              last_error_code = case when $12::text = 'sent'
-                then null else $14::text end,
-              claim_version = case when $12::text = 'quarantined'
+              last_error_code = case when $15::text = 'sent'
+                then null else $17::text end,
+              claim_version = case when $15::text = 'quarantined'
                 then claim_version + 1 else claim_version end,
               claim_token = null,
               claim_owner = null,
@@ -2216,111 +3197,139 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and claim_token = $3::uuid
             and claim_owner = $4::text
             and claim_version = $5::integer
-            and ($12::text <> 'quarantined' or claim_version < 2147483647)
+            and ($15::text <> 'quarantined' or claim_version < 2147483647)
             and user_id is not distinct from $6::text
             and delivery_scope_key = $7::text
             and adapter = $8::text
             and provider_call_started = $9::timestamptz
             and dispatch_binding_version = $10::text
             and dispatch_binding_sha256 = $11::text
+            and provider_correlation_version = $12::text
+            and provider_evidence_version is not distinct from $13::text
+            and provider_evidence_sha256 is not distinct from $14::text
+            and lease_expires_at = $18::timestamptz
             and provider_message_id is null
             and sent_at is null
             and quarantined_at is null
+            and last_error_code is null
             and status = 'sending'
           returning status::text, claim_version, user_id, delivery_scope_key,
-                    adapter, provider_message_id, provider_call_started, sent_at,
-                    quarantined_at, last_error_code, claim_token::text,
-                    claim_owner, lease_expires_at, dispatch_binding_version,
-                    dispatch_binding_sha256
+                    adapter, provider_message_id,
+                    provider_call_started::text, sent_at::text,
+                    quarantined_at::text, last_error_code, claim_token::text,
+                    claim_owner, lease_expires_at::text,
+                    dispatch_binding_version, dispatch_binding_sha256,
+                    provider_correlation_version, provider_evidence_version,
+                    provider_evidence_sha256
         `,
-            [
-              permit.id,
-              permit.operationId,
-              permit.claimToken,
-              permit.claimOwner,
-              permit.claimVersion,
-              permit.userId,
-              permit.deliveryScopeKey,
-              permit.adapter,
-              permit.providerCallStartedAt,
-              permit.bindingVersion,
-              permit.bindingSha256,
-              exit.kind,
-              providerMessageId,
-              code,
-            ],
-          );
-        } catch {
-          throw new PostProviderPersistenceUnknownError(exit);
-        }
-        if (terminal.rows.length !== 1) {
-          throw new PostProviderPersistenceUnknownError(exit);
-        }
-        try {
-          const row = terminal.rows[0]!;
-          const persistedBinding = exactBindingFromRow(row, permit.adapter);
-          const expectedVersion =
-            exit.kind === "quarantined"
-              ? permit.claimVersion + 1
-              : permit.claimVersion;
-          const providerBoundaryMatches =
-            row.provider_call_started !== null &&
-            asDate(row.provider_call_started, "Provider boundary").getTime() ===
-              asDate(permit.providerCallStartedAt, "Provider boundary").getTime();
-          const sentShape =
-            exit.kind === "sent"
-              ? row.sent_at !== null &&
-                Number.isFinite(asDate(row.sent_at, "Sent timestamp").getTime())
-              : row.sent_at === null;
-          const quarantineShape =
-            exit.kind === "quarantined"
-              ? row.quarantined_at !== null &&
-                Number.isFinite(
-                  asDate(row.quarantined_at, "Quarantine timestamp").getTime(),
-                )
-              : row.quarantined_at === null;
-          const exact =
-            row.status === exit.kind &&
-            row.claim_version === expectedVersion &&
-            row.user_id === permit.userId &&
-            row.delivery_scope_key === permit.deliveryScopeKey &&
-            row.adapter === permit.adapter &&
-            row.provider_message_id === providerMessageId &&
-            providerBoundaryMatches &&
-            sentShape &&
-            quarantineShape &&
-            row.last_error_code === code &&
-            row.claim_token === null &&
-            row.claim_owner === null &&
-            row.lease_expires_at === null &&
-            persistedBinding?.bindingVersion === permit.bindingVersion &&
-            persistedBinding.bindingSha256 === permit.bindingSha256;
-          if (!exact) throw new Error("Guarded terminal proof mismatch.");
-        } catch {
-          throw new PostProviderPersistenceUnknownError(exit);
-        }
-        return { kind: "applied" as const, exit };
-      },
-      {
-        commitUnknown: (outcome) =>
-          outcome.kind === "applied"
-            ? new GuardedDispatchCommitUnknownError(outcome.exit)
-            : new Error("Guarded dispatch commit result is unknown."),
-        destroyOnWorkError: true,
-        fatalExit,
-      },
-    );
+        values: [
+          permit.id,
+          permit.operationId,
+          permit.claimToken,
+          permit.claimOwner,
+          permit.claimVersion,
+          permit.userId,
+          permit.deliveryScopeKey,
+          permit.adapter,
+          permit.providerCallStartedAt,
+          permit.bindingVersion,
+          permit.bindingSha256,
+          permit.providerCorrelationVersion,
+          permit.providerEvidenceVersion,
+          permit.providerEvidenceSha256,
+          exit.kind,
+          providerMessageId,
+          code,
+          permit.leaseExpiresAt,
+        ],
+      });
+      if (terminal.rows.length !== 1) {
+        throw new Error("Guarded terminal CAS did not update exactly one row.");
+      }
+      const row = terminal.rows[0]!;
+      const expectedClaimVersion = exit.kind === "quarantined"
+        ? permit.claimVersion + 1
+        : permit.claimVersion;
+      const exactOutcome = row.status === exit.kind
+        && row.claim_version === expectedClaimVersion
+        && row.provider_message_id === providerMessageId
+        && row.last_error_code === code
+        && (exit.kind === "sent"
+          ? exactTerminalTimestamp(row.sent_at, "Sent timestamp")
+          : row.sent_at === null)
+        && (exit.kind === "quarantined"
+          ? exactTerminalTimestamp(row.quarantined_at, "Quarantine timestamp")
+          : row.quarantined_at === null);
+      if (!exactTerminalFence(row, permit) || !exactOutcome) {
+        throw new Error("Guarded terminal proof mismatch.");
+      }
 
-    if (result.kind === "lost") {
-      this.armedDispatches.delete(permit);
+      await queryAfterProviderWithin({
+        state: settledProviderClient,
+        deadline: postProviderDeadline,
+        text: "commit",
+        watchdog: armedWatchdog,
+      });
+    } catch {
+      await destroySettledProviderClientOrTerminate(
+        settledProviderClient,
+        armedWatchdog,
+      );
+      return safeResult({
+        kind: "persistence-unknown" as const,
+        uncertainty: issueGuardedDispatchPersistenceUnknown({
+          store: this,
+          permit: capability,
+          exit,
+        }),
+      });
     }
-    return result;
+
+    // COMMIT ACK is known, so server locks are gone before normal release.
+    try {
+      settledProviderClient.client.release();
+      settledProviderClient.closed = true;
+    } catch {
+      // A pool bookkeeping failure after COMMIT ACK cannot strand TX2 locks.
+    }
+    return safeResult({ kind: "applied" as const, exit });
   }
+
+  releaseGuardedDispatchWatchdog(
+    watchdog: ArmedMailDispatchHardWatchdog,
+  ): boolean {
+    if (
+      CLAIMED_HARD_WATCHDOGS.get(watchdog) !== this
+      || watchdogIsHealthy(watchdog)
+    ) return false;
+    CLAIMED_HARD_WATCHDOGS.delete(watchdog);
+    return true;
+  }
+
+  async finishGuardedDispatchUnknown(
+    uncertainty: GuardedDispatchUncertainty,
+  ): Promise<GuardedUnknownFinishResult | null> {
+    if (
+      !uncertainty
+      || typeof uncertainty !== "object"
+      || !Object.isFrozen(uncertainty)
+      || Reflect.ownKeys(uncertainty).length !== 0
+    ) return null;
+    const state = GUARDED_DISPATCH_UNKNOWN_STATES.get(uncertainty);
+    if (!state || state.store !== this) return null;
+    GUARDED_DISPATCH_UNKNOWN_STATES.delete(uncertainty);
+    const result = await this.finishAfterProvider(state.permit, state.exit);
+    return Object.freeze({
+      result,
+      exit: state.exit,
+    });
+  }
+
   async finishAfterProvider(
-    permit: ProviderCallPermit,
+    capability: ProviderCallPermit,
     exit: PostProviderExit,
   ): Promise<PostFinishResult> {
-    validatePermit(permit);
+    const permit = validatePermit(capability, this);
     const providerMessageId =
       exit.kind === "sent"
         ? assertBoundedText(exit.providerMessageId, "Provider message ID", 512)
