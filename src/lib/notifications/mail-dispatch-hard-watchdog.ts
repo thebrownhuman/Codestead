@@ -29,6 +29,7 @@ const TEST_HANDSHAKE_NAME =
   "MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS";
 const TEST_FAULTS = new Set([
   "DELAY_BOUNDARY_IPC",
+  "DISCONNECT_AFTER_ARMED",
   "DISCONNECT_AFTER_READY",
   "DISCONNECT_ON_ARM",
   "DISCONNECT_ON_DISARM",
@@ -40,6 +41,8 @@ const TEST_FAULTS = new Set([
   "MALFORMED_DISARMED",
   "MALFORMED_READY",
   "SEND_CALLBACK_ERROR",
+  "UNCAUGHT_AFTER_ARMED",
+  "UNHANDLED_REJECTION_AFTER_ARMED",
 ]);
 
 export type MailDispatchHardWatchdogErrorCode =
@@ -81,10 +84,11 @@ type Phase =
   | "arming"
   | "armed"
   | "disarming"
+  | "closing"
   | "closed"
   | "failed";
 type PendingHandshake = {
-  readonly expectedType: "READY" | "ARMED" | "DISARMED";
+  readonly expectedType: "READY" | "ARMED" | "DISARMED" | "CLOSED";
   readonly generation?: number;
   readonly resolve: () => void;
   readonly reject: (error: Error) => void;
@@ -178,7 +182,7 @@ function handshakeTimeoutMs(
 
 function exactMessage(
   message: unknown,
-  type: "READY" | "ARMED" | "DISARMED",
+  type: PendingHandshake["expectedType"],
   generation?: number,
 ) {
   if (
@@ -213,16 +217,11 @@ function clearPending(state: ControllerState, error?: Error) {
 
 function destroyChildBestEffort(state: ControllerState) {
   try {
-    if (state.child.connected) state.child.disconnect();
-  } catch {
-    // A post-ready fatal hook has already run before this defensive cleanup.
-  }
-  try {
     if (state.child.exitCode === null && state.child.signalCode === null) {
       state.child.kill("SIGKILL");
     }
   } catch {
-    // A post-ready fatal hook has already run before this defensive cleanup.
+    // Startup or a direct post-ready fatal hook already made progress.
   }
 }
 
@@ -278,9 +277,13 @@ function handshake(
   });
 }
 
+type ControllerMessage =
+  | Readonly<{ type: "ARM" | "DISARM"; generation: number }>
+  | Readonly<{ type: "CLOSE" }>;
+
 function send(
   state: ControllerState,
-  message: Readonly<{ type: "ARM" | "DISARM"; generation: number }>,
+  message: ControllerMessage,
 ) {
   const sendNow = () => {
     if (!state.child.connected) {
@@ -435,9 +438,25 @@ export async function startMailDispatchHardWatchdog(
       if (current.phase !== "idle" && current.phase !== "failed") {
         throw watchdogError("WATCHDOG_NOT_IDLE");
       }
+      if (current.phase === "failed") {
+        current.expectedClose = true;
+        current.phase = "closed";
+        clearPending(current, watchdogError("WATCHDOG_CHILD_FAILED"));
+        destroyChildBestEffort(current);
+        await waitForChildExit(current.child);
+        CONTROLLERS.delete(controller);
+        return;
+      }
+
+      current.phase = "closing";
+      const acknowledged = handshake(current, "CLOSED");
+      send(current, { type: "CLOSE" });
+      await acknowledged;
+      if (current.phase !== "closing") {
+        throw watchdogError("WATCHDOG_CHILD_FAILED");
+      }
       current.expectedClose = true;
       current.phase = "closed";
-      clearPending(current, watchdogError("WATCHDOG_CHILD_FAILED"));
       try {
         if (current.child.connected) current.child.disconnect();
       } catch {

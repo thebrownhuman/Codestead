@@ -283,27 +283,6 @@ describe("mail dispatch external hard watchdog", () => {
     }
   });
 
-  it("invalidates the armed capability and fatal-exits when the child exits after ARM acknowledgement", async () => {
-    stubWatchdogFault("EXIT_AFTER_ARMED");
-    const fatalities: Error[] = [];
-    let controller: MailDispatchHardWatchdog | undefined;
-    let armed: ArmedMailDispatchHardWatchdog | undefined;
-    try {
-      controller = await startMailDispatchHardWatchdog({
-        fatalExit: recordingFatalExit(fatalities),
-      });
-      armed = await controller.arm();
-      expect(isMailDispatchHardWatchdogArmed(armed)).toBe(true);
-
-      await vi.waitFor(() => expect(fatalities).toHaveLength(1), {
-        timeout: 1_000,
-      });
-      expect(isMailDispatchHardWatchdogArmed(armed)).toBe(false);
-    } finally {
-      await closeController(controller, armed);
-    }
-  });
-
   it(
     "kills a stalled or SIGSTOPped parent without running cleanup, health, retry, or telemetry callbacks",
     { timeout: 10_000 },
@@ -381,6 +360,82 @@ describe("mail dispatch external hard watchdog", () => {
       } else {
         expect(stopAttempted).toBe(true);
         expect(stopSignalAccepted).toBe(true);
+        expect(result.signal).toBe("SIGKILL");
+      }
+    },
+  );
+
+  it.each([
+    "EXIT_AFTER_ARMED",
+    "DISCONNECT_AFTER_ARMED",
+    "UNCAUGHT_AFTER_ARMED",
+    "UNHANDLED_REJECTION_AFTER_ARMED",
+  ])(
+    "child fault %s independently kills a frozen parent before its five-second watchdog timer",
+    { timeout: 10_000 },
+    async (fault) => {
+      const fixture = path.resolve(
+        process.cwd(),
+        "src/lib/notifications/__tests__/fixtures/mail-dispatch-hard-watchdog-parent.mjs",
+      );
+      const environment: NodeJS.ProcessEnv = {
+        NODE_ENV: "test",
+        MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS: "5000",
+        MAIL_DISPATCH_WATCHDOG_TEST_FAULT: fault,
+        DATABASE_URL: "postgresql://watchdog-must-not-inherit",
+        GMAIL_CLIENT_SECRET: "gmail-secret-must-not-inherit",
+        DELETION_TOMBSTONE_KEY: "tombstone-must-not-inherit",
+        LOST_DEVICE_PROOF_KEY: "proof-key-must-not-inherit",
+      };
+      for (const name of ["PATH", "SYSTEMROOT", "WINDIR"] as const) {
+        if (process.env[name]) environment[name] = process.env[name];
+      }
+
+      const child = spawn(
+        process.execPath,
+        ["--import", "tsx", fixture],
+        {
+          cwd: process.cwd(),
+          env: environment,
+          stdio: ["ignore", "pipe", "pipe"],
+          windowsHide: true,
+        },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => {
+        stdout += chunk;
+      });
+      child.stderr.on("data", (chunk: string) => {
+        stderr += chunk;
+      });
+
+      const result = await new Promise<Readonly<{
+        code: number | null;
+        signal: NodeJS.Signals | null;
+      }>>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          child.kill("SIGKILL");
+          reject(new Error("Faulted watchdog did not kill its frozen parent."));
+        }, 3_000);
+        child.once("error", (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+        child.once("exit", (code, signal) => {
+          clearTimeout(timeout);
+          resolve({ code, signal });
+        });
+      });
+
+      expect(stdout).toBe("ARMED\n");
+      expect(stderr).toBe("");
+      expect(stdout).not.toMatch(/POOL_END|HEALTH|RETRY|TELEMETRY|FINALLY/u);
+      if (process.platform === "win32") {
+        expect(result.code).not.toBe(0);
+      } else {
         expect(result.signal).toBe("SIGKILL");
       }
     },

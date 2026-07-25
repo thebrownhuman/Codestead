@@ -5,6 +5,7 @@ const TEST_TIMEOUT_NAME = "MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS";
 const TEST_FAULT_NAME = "MAIL_DISPATCH_WATCHDOG_TEST_FAULT";
 const TEST_FAULTS = new Set([
   "DELAY_BOUNDARY_IPC",
+  "DISCONNECT_AFTER_ARMED",
   "DISCONNECT_AFTER_READY",
   "DISCONNECT_ON_ARM",
   "DISCONNECT_ON_DISARM",
@@ -16,6 +17,13 @@ const TEST_FAULTS = new Set([
   "MALFORMED_DISARMED",
   "MALFORMED_READY",
   "SEND_CALLBACK_ERROR",
+  "UNCAUGHT_AFTER_ARMED",
+  "UNHANDLED_REJECTION_AFTER_ARMED",
+]);
+const NONLETHAL_IN_PROCESS_TEST_DISCONNECTS = new Set([
+  "DISCONNECT_AFTER_READY",
+  "DISCONNECT_ON_ARM",
+  "DISCONNECT_ON_DISARM",
 ]);
 const FORBIDDEN_ENVIRONMENT = Object.freeze([
   "DATABASE_URL",
@@ -32,7 +40,7 @@ const FORBIDDEN_ENVIRONMENT = Object.freeze([
   "LOST_DEVICE_PROOF_KEY_FILE",
 ]);
 
-function fail(code) {
+function startupFail(code) {
   process.exit(code);
 }
 
@@ -70,7 +78,7 @@ function validGeneration(value) {
 }
 
 for (const name of FORBIDDEN_ENVIRONMENT) {
-  if (Object.hasOwn(process.env, name)) fail(64);
+  if (Object.hasOwn(process.env, name)) startupFail(64);
 }
 if (
   typeof process.send !== "function"
@@ -79,7 +87,7 @@ if (
   || !Number.isSafeInteger(process.ppid)
   || process.ppid <= 1
 ) {
-  fail(65);
+  startupFail(65);
 }
 
 const parentPid = process.ppid;
@@ -87,41 +95,76 @@ const timeoutMs = watchdogTimeoutMs();
 const testFault = activeTestFault();
 let generation = 0;
 let phase = "idle";
+let readySent = false;
 let killTimer;
 let killRetry;
+let failureExitTimer;
+
+function capturedParentMatches() {
+  return process.ppid === parentPid && parentPid > 1;
+}
 
 function parentIdentityIsLive() {
-  return process.connected && process.ppid === parentPid;
+  return process.connected && capturedParentMatches();
 }
 
 function clearWatchdogTimers() {
   if (killTimer !== undefined) clearTimeout(killTimer);
   if (killRetry !== undefined) clearInterval(killRetry);
+  if (failureExitTimer !== undefined) clearTimeout(failureExitTimer);
   killTimer = undefined;
   killRetry = undefined;
+  failureExitTimer = undefined;
 }
 
-function killParent() {
-  if (phase !== "armed") return;
-  phase = "firing";
-  if (!parentIdentityIsLive()) {
-    clearWatchdogTimers();
-    fail(0);
+function killCapturedParentForFailure(code) {
+  if (phase === "fatal") return;
+  const failedPhase = phase;
+  phase = "fatal";
+  clearWatchdogTimers();
+  if (
+    !readySent
+    || !capturedParentMatches()
+    || (
+      (failedPhase === "armed" || failedPhase === "firing")
+      && !validGeneration(generation)
+    )
+  ) {
+    startupFail(code);
   }
+
   const terminate = () => {
-    if (!parentIdentityIsLive()) {
+    if (!capturedParentMatches()) {
       clearWatchdogTimers();
-      fail(0);
+      startupFail(0);
     }
     try {
       process.kill(parentPid, "SIGKILL");
     } catch {
       clearWatchdogTimers();
-      fail(70);
+      startupFail(70);
     }
   };
   terminate();
   killRetry = setInterval(terminate, 25);
+  failureExitTimer = setTimeout(() => startupFail(code), 250);
+}
+
+function fail(code) {
+  if (!readySent || phase === "closing" || phase === "closed") {
+    startupFail(code);
+  }
+  killCapturedParentForFailure(code);
+}
+
+function killParentOnTimeout() {
+  if (phase !== "armed") return;
+  if (!parentIdentityIsLive()) {
+    clearWatchdogTimers();
+    startupFail(0);
+  }
+  phase = "firing";
+  killCapturedParentForFailure(71);
 }
 
 function send(message, afterSend) {
@@ -135,9 +178,27 @@ function disconnect() {
   if (process.connected) process.disconnect();
 }
 
+// A direct external SIGKILL of this sole watchdog is outside the single-child
+// fault model; covering it requires an independent redundant supervisor.
+process.on("uncaughtException", () => fail(72));
+process.on("unhandledRejection", () => fail(73));
+process.on("SIGHUP", () => fail(75));
+process.on("SIGINT", () => fail(76));
+process.on("SIGTERM", () => fail(77));
 process.on("disconnect", () => {
-  clearWatchdogTimers();
-  fail(0);
+  if (phase === "closing" || phase === "closed" || phase === "fatal") {
+    clearWatchdogTimers();
+    startupFail(0);
+  }
+  if (
+    process.env.NODE_ENV === "test"
+    && testFault
+    && NONLETHAL_IN_PROCESS_TEST_DISCONNECTS.has(testFault)
+  ) {
+    clearWatchdogTimers();
+    startupFail(0);
+  }
+  killCapturedParentForFailure(74);
 });
 process.on("message", (message) => {
   if (message?.type === "ARM") {
@@ -149,9 +210,10 @@ process.on("message", (message) => {
     ) {
       fail(67);
     }
+    readySent = true;
     generation = message.generation;
     phase = "armed";
-    killTimer = setTimeout(killParent, timeoutMs);
+    killTimer = setTimeout(killParentOnTimeout, timeoutMs);
 
     if (testFault === "MALFORMED_ARMED") {
       send({ type: "ARMED", generation, unexpected: true });
@@ -166,10 +228,39 @@ process.on("message", (message) => {
       setTimeout(() => send({ type: "ARMED", generation }), 50);
       return;
     }
-    if (testFault === "EXIT_AFTER_ARMED") {
+    if (
+      testFault === "EXIT_AFTER_ARMED"
+      || testFault === "DISCONNECT_AFTER_ARMED"
+    ) {
       send(
         { type: "ARMED", generation },
-        () => setTimeout(() => fail(81), 25),
+        () => setTimeout(
+          testFault === "EXIT_AFTER_ARMED"
+            ? () => fail(81)
+            : disconnect,
+          25,
+        ),
+      );
+      return;
+    }
+    if (
+      testFault === "UNCAUGHT_AFTER_ARMED"
+      || testFault === "UNHANDLED_REJECTION_AFTER_ARMED"
+    ) {
+      send(
+        { type: "ARMED", generation },
+        () => setTimeout(
+          testFault === "UNCAUGHT_AFTER_ARMED"
+            ? () => {
+              throw new Error("Injected watchdog child exception.");
+            }
+            : () => {
+              void Promise.reject(
+                new Error("Injected watchdog child rejection."),
+              );
+            },
+          25,
+        ),
       );
       return;
     }
@@ -199,15 +290,32 @@ process.on("message", (message) => {
     send({ type: "DISARMED", generation });
     return;
   }
+  if (message?.type === "CLOSE") {
+    if (
+      phase !== "idle"
+      || !exactMessage(message, ["type"])
+    ) {
+      fail(69);
+    }
+    phase = "closing";
+    clearWatchdogTimers();
+    send({ type: "CLOSED" });
+    return;
+  }
   fail(69);
 });
 
 if (testFault === "EXIT_BEFORE_READY") {
-  fail(80);
+  startupFail(80);
 } else if (testFault === "MALFORMED_READY") {
   send({ type: "READY", unexpected: true });
 } else if (testFault === "DISCONNECT_AFTER_READY") {
-  send({ type: "READY" }, () => setTimeout(disconnect, 25));
+  send({ type: "READY" }, () => {
+    readySent = true;
+    setTimeout(disconnect, 25);
+  });
 } else {
-  send({ type: "READY" });
+  send({ type: "READY" }, () => {
+    readySent = true;
+  });
 }
