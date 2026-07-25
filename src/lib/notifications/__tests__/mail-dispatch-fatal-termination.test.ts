@@ -102,9 +102,8 @@ describe("mail dispatch fatal termination", () => {
       });
 
       const observationMs =
-        mode === "shared-array-buffer-throws"
-        || mode === "atomics-wait-throws"
-          ? 20
+        mode === "shared-array-buffer-throws" || mode === "atomics-wait-throws"
+          ? 25
           : 150;
       await new Promise((resolve) => setTimeout(resolve, observationMs));
       expect(exited).toBe(false);
