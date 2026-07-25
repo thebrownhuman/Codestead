@@ -232,6 +232,8 @@ export type MailDispatchRuntimePlan = Readonly<{
    * The physical stamp is persisted inside TX1. Including the full TX1
    * commit-ack allowance guarantees the effective lease after COMMIT without
    * a second write: stamp = TX1 allowance + post-COMMIT lease.
+   * Every configured stamp must also expire strictly before process stop, so
+   * no accepted override can outlive either process or platform termination.
    */
   providerLease: Readonly<{
     postCommitProviderLeaseMs: number;
@@ -844,6 +846,11 @@ export function planMailDispatchRuntime(
   ) {
     throw new Error(
       "Mail drain, pool close, and shutdown margin must finish before stop timeout.",
+    );
+  }
+  if (providerLeaseStampMs >= stopTimeoutMs) {
+    throw new Error(
+      "Mail provider lease stamp must finish before stop timeout.",
     );
   }
   if (stopTimeoutMs >= platformStopMs) {
