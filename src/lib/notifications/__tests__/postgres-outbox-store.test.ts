@@ -354,6 +354,19 @@ describe("PostgresOutboxStore", () => {
 
     const decision = input.client.calls[3]!;
     const suppression = input.client.calls[4]!;
+    for (const call of [decision, suppression]) {
+      const normalizedSql = call.sql.replace(/\s+/g, " ");
+      for (const template of [
+        "invitation",
+        "access-request-admin",
+        "access-rejected",
+      ]) {
+        expect(normalizedSql).toContain(
+          `( outbox.template = '${template}' `
+          + "and (outbox.template_version = '1') )",
+        );
+      }
+    }
     expect(decision.sql).toContain("_mailOperationId");
     expect(decision.sql).toContain("_mailSourceId");
     expect(decision.sql).toContain("source_invitation.token_hash = $15::text");
@@ -466,6 +479,10 @@ describe("PostgresOutboxStore", () => {
     const lockedDecision = input.client.calls[4]!;
     const boundary = input.client.calls[5]!;
     for (const call of [decision, lockedDecision, boundary]) {
+      expect(call.sql.replace(/\s+/g, " ")).toContain(
+        "( outbox.template = 'account-deleted' "
+        + "and (outbox.template_version = '1') )",
+      );
       expect(call.sql).toContain("from public.account_deletion_tombstone tombstone");
       expect(call.sql).toContain("join public.data_lifecycle_run lifecycle");
       expect(call.sql).toContain("join public.\"user\" deleted_user");
