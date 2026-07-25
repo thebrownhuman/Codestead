@@ -64,20 +64,20 @@ export async function requireExactFullSchemaRestoreOwnerRole(
   `);
   const row = result.rows[0];
   if (
-    result.rows.length !== 1
-    || row?.rolname !== "learncoding_owner"
-    || row.rolcanlogin !== false
-    || row.rolsuper !== false
-    || row.rolcreatedb !== false
-    || row.rolcreaterole !== false
-    || row.rolinherit !== false
-    || row.rolreplication !== false
-    || row.rolbypassrls !== false
-    || row.rolconnlimit !== -1
-    || row.valid_until_infinity !== true
-    || row.password_is_null !== true
-    || row.role_settings_empty !== true
-    || row.membership_contract_exact !== true
+    result.rows.length !== 1 ||
+    row?.rolname !== "learncoding_owner" ||
+    row.rolcanlogin !== false ||
+    row.rolsuper !== false ||
+    row.rolcreatedb !== false ||
+    row.rolcreaterole !== false ||
+    row.rolinherit !== false ||
+    row.rolreplication !== false ||
+    row.rolbypassrls !== false ||
+    row.rolconnlimit !== -1 ||
+    row.valid_until_infinity !== true ||
+    row.password_is_null !== true ||
+    row.role_settings_empty !== true ||
+    row.membership_contract_exact !== true
   ) {
     throw new Error("full-schema restore owner role is invalid");
   }
@@ -93,14 +93,22 @@ export async function prepareFullSchemaAclSuppressionControl(
   `);
 }
 
-const ACL_SUPPRESSION_CONTROL_ROUTINE =
-  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)";
+const ACL_SUPPRESSION_CONTROL_ROUTINES = [
+  "public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)",
+  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+] as const;
 
 export async function requireFullSchemaAclSuppressionControl(
   client: FullSchemaRestoreQueryClient,
 ): Promise<FullSchemaAclSuppressionControl> {
   const result = await client.query(`
-    select routine.proacl is null as proacl_is_null,
+    with candidate(priority, signature) as (
+      values
+        (1, 'public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)'::text),
+        (2, 'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)'::text)
+    )
+    select candidate.signature as routine,
+           routine.proacl is null as proacl_is_null,
            exists (
              select 1
                from pg_catalog.aclexplode(
@@ -112,26 +120,29 @@ export async function requireFullSchemaAclSuppressionControl(
               where acl.grantee = 0
                 and acl.privilege_type = 'EXECUTE'
            ) as public_execute
-      from pg_catalog.pg_proc routine
-     where routine.oid = pg_catalog.to_regprocedure($1)::oid
-  `, [ACL_SUPPRESSION_CONTROL_ROUTINE]);
+      from candidate
+      join pg_catalog.pg_proc routine
+        on routine.oid = pg_catalog.to_regprocedure(candidate.signature)
+     order by candidate.priority
+  `);
   const row = result.rows[0];
   if (
-    result.rows.length !== 1
-    || row?.proacl_is_null !== true
-    || row.public_execute !== true
+    result.rows.length !== 1 ||
+    row?.proacl_is_null !== true ||
+    row.public_execute !== true ||
+    typeof row.routine !== "string" ||
+    !ACL_SUPPRESSION_CONTROL_ROUTINES.includes(
+      row.routine as (typeof ACL_SUPPRESSION_CONTROL_ROUTINES)[number],
+    )
   ) {
-    throw new Error(
-      "full-schema restore ACL suppression control failed",
-    );
+    throw new Error("full-schema restore ACL suppression control failed");
   }
   return {
     proaclIsNull: true,
     publicExecute: true,
-    routine: ACL_SUPPRESSION_CONTROL_ROUTINE,
+    routine: row.routine,
   };
 }
-
 function canonicalJson(value: unknown): string {
   if (value === null) return "null";
   if (typeof value === "string" || typeof value === "boolean") {
@@ -149,13 +160,15 @@ function canonicalJson(value: unknown): string {
     return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
   }
   if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right, "en"));
+    const entries = Object.entries(value as Record<string, unknown>).sort(
+      ([left], [right]) => left.localeCompare(right, "en"),
+    );
     if (entries.some(([, item]) => item === undefined)) {
       throw new Error("full-schema restore canonical data is invalid");
     }
-    return `{${entries.map(([key, item]) =>
-      `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
+    return `{${entries
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+      .join(",")}}`;
   }
   throw new Error("full-schema restore canonical data is invalid");
 }
@@ -696,27 +709,26 @@ function positiveInteger(value: unknown): number | undefined {
   return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
-function parsedMigrationLedger(
-  rows: readonly Record<string, unknown>[],
-): Readonly<{
-  entryCount: number;
-  tailSha256: string;
-  tailWhen: number;
-  sha256: string;
-}> | undefined {
+function parsedMigrationLedger(rows: readonly Record<string, unknown>[]):
+  | Readonly<{
+      entryCount: number;
+      tailSha256: string;
+      tailWhen: number;
+      sha256: string;
+    }>
+  | undefined {
   if (rows.length === 0) return undefined;
   let priorWhen = 0;
   for (const [index, row] of rows.entries()) {
     const keys = Object.keys(row).sort();
     const when = positiveInteger(row.migration_when);
     if (
-      keys.join(",") !==
-        "migration_index,migration_sha256,migration_when"
-      || row.migration_index !== String(index)
-      || typeof row.migration_sha256 !== "string"
-      || !/^[0-9a-f]{64}$/u.test(row.migration_sha256)
-      || when === undefined
-      || when <= priorWhen
+      keys.join(",") !== "migration_index,migration_sha256,migration_when" ||
+      row.migration_index !== String(index) ||
+      typeof row.migration_sha256 !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(row.migration_sha256) ||
+      when === undefined ||
+      when <= priorWhen
     ) {
       return undefined;
     }
@@ -745,10 +757,10 @@ function objectContractSortKey(
     row.owner_name,
   ];
   if (
-    fields.some((field) => typeof field !== "string")
-    || row.attributes === null
-    || typeof row.attributes !== "object"
-    || Array.isArray(row.attributes)
+    fields.some((field) => typeof field !== "string") ||
+    row.attributes === null ||
+    typeof row.attributes !== "object" ||
+    Array.isArray(row.attributes)
   ) {
     return undefined;
   }
@@ -777,9 +789,9 @@ export function hashFullSchemaObjectContract(
 
 function quotedIdentifier(value: unknown): string | undefined {
   if (
-    typeof value !== "string"
-    || value.length === 0
-    || /[\u0000-\u001f\u007f]/u.test(value)
+    typeof value !== "string" ||
+    value.length === 0 ||
+    /[\u0000-\u001f\u007f]/u.test(value)
   ) {
     return undefined;
   }
@@ -800,19 +812,19 @@ async function withExactSequenceState(
     const objectName = quotedIdentifier(row.object_name);
     const attributes = row.attributes;
     if (
-      schemaName === undefined
-      || objectName === undefined
-      || attributes === null
-      || typeof attributes !== "object"
-      || Array.isArray(attributes)
+      schemaName === undefined ||
+      objectName === undefined ||
+      attributes === null ||
+      typeof attributes !== "object" ||
+      Array.isArray(attributes)
     ) {
       throw new Error("full-schema restore sequence contract is invalid");
     }
     const sequence = (attributes as Record<string, unknown>).sequence;
     if (
-      sequence === null
-      || typeof sequence !== "object"
-      || Array.isArray(sequence)
+      sequence === null ||
+      typeof sequence !== "object" ||
+      Array.isArray(sequence)
     ) {
       throw new Error("full-schema restore sequence contract is invalid");
     }
@@ -823,12 +835,13 @@ async function withExactSequenceState(
     `);
     const state = stateResult.rows[0];
     if (
-      stateResult.rows.length !== 1
-      || Object.keys(state ?? {}).sort().join(",") !==
-        "is_called,last_value"
-      || typeof state?.last_value !== "string"
-      || !/^-?[0-9]+$/u.test(state.last_value)
-      || typeof state.is_called !== "boolean"
+      stateResult.rows.length !== 1 ||
+      Object.keys(state ?? {})
+        .sort()
+        .join(",") !== "is_called,last_value" ||
+      typeof state?.last_value !== "string" ||
+      !/^-?[0-9]+$/u.test(state.last_value) ||
+      typeof state.is_called !== "boolean"
     ) {
       throw new Error("full-schema restore sequence contract is invalid");
     }
@@ -856,10 +869,7 @@ export async function collectFullSchemaRestoreSnapshot(
   const journalResult = await client.query(JOURNAL_SQL);
   const objectResult = await client.query(OBJECT_CONTRACT_SQL);
   const mailResult = await client.query(MAIL_ROWS_SQL);
-  const objectRows = await withExactSequenceState(
-    client,
-    objectResult.rows,
-  );
+  const objectRows = await withExactSequenceState(client, objectResult.rows);
 
   const versionNumber = positiveInteger(
     versionResult.rows[0]?.server_version_num,
@@ -868,44 +878,36 @@ export async function collectFullSchemaRestoreSnapshot(
   const mailRows = mailResult.rows.map((row) => row.payload);
   let objectContractSha256: string | undefined;
   try {
-    objectContractSha256 = hashFullSchemaObjectContract(
-      objectRows,
-    );
+    objectContractSha256 = hashFullSchemaObjectContract(objectRows);
   } catch {
     objectContractSha256 = undefined;
   }
   if (
-    versionNumber === undefined
-    || migrationLedger === undefined
-    || objectContractSha256 === undefined
-    || mailRows.length === 0
-    || mailRows.some((row) => row === null || typeof row !== "object")
+    versionNumber === undefined ||
+    migrationLedger === undefined ||
+    objectContractSha256 === undefined ||
+    mailRows.length === 0 ||
+    mailRows.some((row) => row === null || typeof row !== "object")
   ) {
     throw new Error("full-schema restore database snapshot failed");
   }
 
-  const authorityCatalog = await client.query(
-    BACKUP_AUTHORITY_CATALOG_SQL,
-  );
+  const authorityCatalog = await client.query(BACKUP_AUTHORITY_CATALOG_SQL);
   if (
-    authorityCatalog.rows.length !== 1
-    || typeof authorityCatalog.rows[0]?.authority_table_present !==
-      "boolean"
+    authorityCatalog.rows.length !== 1 ||
+    typeof authorityCatalog.rows[0]?.authority_table_present !== "boolean"
   ) {
     throw new Error("full-schema restore database snapshot failed");
   }
   const authorityRows = authorityCatalog.rows[0].authority_table_present
     ? (await client.query(BACKUP_AUTHORITY_ROWS_SQL)).rows.map(
-      (row) => row.payload,
-    )
+        (row) => row.payload,
+      )
     : [];
   if (
-    authorityCatalog.rows[0].authority_table_present === true
-    && (
-      authorityRows.length !== 1
-      || authorityRows.some((row) =>
-        row === null || typeof row !== "object")
-    )
+    authorityCatalog.rows[0].authority_table_present === true &&
+    (authorityRows.length !== 1 ||
+      authorityRows.some((row) => row === null || typeof row !== "object"))
   ) {
     throw new Error("full-schema restore database snapshot failed");
   }
@@ -951,7 +953,7 @@ const CLAIM_SQL = `
   returning id
 `;
 
-const REDACT_SQL = `
+const REDACT_V1_SQL = `
   select summary.disposition,
          summary.eligible::text as eligible,
          summary.transitioned::text as transitioned
@@ -967,6 +969,21 @@ const REDACT_SQL = `
    end
 `;
 
+const REDACT_V2_SQL = `
+  select summary.disposition,
+         summary.eligible::text as eligible,
+         summary.transitioned::text as transitioned
+    from public.redact_quarantined_email_outbox_authority_v2(
+      pg_catalog.statement_timestamp() - interval '30 days',
+      100
+    ) summary
+   order by case summary.disposition
+     when 'eligible' then 1
+     when 'blocked' then 2
+     when 'malformed' then 3
+     else 4
+   end
+`;
 const VERIFY_REDACTION_SQL = `
   select outbox.id::text as id,
          outbox.idempotency_key,
@@ -1034,9 +1051,9 @@ function transitionedRedactionRows(
     const eligible = nonNegativeInteger(row?.eligible);
     const rowTransitioned = nonNegativeInteger(row?.transitioned);
     if (
-      row?.disposition !== contract.disposition
-      || eligible !== contract.eligible
-      || rowTransitioned !== contract.transitioned
+      row?.disposition !== contract.disposition ||
+      eligible !== contract.eligible ||
+      rowTransitioned !== contract.transitioned
     ) {
       return undefined;
     }
@@ -1053,16 +1070,14 @@ function verifiedRedactedRows(
       id: "20000000-0000-4000-8000-000000000002",
       idempotencyKey: "full-schema-restore:account-quarantined:v1",
       userId: "full-schema-restore-learner",
-      toEmail:
-        "redacted+20000000-0000-4000-8000-000000000002@invalid.local",
+      toEmail: "redacted+20000000-0000-4000-8000-000000000002@invalid.local",
       variables: {},
     },
     {
       id: "20000000-0000-4000-8000-000000000004",
       idempotencyKey: "full-schema-restore:system-quarantined:v1",
       userId: null,
-      toEmail:
-        "redacted+20000000-0000-4000-8000-000000000004@invalid.local",
+      toEmail: "redacted+20000000-0000-4000-8000-000000000004@invalid.local",
       variables: {
         _mailOperationId: "30000000-0000-4000-8000-000000000004",
         _mailRecipient:
@@ -1078,14 +1093,14 @@ function verifiedRedactedRows(
     for (const [index, contract] of expected.entries()) {
       const row = rows[index];
       if (
-        row?.id !== contract.id
-        || row.idempotency_key !== contract.idempotencyKey
-        || row.user_id !== contract.userId
-        || row.to_email !== contract.toEmail
-        || row.variables === null
-        || typeof row.variables !== "object"
-        || Array.isArray(row.variables)
-        || stableSha256(row.variables) !== stableSha256(contract.variables)
+        row?.id !== contract.id ||
+        row.idempotency_key !== contract.idempotencyKey ||
+        row.user_id !== contract.userId ||
+        row.to_email !== contract.toEmail ||
+        row.variables === null ||
+        typeof row.variables !== "object" ||
+        Array.isArray(row.variables) ||
+        stableSha256(row.variables) !== stableSha256(contract.variables)
       ) {
         return undefined;
       }
@@ -1096,21 +1111,26 @@ function verifiedRedactedRows(
   return rows.length;
 }
 
-export async function runFullSchemaRestoreDatabaseSmoke(input: Readonly<{
-  worker: FullSchemaRestoreQueryClient;
-  ops: FullSchemaRestoreQueryClient;
-  verifier: FullSchemaRestoreQueryClient;
-}>): Promise<FullSchemaRestoreSmoke> {
+export async function runFullSchemaRestoreDatabaseSmoke(
+  input: Readonly<{
+    worker: FullSchemaRestoreQueryClient;
+    ops: FullSchemaRestoreQueryClient;
+    verifier: FullSchemaRestoreQueryClient;
+    redactionAuthority?: "v1" | "v2";
+  }>,
+): Promise<FullSchemaRestoreSmoke> {
   const claimedRows = await probeWorkerClaim(input.worker);
-  const redaction = await input.ops.query(REDACT_SQL);
+  const redaction = await input.ops.query(
+    input.redactionAuthority === "v2" ? REDACT_V2_SQL : REDACT_V1_SQL,
+  );
   const verification = await input.verifier.query(VERIFY_REDACTION_SQL);
   const redactedRows = transitionedRedactionRows(redaction.rows);
   const verifiedRows = verifiedRedactedRows(verification.rows);
   if (
-    redactedRows === undefined
-    || verifiedRows === undefined
-    || redactedRows !== 2
-    || redactedRows !== verifiedRows
+    redactedRows === undefined ||
+    verifiedRows === undefined ||
+    redactedRows !== 2 ||
+    redactedRows !== verifiedRows
   ) {
     throw new Error("full-schema restore database smoke failed");
   }

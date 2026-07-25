@@ -10,6 +10,19 @@ type MigrationJournalEntry = Readonly<{
 
 const MINIMUM_RESTORE_MIGRATION_INDEX = 63;
 const MIGRATION_LEDGER_VERSION = "drizzle-migration-ledger-v1";
+const FINAL_REDACTION_AUTHORITY_MIGRATION_INDEX = 68;
+const LEGACY_REDACTION_ROUTINE =
+  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)";
+const V2_REDACTION_ROUTINE =
+  "public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)";
+
+export function expectedFullSchemaRedactionRoutine(
+  migrationTailIndex: number,
+): string {
+  return migrationTailIndex >= FINAL_REDACTION_AUTHORITY_MIGRATION_INDEX
+    ? V2_REDACTION_ROUTINE
+    : LEGACY_REDACTION_ROUTINE;
+}
 
 export type MigrationLedgerEntryContract = Readonly<{
   idx: number;
@@ -62,9 +75,7 @@ export type FullSchemaRestoreSmoke = Readonly<{
 
 type SourceDatabase = Readonly<{
   reconcileRoles: () => Promise<void>;
-  verifyRoleBoundaries: (
-    requireApplicationObjects: boolean,
-  ) => Promise<void>;
+  verifyRoleBoundaries: (requireApplicationObjects: boolean) => Promise<void>;
   migrate: () => Promise<void>;
   verifyPreRepairMailAuthorityCatalog: () => Promise<void>;
   verifyMailAuthorityCatalog: () => Promise<void>;
@@ -74,9 +85,7 @@ type SourceDatabase = Readonly<{
 
 type TargetDatabase = Readonly<{
   reconcileRoles: () => Promise<void>;
-  verifyRoleBoundaries: (
-    requireApplicationObjects: boolean,
-  ) => Promise<void>;
+  verifyRoleBoundaries: (requireApplicationObjects: boolean) => Promise<void>;
   verifyMailAuthorityCatalog: () => Promise<void>;
   verifyPreRepairMailAuthorityCatalog: () => Promise<void>;
   requireRestoreOwnerRole: () => Promise<void>;
@@ -110,13 +119,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function validatedJournalEntries(value: unknown): readonly MigrationJournalEntry[] {
+function validatedJournalEntries(
+  value: unknown,
+): readonly MigrationJournalEntry[] {
   if (
-    !isRecord(value)
-    || value.version !== "7"
-    || value.dialect !== "postgresql"
-    || !Array.isArray(value.entries)
-    || value.entries.length === 0
+    !isRecord(value) ||
+    value.version !== "7" ||
+    value.dialect !== "postgresql" ||
+    !Array.isArray(value.entries) ||
+    value.entries.length === 0
   ) {
     return invalidJournal();
   }
@@ -125,17 +136,18 @@ function validatedJournalEntries(value: unknown): readonly MigrationJournalEntry
   const entries: MigrationJournalEntry[] = [];
   for (const [index, candidate] of value.entries.entries()) {
     if (!isRecord(candidate)) return invalidJournal();
-    const tagMatch = typeof candidate.tag === "string"
-      ? /^([0-9]{4})_[a-z0-9_]+$/u.exec(candidate.tag)
-      : null;
+    const tagMatch =
+      typeof candidate.tag === "string"
+        ? /^([0-9]{4})_[a-z0-9_]+$/u.exec(candidate.tag)
+        : null;
     if (
-      candidate.idx !== index
-      || candidate.version !== value.version
-      || !Number.isSafeInteger(candidate.when)
-      || (candidate.when as number) <= priorWhen
-      || tagMatch === null
-      || Number.parseInt(tagMatch[1]!, 10) !== index
-      || candidate.breakpoints !== true
+      candidate.idx !== index ||
+      candidate.version !== value.version ||
+      !Number.isSafeInteger(candidate.when) ||
+      (candidate.when as number) <= priorWhen ||
+      tagMatch === null ||
+      Number.parseInt(tagMatch[1]!, 10) !== index ||
+      candidate.breakpoints !== true
     ) {
       return invalidJournal();
     }
@@ -164,10 +176,15 @@ function databaseLedgerRows(
 function databaseLedgerSha256(
   entries: readonly MigrationLedgerEntryContract[],
 ): string {
-  return createHash("sha256").update(JSON.stringify({
-    entries: databaseLedgerRows(entries),
-    version: MIGRATION_LEDGER_VERSION,
-  }), "utf8").digest("hex");
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        entries: databaseLedgerRows(entries),
+        version: MIGRATION_LEDGER_VERSION,
+      }),
+      "utf8",
+    )
+    .digest("hex");
 }
 
 export function deriveMigrationLedgerContract(
@@ -176,8 +193,8 @@ export function deriveMigrationLedgerContract(
 ): MigrationTailContract {
   const journalEntries = validatedJournalEntries(journal);
   if (
-    !Array.isArray(sqlSources)
-    || sqlSources.length !== journalEntries.length
+    !Array.isArray(sqlSources) ||
+    sqlSources.length !== journalEntries.length
   ) {
     return invalidJournal();
   }
@@ -209,33 +226,30 @@ export function deriveMigrationLedgerContract(
 export function requireFullSchemaRestoreMigrationContract(
   migration: MigrationTailContract,
 ): MigrationTailContract {
-  const entries = Array.isArray(migration.entries)
-    ? migration.entries
-    : [];
+  const entries = Array.isArray(migration.entries) ? migration.entries : [];
   const tail = entries.at(-1);
   if (
-    migration.tailIndex < MINIMUM_RESTORE_MIGRATION_INDEX
-    || migration.entryCount !== migration.tailIndex + 1
-    || entries.length !== migration.entryCount
-    || tail === undefined
-    || tail.idx !== migration.tailIndex
-    || tail.tag !== migration.tailTag
-    || tail.when !== migration.tailWhen
-    || tail.sqlSha256 !== migration.tailSha256
-    || migration.databaseLedgerSha256 !==
-      databaseLedgerSha256(entries)
-    || entries.some((entry, index) =>
-      entry.idx !== index
-      || !Number.isSafeInteger(entry.when)
-      || entry.when <= 0
-      || typeof entry.tag !== "string"
-      || !new RegExp(`^${String(index).padStart(4, "0")}_`, "u")
-        .test(entry.tag)
-      || !/^[0-9a-f]{64}$/u.test(entry.sqlSha256)
-      || (
-        index > 0
-        && entry.when <= entries[index - 1]!.when
-      ))
+    migration.tailIndex < MINIMUM_RESTORE_MIGRATION_INDEX ||
+    migration.entryCount !== migration.tailIndex + 1 ||
+    entries.length !== migration.entryCount ||
+    tail === undefined ||
+    tail.idx !== migration.tailIndex ||
+    tail.tag !== migration.tailTag ||
+    tail.when !== migration.tailWhen ||
+    tail.sqlSha256 !== migration.tailSha256 ||
+    migration.databaseLedgerSha256 !== databaseLedgerSha256(entries) ||
+    entries.some(
+      (entry, index) =>
+        entry.idx !== index ||
+        !Number.isSafeInteger(entry.when) ||
+        entry.when <= 0 ||
+        typeof entry.tag !== "string" ||
+        !new RegExp(`^${String(index).padStart(4, "0")}_`, "u").test(
+          entry.tag,
+        ) ||
+        !/^[0-9a-f]{64}$/u.test(entry.sqlSha256) ||
+        (index > 0 && entry.when <= entries[index - 1]!.when),
+    )
   ) {
     throw new Error("full-schema restore requires migration 0063 or later");
   }
@@ -250,17 +264,17 @@ function validSnapshot(
   value: FullSchemaRestoreSnapshot,
 ): value is FullSchemaRestoreSnapshot {
   return (
-    (value.postgresMajor === 17 || value.postgresMajor === 18)
-    && Number.isSafeInteger(value.journalEntryCount)
-    && value.journalEntryCount > 0
-    && validSha256(value.journalTailSha256)
-    && Number.isSafeInteger(value.journalTailWhen)
-    && value.journalTailWhen > 0
-    && validSha256(value.migrationLedgerSha256)
-    && validSha256(value.objectContractSha256)
-    && validSha256(value.mailRowsSha256)
-    && Number.isSafeInteger(value.mailRowCount)
-    && value.mailRowCount > 0
+    (value.postgresMajor === 17 || value.postgresMajor === 18) &&
+    Number.isSafeInteger(value.journalEntryCount) &&
+    value.journalEntryCount > 0 &&
+    validSha256(value.journalTailSha256) &&
+    Number.isSafeInteger(value.journalTailWhen) &&
+    value.journalTailWhen > 0 &&
+    validSha256(value.migrationLedgerSha256) &&
+    validSha256(value.objectContractSha256) &&
+    validSha256(value.mailRowsSha256) &&
+    Number.isSafeInteger(value.mailRowCount) &&
+    value.mailRowCount > 0
   );
 }
 
@@ -269,14 +283,14 @@ function sameSnapshot(
   right: FullSchemaRestoreSnapshot,
 ): boolean {
   return (
-    left.postgresMajor === right.postgresMajor
-    && left.journalEntryCount === right.journalEntryCount
-    && left.journalTailSha256 === right.journalTailSha256
-    && left.journalTailWhen === right.journalTailWhen
-    && left.migrationLedgerSha256 === right.migrationLedgerSha256
-    && left.objectContractSha256 === right.objectContractSha256
-    && left.mailRowsSha256 === right.mailRowsSha256
-    && left.mailRowCount === right.mailRowCount
+    left.postgresMajor === right.postgresMajor &&
+    left.journalEntryCount === right.journalEntryCount &&
+    left.journalTailSha256 === right.journalTailSha256 &&
+    left.journalTailWhen === right.journalTailWhen &&
+    left.migrationLedgerSha256 === right.migrationLedgerSha256 &&
+    left.objectContractSha256 === right.objectContractSha256 &&
+    left.mailRowsSha256 === right.mailRowsSha256 &&
+    left.mailRowCount === right.mailRowCount
   );
 }
 
@@ -286,11 +300,11 @@ function snapshotMatchesMigration(
   expectedPostgresMajor: 17 | 18,
 ): boolean {
   return (
-    snapshot.postgresMajor === expectedPostgresMajor
-    && snapshot.journalEntryCount === migration.entryCount
-    && snapshot.journalTailSha256 === migration.tailSha256
-    && snapshot.journalTailWhen === migration.tailWhen
-    && snapshot.migrationLedgerSha256 === migration.databaseLedgerSha256
+    snapshot.postgresMajor === expectedPostgresMajor &&
+    snapshot.journalEntryCount === migration.entryCount &&
+    snapshot.journalTailSha256 === migration.tailSha256 &&
+    snapshot.journalTailWhen === migration.tailWhen &&
+    snapshot.migrationLedgerSha256 === migration.databaseLedgerSha256
   );
 }
 
@@ -299,17 +313,16 @@ function validatedArchiveEvidence(
   source: FullSchemaRestoreSnapshot,
 ): FullSchemaRestoreArchiveEvidence {
   if (
-    !validSha256(value.archiveSha256)
-    || !validSha256(value.tocSha256)
-    || !validSha256(value.sourceObjectContractSha256)
-    || !validSha256(value.sourceBindingSha256)
-    || value.sourceObjectContractSha256 !==
-      source.objectContractSha256
-    || !Number.isSafeInteger(value.aclEntryCount)
-    || value.aclEntryCount < 1
-    || !Number.isSafeInteger(value.routineAclEntryCount)
-    || value.routineAclEntryCount < 1
-    || value.routineAclEntryCount > value.aclEntryCount
+    !validSha256(value.archiveSha256) ||
+    !validSha256(value.tocSha256) ||
+    !validSha256(value.sourceObjectContractSha256) ||
+    !validSha256(value.sourceBindingSha256) ||
+    value.sourceObjectContractSha256 !== source.objectContractSha256 ||
+    !Number.isSafeInteger(value.aclEntryCount) ||
+    value.aclEntryCount < 1 ||
+    !Number.isSafeInteger(value.routineAclEntryCount) ||
+    value.routineAclEntryCount < 1 ||
+    value.routineAclEntryCount > value.aclEntryCount
   ) {
     throw new Error("full-schema restore archive ACL evidence failed");
   }
@@ -318,16 +331,14 @@ function validatedArchiveEvidence(
 
 function validatedAclSuppressionControl(
   value: FullSchemaAclSuppressionControl,
+  migrationTailIndex: number,
 ): FullSchemaAclSuppressionControl {
   if (
-    value.proaclIsNull !== true
-    || value.publicExecute !== true
-    || value.routine !==
-      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)"
+    value.proaclIsNull !== true ||
+    value.publicExecute !== true ||
+    value.routine !== expectedFullSchemaRedactionRoutine(migrationTailIndex)
   ) {
-    throw new Error(
-      "full-schema restore ACL suppression control failed",
-    );
+    throw new Error("full-schema restore ACL suppression control failed");
   }
   return value;
 }
@@ -336,15 +347,13 @@ function failVerification(): never {
   throw new Error("full-schema restore verification failed");
 }
 
-function validatedSmoke(
-  value: FullSchemaRestoreSmoke,
-): FullSchemaRestoreSmoke {
+function validatedSmoke(value: FullSchemaRestoreSmoke): FullSchemaRestoreSmoke {
   if (
-    !Number.isSafeInteger(value.claimedRows)
-    || value.claimedRows < 1
-    || !Number.isSafeInteger(value.redactedRows)
-    || value.redactedRows !== 2
-    || value.externalCalls !== 0
+    !Number.isSafeInteger(value.claimedRows) ||
+    value.claimedRows < 1 ||
+    !Number.isSafeInteger(value.redactedRows) ||
+    value.redactedRows !== 2 ||
+    value.externalCalls !== 0
   ) {
     throw new Error("full-schema restore smoke verification failed");
   }
@@ -354,9 +363,7 @@ function validatedSmoke(
 export async function runFullSchemaRestoreVerification<Archive>(
   dependencies: FullSchemaRestoreDependencies<Archive>,
 ) {
-  requireFullSchemaRestoreMigrationContract(
-    dependencies.migration,
-  );
+  requireFullSchemaRestoreMigrationContract(dependencies.migration);
   const { source, target } = dependencies;
 
   // The first bootstrap creates the role topology on a blank disposable
@@ -368,8 +375,8 @@ export async function runFullSchemaRestoreVerification<Archive>(
   await source.seedRepresentativeMailRows();
   const rawSourceSnapshot = await source.snapshot();
   if (
-    !validSnapshot(rawSourceSnapshot)
-    || !snapshotMatchesMigration(
+    !validSnapshot(rawSourceSnapshot) ||
+    !snapshotMatchesMigration(
       rawSourceSnapshot,
       dependencies.migration,
       dependencies.expectedPostgresMajor,
@@ -383,9 +390,9 @@ export async function runFullSchemaRestoreVerification<Archive>(
   await source.verifyMailAuthorityCatalog();
   const sourceSnapshot = await source.snapshot();
   if (
-    !validSnapshot(sourceSnapshot)
-    || !sameSnapshot(rawSourceSnapshot, sourceSnapshot)
-    || !snapshotMatchesMigration(
+    !validSnapshot(sourceSnapshot) ||
+    !sameSnapshot(rawSourceSnapshot, sourceSnapshot) ||
+    !snapshotMatchesMigration(
       sourceSnapshot,
       dependencies.migration,
       dependencies.expectedPostgresMajor,
@@ -413,6 +420,7 @@ export async function runFullSchemaRestoreVerification<Archive>(
     await dependencies.restoreTargetWithoutAcl(archive);
     aclSuppressionControl = validatedAclSuppressionControl(
       await target.verifyAclSuppressionControl(),
+      dependencies.migration.tailIndex,
     );
     await target.resetAfterAclSuppressionControl();
     await target.reconcileRoles();
@@ -426,17 +434,15 @@ export async function runFullSchemaRestoreVerification<Archive>(
     throw new Error("full-schema restore archive ACL evidence failed");
   }
   if (aclSuppressionControl === undefined) {
-    throw new Error(
-      "full-schema restore ACL suppression control failed",
-    );
+    throw new Error("full-schema restore ACL suppression control failed");
   }
 
   // No post-restore bootstrap or ACL repair is allowed before these checks.
   await target.verifyPreRepairMailAuthorityCatalog();
   const rawRestoredSnapshot = await target.snapshot();
   if (
-    !validSnapshot(rawRestoredSnapshot)
-    || !sameSnapshot(sourceSnapshot, rawRestoredSnapshot)
+    !validSnapshot(rawRestoredSnapshot) ||
+    !sameSnapshot(sourceSnapshot, rawRestoredSnapshot)
   ) {
     return failVerification();
   }
@@ -446,9 +452,9 @@ export async function runFullSchemaRestoreVerification<Archive>(
   await target.verifyMailAuthorityCatalog();
   const restoredSnapshot = await target.snapshot();
   if (
-    !validSnapshot(restoredSnapshot)
-    || !sameSnapshot(sourceSnapshot, restoredSnapshot)
-    || !sameSnapshot(rawRestoredSnapshot, restoredSnapshot)
+    !validSnapshot(restoredSnapshot) ||
+    !sameSnapshot(sourceSnapshot, restoredSnapshot) ||
+    !sameSnapshot(rawRestoredSnapshot, restoredSnapshot)
   ) {
     return failVerification();
   }

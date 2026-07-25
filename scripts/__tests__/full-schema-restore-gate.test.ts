@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   deriveMigrationLedgerContract,
+  expectedFullSchemaRedactionRoutine,
   requireFullSchemaRestoreMigrationContract,
   runFullSchemaRestoreVerification,
   type FullSchemaRestoreSnapshot,
@@ -37,12 +38,13 @@ const journal = {
 
 const migrationSql = ["select 'initial';\n", "select 'tail';\n"] as const;
 const tailSql = "select 'tail';\n";
-const ledgerDigest = (
-  entries: readonly Record<string, string>[],
-) => digest(JSON.stringify({
-  entries,
-  version: "drizzle-migration-ledger-v1",
-}));
+const ledgerDigest = (entries: readonly Record<string, string>[]) =>
+  digest(
+    JSON.stringify({
+      entries,
+      version: "drizzle-migration-ledger-v1",
+    }),
+  );
 const derivedMigration = {
   entries: [
     {
@@ -87,8 +89,9 @@ const releaseJournal = {
     breakpoints: true,
   })),
 };
-const releaseSql = releaseJournal.entries.map((entry) =>
-  `select '${entry.tag}';\n`);
+const releaseSql = releaseJournal.entries.map(
+  (entry) => `select '${entry.tag}';\n`,
+);
 const migration = deriveMigrationLedgerContract(releaseJournal, releaseSql);
 
 function snapshot(
@@ -126,6 +129,14 @@ const aclSuppressionControl = {
 } as const;
 
 describe("full-schema restore migration contract", () => {
+  it("requires the v2 redactor exactly at the final 0068 boundary", () => {
+    expect(expectedFullSchemaRedactionRoutine(67)).toBe(
+      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    );
+    expect(expectedFullSchemaRedactionRoutine(68)).toBe(
+      "public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)",
+    );
+  });
   it("derives the exact dynamic tail and SQL digest from a contiguous journal", () => {
     expect(deriveMigrationLedgerContract(journal, migrationSql)).toEqual(
       derivedMigration,
@@ -139,11 +150,16 @@ describe("full-schema restore migration contract", () => {
       "utf8",
     );
     const checkedInJournal = JSON.parse(source) as unknown;
-    const entries = (checkedInJournal as {
-      entries: Array<{ tag: string }>;
-    }).entries;
-    const sqlSources = await Promise.all(entries.map((entry) =>
-      readFile(path.join(root, "drizzle", `${entry.tag}.sql`), "utf8")));
+    const entries = (
+      checkedInJournal as {
+        entries: Array<{ tag: string }>;
+      }
+    ).entries;
+    const sqlSources = await Promise.all(
+      entries.map((entry) =>
+        readFile(path.join(root, "drizzle", `${entry.tag}.sql`), "utf8"),
+      ),
+    );
     const tail = entries.at(-1)!;
 
     const contract = deriveMigrationLedgerContract(
@@ -158,8 +174,9 @@ describe("full-schema restore migration contract", () => {
     expect(contract.entries).toHaveLength(entries.length);
     expect(contract.databaseLedgerSha256).toMatch(/^[0-9a-f]{64}$/u);
     if (contract.tailIndex < 63) {
-      expect(() => requireFullSchemaRestoreMigrationContract(contract))
-        .toThrow("full-schema restore requires migration 0063 or later");
+      expect(() => requireFullSchemaRestoreMigrationContract(contract)).toThrow(
+        "full-schema restore requires migration 0063 or later",
+      );
     } else {
       expect(requireFullSchemaRestoreMigrationContract(contract)).toBe(
         contract,
@@ -169,7 +186,7 @@ describe("full-schema restore migration contract", () => {
 
   it("rejects a pre-0063 journal contract with a clear gate error", () => {
     expect(() =>
-      requireFullSchemaRestoreMigrationContract(derivedMigration)
+      requireFullSchemaRestoreMigrationContract(derivedMigration),
     ).toThrow("full-schema restore requires migration 0063 or later");
   });
 
@@ -202,8 +219,9 @@ describe("full-schema restore migration contract", () => {
       },
     },
   ])("rejects a $name", ({ value }) => {
-    expect(() => deriveMigrationLedgerContract(value, migrationSql))
-      .toThrow("full-schema restore migration journal is invalid");
+    expect(() => deriveMigrationLedgerContract(value, migrationSql)).toThrow(
+      "full-schema restore migration journal is invalid",
+    );
   });
 
   it("detects an earlier SQL mutation even when count and tail are unchanged", () => {
@@ -214,10 +232,12 @@ describe("full-schema restore migration contract", () => {
     expect(mutated.entryCount).toBe(derivedMigration.entryCount);
     expect(mutated.tailSha256).toBe(derivedMigration.tailSha256);
     expect(mutated.tailWhen).toBe(derivedMigration.tailWhen);
-    expect(mutated.entries[0]!.sqlSha256)
-      .not.toBe(derivedMigration.entries[0]!.sqlSha256);
-    expect(mutated.databaseLedgerSha256)
-      .not.toBe(derivedMigration.databaseLedgerSha256);
+    expect(mutated.entries[0]!.sqlSha256).not.toBe(
+      derivedMigration.entries[0]!.sqlSha256,
+    );
+    expect(mutated.databaseLedgerSha256).not.toBe(
+      derivedMigration.databaseLedgerSha256,
+    );
   });
 });
 
@@ -225,42 +245,42 @@ describe("full-schema restore verification", () => {
   it("rejects pre-0063 before touching either database", async () => {
     const sourceReconcile = vi.fn(async () => undefined);
 
-    await expect(runFullSchemaRestoreVerification({
-      expectedPostgresMajor: 17,
-      migration: derivedMigration,
-      source: {
-        reconcileRoles: sourceReconcile,
-        verifyRoleBoundaries: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        migrate: async () => undefined,
-        seedRepresentativeMailRows: async () => undefined,
-        snapshot: async () => snapshot(),
-      },
-      target: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async () => undefined,
-        requireRestoreOwnerRole: async () => undefined,
-        prepareAclSuppressionControl: async () => undefined,
-        verifyAclSuppressionControl: async () => aclSuppressionControl,
-        resetAfterAclSuppressionControl: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        snapshot: async () => snapshot(),
-        runNonNetworkSmoke: async () => ({
-          claimedRows: 1,
-          redactedRows: 2,
-          externalCalls: 0,
-        }),
-      },
-      dumpSource: async () => "archive",
-      inspectArchive: async (_archive, source) => archiveEvidence(source),
-      restoreTargetWithoutAcl: async () => undefined,
-      restoreTarget: async () => undefined,
-      disposeArchive: () => undefined,
-    })).rejects.toThrow(
-      "full-schema restore requires migration 0063 or later",
-    );
+    await expect(
+      runFullSchemaRestoreVerification({
+        expectedPostgresMajor: 17,
+        migration: derivedMigration,
+        source: {
+          reconcileRoles: sourceReconcile,
+          verifyRoleBoundaries: async () => undefined,
+          verifyPreRepairMailAuthorityCatalog: async () => undefined,
+          verifyMailAuthorityCatalog: async () => undefined,
+          migrate: async () => undefined,
+          seedRepresentativeMailRows: async () => undefined,
+          snapshot: async () => snapshot(),
+        },
+        target: {
+          reconcileRoles: async () => undefined,
+          verifyRoleBoundaries: async () => undefined,
+          requireRestoreOwnerRole: async () => undefined,
+          prepareAclSuppressionControl: async () => undefined,
+          verifyAclSuppressionControl: async () => aclSuppressionControl,
+          resetAfterAclSuppressionControl: async () => undefined,
+          verifyPreRepairMailAuthorityCatalog: async () => undefined,
+          verifyMailAuthorityCatalog: async () => undefined,
+          snapshot: async () => snapshot(),
+          runNonNetworkSmoke: async () => ({
+            claimedRows: 1,
+            redactedRows: 2,
+            externalCalls: 0,
+          }),
+        },
+        dumpSource: async () => "archive",
+        inspectArchive: async (_archive, source) => archiveEvidence(source),
+        restoreTargetWithoutAcl: async () => undefined,
+        restoreTarget: async () => undefined,
+        disposeArchive: () => undefined,
+      }),
+    ).rejects.toThrow("full-schema restore requires migration 0063 or later");
 
     expect(sourceReconcile).not.toHaveBeenCalled();
   });
@@ -273,7 +293,9 @@ describe("full-schema restore verification", () => {
       expectedPostgresMajor: 17,
       migration,
       source: {
-        reconcileRoles: async () => { trace.push("source.roles"); },
+        reconcileRoles: async () => {
+          trace.push("source.roles");
+        },
         verifyRoleBoundaries: async (requireApplicationObjects) => {
           trace.push(`source.boundary:${String(requireApplicationObjects)}`);
         },
@@ -283,7 +305,9 @@ describe("full-schema restore verification", () => {
         verifyMailAuthorityCatalog: async () => {
           trace.push("source.catalog.reviewed");
         },
-        migrate: async () => { trace.push("source.migrate"); },
+        migrate: async () => {
+          trace.push("source.migrate");
+        },
         seedRepresentativeMailRows: async () => {
           trace.push("source.seed");
         },
@@ -293,7 +317,9 @@ describe("full-schema restore verification", () => {
         },
       },
       target: {
-        reconcileRoles: async () => { trace.push("target.roles"); },
+        reconcileRoles: async () => {
+          trace.push("target.roles");
+        },
         verifyRoleBoundaries: async (requireApplicationObjects) => {
           trace.push(`target.boundary:${String(requireApplicationObjects)}`);
         },
@@ -420,40 +446,42 @@ describe("full-schema restore verification", () => {
       });
       const targetSnapshot = vi.fn(async () => identicalTamper);
 
-      await expect(runFullSchemaRestoreVerification({
-        expectedPostgresMajor: 17,
-        migration,
-        source: {
-          reconcileRoles: async () => undefined,
-          verifyRoleBoundaries: async () => undefined,
-          verifyPreRepairMailAuthorityCatalog: sourceCatalog,
-          verifyMailAuthorityCatalog: sourceCatalog,
-          migrate: async () => undefined,
-          seedRepresentativeMailRows: async () => undefined,
-          snapshot: async () => identicalTamper,
-        },
-        target: {
-          reconcileRoles: async () => undefined,
-          verifyRoleBoundaries: async () => undefined,
-          requireRestoreOwnerRole: async () => undefined,
-          prepareAclSuppressionControl: async () => undefined,
-          verifyAclSuppressionControl: async () => aclSuppressionControl,
-          resetAfterAclSuppressionControl: async () => undefined,
-          verifyPreRepairMailAuthorityCatalog: targetCatalog,
-          verifyMailAuthorityCatalog: targetCatalog,
-          snapshot: targetSnapshot,
-          runNonNetworkSmoke: async () => ({
-            claimedRows: 1,
-            redactedRows: 2,
-            externalCalls: 0,
-          }),
-        },
-        dumpSource: dump,
-        inspectArchive: async (_archive, source) => archiveEvidence(source),
-        restoreTargetWithoutAcl: async () => undefined,
-        restoreTarget: restore,
-        disposeArchive: () => undefined,
-      })).rejects.toThrow("reviewed mail-authority catalog failed");
+      await expect(
+        runFullSchemaRestoreVerification({
+          expectedPostgresMajor: 17,
+          migration,
+          source: {
+            reconcileRoles: async () => undefined,
+            verifyRoleBoundaries: async () => undefined,
+            verifyPreRepairMailAuthorityCatalog: sourceCatalog,
+            verifyMailAuthorityCatalog: sourceCatalog,
+            migrate: async () => undefined,
+            seedRepresentativeMailRows: async () => undefined,
+            snapshot: async () => identicalTamper,
+          },
+          target: {
+            reconcileRoles: async () => undefined,
+            verifyRoleBoundaries: async () => undefined,
+            requireRestoreOwnerRole: async () => undefined,
+            prepareAclSuppressionControl: async () => undefined,
+            verifyAclSuppressionControl: async () => aclSuppressionControl,
+            resetAfterAclSuppressionControl: async () => undefined,
+            verifyPreRepairMailAuthorityCatalog: targetCatalog,
+            verifyMailAuthorityCatalog: targetCatalog,
+            snapshot: targetSnapshot,
+            runNonNetworkSmoke: async () => ({
+              claimedRows: 1,
+              redactedRows: 2,
+              externalCalls: 0,
+            }),
+          },
+          dumpSource: dump,
+          inspectArchive: async (_archive, source) => archiveEvidence(source),
+          restoreTargetWithoutAcl: async () => undefined,
+          restoreTarget: restore,
+          disposeArchive: () => undefined,
+        }),
+      ).rejects.toThrow("reviewed mail-authority catalog failed");
 
       expect(sourceCatalog).toHaveBeenCalledTimes(
         failingStage === "source" ? 1 : 2,
@@ -475,135 +503,150 @@ describe("full-schema restore verification", () => {
     ["journal count", { journalEntryCount: 1 }],
     ["journal tail hash", { journalTailSha256: digest("wrong-tail") }],
     ["journal tail timestamp", { journalTailWhen: migration.tailWhen + 1 }],
-    ["ordered migration ledger", { migrationLedgerSha256: digest("wrong-ledger") }],
-    ["object owner or ACL digest", { objectContractSha256: digest("wrong-object") }],
+    [
+      "ordered migration ledger",
+      { migrationLedgerSha256: digest("wrong-ledger") },
+    ],
+    [
+      "object owner or ACL digest",
+      { objectContractSha256: digest("wrong-object") },
+    ],
     ["mail row digest", { mailRowsSha256: digest("wrong-row") }],
     ["mail row count", { mailRowCount: 3 }],
-  ])("fails closed on a restored %s mismatch before smoke", async (
-    _name,
-    restoredOverride,
-  ) => {
-    const smoke = vi.fn(async () => ({
-      claimedRows: 1,
-      redactedRows: 1,
-      externalCalls: 0,
-    }));
+  ])(
+    "fails closed on a restored %s mismatch before smoke",
+    async (_name, restoredOverride) => {
+      const smoke = vi.fn(async () => ({
+        claimedRows: 1,
+        redactedRows: 1,
+        externalCalls: 0,
+      }));
 
-    await expect(runFullSchemaRestoreVerification({
-      expectedPostgresMajor: 17,
-      migration,
-      source: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        migrate: async () => undefined,
-        seedRepresentativeMailRows: async () => undefined,
-        snapshot: async () => snapshot(),
-      },
-      target: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async () => undefined,
-        requireRestoreOwnerRole: async () => undefined,
-        prepareAclSuppressionControl: async () => undefined,
-        verifyAclSuppressionControl: async () => aclSuppressionControl,
-        resetAfterAclSuppressionControl: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        snapshot: async () => snapshot(restoredOverride),
-        runNonNetworkSmoke: smoke,
-      },
-      dumpSource: async () => "archive",
-      inspectArchive: async (_archive, source) => archiveEvidence(source),
-      restoreTargetWithoutAcl: async () => undefined,
-      restoreTarget: async () => undefined,
-      disposeArchive: () => undefined,
-    })).rejects.toThrow("full-schema restore verification failed");
+      await expect(
+        runFullSchemaRestoreVerification({
+          expectedPostgresMajor: 17,
+          migration,
+          source: {
+            reconcileRoles: async () => undefined,
+            verifyRoleBoundaries: async () => undefined,
+            verifyPreRepairMailAuthorityCatalog: async () => undefined,
+            verifyMailAuthorityCatalog: async () => undefined,
+            migrate: async () => undefined,
+            seedRepresentativeMailRows: async () => undefined,
+            snapshot: async () => snapshot(),
+          },
+          target: {
+            reconcileRoles: async () => undefined,
+            verifyRoleBoundaries: async () => undefined,
+            requireRestoreOwnerRole: async () => undefined,
+            prepareAclSuppressionControl: async () => undefined,
+            verifyAclSuppressionControl: async () => aclSuppressionControl,
+            resetAfterAclSuppressionControl: async () => undefined,
+            verifyPreRepairMailAuthorityCatalog: async () => undefined,
+            verifyMailAuthorityCatalog: async () => undefined,
+            snapshot: async () => snapshot(restoredOverride),
+            runNonNetworkSmoke: smoke,
+          },
+          dumpSource: async () => "archive",
+          inspectArchive: async (_archive, source) => archiveEvidence(source),
+          restoreTargetWithoutAcl: async () => undefined,
+          restoreTarget: async () => undefined,
+          disposeArchive: () => undefined,
+        }),
+      ).rejects.toThrow("full-schema restore verification failed");
 
-    expect(smoke).not.toHaveBeenCalled();
-  });
+      expect(smoke).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     { claimedRows: 0, redactedRows: 2, externalCalls: 0 },
     { claimedRows: 1, redactedRows: 0, externalCalls: 0 },
     { claimedRows: 1, redactedRows: 1, externalCalls: 0 },
     { claimedRows: 1, redactedRows: 2, externalCalls: 1 },
-  ])("rejects incomplete or network-capable smoke evidence %#", async (smoke) => {
-    await expect(runFullSchemaRestoreVerification({
-      expectedPostgresMajor: 17,
-      migration,
-      source: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        migrate: async () => undefined,
-        seedRepresentativeMailRows: async () => undefined,
-        snapshot: async () => snapshot(),
-      },
-      target: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async () => undefined,
-        requireRestoreOwnerRole: async () => undefined,
-        prepareAclSuppressionControl: async () => undefined,
-        verifyAclSuppressionControl: async () => aclSuppressionControl,
-        resetAfterAclSuppressionControl: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        snapshot: async () => snapshot(),
-        runNonNetworkSmoke: async () => smoke,
-      },
-      dumpSource: async () => "archive",
-      inspectArchive: async (_archive, source) => archiveEvidence(source),
-      restoreTargetWithoutAcl: async () => undefined,
-      restoreTarget: async () => undefined,
-      disposeArchive: () => undefined,
-    })).rejects.toThrow("full-schema restore smoke verification failed");
-  });
+  ])(
+    "rejects incomplete or network-capable smoke evidence %#",
+    async (smoke) => {
+      await expect(
+        runFullSchemaRestoreVerification({
+          expectedPostgresMajor: 17,
+          migration,
+          source: {
+            reconcileRoles: async () => undefined,
+            verifyRoleBoundaries: async () => undefined,
+            verifyPreRepairMailAuthorityCatalog: async () => undefined,
+            verifyMailAuthorityCatalog: async () => undefined,
+            migrate: async () => undefined,
+            seedRepresentativeMailRows: async () => undefined,
+            snapshot: async () => snapshot(),
+          },
+          target: {
+            reconcileRoles: async () => undefined,
+            verifyRoleBoundaries: async () => undefined,
+            requireRestoreOwnerRole: async () => undefined,
+            prepareAclSuppressionControl: async () => undefined,
+            verifyAclSuppressionControl: async () => aclSuppressionControl,
+            resetAfterAclSuppressionControl: async () => undefined,
+            verifyPreRepairMailAuthorityCatalog: async () => undefined,
+            verifyMailAuthorityCatalog: async () => undefined,
+            snapshot: async () => snapshot(),
+            runNonNetworkSmoke: async () => smoke,
+          },
+          dumpSource: async () => "archive",
+          inspectArchive: async (_archive, source) => archiveEvidence(source),
+          restoreTargetWithoutAcl: async () => undefined,
+          restoreTarget: async () => undefined,
+          disposeArchive: () => undefined,
+        }),
+      ).rejects.toThrow("full-schema restore smoke verification failed");
+    },
+  );
 
   it("disposes the archive when target setup fails before restore", async () => {
     const archive = { sensitive: true };
     const restore = vi.fn(async () => undefined);
     const dispose = vi.fn();
 
-    await expect(runFullSchemaRestoreVerification({
-      expectedPostgresMajor: 17,
-      migration,
-      source: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        migrate: async () => undefined,
-        seedRepresentativeMailRows: async () => undefined,
-        snapshot: async () => snapshot(),
-      },
-      target: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async (requireApplicationObjects) => {
-          if (!requireApplicationObjects) {
-            throw new Error("target setup failed");
-          }
+    await expect(
+      runFullSchemaRestoreVerification({
+        expectedPostgresMajor: 17,
+        migration,
+        source: {
+          reconcileRoles: async () => undefined,
+          verifyRoleBoundaries: async () => undefined,
+          verifyPreRepairMailAuthorityCatalog: async () => undefined,
+          verifyMailAuthorityCatalog: async () => undefined,
+          migrate: async () => undefined,
+          seedRepresentativeMailRows: async () => undefined,
+          snapshot: async () => snapshot(),
         },
-        requireRestoreOwnerRole: async () => undefined,
-        prepareAclSuppressionControl: async () => undefined,
-        verifyAclSuppressionControl: async () => aclSuppressionControl,
-        resetAfterAclSuppressionControl: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        snapshot: async () => snapshot(),
-        runNonNetworkSmoke: async () => ({
-          claimedRows: 1,
-          redactedRows: 2,
-          externalCalls: 0,
-        }),
-      },
-      dumpSource: async () => archive,
-      inspectArchive: async (_archive, source) => archiveEvidence(source),
-      restoreTargetWithoutAcl: async () => undefined,
-      restoreTarget: restore,
-      disposeArchive: dispose,
-    })).rejects.toThrow("target setup failed");
+        target: {
+          reconcileRoles: async () => undefined,
+          verifyRoleBoundaries: async (requireApplicationObjects) => {
+            if (!requireApplicationObjects) {
+              throw new Error("target setup failed");
+            }
+          },
+          requireRestoreOwnerRole: async () => undefined,
+          prepareAclSuppressionControl: async () => undefined,
+          verifyAclSuppressionControl: async () => aclSuppressionControl,
+          resetAfterAclSuppressionControl: async () => undefined,
+          verifyPreRepairMailAuthorityCatalog: async () => undefined,
+          verifyMailAuthorityCatalog: async () => undefined,
+          snapshot: async () => snapshot(),
+          runNonNetworkSmoke: async () => ({
+            claimedRows: 1,
+            redactedRows: 2,
+            externalCalls: 0,
+          }),
+        },
+        dumpSource: async () => archive,
+        inspectArchive: async (_archive, source) => archiveEvidence(source),
+        restoreTargetWithoutAcl: async () => undefined,
+        restoreTarget: restore,
+        disposeArchive: dispose,
+      }),
+    ).rejects.toThrow("target setup failed");
 
     expect(restore).not.toHaveBeenCalled();
     expect(dispose).toHaveBeenCalledOnce();

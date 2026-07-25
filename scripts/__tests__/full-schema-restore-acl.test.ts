@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  deriveFullSchemaArchiveEvidence,
-} from "../lib/full-schema-restore-archive";
+import { deriveFullSchemaArchiveEvidence } from "../lib/full-schema-restore-archive";
 import {
   prepareFullSchemaAclSuppressionControl,
   requireFullSchemaAclSuppressionControl,
@@ -12,32 +10,35 @@ import {
   deriveMigrationLedgerContract,
   runFullSchemaRestoreVerification,
 } from "../lib/full-schema-restore-gate";
-import {
-  buildPostgresArchiveCommands,
-} from "../lib/full-schema-restore-runtime";
+import { buildPostgresArchiveCommands } from "../lib/full-schema-restore-runtime";
 
 type Query = (
   sql: string,
   values?: readonly unknown[],
-) => Promise<Readonly<{
-  rows: readonly Record<string, unknown>[];
-}>>;
+) => Promise<
+  Readonly<{
+    rows: readonly Record<string, unknown>[];
+  }>
+>;
 
 const sourceId = "a".repeat(64);
 const targetId = "b".repeat(64);
 const sha = (value: string) => value.repeat(64).slice(0, 64);
 
-const migration = deriveMigrationLedgerContract({
-  version: "7",
-  dialect: "postgresql",
-  entries: Array.from({ length: 64 }, (_, idx) => ({
-    idx,
+const migration = deriveMigrationLedgerContract(
+  {
     version: "7",
-    when: 1_780_000_000_000 + idx,
-    tag: `${String(idx).padStart(4, "0")}_restore_acl_${idx}`,
-    breakpoints: true,
-  })),
-}, Array.from({ length: 64 }, (_, idx) => `select ${idx};`));
+    dialect: "postgresql",
+    entries: Array.from({ length: 64 }, (_, idx) => ({
+      idx,
+      version: "7",
+      when: 1_780_000_000_000 + idx,
+      tag: `${String(idx).padStart(4, "0")}_restore_acl_${idx}`,
+      breakpoints: true,
+    })),
+  },
+  Array.from({ length: 64 }, (_, idx) => `select ${idx};`),
+);
 
 const snapshot = (objectContractSha256 = sha("a")) => ({
   postgresMajor: 17,
@@ -77,27 +78,33 @@ describe("ACL-preserving full-schema archive commands", () => {
     expect(commands.restore.args).toContain("--role=learncoding_owner");
     expect(commands.restore.args).not.toContain("--no-acl");
     expect(commands.restoreWithoutAcl.args).toContain("--no-acl");
-    expect(commands.restoreWithoutAcl.args).toContain("--role=learncoding_owner");
+    expect(commands.restoreWithoutAcl.args).toContain(
+      "--role=learncoding_owner",
+    );
   });
 
   it("rejects the ACL-free TOC produced by --no-acl", () => {
-    expect(() => deriveFullSchemaArchiveEvidence({
-      archive: Buffer.from("opaque-custom-archive"),
-      toc: Buffer.from(
-        "4101; 1255 9001 FUNCTION public reviewed(uuid) learncoding_owner\n",
-      ),
-      sourceObjectContractSha256: sha("a"),
-    })).toThrow("full-schema restore archive ACL evidence failed");
+    expect(() =>
+      deriveFullSchemaArchiveEvidence({
+        archive: Buffer.from("opaque-custom-archive"),
+        toc: Buffer.from(
+          "4101; 1255 9001 FUNCTION public reviewed(uuid) learncoding_owner\n",
+        ),
+        sourceObjectContractSha256: sha("a"),
+      }),
+    ).toThrow("full-schema restore archive ACL evidence failed");
   });
 
   it("binds routine ACL TOC evidence to the source object contract", () => {
     const evidence = deriveFullSchemaArchiveEvidence({
       archive: Buffer.from("opaque-custom-archive"),
-      toc: Buffer.from([
-        "4102; 0 0 ACL public FUNCTION reviewed(uuid) learncoding_owner",
-        "4103; 0 0 ACL public TABLE email_outbox learncoding_owner",
-        "",
-      ].join("\n")),
+      toc: Buffer.from(
+        [
+          "4102; 0 0 ACL public FUNCTION reviewed(uuid) learncoding_owner",
+          "4103; 0 0 ACL public TABLE email_outbox learncoding_owner",
+          "",
+        ].join("\n"),
+      ),
       sourceObjectContractSha256: sha("a"),
     });
 
@@ -113,36 +120,8 @@ describe("ACL-preserving full-schema archive commands", () => {
 describe("controlled restore role prerequisite", () => {
   it("requires one exact non-login owner role", async () => {
     const query = vi.fn<Query>(async () => ({
-      rows: [{
-        rolname: "learncoding_owner",
-        rolcanlogin: false,
-        rolsuper: false,
-        rolcreatedb: false,
-        rolcreaterole: false,
-        rolinherit: false,
-        rolreplication: false,
-        rolbypassrls: false,
-        rolconnlimit: -1,
-        valid_until_infinity: true,
-        password_is_null: true,
-        role_settings_empty: true,
-        membership_contract_exact: true,
-      }],
-    }));
-
-    await expect(requireExactFullSchemaRestoreOwnerRole({ query }))
-      .resolves.toBeUndefined();
-    expect(query.mock.calls[0]?.[0]).toContain("pg_catalog.pg_authid");
-    expect(query.mock.calls[0]?.[0]).toContain("pg_catalog.pg_auth_members");
-    expect(query.mock.calls[0]?.[0]).toContain("membership.inherit_option");
-    expect(query.mock.calls[0]?.[0]).toContain("membership.set_option");
-    expect(query.mock.calls[0]?.[0]).toContain("'learncoding_backup_reporter'");
-  });
-
-  it("rejects any noncanonical membership involving an application role", async () => {
-    await expect(requireExactFullSchemaRestoreOwnerRole({
-      query: async () => ({
-        rows: [{
+      rows: [
+        {
           rolname: "learncoding_owner",
           rolcanlogin: false,
           rolsuper: false,
@@ -155,31 +134,70 @@ describe("controlled restore role prerequisite", () => {
           valid_until_infinity: true,
           password_is_null: true,
           role_settings_empty: true,
-          membership_contract_exact: false,
-        }],
+          membership_contract_exact: true,
+        },
+      ],
+    }));
+
+    await expect(
+      requireExactFullSchemaRestoreOwnerRole({ query }),
+    ).resolves.toBeUndefined();
+    expect(query.mock.calls[0]?.[0]).toContain("pg_catalog.pg_authid");
+    expect(query.mock.calls[0]?.[0]).toContain("pg_catalog.pg_auth_members");
+    expect(query.mock.calls[0]?.[0]).toContain("membership.inherit_option");
+    expect(query.mock.calls[0]?.[0]).toContain("membership.set_option");
+    expect(query.mock.calls[0]?.[0]).toContain("'learncoding_backup_reporter'");
+  });
+
+  it("rejects any noncanonical membership involving an application role", async () => {
+    await expect(
+      requireExactFullSchemaRestoreOwnerRole({
+        query: async () => ({
+          rows: [
+            {
+              rolname: "learncoding_owner",
+              rolcanlogin: false,
+              rolsuper: false,
+              rolcreatedb: false,
+              rolcreaterole: false,
+              rolinherit: false,
+              rolreplication: false,
+              rolbypassrls: false,
+              rolconnlimit: -1,
+              valid_until_infinity: true,
+              password_is_null: true,
+              role_settings_empty: true,
+              membership_contract_exact: false,
+            },
+          ],
+        }),
       }),
-    })).rejects.toThrow("full-schema restore owner role is invalid");
+    ).rejects.toThrow("full-schema restore owner role is invalid");
   });
 
   it("rejects a PUBLIC-capable login role substitute", async () => {
-    await expect(requireExactFullSchemaRestoreOwnerRole({
-      query: async () => ({
-        rows: [{
-          rolname: "learncoding_owner",
-          rolcanlogin: true,
-          rolsuper: false,
-          rolcreatedb: false,
-          rolcreaterole: false,
-          rolinherit: false,
-          rolreplication: false,
-          rolbypassrls: false,
-          rolconnlimit: -1,
-          valid_until_infinity: true,
-          password_is_null: false,
-          role_settings_empty: true,
-        }],
+    await expect(
+      requireExactFullSchemaRestoreOwnerRole({
+        query: async () => ({
+          rows: [
+            {
+              rolname: "learncoding_owner",
+              rolcanlogin: true,
+              rolsuper: false,
+              rolcreatedb: false,
+              rolcreaterole: false,
+              rolinherit: false,
+              rolreplication: false,
+              rolbypassrls: false,
+              rolconnlimit: -1,
+              valid_until_infinity: true,
+              password_is_null: false,
+              role_settings_empty: true,
+            },
+          ],
+        }),
       }),
-    })).rejects.toThrow("full-schema restore owner role is invalid");
+    ).rejects.toThrow("full-schema restore owner role is invalid");
   });
 });
 
@@ -187,8 +205,9 @@ describe("live ACL-suppression negative control", () => {
   it("temporarily restores PostgreSQL's PUBLIC routine default", async () => {
     const query = vi.fn<Query>(async () => ({ rows: [] }));
 
-    await expect(prepareFullSchemaAclSuppressionControl({ query }))
-      .resolves.toBeUndefined();
+    await expect(
+      prepareFullSchemaAclSuppressionControl({ query }),
+    ).resolves.toBeUndefined();
     expect(query).toHaveBeenCalledOnce();
     expect(query.mock.calls[0]?.[0]).toContain(
       "alter default privileges for role learncoding_owner",
@@ -200,36 +219,46 @@ describe("live ACL-suppression negative control", () => {
 
   it("requires --no-acl to produce proacl NULL and effective PUBLIC EXECUTE", async () => {
     const query = vi.fn<Query>(async () => ({
-      rows: [{
-        proacl_is_null: true,
-        public_execute: true,
-      }],
+      rows: [
+        {
+          proacl_is_null: true,
+          public_execute: true,
+          routine:
+            "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+        },
+      ],
     }));
 
-    await expect(requireFullSchemaAclSuppressionControl({ query }))
-      .resolves.toEqual({
-        proaclIsNull: true,
-        publicExecute: true,
-        routine:
-          "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
-      });
+    await expect(
+      requireFullSchemaAclSuppressionControl({ query }),
+    ).resolves.toEqual({
+      proaclIsNull: true,
+      publicExecute: true,
+      routine:
+        "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    });
     const sql = query.mock.calls[0]?.[0] ?? "";
     expect(sql).toContain("pg_catalog.aclexplode");
     expect(sql).toContain("acl.grantee = 0");
-    expect(query.mock.calls[0]?.[1]).toEqual([
-      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
-    ]);
+    expect(sql).toContain(
+      "public.redact_quarantined_email_outbox_authority_v2",
+    );
+    expect(query.mock.calls[0]?.[1]).toBeUndefined();
   });
 
   it("fails closed unless both suppression properties are observed", async () => {
-    await expect(requireFullSchemaAclSuppressionControl({
-      query: async () => ({
-        rows: [{
-          proacl_is_null: false,
-          public_execute: true,
-        }],
+    await expect(
+      requireFullSchemaAclSuppressionControl({
+        query: async () => ({
+          rows: [
+            {
+              proacl_is_null: false,
+              public_execute: true,
+            },
+          ],
+        }),
       }),
-    })).rejects.toThrow("ACL suppression control failed");
+    ).rejects.toThrow("ACL suppression control failed");
   });
 });
 
@@ -242,7 +271,9 @@ describe("raw pre-repair restore evidence", () => {
       expectedPostgresMajor: 17,
       migration,
       source: {
-        reconcileRoles: async () => { trace.push("source.roles"); },
+        reconcileRoles: async () => {
+          trace.push("source.roles");
+        },
         verifyRoleBoundaries: async (full) => {
           trace.push(`source.boundary:${String(full)}`);
         },
@@ -252,7 +283,9 @@ describe("raw pre-repair restore evidence", () => {
         verifyMailAuthorityCatalog: async () => {
           trace.push("source.catalog.reviewed");
         },
-        migrate: async () => { trace.push("source.migrate"); },
+        migrate: async () => {
+          trace.push("source.migrate");
+        },
         seedRepresentativeMailRows: async () => {
           trace.push("source.seed");
         },
@@ -263,7 +296,9 @@ describe("raw pre-repair restore evidence", () => {
         },
       },
       target: {
-        reconcileRoles: async () => { trace.push("target.roles"); },
+        reconcileRoles: async () => {
+          trace.push("target.roles");
+        },
         verifyRoleBoundaries: async (full) => {
           trace.push(`target.boundary:${String(full)}`);
         },
@@ -278,7 +313,12 @@ describe("raw pre-repair restore evidence", () => {
         },
         verifyAclSuppressionControl: async () => {
           trace.push("target.acl-suppression");
-          return { proaclIsNull: true, publicExecute: true, routine: "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)" };
+          return {
+            proaclIsNull: true,
+            publicExecute: true,
+            routine:
+              "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+          };
         },
         resetAfterAclSuppressionControl: async () => {
           trace.push("target.reset-after-acl-suppression");
@@ -308,8 +348,12 @@ describe("raw pre-repair restore evidence", () => {
       restoreTargetWithoutAcl: async () => {
         trace.push("archive.restore.no-acl");
       },
-      restoreTarget: async () => { trace.push("archive.restore"); },
-      disposeArchive: () => { trace.push("archive.dispose"); },
+      restoreTarget: async () => {
+        trace.push("archive.restore");
+      },
+      disposeArchive: () => {
+        trace.push("archive.dispose");
+      },
     });
 
     expect(trace).toEqual([
@@ -354,47 +398,50 @@ describe("raw pre-repair restore evidence", () => {
     const targetReconcile = vi.fn(async () => undefined);
     let targetSnapshots = 0;
 
-    await expect(runFullSchemaRestoreVerification({
-      expectedPostgresMajor: 17,
-      migration,
-      source: {
-        reconcileRoles: async () => undefined,
-        verifyRoleBoundaries: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        migrate: async () => undefined,
-        seedRepresentativeMailRows: async () => undefined,
-        snapshot: async () => snapshot(),
-      },
-      target: {
-        reconcileRoles: targetReconcile,
-        verifyRoleBoundaries: async () => undefined,
-        requireRestoreOwnerRole: async () => undefined,
-        prepareAclSuppressionControl: async () => undefined,
-        verifyAclSuppressionControl: async () => ({
-          proaclIsNull: true,
-          publicExecute: true,
-          routine: "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
-        }),
-        resetAfterAclSuppressionControl: async () => undefined,
-        verifyPreRepairMailAuthorityCatalog: async () => undefined,
-        verifyMailAuthorityCatalog: async () => undefined,
-        snapshot: async () => {
-          targetSnapshots += 1;
-          return snapshot(sha("f"));
+    await expect(
+      runFullSchemaRestoreVerification({
+        expectedPostgresMajor: 17,
+        migration,
+        source: {
+          reconcileRoles: async () => undefined,
+          verifyRoleBoundaries: async () => undefined,
+          verifyPreRepairMailAuthorityCatalog: async () => undefined,
+          verifyMailAuthorityCatalog: async () => undefined,
+          migrate: async () => undefined,
+          seedRepresentativeMailRows: async () => undefined,
+          snapshot: async () => snapshot(),
         },
-        runNonNetworkSmoke: async () => ({
-          claimedRows: 1,
-          redactedRows: 2,
-          externalCalls: 0,
-        }),
-      },
-      dumpSource: async () => "archive",
-      inspectArchive: async () => archiveEvidence,
-      restoreTargetWithoutAcl: async () => undefined,
-      restoreTarget: async () => undefined,
-      disposeArchive: () => undefined,
-    })).rejects.toThrow("full-schema restore verification failed");
+        target: {
+          reconcileRoles: targetReconcile,
+          verifyRoleBoundaries: async () => undefined,
+          requireRestoreOwnerRole: async () => undefined,
+          prepareAclSuppressionControl: async () => undefined,
+          verifyAclSuppressionControl: async () => ({
+            proaclIsNull: true,
+            publicExecute: true,
+            routine:
+              "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+          }),
+          resetAfterAclSuppressionControl: async () => undefined,
+          verifyPreRepairMailAuthorityCatalog: async () => undefined,
+          verifyMailAuthorityCatalog: async () => undefined,
+          snapshot: async () => {
+            targetSnapshots += 1;
+            return snapshot(sha("f"));
+          },
+          runNonNetworkSmoke: async () => ({
+            claimedRows: 1,
+            redactedRows: 2,
+            externalCalls: 0,
+          }),
+        },
+        dumpSource: async () => "archive",
+        inspectArchive: async () => archiveEvidence,
+        restoreTargetWithoutAcl: async () => undefined,
+        restoreTarget: async () => undefined,
+        disposeArchive: () => undefined,
+      }),
+    ).rejects.toThrow("full-schema restore verification failed");
 
     expect(targetSnapshots).toBe(1);
     expect(targetReconcile).toHaveBeenCalledTimes(2);

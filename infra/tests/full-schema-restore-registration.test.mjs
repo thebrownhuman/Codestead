@@ -11,6 +11,7 @@ const workflow = read(".github/workflows/ci.yml");
 const runner = read("scripts/run-full-schema-restore-gate.ts");
 const archiveHelper = read("scripts/lib/full-schema-restore-archive.ts");
 const databaseHelper = read("scripts/lib/full-schema-restore-database.ts");
+const fixtureHelper = read("scripts/lib/full-schema-restore-fixtures.ts");
 const gateHelper = read("scripts/lib/full-schema-restore-gate.ts");
 const lifecycleHelper = read("scripts/lib/full-schema-restore-lifecycle.ts");
 const runtimeHelper = read("scripts/lib/full-schema-restore-runtime.ts");
@@ -20,9 +21,10 @@ const preRepairVerifier = read(
 );
 const dockerfile = read("Dockerfile");
 const scripts = packageManifest.scripts;
-const restoreExtensionModule = await import(
-  "./full-schema-restore-postgres-ci-extension.mjs",
-).catch(() => null);
+const restoreExtensionModule =
+  await import("./full-schema-restore-postgres-ci-extension.mjs").catch(
+    () => null,
+  );
 
 const registrationScript = "test:full-schema-restore:registration";
 const primaryScript = "test:full-schema-restore";
@@ -33,10 +35,8 @@ const registrationCommand =
 const primaryCommand = "tsx scripts/run-full-schema-restore-gate.ts";
 const pg17ScriptCommand = `${primaryCommand} --postgres-major=17`;
 const pg18ScriptCommand = `${primaryCommand} --postgres-major=18`;
-const pg17Command =
-  `POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run ${pg17Script}`;
-const pg18Command =
-  `POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run ${pg18Script}`;
+const pg17Command = `POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run ${pg17Script}`;
+const pg18Command = `POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run ${pg18Script}`;
 
 assert.equal(
   scripts[registrationScript],
@@ -82,23 +82,21 @@ assert.deepEqual(receivedExtensionInput, {
 
 const checkCommands = scripts.check.split(" && ");
 assert.equal(
-  checkCommands.filter((command) =>
-    command === `npm run ${registrationScript}`).length,
+  checkCommands.filter((command) => command === `npm run ${registrationScript}`)
+    .length,
   1,
   "npm run check must execute the restore registration guard exactly once",
 );
 
-const postgresJob = workflow.match(
-  /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
-)?.[0] ?? "";
+const postgresJob =
+  workflow.match(
+    /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
+  )?.[0] ?? "";
 assert.match(
   postgresJob,
   /^  postgres-integration:\n    runs-on: ubuntu-24\.04\n/mu,
 );
-assert.match(
-  postgresJob,
-  /^    timeout-minutes: 35$/mu,
-);
+assert.match(postgresJob, /^    timeout-minutes: 35$/mu);
 assert.doesNotMatch(postgresJob, /continue-on-error:/u);
 assert.deepEqual(
   postgresJob.match(/^      - run: docker pull postgres:\S+$/gmu) ?? [],
@@ -165,11 +163,11 @@ assert.match(runner, /deriveMigrationLedgerContract/u);
 assert.match(runner, /databaseBackupReporterUrl/u);
 assert.match(runner, /createSafeFullSchemaRestoreTaskRoot/u);
 assert.match(runner, /createFullSchemaRestoreLifecycle/u);
-assert.match(runner, /verifyPostMigrationReviewedContractsBeforeReconciliation/u);
 assert.match(
   runner,
-  /verifyReviewedMailAuthorityCatalogContracts/u,
+  /verifyPostMigrationReviewedContractsBeforeReconciliation/u,
 );
+assert.match(runner, /verifyReviewedMailAuthorityCatalogContracts/u);
 assert.match(runner, /requireExactFullSchemaRestoreOwnerRole/u);
 assert.match(runner, /requireFullSchemaAclSuppressionControl/u);
 assert.match(runner, /restoreTargetWithoutAcl/u);
@@ -189,14 +187,8 @@ assert.match(runner, /runFullSchemaArchiveRestore/u);
 assert.match(archiveHelper, /deriveFullSchemaArchiveEvidence/u);
 assert.match(runner, /lifecycle\.ownContainer\("source", source\)/u);
 assert.match(runner, /lifecycle\.ownContainer\("target", target\)/u);
-assert.match(
-  runner,
-  /\.\/lib\/disposable-integration-child-controller/u,
-);
-assert.match(
-  runner,
-  /\.\/lib\/disposable-integration-child-launch/u,
-);
+assert.match(runner, /\.\/lib\/disposable-integration-child-controller/u);
+assert.match(runner, /\.\/lib\/disposable-integration-child-launch/u);
 assert.match(runner, /archive\.fill\(0\)/u);
 assert.equal(
   runner.match(/\bspawnSync\(/gu)?.length,
@@ -216,10 +208,7 @@ assert.match(
   runner,
   /while \(targetPort === sourcePort\) targetPort = await availablePort\(\)/u,
 );
-assert.doesNotMatch(
-  runner,
-  /Buffer\.from\(result\.stdout\)/u,
-);
+assert.doesNotMatch(runner, /Buffer\.from\(result\.stdout\)/u);
 assert.match(archiveHelper, /controller\.spawnAndTrack/u);
 assert.match(archiveHelper, /result\.stdout\.fill\(0\)/u);
 const childCleanupIndex = lifecycleHelper.indexOf(
@@ -243,7 +232,28 @@ assert.doesNotMatch(runtimeWithoutControl, /--no-acl/u);
 assert.match(databaseHelper, /pg_catalog\.aclexplode/u);
 assert.match(databaseHelper, /acl\.grantee = 0/u);
 assert.match(databaseHelper, /routine\.proacl is null/u);
-assert.match(gateHelper, /await dependencies\.restoreTargetWithoutAcl\(archive\)/u);
+assert.match(
+  runner,
+  /migrationTailIndex >= 68 \? "v2" : "v1"/u,
+  "the final 0068 restore smoke must select only the v2 redactor",
+);
+assert.match(gateHelper, /FINAL_REDACTION_AUTHORITY_MIGRATION_INDEX = 68/u);
+assert.match(gateHelper, /redact_quarantined_email_outbox_authority_v2/u);
+for (const column of [
+  "provider_correlation_version",
+  "provider_evidence_version",
+  "provider_evidence_sha256",
+]) {
+  assert.match(fixtureHelper, new RegExp(`\\b${column}\\b`, "u"));
+}
+assert.match(fixtureHelper, /opaque-sha256-v1/u);
+assert.match(fixtureHelper, /gmail-header-evidence-v1/u);
+assert.match(databaseHelper, /redact_quarantined_email_outbox_authority_v2/u);
+assert.doesNotMatch(runner, /postgres-major=16/u);
+assert.match(
+  gateHelper,
+  /await dependencies\.restoreTargetWithoutAcl\(archive\)/u,
+);
 assert.match(gateHelper, /await target\.verifyAclSuppressionControl\(\)/u);
 assert.match(gateHelper, /await target\.resetAfterAclSuppressionControl\(\)/u);
 assert.match(gateHelper, /await dependencies\.restoreTarget\(archive\)/u);
@@ -267,7 +277,10 @@ assert.ok(withoutAclIndex < verifySuppressionIndex);
 assert.ok(verifySuppressionIndex < resetControlIndex);
 assert.ok(resetControlIndex < reconcileAfterControlIndex);
 assert.ok(reconcileAfterControlIndex < restoreWithAclIndex);
-assert.match(ledgerHelper, /journal\.entries\.length < MINIMUM_MIGRATION_COUNT/u);
+assert.match(
+  ledgerHelper,
+  /journal\.entries\.length < MINIMUM_MIGRATION_COUNT/u,
+);
 assert.match(ledgerHelper, /migration\.hash::text as migration_sha256/u);
 assert.match(ledgerHelper, /result\.rows\.length !== expected\.length/u);
 assert.match(preRepairVerifier, /readCheckedInRestoreMigrationLedger/u);
@@ -276,10 +289,7 @@ assert.match(
   preRepairVerifier,
   /verifyPostMigrationReviewedContractsBeforeReconciliation/u,
 );
-assert.match(
-  preRepairVerifier,
-  /verifyReviewedMailAuthorityCatalogContracts/u,
-);
+assert.match(preRepairVerifier, /verifyReviewedMailAuthorityCatalogContracts/u);
 assert.match(dockerfile, /COPY --chown=node:node drizzle \.\/drizzle/u);
 assert.match(
   dockerfile,

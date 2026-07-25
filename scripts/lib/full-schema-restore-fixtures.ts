@@ -3,10 +3,8 @@ import {
   type FullSchemaRestoreQueryClient,
 } from "./full-schema-restore-database";
 
-const QUARANTINED_ACCOUNT_ID =
-  "20000000-0000-4000-8000-000000000002";
-const QUARANTINED_SYSTEM_ID =
-  "20000000-0000-4000-8000-000000000004";
+const QUARANTINED_ACCOUNT_ID = "20000000-0000-4000-8000-000000000002";
+const QUARANTINED_SYSTEM_ID = "20000000-0000-4000-8000-000000000004";
 
 const BASE_FIXTURES_SQL = `
   insert into public.user (
@@ -150,7 +148,10 @@ const BINDING_COLUMNS_SQL = `
      and not attribute.attisdropped
      and attribute.attname in (
        'dispatch_binding_version',
-       'dispatch_binding_sha256'
+       'dispatch_binding_sha256',
+       'provider_correlation_version',
+       'provider_evidence_version',
+       'provider_evidence_sha256'
      )
    order by attribute.attname
 `;
@@ -202,6 +203,41 @@ const ARM_BINDING_SQL = `
   returning id
 `;
 
+const ARM_CORRELATION_EVIDENCE_SQL = `
+  update public.email_outbox
+     set provider_call_started = pg_catalog.statement_timestamp(),
+         adapter = 'gmail',
+         dispatch_binding_version = 'gmail-raw-v1',
+         dispatch_binding_sha256 = case id
+           when '${QUARANTINED_ACCOUNT_ID}'::uuid
+             then '${"a".repeat(64)}'
+           else '${"b".repeat(64)}'
+         end,
+         provider_correlation_version = 'opaque-sha256-v1',
+         provider_evidence_version = 'gmail-header-evidence-v1',
+         provider_evidence_sha256 = case id
+           when '${QUARANTINED_ACCOUNT_ID}'::uuid
+             then '${"c".repeat(64)}'
+           else '${"d".repeat(64)}'
+         end,
+         lease_expires_at =
+           pg_catalog.statement_timestamp() + interval '120 seconds',
+         updated_at = pg_catalog.statement_timestamp()
+   where id in (
+     '${QUARANTINED_ACCOUNT_ID}'::uuid,
+     '${QUARANTINED_SYSTEM_ID}'::uuid
+   )
+     and status = 'sending'
+     and claim_token is not null
+     and claim_owner = 'full-schema-restore-fixture'
+     and lease_expires_at > pg_catalog.statement_timestamp()
+     and provider_call_started is null
+     and adapter is null
+     and provider_correlation_version is null
+     and provider_evidence_version is null
+     and provider_evidence_sha256 is null
+  returning id
+`;
 const RELEASE_BOUND_ROWS_SQL = `
   update public.email_outbox
      set status = 'quarantined',
@@ -326,8 +362,8 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const BACKUP_RUN_KEY = "20260725T000000Z";
 const BACKUP_SUMMARY =
-  "The nightly encrypted backup completed and passed local verification. "
-  + "No archive is attached to this email.";
+  "The nightly encrypted backup completed and passed local verification. " +
+  "No archive is attached to this email.";
 
 function verifiedBackupAuthority(
   row: Record<string, unknown> | undefined,
@@ -343,46 +379,44 @@ function verifiedBackupAuthority(
   };
   try {
     return (
-      row?.id === queued.authorityId
-      && row.run_key === BACKUP_RUN_KEY
-      && row.outcome === "success"
-      && row.recipient_user_id === "full-schema-restore-admin"
-      && row.recipient_email === "admin.restore@invalid.local"
-      && row.outbox_id === queued.outboxId
-      && row.operation_id === queued.operationId
-      && row.user_id === "full-schema-restore-admin"
-      && row.delivery_scope_key === "a:full-schema-restore-admin"
-      && row.to_email === "admin.restore@invalid.local"
-      && row.template === "backup-status"
-      && row.template_version === "1"
-      && row.idempotency_key ===
-        `backup-status:v1:${BACKUP_RUN_KEY}`
-      && row.variables !== null
-      && typeof row.variables === "object"
-      && !Array.isArray(row.variables)
-      && stableSha256(row.variables) === stableSha256(expectedVariables)
+      row?.id === queued.authorityId &&
+      row.run_key === BACKUP_RUN_KEY &&
+      row.outcome === "success" &&
+      row.recipient_user_id === "full-schema-restore-admin" &&
+      row.recipient_email === "admin.restore@invalid.local" &&
+      row.outbox_id === queued.outboxId &&
+      row.operation_id === queued.operationId &&
+      row.user_id === "full-schema-restore-admin" &&
+      row.delivery_scope_key === "a:full-schema-restore-admin" &&
+      row.to_email === "admin.restore@invalid.local" &&
+      row.template === "backup-status" &&
+      row.template_version === "1" &&
+      row.idempotency_key === `backup-status:v1:${BACKUP_RUN_KEY}` &&
+      row.variables !== null &&
+      typeof row.variables === "object" &&
+      !Array.isArray(row.variables) &&
+      stableSha256(row.variables) === stableSha256(expectedVariables)
     );
   } catch {
     return false;
   }
 }
 
-async function seedBackupAuthorityWhenPresent(input: Readonly<{
-  owner: FullSchemaRestoreQueryClient;
-  worker: FullSchemaRestoreQueryClient;
-  backupReporter: FullSchemaRestoreQueryClient;
-}>): Promise<boolean> {
-  const catalog = (await input.owner.query(
-    BACKUP_AUTHORITY_CATALOG_SQL,
-  )).rows[0];
+async function seedBackupAuthorityWhenPresent(
+  input: Readonly<{
+    owner: FullSchemaRestoreQueryClient;
+    worker: FullSchemaRestoreQueryClient;
+    backupReporter: FullSchemaRestoreQueryClient;
+  }>,
+): Promise<boolean> {
+  const catalog = (await input.owner.query(BACKUP_AUTHORITY_CATALOG_SQL))
+    .rows[0];
   const tablePresent = catalog?.authority_table_present === true;
   const enqueuePresent = catalog?.enqueue_routine_present === true;
   const authorizePresent = catalog?.authorize_routine_present === true;
   if (!tablePresent && !enqueuePresent && !authorizePresent) return false;
   if (!tablePresent || !enqueuePresent || !authorizePresent) {
-    throw new Error(
-      "full-schema restore backup authority catalog is invalid",
-    );
+    throw new Error("full-schema restore backup authority catalog is invalid");
   }
 
   const enqueued = await input.backupReporter.query(
@@ -394,86 +428,82 @@ async function seedBackupAuthorityWhenPresent(input: Readonly<{
   const outboxId = row?.outbox_id;
   const operationId = row?.operation_id;
   if (
-    enqueued.rows.length !== 1
-    || row?.acknowledgement !== "queued"
-    || typeof authorityId !== "string"
-    || !UUID_PATTERN.test(authorityId)
-    || typeof outboxId !== "string"
-    || !UUID_PATTERN.test(outboxId)
-    || typeof operationId !== "string"
-    || !UUID_PATTERN.test(operationId)
+    enqueued.rows.length !== 1 ||
+    row?.acknowledgement !== "queued" ||
+    typeof authorityId !== "string" ||
+    !UUID_PATTERN.test(authorityId) ||
+    typeof outboxId !== "string" ||
+    !UUID_PATTERN.test(outboxId) ||
+    typeof operationId !== "string" ||
+    !UUID_PATTERN.test(operationId)
   ) {
-    throw new Error(
-      "full-schema restore backup authority enqueue failed",
-    );
+    throw new Error("full-schema restore backup authority enqueue failed");
   }
 
-  const verification = await input.owner.query(
-    VERIFY_BACKUP_AUTHORITY_SQL,
-    [BACKUP_RUN_KEY, outboxId],
-  );
-  const authorization = await input.worker.query(
-    VERIFY_BACKUP_AUTHORIZED_SQL,
-    [outboxId],
-  );
+  const verification = await input.owner.query(VERIFY_BACKUP_AUTHORITY_SQL, [
+    BACKUP_RUN_KEY,
+    outboxId,
+  ]);
+  const authorization = await input.worker.query(VERIFY_BACKUP_AUTHORIZED_SQL, [
+    outboxId,
+  ]);
   if (
-    verification.rows.length !== 1
-    || !verifiedBackupAuthority(verification.rows[0], {
+    verification.rows.length !== 1 ||
+    !verifiedBackupAuthority(verification.rows[0], {
       authorityId,
       outboxId,
       operationId,
-    })
-    || authorization.rows.length !== 1
-    || authorization.rows[0]?.authorized !== true
+    }) ||
+    authorization.rows.length !== 1 ||
+    authorization.rows[0]?.authorized !== true
   ) {
-    throw new Error(
-      "full-schema restore backup authority verification failed",
-    );
+    throw new Error("full-schema restore backup authority verification failed");
   }
   return true;
 }
 
-export async function seedRepresentativeMailAuthorityRows(input: Readonly<{
-  owner: FullSchemaRestoreQueryClient;
-  worker: FullSchemaRestoreQueryClient;
-  backupReporter: FullSchemaRestoreQueryClient;
-}>): Promise<void> {
+export async function seedRepresentativeMailAuthorityRows(
+  input: Readonly<{
+    owner: FullSchemaRestoreQueryClient;
+    worker: FullSchemaRestoreQueryClient;
+    backupReporter: FullSchemaRestoreQueryClient;
+  }>,
+): Promise<void> {
   await input.owner.query(BASE_FIXTURES_SQL);
   const bindingColumns = await input.owner.query(BINDING_COLUMNS_SQL);
   const observed = bindingColumns.rows.map((row) => row.attname);
   if (
-    observed.some((name) => typeof name !== "string")
-    || (
-      observed.length !== 0
-      && (
-        observed.length !== 2
-        || observed[0] !== "dispatch_binding_sha256"
-        || observed[1] !== "dispatch_binding_version"
-      )
+    observed.some((name) => typeof name !== "string") ||
+    !(
+      observed.length === 0 ||
+      (observed.length === 2 &&
+        observed[0] === "dispatch_binding_sha256" &&
+        observed[1] === "dispatch_binding_version") ||
+      (observed.length === 5 &&
+        observed[0] === "dispatch_binding_sha256" &&
+        observed[1] === "dispatch_binding_version" &&
+        observed[2] === "provider_correlation_version" &&
+        observed[3] === "provider_evidence_sha256" &&
+        observed[4] === "provider_evidence_version")
     )
   ) {
-    throw new Error(
-      "full-schema restore dispatch-binding catalog is invalid",
-    );
+    throw new Error("full-schema restore dispatch-binding catalog is invalid");
   }
 
-  if (observed.length === 2) {
+  if (observed.length >= 2) {
     exactReturnedRows(await input.worker.query(CLAIM_FOR_BINDING_SQL), 2);
-    exactReturnedRows(await input.worker.query(ARM_BINDING_SQL), 2);
     exactReturnedRows(
-      await input.owner.query(RELEASE_BOUND_ROWS_SQL),
+      await input.worker.query(
+        observed.length === 5 ? ARM_CORRELATION_EVIDENCE_SQL : ARM_BINDING_SQL,
+      ),
       2,
     );
+    exactReturnedRows(await input.owner.query(RELEASE_BOUND_ROWS_SQL), 2);
   } else {
-    exactReturnedRows(
-      await input.owner.query(RELEASE_PRE_BINDING_ROWS_SQL),
-      2,
-    );
+    exactReturnedRows(await input.owner.query(RELEASE_PRE_BINDING_ROWS_SQL), 2);
   }
 
-  const backupAuthorityPresent = await seedBackupAuthorityWhenPresent(
-    input,
-  );
+  const backupAuthorityPresent = await seedBackupAuthorityWhenPresent(input);
   const verification = await input.owner.query(VERIFY_FIXTURES_SQL);
   const expectedCount = backupAuthorityPresent ? "5" : "4";
   if (verification.rows[0]?.fixture_count !== expectedCount) {
@@ -481,44 +511,40 @@ export async function seedRepresentativeMailAuthorityRows(input: Readonly<{
   }
 }
 
-export async function verifyRestoredBackupAuthorityRows(input: Readonly<{
-  owner: FullSchemaRestoreQueryClient;
-  worker: FullSchemaRestoreQueryClient;
-  backupReporter: FullSchemaRestoreQueryClient;
-}>): Promise<void> {
-  const catalog = (await input.owner.query(
-    BACKUP_AUTHORITY_CATALOG_SQL,
-  )).rows[0];
+export async function verifyRestoredBackupAuthorityRows(
+  input: Readonly<{
+    owner: FullSchemaRestoreQueryClient;
+    worker: FullSchemaRestoreQueryClient;
+    backupReporter: FullSchemaRestoreQueryClient;
+  }>,
+): Promise<void> {
+  const catalog = (await input.owner.query(BACKUP_AUTHORITY_CATALOG_SQL))
+    .rows[0];
   const tablePresent = catalog?.authority_table_present === true;
   const enqueuePresent = catalog?.enqueue_routine_present === true;
   const authorizePresent = catalog?.authorize_routine_present === true;
   if (!tablePresent && !enqueuePresent && !authorizePresent) return;
   if (!tablePresent || !enqueuePresent || !authorizePresent) {
-    throw new Error(
-      "full-schema restore backup authority catalog is invalid",
-    );
+    throw new Error("full-schema restore backup authority catalog is invalid");
   }
 
-  const restored = await input.owner.query(
-    RESTORED_BACKUP_AUTHORITY_SQL,
-    [BACKUP_RUN_KEY],
-  );
+  const restored = await input.owner.query(RESTORED_BACKUP_AUTHORITY_SQL, [
+    BACKUP_RUN_KEY,
+  ]);
   const restoredRow = restored.rows[0];
   const authorityId = restoredRow?.authority_id;
   const outboxId = restoredRow?.outbox_id;
   const operationId = restoredRow?.operation_id;
   if (
-    restored.rows.length !== 1
-    || typeof authorityId !== "string"
-    || !UUID_PATTERN.test(authorityId)
-    || typeof outboxId !== "string"
-    || !UUID_PATTERN.test(outboxId)
-    || typeof operationId !== "string"
-    || !UUID_PATTERN.test(operationId)
+    restored.rows.length !== 1 ||
+    typeof authorityId !== "string" ||
+    !UUID_PATTERN.test(authorityId) ||
+    typeof outboxId !== "string" ||
+    !UUID_PATTERN.test(outboxId) ||
+    typeof operationId !== "string" ||
+    !UUID_PATTERN.test(operationId)
   ) {
-    throw new Error(
-      "full-schema restore backup authority replay failed",
-    );
+    throw new Error("full-schema restore backup authority replay failed");
   }
 
   const replayed = await input.backupReporter.query(
@@ -527,37 +553,32 @@ export async function verifyRestoredBackupAuthorityRows(input: Readonly<{
   );
   const replay = replayed.rows[0];
   if (
-    replayed.rows.length !== 1
-    || replay?.acknowledgement !== "existing"
-    || replay.authority_id !== authorityId
-    || replay.outbox_id !== outboxId
-    || replay.operation_id !== operationId
+    replayed.rows.length !== 1 ||
+    replay?.acknowledgement !== "existing" ||
+    replay.authority_id !== authorityId ||
+    replay.outbox_id !== outboxId ||
+    replay.operation_id !== operationId
   ) {
-    throw new Error(
-      "full-schema restore backup authority replay failed",
-    );
+    throw new Error("full-schema restore backup authority replay failed");
   }
 
-  const verification = await input.owner.query(
-    VERIFY_BACKUP_AUTHORITY_SQL,
-    [BACKUP_RUN_KEY, outboxId],
-  );
-  const authorization = await input.worker.query(
-    VERIFY_BACKUP_AUTHORIZED_SQL,
-    [outboxId],
-  );
+  const verification = await input.owner.query(VERIFY_BACKUP_AUTHORITY_SQL, [
+    BACKUP_RUN_KEY,
+    outboxId,
+  ]);
+  const authorization = await input.worker.query(VERIFY_BACKUP_AUTHORIZED_SQL, [
+    outboxId,
+  ]);
   if (
-    verification.rows.length !== 1
-    || !verifiedBackupAuthority(verification.rows[0], {
+    verification.rows.length !== 1 ||
+    !verifiedBackupAuthority(verification.rows[0], {
       authorityId,
       outboxId,
       operationId,
-    })
-    || authorization.rows.length !== 1
-    || authorization.rows[0]?.authorized !== true
+    }) ||
+    authorization.rows.length !== 1 ||
+    authorization.rows[0]?.authorized !== true
   ) {
-    throw new Error(
-      "full-schema restore backup authority verification failed",
-    );
+    throw new Error("full-schema restore backup authority verification failed");
   }
 }

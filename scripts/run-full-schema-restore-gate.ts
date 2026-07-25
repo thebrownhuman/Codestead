@@ -15,9 +15,7 @@ import {
   type FullSchemaRestoreBuildChildLaunch,
   type FullSchemaRestoreChildController,
 } from "./lib/full-schema-restore-archive";
-import {
-  createFullSchemaRestoreLifecycle,
-} from "./lib/full-schema-restore-lifecycle";
+import { createFullSchemaRestoreLifecycle } from "./lib/full-schema-restore-lifecycle";
 import {
   collectFullSchemaRestoreSnapshot,
   prepareFullSchemaAclSuppressionControl,
@@ -82,17 +80,19 @@ type SecurePostgresContainer = Readonly<{
 type SecureContainerModule = Readonly<{
   POSTGRES_17_INTEGRATION_IMAGE: string;
   POSTGRES_18_INTEGRATION_IMAGE: string;
-  createDisposablePostgresContainer: (input: Readonly<{
-    dockerCommand: string;
-    containerName: string;
-    image: string;
-    port: number;
-    database: string;
-    username: string;
-    password: string;
-    taskHomeDirectory: string;
-    sourceEnvironment: NodeJS.ProcessEnv;
-  }>) => SecurePostgresContainer;
+  createDisposablePostgresContainer: (
+    input: Readonly<{
+      dockerCommand: string;
+      containerName: string;
+      image: string;
+      port: number;
+      database: string;
+      username: string;
+      password: string;
+      taskHomeDirectory: string;
+      sourceEnvironment: NodeJS.ProcessEnv;
+    }>,
+  ) => SecurePostgresContainer;
 }>;
 
 type ToolEnvironmentModule = Readonly<{
@@ -103,29 +103,29 @@ type ToolEnvironmentModule = Readonly<{
 }>;
 
 type ChildControllerModule = Readonly<{
-  createDisposableIntegrationChildController:
-    () => FullSchemaRestoreChildController;
+  createDisposableIntegrationChildController: () => FullSchemaRestoreChildController;
 }>;
 
 type ChildLaunchModule = Readonly<{
-  buildDisposableIntegrationChildLaunch:
-    FullSchemaRestoreBuildChildLaunch;
+  buildDisposableIntegrationChildLaunch: FullSchemaRestoreBuildChildLaunch;
 }>;
 
 type BootstrapModule = Readonly<{
-  runDatabaseRoleBootstrap: (input: Readonly<{
-    postgresUser: string;
-    postgresDatabase: string;
-    databaseBootstrapUrl: string;
-    databaseAppUrl: string;
-    databaseMigratorUrl: string;
-    databaseWorkerUrl: string;
-    databaseOpsUrl: string;
-    databaseBackupReporterUrl: string;
-    lockTimeoutMs: number;
-    cleanupTimeoutMs: number;
-    pool: InstanceType<typeof Pool>;
-  }>) => Promise<unknown>;
+  runDatabaseRoleBootstrap: (
+    input: Readonly<{
+      postgresUser: string;
+      postgresDatabase: string;
+      databaseBootstrapUrl: string;
+      databaseAppUrl: string;
+      databaseMigratorUrl: string;
+      databaseWorkerUrl: string;
+      databaseOpsUrl: string;
+      databaseBackupReporterUrl: string;
+      lockTimeoutMs: number;
+      cleanupTimeoutMs: number;
+      pool: InstanceType<typeof Pool>;
+    }>,
+  ) => Promise<unknown>;
   verifyPostMigrationReviewedContractsBeforeReconciliation?: (
     client: FullSchemaRestoreQueryClient,
   ) => Promise<unknown>;
@@ -137,10 +137,12 @@ type BootstrapModule = Readonly<{
 }>;
 
 type MigrationModule = Readonly<{
-  runProductionMigration: (input: Readonly<{
-    connectionString: string;
-    migrationsFolder: string;
-  }>) => Promise<void>;
+  runProductionMigration: (
+    input: Readonly<{
+      connectionString: string;
+      migrationsFolder: string;
+    }>,
+  ) => Promise<void>;
 }>;
 
 type BoundaryModule = Readonly<{
@@ -156,15 +158,15 @@ type DatabaseContext = Readonly<{
   database: string;
   requireRestoreOwnerRole: () => Promise<void>;
   prepareAclSuppressionControl: () => Promise<void>;
-  verifyAclSuppressionControl: () => Promise<Awaited<ReturnType<typeof requireFullSchemaAclSuppressionControl>>>;
+  verifyAclSuppressionControl: () => Promise<
+    Awaited<ReturnType<typeof requireFullSchemaAclSuppressionControl>>
+  >;
   resetAfterAclSuppressionControl: () => Promise<void>;
   adminUrl: string;
   ownerUrl: string;
   roleUrls: DisposableRoleUrls;
   reconcileRoles: () => Promise<void>;
-  verifyRoleBoundaries: (
-    requireApplicationObjects: boolean,
-  ) => Promise<void>;
+  verifyRoleBoundaries: (requireApplicationObjects: boolean) => Promise<void>;
   verifyMailAuthorityCatalog: () => Promise<void>;
   verifyPreRepairMailAuthorityCatalog: () => Promise<void>;
   migrate: () => Promise<void>;
@@ -183,16 +185,20 @@ function generatedPassword(): string {
   return randomBytes(32).toString("base64url");
 }
 
-function databaseUrl(input: Readonly<{
-  username: string;
-  password: string;
-  host: string;
-  port: number;
-  database: string;
-}>): string {
-  return `postgresql://${encodeURIComponent(input.username)}:`
-    + `${encodeURIComponent(input.password)}@${input.host}:`
-    + `${input.port}/${input.database}`;
+function databaseUrl(
+  input: Readonly<{
+    username: string;
+    password: string;
+    host: string;
+    port: number;
+    database: string;
+  }>,
+): string {
+  return (
+    `postgresql://${encodeURIComponent(input.username)}:` +
+    `${encodeURIComponent(input.password)}@${input.host}:` +
+    `${input.port}/${input.database}`
+  );
 }
 
 function roleUrls(
@@ -200,13 +206,14 @@ function roleUrls(
   database: string,
   credentials: RoleCredentials,
 ): DisposableRoleUrls {
-  const url = (username: string, password: string) => databaseUrl({
-    username,
-    password,
-    host: "127.0.0.1",
-    port,
-    database,
-  });
+  const url = (username: string, password: string) =>
+    databaseUrl({
+      username,
+      password,
+      host: "127.0.0.1",
+      port,
+      database,
+    });
   return {
     app: url("learncoding_app", credentials.app),
     migrator: url("learncoding_migrator", credentials.migrator),
@@ -258,18 +265,19 @@ function queryClient(
 
 async function withPools<T>(
   urls: readonly string[],
-  operation: (
-    clients: readonly FullSchemaRestoreQueryClient[],
-  ) => Promise<T>,
+  operation: (clients: readonly FullSchemaRestoreQueryClient[]) => Promise<T>,
 ): Promise<T> {
-  const pools = urls.map((connectionString) => new Pool({
-    connectionString,
-    application_name: "codestead_full_schema_restore_gate",
-    connectionTimeoutMillis: 5_000,
-    idleTimeoutMillis: 1_000,
-    max: 1,
-    statement_timeout: 30_000,
-  }));
+  const pools = urls.map(
+    (connectionString) =>
+      new Pool({
+        connectionString,
+        application_name: "codestead_full_schema_restore_gate",
+        connectionTimeoutMillis: 5_000,
+        idleTimeoutMillis: 1_000,
+        max: 1,
+        statement_timeout: 30_000,
+      }),
+  );
   let primaryError: unknown;
   let result: T | undefined;
   try {
@@ -286,7 +294,9 @@ async function withPools<T>(
     }
   }
   if (primaryError !== undefined && cleanupFailed) {
-    throw new Error("full-schema restore database operation and cleanup failed");
+    throw new Error(
+      "full-schema restore database operation and cleanup failed",
+    );
   }
   if (primaryError !== undefined) throw primaryError;
   if (cleanupFailed) {
@@ -295,12 +305,14 @@ async function withPools<T>(
   return result as T;
 }
 
-async function createDatabaseContext(input: Readonly<{
-  port: number;
-  database: string;
-  credentials: RoleCredentials;
-  migrationTailIndex: number;
-}>): Promise<DatabaseContext> {
+async function createDatabaseContext(
+  input: Readonly<{
+    port: number;
+    database: string;
+    credentials: RoleCredentials;
+    migrationTailIndex: number;
+  }>,
+): Promise<DatabaseContext> {
   const adminUrl = databaseUrl({
     username: POSTGRES_USER,
     password: input.credentials.bootstrap,
@@ -329,33 +341,31 @@ async function createDatabaseContext(input: Readonly<{
     database: input.database,
     adminUrl,
     ownerUrl: scopedOwnerUrl,
-    requireRestoreOwnerRole: () => withPools(
-      [adminUrl],
-      async ([admin]) => requireExactFullSchemaRestoreOwnerRole(admin!),
-    ),
-    prepareAclSuppressionControl: () => withPools(
-      [adminUrl],
-      async ([admin]) => prepareFullSchemaAclSuppressionControl(admin!),
-    ),
-    verifyAclSuppressionControl: () => withPools(
-      [scopedOwnerUrl],
-      async ([owner]) => requireFullSchemaAclSuppressionControl(owner!),
-    ),
-    resetAfterAclSuppressionControl: () => withPools(
-      [maintenanceAdminUrl],
-      async ([admin]) => {
+    requireRestoreOwnerRole: () =>
+      withPools([adminUrl], async ([admin]) =>
+        requireExactFullSchemaRestoreOwnerRole(admin!),
+      ),
+    prepareAclSuppressionControl: () =>
+      withPools([adminUrl], async ([admin]) =>
+        prepareFullSchemaAclSuppressionControl(admin!),
+      ),
+    verifyAclSuppressionControl: () =>
+      withPools([scopedOwnerUrl], async ([owner]) =>
+        requireFullSchemaAclSuppressionControl(owner!),
+      ),
+    resetAfterAclSuppressionControl: () =>
+      withPools([maintenanceAdminUrl], async ([admin]) => {
         const database = requireRestoreDatabaseIdentifier(input.database);
         await admin!.query(`drop database "${database}" with (force)`);
         await admin!.query(
           `create database "${database}" owner learncoding_owner`,
         );
-      },
-    ),
+      }),
     roleUrls: scopedRoleUrls,
     async reconcileRoles() {
-      const bootstrapModule = await import(
+      const bootstrapModule = (await import(
         /* @vite-ignore */ bootstrapModulePath
-      ) as BootstrapModule;
+      )) as BootstrapModule;
       const pool = new Pool({
         connectionString: adminUrl,
         application_name: "codestead_full_schema_restore_bootstrap",
@@ -404,32 +414,33 @@ async function createDatabaseContext(input: Readonly<{
       }
     },
     async verifyRoleBoundaries(requireApplicationObjects) {
-      const boundaryModule = await import(
+      const boundaryModule = (await import(
         /* @vite-ignore */ boundaryModulePath
-      ) as BoundaryModule;
+      )) as BoundaryModule;
       await verifyDisposableIntegrationRoleBoundaries({
         database: input.database,
         roleUrls: scopedRoleUrls,
         requireApplicationObjects,
-        verifyDatabaseRoleBoundaries: boundaryModule.verifyDatabaseRoleBoundaries,
+        verifyDatabaseRoleBoundaries:
+          boundaryModule.verifyDatabaseRoleBoundaries,
         createPool: (options) => new Pool(options),
       });
     },
     async verifyMailAuthorityCatalog() {
-      const boundaryModule = await import(
+      const boundaryModule = (await import(
         /* @vite-ignore */ boundaryModulePath
-      ) as BoundaryModule;
-      const verifier = boundaryModule
-        .verifyReviewedMailAuthorityCatalogContracts;
+      )) as BoundaryModule;
+      const verifier =
+        boundaryModule.verifyReviewedMailAuthorityCatalogContracts;
       if (typeof verifier !== "function") {
         if (input.migrationTailIndex >= 64) {
           throw new Error(
             "full-schema restore reviewed catalog verifier is unavailable",
           );
         }
-        const bootstrapModule = await import(
+        const bootstrapModule = (await import(
           /* @vite-ignore */ bootstrapModulePath
-        ) as BootstrapModule;
+        )) as BootstrapModule;
         return withPools([adminUrl], async ([admin]) => {
           await bootstrapModule.verifyDatabaseRoleBootstrapState(
             admin!,
@@ -450,11 +461,11 @@ async function createDatabaseContext(input: Readonly<{
       }
     },
     async verifyPreRepairMailAuthorityCatalog() {
-      const bootstrapModule = await import(
+      const bootstrapModule = (await import(
         /* @vite-ignore */ bootstrapModulePath
-      ) as BootstrapModule;
-      const rawVerifier = bootstrapModule
-        .verifyPostMigrationReviewedContractsBeforeReconciliation;
+      )) as BootstrapModule;
+      const rawVerifier =
+        bootstrapModule.verifyPostMigrationReviewedContractsBeforeReconciliation;
       if (input.migrationTailIndex < 64) {
         return withPools([adminUrl], async ([admin]) => {
           await bootstrapModule.verifyDatabaseRoleBootstrapState(
@@ -464,14 +475,14 @@ async function createDatabaseContext(input: Readonly<{
           );
         });
       }
-      const boundaryModule = await import(
+      const boundaryModule = (await import(
         /* @vite-ignore */ boundaryModulePath
-      ) as BoundaryModule;
-      const aggregateVerifier = boundaryModule
-        .verifyReviewedMailAuthorityCatalogContracts;
+      )) as BoundaryModule;
+      const aggregateVerifier =
+        boundaryModule.verifyReviewedMailAuthorityCatalogContracts;
       if (
-        typeof rawVerifier !== "function"
-        || typeof aggregateVerifier !== "function"
+        typeof rawVerifier !== "function" ||
+        typeof aggregateVerifier !== "function"
       ) {
         throw new Error(
           "full-schema restore pre-repair catalog verifier is unavailable",
@@ -490,64 +501,58 @@ async function createDatabaseContext(input: Readonly<{
       }
     },
     async migrate() {
-      const migrationModule = await import(
+      const migrationModule = (await import(
         /* @vite-ignore */ migrationModulePath
-      ) as MigrationModule;
+      )) as MigrationModule;
       await migrationModule.runProductionMigration({
         connectionString: scopedRoleUrls.migrator,
         migrationsFolder: path.resolve(process.cwd(), "drizzle"),
       });
     },
-    seedRepresentativeMailRows: () => withPools(
-      [
-        scopedOwnerUrl,
-        scopedRoleUrls.worker,
-        scopedRoleUrls.backupReporter,
-      ],
-      async ([owner, worker, backupReporter]) => {
-        await seedRepresentativeMailAuthorityRows({
-          owner: owner!,
-          worker: worker!,
-          backupReporter: backupReporter!,
-        });
-      },
-    ),
-    snapshot: () => withPools(
-      [scopedOwnerUrl],
-      async ([owner]) => collectFullSchemaRestoreSnapshot(owner!),
-    ),
-    runNonNetworkSmoke: () => withPools(
-      [
-        scopedRoleUrls.worker,
-        scopedRoleUrls.ops,
-        scopedOwnerUrl,
-        scopedRoleUrls.backupReporter,
-      ],
-      async ([worker, ops, verifier, backupReporter]) => {
-        const smoke = await runFullSchemaRestoreDatabaseSmoke({
-          worker: worker!,
-          ops: ops!,
-          verifier: verifier!,
-        });
-        await verifyRestoredBackupAuthorityRows({
-          owner: verifier!,
-          worker: worker!,
-          backupReporter: backupReporter!,
-        });
-        return smoke;
-      },
-    ),
+    seedRepresentativeMailRows: () =>
+      withPools(
+        [scopedOwnerUrl, scopedRoleUrls.worker, scopedRoleUrls.backupReporter],
+        async ([owner, worker, backupReporter]) => {
+          await seedRepresentativeMailAuthorityRows({
+            owner: owner!,
+            worker: worker!,
+            backupReporter: backupReporter!,
+          });
+        },
+      ),
+    snapshot: () =>
+      withPools([scopedOwnerUrl], async ([owner]) =>
+        collectFullSchemaRestoreSnapshot(owner!),
+      ),
+    runNonNetworkSmoke: () =>
+      withPools(
+        [
+          scopedRoleUrls.worker,
+          scopedRoleUrls.ops,
+          scopedOwnerUrl,
+          scopedRoleUrls.backupReporter,
+        ],
+        async ([worker, ops, verifier, backupReporter]) => {
+          const smoke = await runFullSchemaRestoreDatabaseSmoke({
+            worker: worker!,
+            ops: ops!,
+            verifier: verifier!,
+            redactionAuthority: input.migrationTailIndex >= 68 ? "v2" : "v1",
+          });
+          await verifyRestoredBackupAuthorityRows({
+            owner: verifier!,
+            worker: worker!,
+            backupReporter: backupReporter!,
+          });
+          return smoke;
+        },
+      ),
   };
 }
 
 function requireRestoreDatabaseIdentifier(value: string): string {
-  if (
-    value !== SOURCE_DATABASE
-    && value !== TARGET_DATABASE
-  ) {
-    throw new Error(
-      "full-schema restore database identifier is invalid",
-    );
+  if (value !== SOURCE_DATABASE && value !== TARGET_DATABASE) {
+    throw new Error("full-schema restore database identifier is invalid");
   }
   return value;
 }
@@ -592,11 +597,13 @@ async function waitForPostgres(connectionString: string): Promise<void> {
   throw new Error("full-schema restore PostgreSQL readiness failed");
 }
 
-function runDockerCapture(input: Readonly<{
-  command: string;
-  args: readonly string[];
-  environment: NodeJS.ProcessEnv;
-}>): string {
+function runDockerCapture(
+  input: Readonly<{
+    command: string;
+    args: readonly string[];
+    environment: NodeJS.ProcessEnv;
+  }>,
+): string {
   const result = spawnSync(input.command, [...input.args], {
     encoding: "utf8",
     env: input.environment,
@@ -610,20 +617,22 @@ function runDockerCapture(input: Readonly<{
   return result.stdout ?? "";
 }
 
-function resolveContainerId(input: Readonly<{
-  role: RestoreRole;
-  name: string;
-  container: SecurePostgresContainer;
-  dockerCommand: string;
-  environment: NodeJS.ProcessEnv;
-  expectedPort: number;
-  expectedDatabase: string;
-}>): string {
+function resolveContainerId(
+  input: Readonly<{
+    role: RestoreRole;
+    name: string;
+    container: SecurePostgresContainer;
+    dockerCommand: string;
+    environment: NodeJS.ProcessEnv;
+    expectedPort: number;
+    expectedDatabase: string;
+  }>,
+): string {
   const identity = input.container.getIdentity();
   if (
-    identity.port !== input.expectedPort
-    || identity.database !== input.expectedDatabase
-    || identity.username !== POSTGRES_USER
+    identity.port !== input.expectedPort ||
+    identity.database !== input.expectedDatabase ||
+    identity.username !== POSTGRES_USER
   ) {
     throw new Error("full-schema restore secure-runner identity mismatch");
   }
@@ -646,8 +655,8 @@ function resolveContainerId(input: Readonly<{
       "container",
       "inspect",
       "--format",
-      `{{.Id}}|{{.Name}}|{{ index .Config.Labels "${PURPOSE_LABEL_KEY}" }}|`
-        + `{{ index .Config.Labels "${RUN_LABEL_KEY}" }}`,
+      `{{.Id}}|{{.Name}}|{{ index .Config.Labels "${PURPOSE_LABEL_KEY}" }}|` +
+        `{{ index .Config.Labels "${RUN_LABEL_KEY}" }}`,
       identity.containerId,
     ],
     environment: input.environment,
@@ -671,27 +680,36 @@ function resolveContainerId(input: Readonly<{
 }
 
 async function expectedMigrationContract() {
-  const journalPath = path.resolve(
-    process.cwd(),
-    "drizzle/meta/_journal.json",
-  );
+  const journalPath = path.resolve(process.cwd(), "drizzle/meta/_journal.json");
   const journalSource = await readFile(journalPath, "utf8");
   const journal = JSON.parse(journalSource) as unknown;
   if (
-    typeof journal !== "object"
-    || journal === null
-    || !("entries" in journal)
-    || !Array.isArray(journal.entries)
+    typeof journal !== "object" ||
+    journal === null ||
+    !("entries" in journal) ||
+    !Array.isArray(journal.entries)
   ) {
     throw new Error("full-schema restore migration journal is invalid");
   }
-  if (journal.entries.some((entry) =>
-    typeof entry !== "object" || entry === null
-    || !("tag" in entry) || typeof entry.tag !== "string")) {
+  if (
+    journal.entries.some(
+      (entry) =>
+        typeof entry !== "object" ||
+        entry === null ||
+        !("tag" in entry) ||
+        typeof entry.tag !== "string",
+    )
+  ) {
     throw new Error("full-schema restore migration journal is invalid");
   }
-  const sqlSources = await Promise.all(journal.entries.map((entry) =>
-    readFile(path.resolve(process.cwd(), "drizzle", `${entry.tag}.sql`), "utf8")));
+  const sqlSources = await Promise.all(
+    journal.entries.map((entry) =>
+      readFile(
+        path.resolve(process.cwd(), "drizzle", `${entry.tag}.sql`),
+        "utf8",
+      ),
+    ),
+  );
   return requireFullSchemaRestoreMigrationContract(
     deriveMigrationLedgerContract(journal, sqlSources),
   );
@@ -702,26 +720,25 @@ async function loadSecureRunner() {
   const environmentModulePath = "./lib/disposable-tool-environment";
   const childControllerModulePath =
     "./lib/disposable-integration-child-controller";
-  const childLaunchModulePath =
-    "./lib/disposable-integration-child-launch";
+  const childLaunchModulePath = "./lib/disposable-integration-child-launch";
   const [
     containerModule,
     environmentModule,
     childControllerModule,
     childLaunchModule,
   ] = await Promise.all([
-    import(/* @vite-ignore */ containerModulePath) as Promise<
-      SecureContainerModule
-    >,
-    import(/* @vite-ignore */ environmentModulePath) as Promise<
-      ToolEnvironmentModule
-    >,
-    import(/* @vite-ignore */ childControllerModulePath) as Promise<
-      ChildControllerModule
-    >,
-    import(/* @vite-ignore */ childLaunchModulePath) as Promise<
-      ChildLaunchModule
-    >,
+    import(
+      /* @vite-ignore */ containerModulePath
+    ) as Promise<SecureContainerModule>,
+    import(
+      /* @vite-ignore */ environmentModulePath
+    ) as Promise<ToolEnvironmentModule>,
+    import(
+      /* @vite-ignore */ childControllerModulePath
+    ) as Promise<ChildControllerModule>,
+    import(
+      /* @vite-ignore */ childLaunchModulePath
+    ) as Promise<ChildLaunchModule>,
   ]);
   return {
     containerModule,
@@ -776,9 +793,10 @@ async function main(): Promise<void> {
     while (targetPort === sourcePort) targetPort = await availablePort();
     const sourceCredentials = credentials();
     const targetCredentials = credentials();
-    const image = postgresMajor === 17
-      ? containerModule.POSTGRES_17_INTEGRATION_IMAGE
-      : containerModule.POSTGRES_18_INTEGRATION_IMAGE;
+    const image =
+      postgresMajor === 17
+        ? containerModule.POSTGRES_17_INTEGRATION_IMAGE
+        : containerModule.POSTGRES_18_INTEGRATION_IMAGE;
     const source = containerModule.createDisposablePostgresContainer({
       dockerCommand,
       containerName: sourceName,
@@ -803,11 +821,10 @@ async function main(): Promise<void> {
       sourceEnvironment: process.env,
     });
     lifecycle.ownContainer("target", target);
-    const toolEnvironment =
-      environmentModule.buildDisposableToolEnvironment(
-        process.env,
-        taskRoot.root,
-      );
+    const toolEnvironment = environmentModule.buildDisposableToolEnvironment(
+      process.env,
+      taskRoot.root,
+    );
     source.start();
     target.start();
 
@@ -875,14 +892,15 @@ async function main(): Promise<void> {
       migration,
       source: sourceContext,
       target: targetContext,
-      dumpSource: () => runFullSchemaArchiveDump({
-        ...archiveCommands.dump,
-        environment: toolEnvironment,
-        maxStdoutBytes: ARCHIVE_MAX_BYTES,
-        timeoutMs: TOOL_TIMEOUT_MS,
-        controller: childController,
-        buildChildLaunch,
-      }),
+      dumpSource: () =>
+        runFullSchemaArchiveDump({
+          ...archiveCommands.dump,
+          environment: toolEnvironment,
+          maxStdoutBytes: ARCHIVE_MAX_BYTES,
+          timeoutMs: TOOL_TIMEOUT_MS,
+          controller: childController,
+          buildChildLaunch,
+        }),
       inspectArchive: async (archive, sourceSnapshot) => {
         const toc = await runFullSchemaArchiveList({
           ...archiveCommands.list,
@@ -897,8 +915,7 @@ async function main(): Promise<void> {
           return deriveFullSchemaArchiveEvidence({
             archive,
             toc,
-            sourceObjectContractSha256:
-              sourceSnapshot.objectContractSha256,
+            sourceObjectContractSha256: sourceSnapshot.objectContractSha256,
           });
         } finally {
           toc.fill(0);
@@ -914,35 +931,38 @@ async function main(): Promise<void> {
           controller: childController,
           buildChildLaunch,
         }),
-      restoreTarget: (archive) => runFullSchemaArchiveRestore({
-        ...archiveCommands.restore,
-        environment: toolEnvironment,
-        archive,
-        maxStdoutBytes: 1024 * 1024,
-        timeoutMs: TOOL_TIMEOUT_MS,
-        controller: childController,
-        buildChildLaunch,
-      }),
+      restoreTarget: (archive) =>
+        runFullSchemaArchiveRestore({
+          ...archiveCommands.restore,
+          environment: toolEnvironment,
+          archive,
+          maxStdoutBytes: 1024 * 1024,
+          timeoutMs: TOOL_TIMEOUT_MS,
+          controller: childController,
+          buildChildLaunch,
+        }),
       disposeArchive: (archive) => {
         archive.fill(0);
       },
     });
-    process.stdout.write(`${JSON.stringify({
-      event: "full_schema_restore.verified",
-      postgresMajor,
-      migrationCount: evidence.migration.entryCount,
-      migrationTail: evidence.migration.tailTag,
-      aclSuppressionControlProaclNull:
-        evidence.aclSuppressionControl.proaclIsNull,
-      aclSuppressionControlPublicExecute:
-        evidence.aclSuppressionControl.publicExecute,
-      archiveAclEntries: evidence.archive.aclEntryCount,
-      archiveRoutineAclEntries: evidence.archive.routineAclEntryCount,
-      mailRows: evidence.restored.mailRowCount,
-      claimedRows: evidence.smoke.claimedRows,
-      redactedRows: evidence.smoke.redactedRows,
-      externalCalls: evidence.smoke.externalCalls,
-    })}\n`);
+    process.stdout.write(
+      `${JSON.stringify({
+        event: "full_schema_restore.verified",
+        postgresMajor,
+        migrationCount: evidence.migration.entryCount,
+        migrationTail: evidence.migration.tailTag,
+        aclSuppressionControlProaclNull:
+          evidence.aclSuppressionControl.proaclIsNull,
+        aclSuppressionControlPublicExecute:
+          evidence.aclSuppressionControl.publicExecute,
+        archiveAclEntries: evidence.archive.aclEntryCount,
+        archiveRoutineAclEntries: evidence.archive.routineAclEntryCount,
+        mailRows: evidence.restored.mailRowCount,
+        claimedRows: evidence.smoke.claimedRows,
+        redactedRows: evidence.smoke.redactedRows,
+        externalCalls: evidence.smoke.externalCalls,
+      })}\n`,
+    );
   } finally {
     try {
       await lifecycle.cleanup();
@@ -953,6 +973,8 @@ async function main(): Promise<void> {
 }
 
 main().catch(() => {
-  process.stderr.write("Full-schema restore gate failed: verification_failed\n");
+  process.stderr.write(
+    "Full-schema restore gate failed: verification_failed\n",
+  );
   process.exitCode = 1;
 });
