@@ -75,6 +75,40 @@ describe("smart reminder policy", () => {
     expect(normalized).not.toMatch(/for update of\s+u\s*,\s*p/u);
   });
 
+  it("binds live race waits to the exact writer and scheduler operation identity", () => {
+    const integrationPath = "../../../../integration/community-battles.integration.test.ts";
+    const integrationSource = readFileSync(
+      new URL(integrationPath, import.meta.url),
+      "utf8",
+    );
+    const helper = integrationSource.slice(
+      integrationSource.indexOf("type ReminderBackendIdentity"),
+      integrationSource.indexOf("beforeEach(async () =>"),
+    );
+    const normalized = helper.replace(/\s+/gu, " ").toLowerCase();
+
+    expect(integrationSource).toContain("captureReminderBackendIdentity(preferenceWriter)");
+    expect(integrationSource).toContain('waitForReminderLockWait(writerIdentity, "user")');
+    expect(integrationSource).toContain('waitForReminderLockWait(writerIdentity, "preference")');
+    expect(integrationSource).toContain("process.env.DATABASE_MIGRATOR_URL");
+    expect(integrationSource).toContain("const reminderLockObserver = new Pool");
+    expect(helper).toContain("reminderLockObserver.query");
+    expect(normalized).toContain(
+      "$1::integer = any(pg_blocking_pids(activity.pid))",
+    );
+    expect(normalized).toContain("activity.datname=current_database()");
+    expect(normalized).toContain("activity.usename=$2");
+    expect(normalized).toContain("activity.application_name=$3");
+    expect(normalized).toContain("activity.state='active'");
+    expect(normalized).toContain("activity.wait_event_type='lock'");
+    expect(normalized).toContain("activity.query ilike $4");
+    expect(normalized).toContain("activity.query ilike $5");
+    expect(normalized).toContain("activity.query ilike $6");
+    expect(normalized).not.toContain(
+      "where waiting.pid <> pg_backend_pid() and not waiting.granted",
+    );
+  });
+
   it.each([
     "../smart-reminders.ts",
     "../smart-preferences.ts",
