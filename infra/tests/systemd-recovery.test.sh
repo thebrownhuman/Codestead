@@ -664,7 +664,7 @@ expect_directive \
   ExecStart \
   '/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle' \
   'Retention must use explicit Compose inputs and the isolated lifecycle invocation'
-if grep -Fq -- '2026-07-14.v4' "$retention_unit"; then
+if grep -Fq -- '2026-07-25.v5' "$retention_unit"; then
   fail 'Retention systemd unit must consume the versioned Compose lifecycle command instead of duplicating its token'
 fi
 
@@ -708,13 +708,13 @@ expect_sequence \
 lifecycle_section="$(sed -n '/^  lifecycle:/,/^  platform-seed:/p' "$compose" | tr -d '\r')"
 mapfile -t lifecycle_command < <(command_items <<<"$lifecycle_section")
 expect_sequence \
-  'Compose lifecycle command must be the exact canonical v4 apply command' \
+  'Compose lifecycle command must be the exact canonical v5 apply command' \
   lifecycle_command \
-  node --import tsx /app/scripts/data-lifecycle.ts retention --apply --confirm 2026-07-14.v4
+  node --import tsx /app/scripts/data-lifecycle.ts retention --apply --confirm 2026-07-25.v5
 expect_contains \
   "$package_json" \
-  '"worker:retention": "tsx scripts/data-lifecycle.ts retention --apply --confirm 2026-07-14.v4"' \
-  'package.json worker:retention must use canonical retention version 2026-07-14.v4'
+  '"worker:retention": "tsx scripts/data-lifecycle.ts retention --apply --confirm 2026-07-25.v5"' \
+  'package.json worker:retention must use canonical retention version 2026-07-25.v5'
 
 for timer in \
   "$repo_root/infra/systemd/learncoding-backup.timer" \

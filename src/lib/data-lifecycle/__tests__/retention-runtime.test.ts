@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => {
     failRollbackTo: false,
     failReleaseSavepoint: false,
     deletedObjectCount: 2,
+    redactionMalformedCount: 0,
+    unclassifiedBlockedCount: 0,
+    unclassifiedRepairCount: 0,
   };
   const objects = [
     { id: "d2000000-0000-4000-8000-000000000001", storage_key: "owner/object-1" },
@@ -59,7 +62,7 @@ const mocks = vi.hoisted(() => {
         rows: [{
           id: "existing-run",
           operation: state.claim === "mismatch" ? "export" : "retention",
-          policy_version: "2026-07-14.v4",
+          policy_version: "2026-07-25.v5",
           dry_run: resume || state.claim === "replay_degraded" ? false : true,
           cutoff_manifest: { rawChat: "2025-07-12T00:00:00.000Z" },
           cutoff_matches: state.claim !== "mismatch"
@@ -100,7 +103,7 @@ const mocks = vi.hoisted(() => {
             },
           } : {
             runId: "existing-run",
-            policyVersion: "2026-07-14.v4",
+            policyVersion: "2026-07-25.v5",
             dryRun: state.claim === "replay_degraded" ? false : true,
             evaluatedAt: "2026-07-12T00:00:00.000Z",
             cutoffs: {},
@@ -130,7 +133,7 @@ const mocks = vi.hoisted(() => {
         rows: [{
           id: "existing-run",
           operation: "retention",
-          policy_version: "2026-07-14.v4",
+          policy_version: "2026-07-25.v5",
           dry_run: false,
           cutoff_manifest: { rawChat: "2025-07-11T00:00:00.000Z" },
           status: "failed",
@@ -167,9 +170,19 @@ const mocks = vi.hoisted(() => {
         rows: [
           { disposition: "eligible", eligible: "2", transitioned: "1" },
           { disposition: "blocked", eligible: "3", transitioned: "0" },
-          { disposition: "malformed", eligible: "1", transitioned: "0" },
+          { disposition: "malformed", eligible: String(state.redactionMalformedCount), transitioned: "0" },
         ],
         rowCount: 3,
+      };
+    }
+    if (sql.includes("unclassified_email_authority_blocked")) {
+      return {
+        rows: [{ count: String(state.unclassifiedBlockedCount) }], rowCount: 1,
+      };
+    }
+    if (sql.includes("unclassified_email_authority_repair_required")) {
+      return {
+        rows: [{ count: String(state.unclassifiedRepairCount) }], rowCount: 1,
       };
     }
     if (sql.startsWith("select count(*)")) {
@@ -227,6 +240,9 @@ describe("retention runtime orchestration", () => {
     mocks.state.failRollbackTo = false;
     mocks.state.failReleaseSavepoint = false;
     mocks.state.deletedObjectCount = 2;
+    mocks.state.redactionMalformedCount = 0;
+    mocks.state.unclassifiedRepairCount = 0;
+    mocks.state.unclassifiedBlockedCount = 0;
     mocks.unlink.mockResolvedValue(undefined);
     mocks.enqueueFileErasures.mockResolvedValue(2);
     mocks.processFileErasures.mockResolvedValue({ total: 2, removed: 1, alreadyAbsent: 1, failed: 0, pending: 0, complete: true });
@@ -272,10 +288,28 @@ describe("retention runtime orchestration", () => {
       hasMore: true,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityMalformed).toMatchObject({
-      eligible: 1,
+      eligible: 0,
       transitioned: 0,
-      retained: 1,
+      retained: 0,
+      hasMore: false,
+    });
+    expect(report.categories.nonExternalConsoleDeliveryQuarantines).toMatchObject({
+      eligible: 2,
+      deleted: 0,
+      retained: 2,
       hasMore: true,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityBlocked).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityRepairRequired).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
     });
     const statements = mocks.query.mock.calls.map(([sql]) => (
       String(sql).replace(/\s+/g, " ").trim().toLowerCase()
@@ -396,14 +430,53 @@ describe("retention runtime orchestration", () => {
       hasMore: true,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityMalformed).toMatchObject({
-      eligible: 1,
+      eligible: 0,
       deleted: 0,
-      retained: 1,
+      retained: 0,
       transitioned: 0,
+      hasMore: false,
+    });
+    expect(report.categories.nonExternalConsoleDeliveryQuarantines).toMatchObject({
+      eligible: 2,
+      deleted: 1,
+      retained: 1,
       hasMore: true,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityBlocked).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityRepairRequired).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
     });
   });
 
+  it("makes malformed or unclassified recipient PII monitorably repair-required", async () => {
+    mocks.state.redactionMalformedCount = 1;
+    mocks.state.unclassifiedRepairCount = 2;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-repair-required",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthorityMalformed: { eligible: 1, retained: 1 },
+        unclassifiedEmailDeliveryAuthorityRepairRequired: { eligible: 2, retained: 2 },
+      },
+    });
+  });
   it("commits unrelated work and returns a terminal degraded report when redaction is retryable", async () => {
     mocks.state.failRedaction = true;
 

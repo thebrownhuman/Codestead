@@ -192,11 +192,13 @@ const mailDispatchRuntimePolicy = read(
 const retentionPolicy = read("src/lib/data-lifecycle/policy.ts");
 const retentionPolicyTest = read("src/lib/data-lifecycle/__tests__/policy.test.ts");
 const retentionRuntimeTest = read("src/lib/data-lifecycle/__tests__/retention-runtime.test.ts");
+const retentionRuntime = read("src/lib/data-lifecycle/retention.ts");
 const deploymentGuide = read("docs/deployment.md");
 const loadTestingRunbook = read("docs/runbooks/load-testing.md");
 const runnerIsolationGuide = read("docs/runbooks/runner-isolation.md");
 const updatesRunbook = read("docs/runbooks/updates-and-rollback.md");
 const lifecycleRunbook = read("docs/runbooks/data-lifecycle.md");
+const privacyInventory = read("docs/privacy-data-inventory.md");
 const draftSyncGuide = read("docs/draft-sync.md");
 const projectRevisionsGuide = read("docs/project-revisions.md");
 const runnerNetworkXml = read("infra/runner-vm/codestead-runner-network.xml");
@@ -1335,7 +1337,7 @@ expect(
     "Service",
     "ExecStart",
     "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle",
-  ) && !retentionUnit.includes("2026-07-14.v4"),
+  ) && !retentionUnit.includes("2026-07-25.v5"),
   "retention systemd unit must consume the versioned Compose lifecycle command through explicit inputs",
 );
 for (const [timerPath, timer] of persistentTimers) {
@@ -1347,47 +1349,84 @@ for (const [timerPath, timer] of persistentTimers) {
 
 const lifecycleService = composeService("lifecycle");
 expect(
-  /data-lifecycle\.ts[\s\S]*?- retention[\s\S]*?- --apply[\s\S]*?- --confirm[\s\S]*?- 2026-07-14\.v4/.test(
+  /data-lifecycle\.ts[\s\S]*?- retention[\s\S]*?- --apply[\s\S]*?- --confirm[\s\S]*?- 2026-07-25\.v5/.test(
     lifecycleService,
   ),
-  "Compose lifecycle command must use canonical retention version 2026-07-14.v4",
+  "Compose lifecycle command must use canonical retention version 2026-07-25.v5",
 );
 expect(
-  /"worker:retention": "tsx scripts\/data-lifecycle\.ts retention --apply --confirm 2026-07-14\.v4"/.test(
+  /"worker:retention": "tsx scripts\/data-lifecycle\.ts retention --apply --confirm 2026-07-25\.v5"/.test(
     packageJson,
   ) &&
-    /RETENTION_POLICY_VERSION = "2026-07-14\.v4"/.test(retentionPolicy) &&
-    /2026-07-14\.v4/.test(retentionPolicyTest) &&
-    /2026-07-14\.v4/.test(retentionRuntimeTest) &&
-    /2026-07-14\.v4/.test(composeValidator),
-  "active retention runtime and validation surfaces must agree on 2026-07-14.v4",
+    /RETENTION_POLICY_VERSION = "2026-07-25\.v5"/.test(retentionPolicy) &&
+    /2026-07-25\.v5/.test(retentionPolicyTest) &&
+    /2026-07-25\.v5/.test(retentionRuntimeTest) &&
+    /2026-07-25\.v5/.test(composeValidator),
+  "active retention runtime and validation surfaces must agree on 2026-07-25.v5",
 );
 expect(
-  /Policy version `2026-07-14\.v4` is authoritative/.test(lifecycleRunbook) &&
-    /Version v4 adds/.test(lifecycleRunbook) &&
+  /Policy version `2026-07-25\.v5` is authoritative/.test(lifecycleRunbook) &&
+    /Version v5 partitions/.test(lifecycleRunbook) &&
+    /Version v4 added/.test(lifecycleRunbook) &&
     /version v3 added/.test(lifecycleRunbook) &&
     /version v2 added/.test(lifecycleRunbook) &&
-    (lifecycleRunbook.match(/retention:2026-07-14\.v4:/g) ?? []).length === 2 &&
+    (lifecycleRunbook.match(/retention:2026-07-25\.v5:/g) ?? []).length === 2 &&
     !/2026-07-12\.v3/.test(lifecycleRunbook),
-  "lifecycle runbook must make v4 authoritative while preserving v2/v3 history",
+  "lifecycle runbook must make v5 authoritative while preserving v2/v3/v4 history",
 );
 expect(
-  /docker compose --env-file \/etc\/learncoding\/compose\.env \\\r?\n\s+-f \/opt\/learncoding\/compose\.yaml --profile operations run --rm --no-deps lifecycle \\\r?\n\s+node --import tsx \/app\/scripts\/data-lifecycle\.ts retention --apply \\\r?\n\s+--confirm 2026-07-14\.v4 \\\r?\n\s+--idempotency-key retention:2026-07-14\.v4:YYYY-MM-DD:apply/.test(
+  /unresolvedEmailDeliveryAuthority:[\s\S]*?redact_pii_retain_correlation_authority/.test(
+    retentionPolicy,
+  ) &&
+    /nonExternalConsoleDeliveryQuarantines:[\s\S]*?action: "delete"/.test(
+      retentionPolicy,
+    ) &&
+    /const nonExternalConsoleEmailEligible[\s\S]*?adapter = 'console'[\s\S]*?provider_message_id is null[\s\S]*?sent_at is null[\s\S]*?claim_version >= 2/.test(
+      retentionRuntime,
+    ) &&
+    /const emailEligible[\s\S]*?adapter = 'gmail'[\s\S]*?provider_message_id is not null[\s\S]*?sent_at is not null[\s\S]*?claim_version >= 2/.test(
+      retentionRuntime,
+    ) &&
+    /unclassified_email_authority_blocked/.test(retentionRuntime) &&
+    /unclassified_email_authority_repair_required/.test(retentionRuntime) &&
+    /EMAIL_OUTBOX_REDACTION_RETRYABLE/.test(retentionRuntime) &&
+    !/public\.classify_email_outbox_retention_redaction/.test(retentionRuntime) &&
+    /Provider-started quarantines fail closed and the report partitions are disjoint\./.test(
+      lifecycleRunbook,
+    ) &&
+    /No broader quarantined-row deletion exists\./.test(lifecycleRunbook) &&
+    /completed_with_errors[\s\S]*requiresRetry=true/.test(lifecycleRunbook) &&
+    /0067_mail_outbox_quarantine_redaction_authority_v2/.test(
+      lifecycleRunbook,
+    ) &&
+    /do not claim v5 privacy closure/.test(lifecycleRunbook) &&
+    /Schema baseline:[^\n]*0064_mail_outbox_dispatch_binding\.sql/.test(privacyInventory) &&
+    /exact released non-external console\/no-receipt successors/.test(
+      privacyInventory,
+    ) &&
+    /policy v5 is not standalone privacy closure/.test(privacyInventory) &&
+    !/Terminal sent\/suppressed\/failed\/quarantined email delivery records/.test(
+      lifecycleRunbook,
+    ),
+  "v5 policy, runtime, runbook, and privacy inventory must agree on exact deletion partitions, retry-required ambiguity, and the 0067 closure dependency",
+);
+expect(
+  /docker compose --env-file \/etc\/learncoding\/compose\.env \\\r?\n\s+-f \/opt\/learncoding\/compose\.yaml --profile operations run --rm --no-deps lifecycle \\\r?\n\s+node --import tsx \/app\/scripts\/data-lifecycle\.ts retention --apply \\\r?\n\s+--confirm 2026-07-25\.v5 \\\r?\n\s+--idempotency-key retention:2026-07-25\.v5:YYYY-MM-DD:apply/.test(
     lifecycleRunbook,
   ) && !/npm run lifecycle -- retention --apply/.test(lifecycleRunbook),
-  "lifecycle runbook apply example must use the explicit Compose lifecycle container and v4 confirmation",
+  "lifecycle runbook apply example must use the explicit Compose lifecycle container and v5 confirmation",
 );
 expect(
-  /Retention policy `2026-07-14\.v4`/.test(draftSyncGuide) &&
-    /Retention policy `2026-07-14\.v4`/.test(projectRevisionsGuide),
-  "draft and project-revision product guides must name active retention v4",
+  /Retention policy `2026-07-25\.v5`/.test(draftSyncGuide) &&
+    /Retention policy `2026-07-25\.v5`/.test(projectRevisionsGuide),
+  "draft and project-revision product guides must name active retention v5",
 );
 expect(
-  /2026-07-14\.v4/.test(deploymentGuide) &&
+  /2026-07-25\.v5/.test(deploymentGuide) &&
     /runbooks\/data-lifecycle\.md/.test(deploymentGuide) &&
-    /2026-07-14\.v4/.test(updatesRunbook) &&
+    /2026-07-25\.v5/.test(updatesRunbook) &&
     /\(data-lifecycle\.md\)/.test(updatesRunbook),
-  "deployment and update guides must link to the canonical v4 lifecycle procedure",
+  "deployment and update guides must link to the canonical v5 lifecycle procedure",
 );
 expect(
   /NODEJS_APT_VERSION=22\.23\.1-1nodesource1/.test(deploymentGuide) &&
