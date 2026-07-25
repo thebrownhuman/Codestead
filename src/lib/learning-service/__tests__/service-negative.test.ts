@@ -18,6 +18,7 @@ const SERIALIZATION_METHODS = new Set([
   "lockSessionStart",
   "lockMeaningfulActivityUser",
   "lockAttemptCreation",
+  "lockAttemptSubmissionUser",
   "lockDsaLanguageSwitch",
 ]);
 

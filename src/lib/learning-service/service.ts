@@ -434,6 +434,7 @@ export class LearningService {
     }
     const now = this.now();
     return this.store.transaction(async (transaction) => {
+      await transaction.lockAttemptSubmissionUser(userId);
       const context = await transaction.getAttempt(userId, attemptId);
       if (!context) throw new LearningServiceError("ATTEMPT_NOT_FOUND", "Learning attempt was not found.", 404);
       const effectiveResponse: SubmissionInput = {

@@ -17,6 +17,7 @@ const SERIALIZATION_METHODS = new Set([
   "lockSessionStart",
   "lockMeaningfulActivityUser",
   "lockAttemptCreation",
+  "lockAttemptSubmissionUser",
   "lockDsaLanguageSwitch",
 ]);
 
@@ -338,6 +339,14 @@ describe("adaptive learning application service", () => {
 
   it("grades authored deterministic work and persists evidence, mastery, review, and attempt atomically", async () => {
     const ownedAttempt = attemptContext({ grading: { kind: "exact", acceptedAnswers: ["42"] } });
+    const callOrder: string[] = [];
+    const lockAttemptSubmissionUser = vi.fn(async () => {
+      callOrder.push("lock-user");
+    });
+    const getAttempt = vi.fn(async () => {
+      callOrder.push("get-attempt");
+      return ownedAttempt;
+    });
     const appendOfficialEvidence = vi.fn(async () => true);
     const writeMastery = vi.fn(async () => true);
     const writeReview = vi.fn(async (input: { dueAt: Date; intervalDays: number; reason: string }) => ({
@@ -354,7 +363,8 @@ describe("adaptive learning application service", () => {
     }));
     const gradeAttempt = vi.fn(async () => true);
     const service = serviceWith({
-      getAttempt: vi.fn(async () => ownedAttempt),
+      lockAttemptSubmissionUser,
+      getAttempt,
       insertResponseIfAbsent: vi.fn(async () => true),
       getMasteryBundle: vi.fn(async () => ({ mastery: null, evidence: [], activeReview: null })),
       appendOfficialEvidence,
@@ -377,6 +387,7 @@ describe("adaptive learning application service", () => {
     expect(writeMastery).toHaveBeenCalledOnce();
     expect(writeReview).toHaveBeenCalledOnce();
     expect(gradeAttempt).toHaveBeenCalledOnce();
+    expect(callOrder.slice(0, 2)).toEqual(["lock-user", "get-attempt"]);
   });
 
   it("uses durable attempt assistance when a forged client submits A0/false after help and solution reveal", async () => {
