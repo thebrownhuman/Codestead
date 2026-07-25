@@ -3,6 +3,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import {
+  REVIEWED_APPLICATION_FUNCTIONS,
+  reviewedApplicationFunctionPrivilegesSql,
+} from "../../scripts/bootstrap-database-roles.mjs";
+
 const root = path.resolve(import.meta.dirname, "../..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
@@ -144,9 +149,17 @@ test("bootstrap and migration share the administration lock without broad reassi
 
 test("bootstrap preserves only the reviewed retention routine for ops", () => {
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
+  const opsRoutineSignatures = REVIEWED_APPLICATION_FUNCTIONS.filter(
+    ({ allowedRoles }) => allowedRoles.includes("learncoding_ops"),
+  ).map(({ signature }) => signature);
 
-  assert.match(bootstrap, /redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\)/u);
-  assert.match(bootstrap, /grant execute on function public\.redact_unresolved_email_outbox_authority\(timestamp with time zone, integer\) to learncoding_ops/iu);
+  assert.deepEqual(opsRoutineSignatures, [
+    "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+  ]);
+  assert.match(
+    reviewedApplicationFunctionPrivilegesSql(),
+    /grant execute on function public\.redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\) to learncoding_ops/iu,
+  );
   assert.match(bootstrap, /has_function_privilege\(0, p\.oid, 'EXECUTE'\)[\s\S]+is distinct from exists/iu);
 });
 
