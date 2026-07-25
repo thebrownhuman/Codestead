@@ -121,6 +121,7 @@ readonly rm_bin=/usr/bin/rm
 readonly sha256sum_bin=/usr/bin/sha256sum
 readonly stat_bin=/usr/bin/stat
 readonly timeout_bin=/usr/bin/timeout
+readonly mail_outbox_retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
 
 if [[ -n "$test_harness_root" ]]; then
   [[ "$test_harness_root" == /* && -d "$test_harness_root" && ! -L "$test_harness_root" ]] || {
@@ -427,18 +428,23 @@ record_release_id="${record_real##*/}"
 override="$record_real/previous-runtime.override.yaml"
 record_status_file="$record_real/status.env"
 record_git_file="$record_real/git-commit.txt"
+record_tree_file="$record_real/git-tree.txt"
 previous_release_file="$record_real/previous-release-id.txt"
 previous_git_file="$record_real/previous-git-commit.txt"
 previous_images_file="$record_real/previous-running-images.tsv"
 transition_file="$record_real/previous-runtime-transition.env"
 mail_outbox_contract_file="$record_real/mail-outbox-contract.env"
-for evidence in "$override" "$record_status_file" "$record_git_file" \
+for evidence in "$override" "$record_status_file" "$record_git_file" "$record_tree_file" \
   "$previous_release_file" "$previous_git_file" "$previous_images_file"; do
   [[ -f "$evidence" && ! -L "$evidence" ]] || fatal "rollback evidence is incomplete"
 done
 [[ "$("$stat_bin" -Lc '%a' -- "$override")" == 600 ]] || fatal "rollback override must have mode 0600"
-for evidence in "$override" "$record_status_file" "$record_git_file" "$previous_release_file" "$previous_git_file" "$previous_images_file"; do assert_trusted_not_writable "$evidence" "rollback evidence"; done
+for evidence in "$override" "$record_status_file" "$record_git_file" "$record_tree_file" \
+  "$previous_release_file" "$previous_git_file" "$previous_images_file"; do
+  assert_trusted_not_writable "$evidence" "rollback evidence"
+done
 
+mail_outbox_contract_schema=absent
 if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; then
   safe_path "$mail_outbox_contract_file" "mail outbox contract evidence"
   [[ -f "$mail_outbox_contract_file" && ! -L "$mail_outbox_contract_file" ]] || {
@@ -756,6 +762,8 @@ load_release_pointer() {
 
 record_git_commit="$(<"$record_git_file")"
 [[ "$record_git_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || fatal "release record Git evidence is invalid"
+record_git_tree="$(<"$record_tree_file")"
+[[ "$record_git_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || fatal "release record Git tree evidence is invalid"
 
 record_status_id=""
 record_result=""
@@ -816,6 +824,72 @@ fi
 
 run_bounded() {
   "$timeout_bin" --signal=TERM --kill-after=10s "${stage_timeout}s" "$@"
+}
+
+git_commit_is_ancestor() {
+  local ancestor="$1" descendant="$2" status
+  if run_local_evidence_git merge-base --is-ancestor \
+    "$ancestor" "$descendant" >/dev/null 2>&1; then
+    return 0
+  else
+    status=$?
+  fi
+  [[ "$status" == 1 ]] || fatal "unable to verify trusted mail outbox migration lineage"
+  return 1
+}
+
+git_commit_is_strictly_before_mail_retention_boundary() {
+  local commit="$1"
+  [[ "$commit" != "$mail_outbox_retention_boundary_commit" ]] || return 1
+  git_commit_is_ancestor "$commit" "$mail_outbox_retention_boundary_commit"
+}
+
+verify_legacy_mail_outbox_contract_lineage() {
+  local commit record_tree_from_git previous_tree_from_git
+  local record_predates_boundary=false previous_predates_boundary=false
+  [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=2 ]] || return 0
+
+  for commit in "$mail_outbox_retention_boundary_commit" "$record_git_commit" "$previous_git_commit"; do
+    run_local_evidence_git cat-file -e "${commit}^{commit}" \
+      >/dev/null 2>&1 || fatal "unable to verify trusted mail outbox migration lineage"
+  done
+  if ! record_tree_from_git="$(
+    run_local_evidence_git rev-parse --verify \
+      "${record_git_commit}^{tree}" 2>/dev/null
+  )"; then
+    fatal "unable to verify trusted mail outbox migration lineage"
+  fi
+  if ! previous_tree_from_git="$(
+    run_local_evidence_git rev-parse --verify \
+      "${previous_git_commit}^{tree}" 2>/dev/null
+  )"; then
+    fatal "unable to verify trusted mail outbox migration lineage"
+  fi
+  [[ "$record_tree_from_git" == "$record_git_tree" \
+    && "$previous_tree_from_git" == "$previous_git_tree" ]] || {
+    fatal "trusted release Git tree evidence does not match repository objects"
+  }
+
+  if git_commit_is_strictly_before_mail_retention_boundary "$record_git_commit"; then
+    record_predates_boundary=true
+  fi
+  if git_commit_is_strictly_before_mail_retention_boundary "$previous_git_commit"; then
+    previous_predates_boundary=true
+  fi
+  if [[ "$record_predates_boundary" == true && "$previous_predates_boundary" == true ]] \
+    && git_commit_is_ancestor "$previous_git_commit" "$record_git_commit"; then
+    return 0
+  fi
+
+  if [[ "$mail_outbox_contract_schema" == absent ]]; then
+    fatal "mail outbox contract evidence is absent; exact trusted release evidence does not prove the rollback is wholly before 0062_mail_outbox_retention_redaction"
+  fi
+  fatal "SCHEMA_VERSION=1 mail outbox contract evidence is insufficient unless exact trusted release evidence proves the rollback is wholly before 0062_mail_outbox_retention_redaction"
+}
+
+run_local_evidence_git() {
+  run_bounded "$env_bin" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 \
+    "$git_bin" -C "$repo_root" "$@"
 }
 
 record_rollback_runtime_state() {
@@ -1009,6 +1083,8 @@ run_bounded "$python_bin" "$release_tree_packager" \
   --runner-runtime-env "$runner_runtime_record" >/dev/null || {
   fatal "release manifest does not describe the exact clean rollback checkout and canonical runtime overlays"
 }
+
+verify_legacy_mail_outbox_contract_lineage
 
 readonly -a compose=(
   "${docker_cli[@]}" compose --project-name learncoding
