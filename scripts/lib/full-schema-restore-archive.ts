@@ -108,28 +108,35 @@ export async function runFullSchemaArchiveChild(input: Readonly<{
   const childSettled = new Promise<void>((resolve) => {
     resolveSettled = resolve;
   });
+  let requestTermination: () => void = () => undefined;
+  const terminationRequested = new Promise<void>((resolve) => {
+    requestTermination = () => {
+      failed = true;
+      resolve();
+    };
+  });
   const settle = () => {
     if (settled) return;
     settled = true;
     resolveSettled();
   };
 
-  child.stdout.on("data", (value: Buffer | string) => {
+  const captureStdout = (value: Buffer | string) => {
     const chunk = Buffer.isBuffer(value)
-      ? Buffer.from(value)
+      ? value
       : Buffer.from(value, "utf8");
     const remaining = Math.max(0, maxStdoutBytes - capturedBytes);
     if (chunk.length > remaining) {
       if (remaining > 0) chunks.push(chunk.subarray(0, remaining));
       chunk.subarray(remaining).fill(0);
       capturedBytes = maxStdoutBytes;
-      failed = true;
-      void tracked.completeAndWait("SIGTERM").catch(() => undefined);
+      requestTermination();
       return;
     }
     chunks.push(chunk);
     capturedBytes += chunk.length;
-  });
+  };
+  child.stdout.on("data", captureStdout);
   child.stderr.resume();
   child.once("error", () => {
     failed = true;
@@ -141,21 +148,15 @@ export async function runFullSchemaArchiveChild(input: Readonly<{
     if (input.stdin === undefined) child.stdin.end();
     else child.stdin.end(input.stdin);
   } catch {
-    failed = true;
-    void tracked.completeAndWait("SIGTERM").catch(() => undefined);
+    requestTermination();
   }
 
   const timer = setTimeout(() => {
-    failed = true;
-    void tracked.completeAndWait("SIGTERM").catch(() => undefined);
+    requestTermination();
   }, timeoutMs);
   try {
-    await childSettled;
-    try {
-      await tracked.completeAndWait("SIGTERM");
-    } catch {
-      failed = true;
-    }
+    await Promise.race([childSettled, terminationRequested]);
+    await tracked.completeAndWait("SIGTERM");
     const stdout = Buffer.concat(chunks, capturedBytes);
     for (const chunk of chunks) chunk.fill(0);
     return {
@@ -165,7 +166,20 @@ export async function runFullSchemaArchiveChild(input: Readonly<{
       stdout,
     };
   } catch {
+    child.stdout.removeListener("data", captureStdout);
     for (const chunk of chunks) chunk.fill(0);
+    for (const stream of [child.stdin, child.stdout, child.stderr]) {
+      try {
+        stream.destroy();
+      } catch {
+        // The fixed archive-child failure below remains authoritative.
+      }
+    }
+    try {
+      child.unref();
+    } catch {
+      // The fixed archive-child failure below remains authoritative.
+    }
     throw new Error("full-schema restore archive child failed");
   } finally {
     clearTimeout(timer);

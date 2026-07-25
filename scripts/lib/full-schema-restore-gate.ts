@@ -51,6 +51,7 @@ type SourceDatabase = Readonly<{
     requireApplicationObjects: boolean,
   ) => Promise<void>;
   migrate: () => Promise<void>;
+  verifyMailAuthorityCatalog: () => Promise<void>;
   seedRepresentativeMailRows: () => Promise<void>;
   snapshot: () => Promise<FullSchemaRestoreSnapshot>;
 }>;
@@ -60,6 +61,7 @@ type TargetDatabase = Readonly<{
   verifyRoleBoundaries: (
     requireApplicationObjects: boolean,
   ) => Promise<void>;
+  verifyMailAuthorityCatalog: () => Promise<void>;
   snapshot: () => Promise<FullSchemaRestoreSnapshot>;
   runNonNetworkSmoke: () => Promise<FullSchemaRestoreSmoke>;
 }>;
@@ -296,8 +298,10 @@ export async function runFullSchemaRestoreVerification<Archive>(
   await source.reconcileRoles();
   await source.verifyRoleBoundaries(false);
   await source.migrate();
+  await source.verifyMailAuthorityCatalog();
   await source.reconcileRoles();
   await source.verifyRoleBoundaries(true);
+  await source.verifyMailAuthorityCatalog();
   await source.seedRepresentativeMailRows();
   const sourceSnapshot = await source.snapshot();
   if (
@@ -319,8 +323,10 @@ export async function runFullSchemaRestoreVerification<Archive>(
   } finally {
     dependencies.disposeArchive(archive);
   }
+  await target.verifyMailAuthorityCatalog();
   await target.reconcileRoles();
   await target.verifyRoleBoundaries(true);
+  await target.verifyMailAuthorityCatalog();
   const restoredSnapshot = await target.snapshot();
   if (
     !validSnapshot(restoredSnapshot)
