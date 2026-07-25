@@ -85,7 +85,13 @@ describe("mail dispatch fatal termination", () => {
     expect(run.stderr()).toBe("");
   });
 
-  it.each(["park", "exit-returns", "exit-throws"])(
+  it.each([
+    "park",
+    "exit-returns",
+    "exit-throws",
+    "shared-array-buffer-throws",
+    "atomics-wait-throws",
+  ])(
     "never resumes cleanup for %s",
     async (mode) => {
       const run = startFixture(mode);
