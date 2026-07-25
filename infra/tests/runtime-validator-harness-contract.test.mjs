@@ -21,6 +21,17 @@ for (const [label, diagnostic] of [
 }
 assert.match(
   harness,
+  /make_fixture "mail-worker-stop-\$label"[\s\S]*?equality\|120s[\s\S]*?shorter\|119s[\s\S]*?longer\|136s/u,
+  "runtime harness must retain equality, shorter, and longer mail-worker platform-stop mutations",
+);
+assert.ok(
+  harness.includes(
+    "fatal: rendered mail-worker platform stop budget must be exactly 135 seconds and strictly exceed the 120-second application stop policy",
+  ),
+  "mail-worker platform-stop mutations must assert the exact fail-closed diagnostic",
+);
+assert.match(
+  harness,
   /fake_runner_client_internal='true'[\s\S]*?FAKE_RUNNER_CLIENT_INTERNAL="\$fake_runner_client_internal"/u,
   "runtime harness must propagate its runner-client internal-network fixture value",
 );
