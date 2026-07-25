@@ -481,6 +481,47 @@ describe("mail dispatch runtime policy", () => {
     });
   });
 
+  it("accepts the greatest default-lease TX1 allowance below process stop", () => {
+    const plan = planMailDispatchRuntime({
+      tx1TimeoutMs: 24_000,
+    });
+
+    expect(plan.providerLease).toEqual({
+      postCommitProviderLeaseMs: 95_000,
+      tx1CommitAckAllowanceMs: 24_000,
+      providerLeaseStampMs: 119_000,
+    });
+    expect(plan.providerLease.providerLeaseStampMs).toBeLessThan(
+      plan.timeouts.stopMs,
+    );
+  });
+
+  it.each([
+    [
+      "default-stop equality",
+      { tx1TimeoutMs: 25_000 },
+    ],
+    [
+      "default-stop overrun",
+      { tx1TimeoutMs: 30_000 },
+    ],
+    [
+      "platform-stop overrun",
+      { tx1TimeoutMs: 60_000 },
+    ],
+    [
+      "coordinated TX1 and stop equality",
+      { tx1TimeoutMs: 20_000, stopTimeoutMs: 115_000 },
+    ],
+  ] as const)(
+    "rejects a provider lease stamp at or after process stop: %s",
+    (_caseName, overrides) => {
+      expect(() => planMailDispatchRuntime(overrides)).toThrow(
+        /provider lease stamp must finish before stop timeout/i,
+      );
+    },
+  );
+
   it("keeps the normal TX2 path inside finite database starvation fallbacks", () => {
     const { liveProviderTx2DatabaseTimeouts, phases, timeouts } =
       planMailDispatchRuntime();
