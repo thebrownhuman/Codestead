@@ -1,7 +1,7 @@
 import { desc, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { db } from "@/lib/db/client";
+import type { Database } from "@/lib/db/client";
 import { auditEvent } from "@/lib/db/schema";
 import { hashAuditEvent, nextAuditTimestamp } from "./audit";
 
@@ -18,7 +18,9 @@ export type AuditEventInput = {
   metadata?: Record<string, unknown>;
 };
 
-export type AuditTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type AuditTransaction = Parameters<
+  Parameters<Database["transaction"]>[0]
+>[0];
 
 /**
  * Appends to the audit hash chain inside an existing database transaction.
@@ -70,5 +72,6 @@ export async function writeAuditEventInTransaction(
 }
 
 export async function writeAuditEvent(input: AuditEventInput) {
+  const { db } = await import("@/lib/db/client");
   return db.transaction((tx) => writeAuditEventInTransaction(tx, input));
 }

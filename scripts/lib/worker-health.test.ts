@@ -12,6 +12,11 @@ import {
 
 const createdDirectories: string[] = [];
 const NOW = new Date("2026-07-19T10:00:00.000Z");
+const UUID_LOG_CANARY = "4e9d9ba3-43f7-4c7d-b2f4-f144bd48ff41";
+const BASE64URL_LOG_CANARY = "ZXlKdmRYUmliM2hKWkNJNklqUXhaVGxrT1dKaE15MDBNMlkzTFRSak4yUXRZakptTkMxbU1UUTBZbVEwT0dabU5ERWlmUQ";
+const RECIPIENT_LOG_CANARY = "health-private@recipient.example";
+const RAW_MIME_LOG_CANARY =
+  "VG86IGhlYWx0aC1wcml2YXRlQHJlY2lwaWVudC5leGFtcGxlDQpDb250ZW50LVR5cGU6IHRleHQvcGxhaW4";
 
 async function testDirectory() {
   const directory = join(tmpdir(), `codestead-worker-health-${crypto.randomUUID()}`);
@@ -142,6 +147,76 @@ describe("production worker health contract", () => {
       maxConsecutiveFailures: 2,
       processExists: () => true,
     })).rejects.toThrow(/terminal failure/i);
+  });
+
+  it("logs only fixed health codes for UUID and base64url-shaped error fields", async () => {
+    const directory = await testDirectory();
+    const messages: string[] = [];
+    const times = [
+      "2026-07-19T09:59:00.000Z",
+      "2026-07-19T09:59:30.000Z",
+      "2026-07-19T09:59:40.000Z",
+    ].map((value) => new Date(value));
+    const reporter = createWorkerHealthReporter({
+      worker: "mail-worker",
+      directory,
+      pid: process.pid,
+      now: () => times.shift()!,
+      log: (message) => messages.push(message),
+    });
+    const failure = Object.assign(new Error(
+      `recipient=${RECIPIENT_LOG_CANARY}; raw=${RAW_MIME_LOG_CANARY}`,
+      { cause: { operationId: UUID_LOG_CANARY } },
+    ), {
+      name: UUID_LOG_CANARY,
+      code: BASE64URL_LOG_CANARY,
+      stack: `claim=${UUID_LOG_CANARY}; provider=${BASE64URL_LOG_CANARY}`,
+    });
+
+    reporter.retry(failure);
+    reporter.terminalFailure(failure);
+
+    const failures = messages
+      .map((message) => JSON.parse(message) as Record<string, unknown>)
+      .filter((entry) => entry.event === "worker.retry" || entry.event === "worker.terminal_failure");
+    expect(failures.map((entry) => entry.code)).toEqual([
+      "WORKER_OPERATION_FAILED",
+      "WORKER_OPERATION_FAILED",
+    ]);
+    const serialized = JSON.stringify(failures);
+    for (const canary of [
+      UUID_LOG_CANARY,
+      BASE64URL_LOG_CANARY,
+      RECIPIENT_LOG_CANARY,
+      RAW_MIME_LOG_CANARY,
+    ]) {
+      expect(serialized).not.toContain(canary);
+    }
+  });
+
+  it("preserves the finite worker-health code contract", async () => {
+    const directory = await testDirectory();
+    const messages: string[] = [];
+    const times = [
+      "2026-07-19T09:59:00.000Z",
+      "2026-07-19T09:59:30.000Z",
+    ].map((value) => new Date(value));
+    const reporter = createWorkerHealthReporter({
+      worker: "scan-worker",
+      directory,
+      pid: process.pid,
+      now: () => times.shift()!,
+      log: (message) => messages.push(message),
+    });
+
+    reporter.retry(Object.assign(new Error("redacted"), {
+      code: "WORKER_CYCLE_FAILED",
+    }));
+
+    expect(messages.map((message) => JSON.parse(message))
+      .find((entry) => entry.event === "worker.retry")).toMatchObject({
+        code: "WORKER_CYCLE_FAILED",
+      });
   });
 
   it.each([

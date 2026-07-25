@@ -71,6 +71,7 @@ import {
 import {
   isMailDispatchRuntimeStartupInspectionForPool,
   type MailDispatchRuntimeStartupInspection,
+  type MailDispatchStartupPool,
 } from "./mail-dispatch-runtime-startup";
 import {
   isMailDispatchHardWatchdogArmed,
@@ -116,7 +117,7 @@ export interface OutboxPgClient {
 
 
 
-export interface OutboxPgPool {
+export interface OutboxPgPool extends MailDispatchStartupPool {
   connect(): Promise<OutboxPgClient>;
 }
 
@@ -823,9 +824,13 @@ type TransactionOptions<T> = Readonly<{
 
 async function transaction<T>(
   pool: OutboxPgPool,
+  startupInspection: unknown,
   work: (client: OutboxPgClient) => Promise<T>,
   options: TransactionOptions<T> = {},
 ) {
+  if (!isMailDispatchRuntimeStartupInspectionForPool(startupInspection, pool)) {
+    throw new Error("Mail dispatch startup inspection is no longer valid.");
+  }
   const client = await pool.connect();
   let began = false;
   let commitAttempted = false;
@@ -1036,6 +1041,7 @@ function observeLiveProviderWithin(
 
 type SettledProviderClientState = {
   readonly pool: OutboxPgPool;
+  readonly startupInspection: MailDispatchRuntimeStartupInspection;
   readonly client: OutboxPgClient;
   readonly transactionId: string;
   readonly scopeLockKey: string;
@@ -1108,6 +1114,10 @@ async function confirmSettledTransactionAndLockReleaseOrTerminate(
   if (state.teardownConfirmed) return;
   let proofLease: MailDispatchDbClientLease<OutboxPgClient>;
   try {
+    if (!isMailDispatchRuntimeStartupInspectionForPool(
+      state.startupInspection,
+      state.pool,
+    )) return retainLiveTx2OrTerminate(watchdog);
     proofLease = await connectMailDispatchDbWithin({
       pool: state.pool,
       deadline,
@@ -2396,7 +2406,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
 
   async findGmailReconciliationFence(input: Readonly<{ operationId: string }>) {
     assertUuid(input.operationId, "Outbox operation ID");
-    return transaction(this.pool, async (client) => {
+    return transaction(this.pool, STORE_RUNTIME_STATES.get(this)?.startupInspection, async (client) => {
       const result = await client.query<ReconciliationRow>(
         `
         select id::text, user_id, operation_id::text, delivery_scope_key,
@@ -2606,7 +2616,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       return { kind: "lost" as const };
     }
 
-    return transaction(this.pool, async (client) => {
+    return transaction(this.pool, STORE_RUNTIME_STATES.get(this)?.startupInspection, async (client) => {
       await advisoryLock(client, scope.lockKey, true);
       const observed = await client.query<CandidateRow>(
         `
@@ -2747,7 +2757,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     assertUuid(input.token, "Outbox claim token");
     assertLeaseMs(input.leaseMs);
 
-    return transaction(this.pool, async (client) => {
+    return transaction(this.pool, STORE_RUNTIME_STATES.get(this)?.startupInspection, async (client) => {
       const candidates = await client.query<CandidateRow>(`
         select id::text, user_id, operation_id::text, delivery_scope_key, claim_version
         from (
@@ -2927,6 +2937,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
 
     const boundary = await transaction(
       this.pool,
+      storeRuntime.startupInspection,
       async (client) => {
         const scope = await lockFenceScope(client, claim, true);
         if (!scope) return { kind: "lost" as const };
@@ -3203,7 +3214,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       throw new Error("Outbox retry timestamp is invalid.");
     }
 
-    return transaction(this.pool, async (client) => {
+    return transaction(this.pool, STORE_RUNTIME_STATES.get(this)?.startupInspection, async (client) => {
       const scope = await lockFenceScope(client, claim, true);
       if (!scope) return { kind: "lost" };
       const result = await client.query<{
@@ -3291,6 +3302,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     });
     let lease: MailDispatchDbClientLease<OutboxPgClient>;
     try {
+      if (!isMailDispatchRuntimeStartupInspectionForPool(
+        runtime.startupInspection,
+        this.pool,
+      )) return retainLiveTx2OrTerminate(armedWatchdog);
       lease = await connectMailDispatchDbWithin({
         pool: this.pool,
         deadline: acquireDeadline,
@@ -3714,6 +3729,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     });
     const settledProviderClient: SettledProviderClientState = {
       pool: this.pool,
+      startupInspection: runtime.startupInspection,
       client: lease.client,
       transactionId,
       scopeLockKey: deliveryScope({
@@ -3902,7 +3918,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         ? null
         : assertBoundedText(exit.code, "Outbox error code", 80);
 
-    return transaction(this.pool, async (client) => {
+    return transaction(this.pool, STORE_RUNTIME_STATES.get(this)?.startupInspection, async (client) => {
       const scope = await lockPermitScope(client, permit, true);
       if (!scope) return { kind: "lost" };
       let result =
@@ -4246,7 +4262,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     ) {
       throw new Error("Outbox sweep limit must be an integer from 1 to 500.");
     }
-    return transaction(this.pool, async (client) => {
+    return transaction(this.pool, STORE_RUNTIME_STATES.get(this)?.startupInspection, async (client) => {
       const candidates = await client.query<SweepCandidateRow>(
         `
         select id::text, user_id, operation_id::text, delivery_scope_key,

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { desc, eq } from "drizzle-orm";
 
-import { db } from "@/lib/db/client";
+import type { Database } from "@/lib/db/client";
 import { consentRecord } from "@/lib/db/schema";
 
 export const ENROLLMENT_DISCLOSURE_VERSION = "enrollment-disclosure-2026-07-12.v2";
@@ -133,7 +133,7 @@ export type CurrentConsent = {
   occurredAt: Date;
 };
 
-type ConsentReadDatabase = Pick<typeof db, "selectDistinctOn">;
+type ConsentReadDatabase = Pick<Database, "selectDistinctOn">;
 export async function getCurrentConsentsFrom(
   database: ConsentReadDatabase,
   userId: string,
@@ -167,6 +167,7 @@ export async function getCurrentConsentsFrom(
 }
 
 export async function getCurrentConsents(userId: string): Promise<Map<string, CurrentConsent>> {
+  const { db } = await import("@/lib/db/client");
   return getCurrentConsentsFrom(db, userId);
 }
 

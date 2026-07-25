@@ -84,11 +84,11 @@ async function harness(steps: Step[]) {
     }],
   }));
   const pool = {
-    options: Object.freeze({
+    options: {
       max: 3,
       connectionTimeoutMillis: 2_000,
       idleTimeoutMillis: 30_000,
-    }),
+    },
     connect,
     query: startupQuery,
   } satisfies OutboxPgPool & Parameters<typeof inspectMailDispatchRuntime>[0];
@@ -97,6 +97,7 @@ async function harness(steps: Step[]) {
     client,
     connect,
     startupQuery,
+    pool,
     store: new PostgresOutboxStore(pool, inspection),
   };
 }
@@ -278,6 +279,18 @@ describe("PostgresOutboxStore", () => {
     delete process.env.GMAIL_CLIENT_SECRET;
     delete process.env.GMAIL_REFRESH_TOKEN;
     vi.unstubAllEnvs();
+  });
+
+  it("rejects exact-pool drift after construction before acquiring TX1", async () => {
+    const input = await harness([]);
+    input.pool.options.max = 4;
+
+    await expect(input.store.claimNext({
+      owner: "worker-1",
+      token: TOKEN,
+      leaseMs: 30_000,
+    })).rejects.toThrow("startup inspection is no longer valid");
+    expect(input.connect).not.toHaveBeenCalled();
   });
 
   it("claims with an account lock and full generation fence", async () => {

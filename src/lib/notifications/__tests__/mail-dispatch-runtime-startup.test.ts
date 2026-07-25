@@ -25,8 +25,10 @@ function pool(input: Readonly<{
 }> = {}) {
   return {
     options: input.options ?? EXACT_POOL_OPTIONS,
-    query: vi.fn(async (text: string) => {
-      void text;
+    query: vi.fn(async (
+      query: string | Readonly<{ text: string; query_timeout?: number }>,
+    ) => {
+      void query;
       return {
         rows: input.rows ?? [{
           max_connections: "87",
@@ -45,7 +47,11 @@ describe("mail dispatch runtime startup inspection", () => {
     const inspection = await inspectMailDispatchRuntime(database);
 
     expect(database.query).toHaveBeenCalledOnce();
-    const sql = String(database.query.mock.calls[0]?.[0]);
+    const query = database.query.mock.calls[0]?.[0];
+    expect(query).toMatchObject({ query_timeout: 6_000 });
+    const sql = typeof query === "string"
+      ? query
+      : query?.text ?? "";
     expect(sql).toContain("current_setting('max_connections')");
     expect(sql).toContain(
       "current_setting('superuser_reserved_connections')",
@@ -125,6 +131,9 @@ describe("mail dispatch runtime startup inspection", () => {
     expect(
       inspection.plan.pool.serverCapacity.sumProcessPoolMaximumConnections,
     ).toBe(83);
+    expect(
+      isMailDispatchRuntimeStartupInspectionForPool(inspection, database),
+    ).toBe(false);
   });
 
   it("rejects an issued inspection and plan for a different pool identity", async () => {
@@ -299,5 +308,21 @@ describe("mail dispatch runtime startup inspection", () => {
     );
     expect(String(observed)).not.toContain("do-not-leak");
     expect(String(observed)).not.toContain("raw-id");
+  });
+
+  it("fails closed when the startup snapshot query never resolves", async () => {
+    vi.useFakeTimers();
+    const database = pool();
+    database.query.mockImplementationOnce(
+      () => new Promise<never>(() => undefined),
+    );
+
+    const pending = inspectMailDispatchRuntime(database);
+    const rejection = expect(pending)
+      .rejects.toThrow("Mail dispatch startup database inspection failed.");
+
+    await vi.advanceTimersByTimeAsync(6_000);
+    await rejection;
+    vi.useRealTimers();
   });
 });
