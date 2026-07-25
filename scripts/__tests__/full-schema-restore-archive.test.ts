@@ -54,7 +54,7 @@ describe("full-schema restore archive result authority", () => {
       .toThrow("full-schema restore dump failed");
   });
 
-  it.each(["timeout", "overflow"] as const)(
+  it.each(["timeout", "overflow", "stdin-error"] as const)(
     "fails boundedly and zeros partial output on %s when reap rejects without close",
     async (failureMode) => {
     const partial = Buffer.from("sensitive-partial-archive");
@@ -81,6 +81,11 @@ describe("full-schema restore archive result authority", () => {
         queueMicrotask(() => {
           stdout.emit("data", partial);
         });
+        if (failureMode === "stdin-error") {
+          queueMicrotask(() => {
+            stdin.emit("error", new Error("synthetic EPIPE"));
+          });
+        }
         return {
           child,
           completeAndWait: async () => {
@@ -94,13 +99,22 @@ describe("full-schema restore archive result authority", () => {
     };
 
     const maxStdoutBytes = failureMode === "overflow" ? 4 : 1024;
-    await expect(runFullSchemaArchiveChild({
+    const uncaught: unknown[] = [];
+    const handleUncaught = (error: unknown) => {
+      uncaught.push(error);
+    };
+    process.on("uncaughtException", handleUncaught);
+
+    const operation = runFullSchemaArchiveChild({
       command: "docker",
       args: ["exec", "source", "pg_dump"],
       environment: { NODE_ENV: "test" },
       maxStdoutBytes,
-      timeoutMs: 5,
+      timeoutMs: failureMode === "stdin-error" ? 5_000 : 5,
       controller,
+      stdin: failureMode === "stdin-error"
+        ? Buffer.from("archive-input")
+        : undefined,
       buildChildLaunch: ({ command, args, environment }) => ({
         command,
         args,
@@ -108,9 +122,19 @@ describe("full-schema restore archive result authority", () => {
         treeSupervised: false,
       }),
       spawnProcess: () => child,
-    })).rejects.toThrow("full-schema restore archive child failed");
+    });
+    try {
+      await expect(operation).rejects.toThrow(
+        "full-schema restore archive child failed",
+      );
+    } finally {
+      process.removeListener("uncaughtException", handleUncaught);
+    }
 
+    expect(() => stdin.emit("error", new Error("late EPIPE")))
+      .not.toThrow();
     expect(completeCalls).toBe(1);
+    expect(uncaught).toEqual([]);
     expect(partial.every((value) => value === 0)).toBe(true);
     expect(stdout.destroyed).toBe(true);
     expect(stderr.destroyed).toBe(true);
