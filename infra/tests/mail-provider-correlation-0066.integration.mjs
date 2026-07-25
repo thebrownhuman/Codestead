@@ -445,6 +445,43 @@ function columnAcl(port, database) {
   );
 }
 
+function constraintExpressionHash(port, database) {
+  return scalar(
+    port,
+    database,
+    `
+      SELECT pg_catalog.encode(
+               pg_catalog.sha256(
+                 pg_catalog.convert_to(
+                   pg_catalog.regexp_replace(
+                     pg_catalog.regexp_replace(
+                       pg_catalog.pg_get_expr(
+                         constraint_data.conbin,
+                         constraint_data.conrelid,
+                         true
+                       ),
+                       '"?email_outbox"?[.]',
+                       '',
+                       'g'
+                     ),
+                     '[[:space:]"]',
+                     '',
+                     'g'
+                   ),
+                   'UTF8'
+                 )
+               ),
+               'hex'
+             )
+        FROM pg_catalog.pg_constraint constraint_data
+       WHERE constraint_data.conrelid =
+         'public.email_outbox'::pg_catalog.regclass
+         AND constraint_data.conname =
+           'email_outbox_provider_correlation_evidence_valid';
+    `,
+  );
+}
+
 function proveCatalog(port, database) {
   const routine = routineContract(port, database);
   assert.match(
@@ -521,6 +558,10 @@ function proveCatalog(port, database) {
       + "provider_evidence_version,provider_evidence_sha256,status,"
       + "claim_version,claim_token,claim_owner,lease_expires_at,sent_at,"
       + "quarantined_at",
+  );
+  assert.equal(
+    constraintExpressionHash(port, database),
+    "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
   );
   return routine;
 }
@@ -1345,6 +1386,10 @@ async function main() {
     );
     process.stdout.write(
       `mail_provider_correlation_0066=routine:${absentContract}\n`,
+    );
+    process.stdout.write(
+      "mail_provider_correlation_0066=constraint_sha256:"
+        + `${constraintExpressionHash(port, "mail0066_absent")}\n`,
     );
     process.stdout.write(
       "mail_provider_correlation_0066=backfill:pass\n",
