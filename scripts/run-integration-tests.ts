@@ -1,6 +1,6 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 
@@ -568,15 +568,118 @@ async function main() {
       },
     });
 
+    const catalogClient = new Client({
+      application_name: "codestead_pg17_0064_catalog_capture",
+      connectionString: ownerDatabaseUrl,
+      connectionTimeoutMillis: 5_000,
+    });
+    try {
+      await catalogClient.connect();
+      const constraint = await catalogClient.query<{
+        expression: string;
+        normalized_expression: string;
+        definition: string;
+        version: string;
+      }>(`
+        SELECT pg_catalog.current_setting('server_version_num') version,
+               pg_catalog.pg_get_expr(
+                 constraint_row.conbin,
+                 constraint_row.conrelid,
+                 true
+               ) expression,
+               pg_catalog.regexp_replace(
+                 pg_catalog.regexp_replace(
+                   pg_catalog.pg_get_expr(
+                     constraint_row.conbin,
+                     constraint_row.conrelid,
+                     true
+                   ),
+                   '"?email_outbox"?[.]', '', 'g'
+                 ),
+                 '[[:space:]"]', '', 'g'
+               ) normalized_expression,
+               pg_catalog.pg_get_constraintdef(
+                 constraint_row.oid,
+                 true
+               ) definition
+          FROM pg_catalog.pg_constraint constraint_row
+         WHERE constraint_row.conrelid =
+                 'public.email_outbox'::pg_catalog.regclass
+           AND constraint_row.conname =
+                 'email_outbox_dispatch_binding_valid'
+      `);
+      const routines = await catalogClient.query<{
+        signature: string;
+        definition: string;
+        body: string;
+        procost: number;
+        prorows: number;
+        prosupport: string;
+        protrftypes: string[] | null;
+        probin: string | null;
+        prosqlbody: string | null;
+      }>(`
+        SELECT p.oid::pg_catalog.regprocedure::text signature,
+               pg_catalog.pg_get_functiondef(p.oid) definition,
+               p.prosrc body,
+               p.procost,
+               p.prorows,
+               p.prosupport::pg_catalog.regproc::text prosupport,
+               (
+                 SELECT pg_catalog.array_agg(
+                          transform_type::pg_catalog.regtype::text
+                          ORDER BY transform_order
+                        )
+                   FROM pg_catalog.unnest(p.protrftypes)
+                        WITH ORDINALITY transform(
+                          transform_type,
+                          transform_order
+                        )
+               ) protrftypes,
+               p.probin,
+               p.prosqlbody::text
+          FROM pg_catalog.pg_proc p
+         WHERE p.oid = ANY(
+           ARRAY[
+             'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)'::pg_catalog.regprocedure,
+             'public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)'::pg_catalog.regprocedure,
+             'public.enforce_email_outbox_payload_immutable()'::pg_catalog.regprocedure,
+             'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
+           ]::oid[]
+         )
+         ORDER BY signature
+      `);
+      await writeFile(
+        "C:/tmp/pg17-0064-catalog.json",
+        `${JSON.stringify({
+          event: "pg17_0064_catalog_probe",
+          constraint: constraint.rows[0],
+          routines: routines.rows.map(({ definition, body, ...routine }) => ({
+            ...routine,
+            definitionSha256:
+              createHash("sha256").update(definition).digest("hex"),
+            bodySha256: createHash("sha256").update(body).digest("hex"),
+          })),
+        })}\n`,
+        { encoding: "utf8", flag: "wx" },
+      );
+    } finally {
+      await catalogClient.end().catch(() => undefined);
+    }
+
+    console.info("[pg17-proof] vitest-start");
     await runNpm([
       "run",
       "test:integration:vitest",
       ...(requestedTests.length > 0 ? ["--", ...requestedTests] : []),
     ], testEnvironment, secrets, childController);
+    console.info("[pg17-proof] vitest-complete");
   });
 }
 
-main().catch(() => {
-  console.error("Disposable integration failed.");
+main().catch((error: unknown) => {
+  console.error(
+    error instanceof Error ? error.message : "Disposable integration failed.",
+  );
   process.exitCode = 1;
 });

@@ -74,7 +74,10 @@ function secureWindowsPath(
   targetPath: string,
   kind: "directory" | "file",
 ): void {
-  const username = userInfo().username;
+  const accountName = userInfo().username;
+  const username = process.env.USERDOMAIN
+    ? `${process.env.USERDOMAIN}\\${accountName}`
+    : accountName;
   const permissions = kind === "directory"
     ? `${username}:(OI)(CI)F`
     : `${username}:(R,W,D)`;

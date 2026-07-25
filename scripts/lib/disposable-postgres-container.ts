@@ -576,7 +576,12 @@ export async function runWithDisposablePostgresContainer<T>(
   try {
     container.start();
     result = await operation();
-  } catch {
+  } catch (error) {
+    process.stderr.write(
+      `[pg17-proof-container] ${
+        error instanceof Error ? error.message : "operation failed"
+      }\n`,
+    );
     primaryFailed = true;
   }
 

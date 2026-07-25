@@ -39,7 +39,10 @@ function secureWindowsDirectory(directoryPath: string): void {
   const systemRoot = process.env.SYSTEMROOT ?? process.env.SystemRoot
     ?? "C:\\Windows";
   const command = path.join(systemRoot, "System32", "icacls.exe");
-  const username = userInfo().username;
+  const accountName = userInfo().username;
+  const username = process.env.USERDOMAIN
+    ? `${process.env.USERDOMAIN}\\${accountName}`
+    : accountName;
   for (const args of [
     [
       directoryPath,

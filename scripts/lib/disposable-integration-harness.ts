@@ -133,7 +133,12 @@ export async function runWithDisposableIntegrationHarness<T>(
         taskHomeDirectory: taskHome.path,
       }),
     );
-  } catch {
+  } catch (error) {
+    process.stderr.write(
+      `[pg17-proof-harness] ${
+        error instanceof Error ? error.message : "operation failed"
+      }\n`,
+    );
     operationFailed = true;
   }
 
