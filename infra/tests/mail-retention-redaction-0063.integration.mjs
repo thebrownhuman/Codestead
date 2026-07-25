@@ -37,24 +37,30 @@ function executable(name) {
     : name;
 }
 
-const platformChildEnvironmentNames = Object.freeze([
+const posixPlatformChildEnvironmentNames = Object.freeze([
+  "PATH",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+]);
+const posixPlatformChildEnvironmentNameSet = new Set(
+  posixPlatformChildEnvironmentNames,
+);
+const windowsPlatformChildEnvironmentNames = Object.freeze([
   "PATH",
   "SystemRoot",
   "WINDIR",
   "ComSpec",
   "PATHEXT",
-  "TEMP",
-  "TMP",
-  "HOME",
-  "USERPROFILE",
-  "HOMEDRIVE",
-  "HOMEPATH",
   "LANG",
   "LC_ALL",
   "LC_CTYPE",
 ]);
-const platformChildEnvironmentByLowercase = new Map(
-  platformChildEnvironmentNames.map((name) => [name.toLowerCase(), name]),
+const windowsPlatformChildEnvironmentByLowercase = new Map(
+  windowsPlatformChildEnvironmentNames.map((name) => [
+    name.toLowerCase(),
+    name,
+  ]),
 );
 const postgresChildEnvironmentNames = Object.freeze([
   "POSTGRES_17_BIN",
@@ -68,12 +74,106 @@ const selectedPostgresChildEnvironment = Object.freeze({
   ...(requestedPg18Bin ? { POSTGRES_18_BIN: requestedPg18Bin } : {}),
 });
 const pgConnectTimeoutSeconds = 5;
+let activeNativeChildFilesystem;
 
-function invalidChildEnvironmentInput() {
-  return new Error("invalid_child_environment_input");
+class NativeHarnessError extends Error {
+  constructor(code) {
+    super(code);
+    this.name = "NativeHarnessError";
+    this.code = code;
+  }
 }
 
-function platformChildEnvironment(sourceEnvironment) {
+function nativeHarnessFailure(code) {
+  return new NativeHarnessError(code);
+}
+
+export function outwardFailureCode(error) {
+  if (error instanceof assert.AssertionError) return "assertion_failed";
+  if (error instanceof NativeHarnessError) return error.code;
+  return "unexpected_failure";
+}
+
+function invalidChildEnvironmentInput() {
+  return nativeHarnessFailure("invalid_child_environment_input");
+}
+
+function platformPathImplementation(platform) {
+  return platform === "win32" ? path.win32 : path.posix;
+}
+
+function nullDeviceFor(platform) {
+  return platform === "win32" ? String.raw`\\.\nul` : "/dev/null";
+}
+
+function canonicalFilesystemPath(value, platform) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw invalidChildEnvironmentInput();
+  }
+  const pathImplementation = platformPathImplementation(platform);
+  if (!pathImplementation.isAbsolute(value)) {
+    throw invalidChildEnvironmentInput();
+  }
+  const resolved = pathImplementation.resolve(value);
+  return platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+function validatedNativeChildFilesystem(filesystem, platform) {
+  if (
+    filesystem === null
+    || typeof filesystem !== "object"
+    || Array.isArray(filesystem)
+  ) {
+    throw invalidChildEnvironmentInput();
+  }
+  canonicalFilesystemPath(filesystem.taskRoot, platform);
+  canonicalFilesystemPath(filesystem.profileDirectory, platform);
+  canonicalFilesystemPath(filesystem.tempDirectory, platform);
+  const pathImplementation = platformPathImplementation(platform);
+  const taskRoot = pathImplementation.resolve(filesystem.taskRoot);
+  const profileDirectory = pathImplementation.resolve(
+    filesystem.profileDirectory,
+  );
+  const tempDirectory = pathImplementation.resolve(filesystem.tempDirectory);
+  if (
+    !/^codestead-mail-retention-0063-pg(?:17|18)-/u.test(
+      pathImplementation.basename(taskRoot),
+    )
+    || canonicalFilesystemPath(profileDirectory, platform)
+      !== canonicalFilesystemPath(
+        pathImplementation.join(taskRoot, "profile"),
+        platform,
+      )
+    || canonicalFilesystemPath(tempDirectory, platform)
+      !== canonicalFilesystemPath(
+        pathImplementation.join(taskRoot, "tmp"),
+        platform,
+      )
+  ) {
+    throw invalidChildEnvironmentInput();
+  }
+  return Object.freeze({ taskRoot, profileDirectory, tempDirectory });
+}
+
+export function createNativeChildFilesystem(taskRoot) {
+  validateTemporaryRoot(taskRoot);
+  const childFilesystem = validatedNativeChildFilesystem({
+    taskRoot,
+    profileDirectory: path.join(taskRoot, "profile"),
+    tempDirectory: path.join(taskRoot, "tmp"),
+  }, process.platform);
+  mkdirSync(childFilesystem.profileDirectory, {
+    mode: 0o700,
+    recursive: false,
+  });
+  mkdirSync(childFilesystem.tempDirectory, {
+    mode: 0o700,
+    recursive: false,
+  });
+  return childFilesystem;
+}
+
+function platformChildEnvironment(sourceEnvironment, platform) {
   if (
     sourceEnvironment === null
     || typeof sourceEnvironment !== "object"
@@ -83,9 +183,11 @@ function platformChildEnvironment(sourceEnvironment) {
   }
   const observed = new Map();
   for (const [name, value] of Object.entries(sourceEnvironment)) {
-    const canonicalName = platformChildEnvironmentByLowercase.get(
-      name.toLowerCase(),
-    );
+    const canonicalName = platform === "win32"
+      ? windowsPlatformChildEnvironmentByLowercase.get(name.toLowerCase())
+      : posixPlatformChildEnvironmentNameSet.has(name)
+        ? name
+        : undefined;
     if (!canonicalName) continue;
     if (
       observed.has(canonicalName)
@@ -96,8 +198,11 @@ function platformChildEnvironment(sourceEnvironment) {
     }
     observed.set(canonicalName, value);
   }
+  const orderedNames = platform === "win32"
+    ? windowsPlatformChildEnvironmentNames
+    : posixPlatformChildEnvironmentNames;
   return Object.fromEntries(
-    platformChildEnvironmentNames
+    orderedNames
       .filter((name) => observed.has(name))
       .map((name) => [name, observed.get(name)]),
   );
@@ -139,15 +244,46 @@ function explicitPostgresChildEnvironment(explicitEnvironment) {
   );
 }
 
+function filesystemChildEnvironment(filesystem, platform) {
+  if (platform !== "win32") {
+    return {
+      HOME: filesystem.profileDirectory,
+      TEMP: filesystem.tempDirectory,
+      TMP: filesystem.tempDirectory,
+    };
+  }
+  const driveMatch = filesystem.profileDirectory.match(/^([a-zA-Z]:)\\/u);
+  if (!driveMatch) throw invalidChildEnvironmentInput();
+  const homeDrive = driveMatch[1].toUpperCase();
+  const homePath = filesystem.profileDirectory.slice(homeDrive.length);
+  if (!homePath.startsWith("\\")) throw invalidChildEnvironmentInput();
+  return {
+    HOME: filesystem.profileDirectory,
+    USERPROFILE: filesystem.profileDirectory,
+    HOMEDRIVE: homeDrive,
+    HOMEPATH: homePath,
+    TEMP: filesystem.tempDirectory,
+    TMP: filesystem.tempDirectory,
+    LOGONSERVER: "CODESTEAD_TEST",
+    SYSTEMDRIVE: homeDrive,
+    USERDOMAIN: "CODESTEAD_TEST",
+    USERNAME: "codestead_test",
+  };
+}
+
 export function buildNativeChildEnvironment(
   sourceEnvironment = process.env,
   explicitEnvironment = selectedPostgresChildEnvironment,
+  filesystem = activeNativeChildFilesystem,
+  platform = process.platform,
 ) {
+  const childFilesystem = validatedNativeChildFilesystem(filesystem, platform);
   return Object.freeze({
-    ...platformChildEnvironment(sourceEnvironment),
+    ...platformChildEnvironment(sourceEnvironment, platform),
+    ...filesystemChildEnvironment(childFilesystem, platform),
     ...explicitPostgresChildEnvironment(explicitEnvironment),
     PGCONNECT_TIMEOUT: String(pgConnectTimeoutSeconds),
-    PSQL_HISTORY: os.devNull,
+    PSQL_HISTORY: nullDeviceFor(platform),
   });
 }
 
@@ -155,6 +291,8 @@ export function buildNativeChildSpawnOptions(
   options = {},
   sourceEnvironment = process.env,
   explicitEnvironment = selectedPostgresChildEnvironment,
+  filesystem = activeNativeChildFilesystem,
+  platform = process.platform,
 ) {
   return {
     cwd: repositoryRoot,
@@ -162,6 +300,8 @@ export function buildNativeChildSpawnOptions(
     env: buildNativeChildEnvironment(
       sourceEnvironment,
       explicitEnvironment,
+      filesystem,
+      platform,
     ),
     input: options.input,
     maxBuffer: 4 * 1024 * 1024,
@@ -179,19 +319,35 @@ function childCommandLabel(label) {
 
 export function childCommandFailure(result, label = "command") {
   const safeLabel = childCommandLabel(label);
-  if (result?.error) return new Error(`${safeLabel}_spawn_failed`);
+  if (result?.error) {
+    return nativeHarnessFailure(`${safeLabel}_spawn_failed`);
+  }
   if (result?.status === 0) return undefined;
   const safeStatus = Number.isSafeInteger(result?.status) && result.status >= 0
     ? String(result.status)
     : "none";
-  return new Error(`${safeLabel}_failed_status_${safeStatus}`);
+  return nativeHarnessFailure(`${safeLabel}_failed_status_${safeStatus}`);
 }
 
-function run(command, args, options = {}) {
+export function runNativeChild(
+  command,
+  args,
+  options = {},
+  sourceEnvironment = process.env,
+  explicitEnvironment = selectedPostgresChildEnvironment,
+  filesystem = activeNativeChildFilesystem,
+  platform = process.platform,
+) {
   const result = spawnSync(
     command,
     args,
-    buildNativeChildSpawnOptions(options),
+    buildNativeChildSpawnOptions(
+      options,
+      sourceEnvironment,
+      explicitEnvironment,
+      filesystem,
+      platform,
+    ),
   );
   if (result.error) {
     throw childCommandFailure(result, options.label);
@@ -200,6 +356,10 @@ function run(command, args, options = {}) {
     throw childCommandFailure(result, options.label);
   }
   return result;
+}
+
+function run(command, args, options = {}) {
+  return runNativeChild(command, args, options);
 }
 
 function connectionArgs(port, database, username = "postgres") {
@@ -241,8 +401,81 @@ function scalar(port, database, sql, username = "postgres") {
   }).stdout.trim();
 }
 
+export function parseChildJsonOutput(output, label = "child_json") {
+  const safeLabel = childCommandLabel(label);
+  if (typeof output !== "string") {
+    throw nativeHarnessFailure(`${safeLabel}_invalid_json`);
+  }
+  try {
+    return JSON.parse(output);
+  } catch {
+    throw nativeHarnessFailure(`${safeLabel}_invalid_json`);
+  }
+}
+
 function jsonScalar(port, database, sql, username = "postgres") {
-  return JSON.parse(scalar(port, database, sql, username));
+  return parseChildJsonOutput(
+    scalar(port, database, sql, username),
+    "psql_json",
+  );
+}
+
+function parsePostgresMajorVersion(output) {
+  if (typeof output !== "string") {
+    throw nativeHarnessFailure("postgres_version_output_invalid");
+  }
+  const versionMatch = output.match(/PostgreSQL\) (\d+)(?:\.|\s|$)/u);
+  if (!versionMatch) {
+    throw nativeHarnessFailure("postgres_version_output_invalid");
+  }
+  const major = Number(versionMatch[1]);
+  if (!Number.isSafeInteger(major)) {
+    throw nativeHarnessFailure("postgres_version_output_invalid");
+  }
+  return major;
+}
+
+function parseSystemIdentifier(output) {
+  if (typeof output !== "string") {
+    throw nativeHarnessFailure("pg_controldata_output_invalid");
+  }
+  const identifierMatch = output.match(
+    /^Database system identifier:\s*(\d+)\s*$/mu,
+  );
+  if (!identifierMatch) {
+    throw nativeHarnessFailure("pg_controldata_output_invalid");
+  }
+  return identifierMatch[1];
+}
+
+function assertExpectedServerIdentity(
+  output,
+  expectedMajor,
+  expectedDataDirectory,
+  expectedPort,
+) {
+  if (typeof output !== "string") {
+    throw nativeHarnessFailure("postgres_server_identity_invalid");
+  }
+  const fields = output.trim().split("|");
+  const matchesExpected = fields.length === 4
+    && new RegExp(`^${expectedMajor}\\.`, "u").test(fields[0])
+    && path.resolve(fields[1]) === path.resolve(expectedDataDirectory)
+    && fields[2] === "127.0.0.1"
+    && fields[3] === String(expectedPort);
+  if (!matchesExpected) {
+    throw nativeHarnessFailure("postgres_server_identity_invalid");
+  }
+}
+
+function assertExpectedSystemIdentifier(output, expectedIdentifier) {
+  if (
+    typeof output !== "string"
+    || !/^\d+$/u.test(output)
+    || output !== expectedIdentifier
+  ) {
+    throw nativeHarnessFailure("postgres_system_identifier_invalid");
+  }
 }
 
 function migrationLedgerThrough0063() {
@@ -1832,18 +2065,6 @@ async function main() {
     !(requestedPg18Bin && requestedPg17Bin),
     "set only one of POSTGRES_17_BIN or POSTGRES_18_BIN",
   );
-  const migration0063 = migrationLedgerThrough0063();
-  const version = run(executable("postgres"), ["--version"], {
-    label: "postgres_version",
-  }).stdout.trim();
-  const versionMatch = version.match(/PostgreSQL\) (\d+)\./u);
-  assert.ok(versionMatch, "unable to parse PostgreSQL major version");
-  assert.equal(
-    Number(versionMatch[1]),
-    expectedPostgresMajor,
-    `expected PostgreSQL ${expectedPostgresMajor}, observed ${version}`,
-  );
-
   const temporaryRoot = mkdtempSync(
     path.join(
       os.tmpdir(),
@@ -1851,16 +2072,28 @@ async function main() {
     ),
   );
   validateTemporaryRoot(temporaryRoot);
-  const frameworkMigrationDirectory =
-    createFrameworkMigrationSlice(temporaryRoot);
   const dataDirectory = path.join(temporaryRoot, "data");
   const logFile = path.join(temporaryRoot, "postgres.log");
   const database = "mail_retention_0063";
-  const port = await unusedLoopbackPort();
   let operationError;
   let startAttempted = false;
 
   try {
+    activeNativeChildFilesystem =
+      createNativeChildFilesystem(temporaryRoot);
+    const migration0063 = migrationLedgerThrough0063();
+    const observedPostgresMajor = parsePostgresMajorVersion(
+      run(executable("postgres"), ["--version"], {
+        label: "postgres_version",
+      }).stdout,
+    );
+    if (observedPostgresMajor !== expectedPostgresMajor) {
+      throw nativeHarnessFailure("postgres_version_mismatch");
+    }
+    const frameworkMigrationDirectory =
+      createFrameworkMigrationSlice(temporaryRoot);
+    const port = await unusedLoopbackPort();
+
     run(
       executable("initdb"),
       [
@@ -1873,19 +2106,13 @@ async function main() {
       ],
       { label: "initdb", timeoutMs: 60_000 },
     );
-    const controlData = run(
-      executable("pg_controldata"),
-      [dataDirectory],
-      { label: "pg_controldata" },
-    ).stdout;
-    const systemIdentifierMatch = controlData.match(
-      /^Database system identifier:\s*(\d+)\s*$/mu,
+    const expectedSystemIdentifier = parseSystemIdentifier(
+      run(
+        executable("pg_controldata"),
+        [dataDirectory],
+        { label: "pg_controldata" },
+      ).stdout,
     );
-    assert.ok(
-      systemIdentifierMatch,
-      "unable to read the initialized cluster system identifier",
-    );
-    const expectedSystemIdentifier = systemIdentifierMatch[1];
     startAttempted = true;
     run(
       executable("pg_ctl"),
@@ -1905,26 +2132,20 @@ async function main() {
       ],
       { label: "pg_start", stdio: "ignore", timeoutMs: 60_000 },
     );
-    const serverIdentity = scalar(
+    assertExpectedServerIdentity(
+      scalar(
+        port,
+        "postgres",
+        `select pg_catalog.current_setting('server_version') || '|' ||
+                pg_catalog.current_setting('data_directory') || '|' ||
+                pg_catalog.current_setting('listen_addresses') || '|' ||
+                pg_catalog.inet_server_port()::text;`,
+      ),
+      expectedPostgresMajor,
+      dataDirectory,
       port,
-      "postgres",
-      `select pg_catalog.current_setting('server_version') || '|' ||
-              pg_catalog.current_setting('data_directory') || '|' ||
-              pg_catalog.current_setting('listen_addresses') || '|' ||
-              pg_catalog.inet_server_port()::text;`,
-    ).split("|");
-    assert.match(
-      serverIdentity[0],
-      new RegExp(`^${expectedPostgresMajor}\\.`, "u"),
     );
-    assert.equal(
-      path.resolve(serverIdentity[1]),
-      path.resolve(dataDirectory),
-      "the harness connected to a foreign PostgreSQL data directory",
-    );
-    assert.equal(serverIdentity[2], "127.0.0.1");
-    assert.equal(serverIdentity[3], String(port));
-    assert.equal(
+    assertExpectedSystemIdentifier(
       scalar(
         port,
         "postgres",
@@ -1932,7 +2153,6 @@ async function main() {
            from pg_catalog.pg_control_system();`,
       ),
       expectedSystemIdentifier,
-      "the harness connected to a foreign PostgreSQL system identifier",
     );
     run(
       executable("createdb"),
@@ -2039,30 +2259,36 @@ async function main() {
     throw error;
   } finally {
     let cleanupFailed = false;
-    if (startAttempted) {
-      let stopped = run(
-        executable("pg_ctl"),
-        ["-D", dataDirectory, "stop", "-m", "fast", "-w"],
-        {
-          allowFailure: true,
-          label: "pg_stop_fast",
-          stdio: "ignore",
-          timeoutMs: 30_000,
-        },
-      );
-      if (stopped.status !== 0) {
-        stopped = run(
+    try {
+      if (startAttempted) {
+        let stopped = run(
           executable("pg_ctl"),
-          ["-D", dataDirectory, "stop", "-m", "immediate", "-w"],
+          ["-D", dataDirectory, "stop", "-m", "fast", "-w"],
           {
             allowFailure: true,
-            label: "pg_stop_immediate",
+            label: "pg_stop_fast",
             stdio: "ignore",
             timeoutMs: 30_000,
           },
         );
+        if (stopped.status !== 0) {
+          stopped = run(
+            executable("pg_ctl"),
+            ["-D", dataDirectory, "stop", "-m", "immediate", "-w"],
+            {
+              allowFailure: true,
+              label: "pg_stop_immediate",
+              stdio: "ignore",
+              timeoutMs: 30_000,
+            },
+          );
+        }
+        cleanupFailed = stopped.status !== 0;
       }
-      cleanupFailed = stopped.status !== 0;
+    } catch {
+      cleanupFailed = true;
+    } finally {
+      activeNativeChildFilesystem = undefined;
     }
     if (!cleanupFailed) {
       try {
@@ -2083,7 +2309,7 @@ async function main() {
           "mail_retention_0063=temporary_postgres_cleanup_failed\n",
         );
       } else {
-        throw new Error("temporary_postgres_cleanup_failed");
+        throw nativeHarnessFailure("temporary_postgres_cleanup_failed");
       }
     }
   }
@@ -2099,11 +2325,7 @@ const invokedDirectly = process.argv[1] !== undefined
     === normalizedInvocationPath(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   main().catch((error) => {
-    const safeCode = error instanceof assert.AssertionError
-      ? "assertion_failed"
-      : error instanceof Error
-        ? error.message.replace(/[^a-zA-Z0-9_:-]/gu, "_").slice(0, 160)
-        : "unknown_failure";
+    const safeCode = outwardFailureCode(error);
     process.stderr.write(`mail_retention_0063=${safeCode}\n`);
     process.exitCode = 1;
   });
