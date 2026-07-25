@@ -70,6 +70,11 @@ async function main() {
   if (process.env.MAIL_ADAPTER !== "gmail") {
     throw new Error("Gmail reconciliation requires MAIL_ADAPTER=gmail.");
   }
+  if (pool.options.max !== 1) {
+    throw new Error(
+      "Gmail reconciliation requires an exact one-connection reserved pool.",
+    );
+  }
   assertGmailReconciliationOAuthScopes(process.env.GMAIL_OAUTH_SCOPES);
   const input = commandInput(process.argv.slice(2));
   const store = new PostgresOutboxStore(pool);

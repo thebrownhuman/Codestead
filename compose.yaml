@@ -349,6 +349,7 @@ services:
     stop_grace_period: 135s
     environment:
       NODE_ENV: production
+      DATABASE_POOL_SIZE: "3"
       DATABASE_URL_FILE: /run/secrets/database_url
       DELETION_TOMBSTONE_KEY_FILE: /run/secrets/deletion_tombstone_key
       LOST_DEVICE_PROOF_KEY_FILE: /run/secrets/lost_device_proof_key

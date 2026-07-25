@@ -8,6 +8,7 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 const MAIL_WORKER_ENVIRONMENT_ALLOWLIST = [
   "APP_URL",
   "DATABASE_URL_FILE",
+  "DATABASE_POOL_SIZE",
   "DELETION_TOMBSTONE_KEY_FILE",
   "GMAIL_CLIENT_ID_FILE",
   "GMAIL_CLIENT_SECRET_FILE",
@@ -140,6 +141,11 @@ function assertContract(input) {
     mailWorker,
     /^      GMAIL_OAUTH_SCOPES: \$\{GMAIL_OAUTH_SCOPES:-\}$/mu,
     "mail-worker must forward only the explicit non-secret scope declaration",
+  );
+  assert.match(
+    mailWorker,
+    /^      DATABASE_POOL_SIZE: "3"$/mu,
+    "mail-worker pool maximum must be exact C+2 for deliberate C=1",
   );
   assert.match(
     mailWorker,

@@ -7,7 +7,11 @@ const METADATA_SCOPE = "https://www.googleapis.com/auth/gmail.metadata";
 
 
 const mocks = vi.hoisted(() => {
-  const pool = { connect: vi.fn(), end: vi.fn(async () => undefined) };
+  const pool = {
+    options: { max: 1 },
+    connect: vi.fn(),
+    end: vi.fn(async () => undefined),
+  };
   const store = { kind: "gmail-reconciliation-store" };
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
@@ -40,6 +44,7 @@ describe("Gmail reconciliation operator command", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    mocks.pool.options.max = 1;
     vi.stubEnv("MAIL_ADAPTER", "gmail");
     vi.stubEnv("GMAIL_RECONCILIATION_ENABLED", "true");
     vi.stubEnv("GMAIL_OAUTH_SCOPES", `${SEND_SCOPE} ${VALID_READ_SCOPE}`);
@@ -86,6 +91,29 @@ describe("Gmail reconciliation operator command", () => {
       if (scopes) expect(logs.join(" ")).not.toContain(scopes);
     },
   );
+
+  it("fails closed before database or Gmail access unless its reserved pool is exactly one", async () => {
+    mocks.pool.options.max = 3;
+    process.argv = [
+      originalArgv[0]!,
+      originalArgv[1]!,
+      "--operation-id",
+      OPERATION_ID,
+    ];
+
+    await import("./reconcile-gmail-outbox");
+    await vi.waitFor(() => expect(mocks.pool.end).toHaveBeenCalledOnce());
+
+    expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
+    expect(mocks.reconcileGmailDelivery).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+    expect(vi.mocked(console.error).mock.calls).toEqual([[
+      JSON.stringify({
+        event: "email.gmail_reconciliation_failed",
+        code: "Error",
+      }),
+    ]]);
+  });
 
   it("requires explicit apply confirmation and logs no operation, correlation, or provider identity", async () => {
     process.argv = [

@@ -29,7 +29,7 @@ test("the production worker image ships the reconciliation operator", () => {
 test("the production runbook invokes the image entrypoint with a one-session gate", () => {
   const runbook = read("docs/runbooks/gmail-outbox-reconciliation.md");
   const command =
-    /docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx \/app\/scripts\/reconcile-gmail-outbox\.ts/u;
+    /docker compose run --rm --no-deps -e DATABASE_POOL_SIZE=1 -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx \/app\/scripts\/reconcile-gmail-outbox\.ts/u;
 
   assert.match(runbook, command);
   assert.doesNotMatch(runbook, /npm run worker:email:reconcile/u);
@@ -39,6 +39,7 @@ test("the production runbook invokes the image entrypoint with a one-session gat
   const workerService =
     compose.match(/\n  mail-worker:\n([\s\S]*?)(?=\n  [a-z0-9-]+:\n)/u)?.[1] ?? "";
   for (const required of [
+    'DATABASE_POOL_SIZE: "3"',
     "DATABASE_URL_FILE: /run/secrets/database_url",
     "DELETION_TOMBSTONE_KEY_FILE: /run/secrets/deletion_tombstone_key",
     'REQUIRE_DELETION_TOMBSTONE_KEY: "1"',
