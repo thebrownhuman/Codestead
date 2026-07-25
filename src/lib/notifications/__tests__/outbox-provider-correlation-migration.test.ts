@@ -195,7 +195,7 @@ describe("0066 email outbox provider correlation evidence", () => {
       'alter function "public"."enforce_email_outbox_provider_correlation_evidence"() owner to learncoding_owner',
     );
     expect(normalized).toContain(
-      "cross join lateral pg_catalog.aclexplode( pg_catalog.coalesce( routine.proacl, pg_catalog.acldefault('f', routine.proowner) ) )",
+      "cross join lateral pg_catalog.aclexplode( coalesce( routine.proacl, pg_catalog.acldefault('f', routine.proowner) ) )",
     );
     expect(normalized).toContain(
       "expanded.grantee <> routine.proowner",
@@ -207,7 +207,7 @@ describe("0066 email outbox provider correlation evidence", () => {
       'grant execute on function "public"."enforce_email_outbox_provider_correlation_evidence"() to learncoding_owner',
     );
     expect(normalized).toContain(
-      "cross join lateral pg_catalog.aclexplode( pg_catalog.coalesce( attribute.attacl, '{}'::pg_catalog.aclitem[] ) )",
+      "cross join lateral pg_catalog.aclexplode( attribute.attacl )",
     );
     expect(normalized).toContain(
       "attribute.attname = any (array[ 'provider_correlation_version', 'provider_evidence_version', 'provider_evidence_sha256' ]::pg_catalog.name[])",
