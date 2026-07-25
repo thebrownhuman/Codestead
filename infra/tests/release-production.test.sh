@@ -11,6 +11,11 @@ ingress_control_script="$repo_root/infra/ops/ingress-control.py"
 guarded_start_script="$repo_root/infra/ops/start-production-stack.sh"
 fixture_generator="$repo_root/infra/tests/fixtures/create-release-tree-fixture.py"
 dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050b9e14c6a5d91b5
+dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
+dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
+dispatch_binding_runtime_capability=exact-adapter-payload-sha256-before-provider-call-v1
+dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
+dispatch_binding_registry_row="0064_mail_outbox_dispatch_binding|$dispatch_binding_boundary_commit|$dispatch_binding_capability_path|100644|$dispatch_binding_capability_blob|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability|DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract"
 compose_unit="$repo_root/infra/systemd/learncoding-compose.service"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -22,6 +27,18 @@ fail() {
 
 [[ -x "$release_script" ]] || fail "release-production.sh is missing or not executable"
 [[ -x "$rollback_script" ]] || fail "rollback-production.sh is missing or not executable"
+for capability_consumer in "$release_script" "$rollback_script"; do
+  grep -Fq "$dispatch_binding_registry_row" "$capability_consumer" || {
+    fail "release and rollback must share the exact pinned capability registry row"
+  }
+  grep -Fq "readonly mail_outbox_dispatch_binding_capability_blob=$dispatch_binding_capability_blob" \
+    "$capability_consumer" || fail "capability consumer does not pin the reviewed Git blob"
+done
+grep -Fq "load_dispatch_binding_capability \"\$release_commit\" \"\$release_tree\" \"source image\"" \
+  "$release_script" || fail "release capability is not bound to the verified source tree"
+grep -Fq "load_dispatch_binding_capability \"\$previous_git_commit\" \"\$previous_git_tree\" \"previous image\"" \
+  "$release_script" || fail "release capability is not bound to previous Git tree evidence"
+
 
 grep -Fq 'same NUC' "$deployment_guide" || fail "deployment guide does not place the isolated runner guest on the same NUC"
 grep -Fq 'browser-durable outbox' "$deployment_guide" || {
@@ -108,8 +125,22 @@ else
   source_git_dir="$(wslpath -u "$source_git_dir_windows")"
 fi
 [[ -d "$source_git_dir" ]] || fail "source Git directory is unavailable"
+dispatch_binding_source_commit="$(
+  "${source_git[@]}" rev-parse --verify HEAD | tr -d '\r'
+)"
+dispatch_binding_source_tree="$(
+  "${source_git[@]}" rev-parse --verify "${dispatch_binding_source_commit}^{tree}" \
+    | tr -d '\r'
+)"
+dispatch_binding_source_capability_entry="$(
+  "${source_git[@]}" ls-tree "$dispatch_binding_source_tree" -- \
+    "$dispatch_binding_capability_path" | tr -d '\r'
+)"
+[[ "$dispatch_binding_source_capability_entry" == "100644 blob $dispatch_binding_capability_blob"$'\t'"$dispatch_binding_capability_path" ]] || {
+  fail "the real source tree does not contain the exact reviewed 0064 capability blob"
+}
 dispatch_binding_source_ref="$(
-  "${source_git[@]}" for-each-ref --contains "$dispatch_binding_boundary_commit" \
+  "${source_git[@]}" for-each-ref --contains "$dispatch_binding_source_commit" \
     --format='%(refname)' refs/heads refs/remotes | tr -d '\r' | sed -n '1p'
 )"
 [[ "$dispatch_binding_source_ref" == refs/* ]] || {
@@ -133,6 +164,29 @@ git -c protocol.ext.allow=always -C "$work/repo" fetch --quiet --filter=blob:non
   "$dispatch_binding_source_ref" 2>/dev/null || {
   fail "unable to import the complete 0064 boundary fixture"
 }
+git -C "$work/repo" cat-file -e \
+  "${dispatch_binding_source_commit}^{commit}" 2>/dev/null || {
+  fail "the real post-0064 source commit was not imported"
+}
+dispatch_binding_real_repo="$work/dispatch-binding-real-repo"
+mkdir -p "$dispatch_binding_real_repo"
+git -C "$dispatch_binding_real_repo" init -q
+git -C "$dispatch_binding_real_repo" remote add origin \
+  https://github.com/example/codestead
+git -C "$dispatch_binding_real_repo" remote add source \
+  "ext::git -c safe.directory=$source_git_dir upload-pack $source_git_dir"
+git -c protocol.ext.allow=always -C "$dispatch_binding_real_repo" fetch --quiet \
+  --depth="$dispatch_binding_source_depth" source \
+  "$dispatch_binding_source_ref" 2>/dev/null || {
+  fail "unable to import the real post-0064 source tree without a blob filter"
+}
+git -C "$dispatch_binding_real_repo" checkout --quiet --detach \
+  "$dispatch_binding_source_commit" || {
+  fail "unable to check out the real post-0064 source tree"
+}
+git -C "$dispatch_binding_real_repo" config core.filemode true
+git -C "$dispatch_binding_real_repo" remote remove source
+
 
 release_fixture_generation=0
 regenerate_release_fixture() {
@@ -677,6 +731,7 @@ run_release() {
   local run_repo_root="${RUN_REPO_ROOT:-$work/repo}"
   local case_dir="$work/case-$scenario-${RUN_COUNTER:-0}"
   local record_root="${RUN_RECORD_ROOT:-$case_dir/records}"
+  local run_stage_timeout="${RUN_STAGE_TIMEOUT:-5}"
   RUN_COUNTER="$(( ${RUN_COUNTER:-0} + 1 ))"
   export RUN_COUNTER
   mkdir -p "$case_dir" "$record_root"
@@ -735,7 +790,7 @@ run_release() {
     EXPECTED_COMPOSE_ENV="$work/compose.env" \
     EXPECTED_DATA_ROOT="$work/data" \
     EXPECTED_COMPOSE_FILE="$run_repo_root/compose.yaml" \
-    bash "$release_script" --test-harness-root "$work" --lock-timeout 1 --stage-timeout 5 --startup-wait 3 "$@" \
+    bash "$release_script" --test-harness-root "$work" --lock-timeout 1 --stage-timeout "$run_stage_timeout" --startup-wait 3 "$@" \
       >"$case_dir/stdout" 2>"$case_dir/stderr"
   RELEASE_STATUS=$?
   set -e
@@ -803,6 +858,57 @@ assert_immutable_flags() {
 }
 
 dispatch_binding_preflight_head="$(git -C "$work/repo" rev-parse --verify HEAD)"
+dispatch_binding_real_package="$work/dispatch-binding-real-package"
+/usr/bin/python3 "$fixture_generator" \
+  --source "$dispatch_binding_real_repo" \
+  --packager "$dispatch_binding_real_repo/infra/ops/package-release-tree.py" \
+  --destination "$dispatch_binding_real_package" \
+  >/dev/null || fail "unable to package the real post-0064 source tree"
+dispatch_binding_packaged_capability="$dispatch_binding_real_package/$dispatch_binding_capability_path"
+[[ -f "$dispatch_binding_packaged_capability" && ! -L "$dispatch_binding_packaged_capability" \
+  && "$(stat -c '%a' "$dispatch_binding_packaged_capability")" == 644 ]] || {
+  fail "the real release package did not preserve the capability as mode 100644"
+}
+[[ "$(git -C "$dispatch_binding_real_repo" hash-object -- \
+  "$dispatch_binding_packaged_capability")" == "$dispatch_binding_capability_blob" ]] || {
+  fail "the real release package did not preserve the reviewed capability blob"
+}
+/usr/bin/python3 "$dispatch_binding_real_repo/infra/ops/package-release-tree.py" \
+  --verify-source-manifest \
+  --source "$dispatch_binding_real_repo" \
+  --expected-commit "$dispatch_binding_source_commit" \
+  --expected-tree "$dispatch_binding_source_tree" \
+  --application-image-json "$dispatch_binding_real_repo/dist/application-images/application-images.json" \
+  --application-image-env "$dispatch_binding_real_repo/dist/application-images/application-images.env" \
+  --runner-runtime-json "$dispatch_binding_real_repo/services/runner/dist/runtime-images.json" \
+  --runner-runtime-env "$dispatch_binding_real_repo/services/runner/dist/runtime-images.env" \
+  >/dev/null || {
+  fail "the real post-0064 source manifest does not verify before release"
+}
+
+dispatch_binding_real_records="$work/dispatch-binding-real-records"
+RUN_REPO_ROOT="$dispatch_binding_real_repo" RUN_RECORD_ROOT="$dispatch_binding_real_records" RUN_STAGE_TIMEOUT=30 \
+  run_release dispatch-binding-real-post-0064
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
+[[ "$RELEASE_STATUS" == 0 ]] || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "release rejected the real post-0064 source tree"
+}
+dispatch_binding_real_record="$(only_record_dir "$dispatch_binding_real_records")"
+[[ "$(cat "$dispatch_binding_real_record/git-commit.txt")" == "$dispatch_binding_source_commit" \
+  && "$(cat "$dispatch_binding_real_record/git-tree.txt")" == "$dispatch_binding_source_tree" ]] || {
+  fail "the successful post-0064 release was not bound to its exact commit and tree"
+}
+grep -Fxq "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability" \
+  "$dispatch_binding_real_record/mail-outbox-contract.env" || {
+  fail "the successful post-0064 release omitted its exact runtime capability"
+}
+grep -Fxq "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" \
+  "$dispatch_binding_real_record/mail-outbox-contract.env" || {
+  fail "the successful post-0064 release omitted its exact privilege capability"
+}
+echo "ok - release packages and accepts a real exact post-0064 capability tree"
+
 dispatch_binding_preflight_tree="$(git -C "$work/repo" rev-parse --verify 'HEAD^{tree}')"
 dispatch_binding_missing_capability_commit="$(
   printf '%s\n' 'fixture 0064 source without a checked-in runtime capability' \
