@@ -262,18 +262,15 @@ async function createInviteBattle() {
 
 async function waitForReminderLockWait() {
   for (let attempt = 0; attempt < 500; attempt += 1) {
-    const blocked = await pool.query<{ blocked: boolean }>(`
-      select exists (
-        select 1 from pg_stat_activity activity
-         where activity.pid <> pg_backend_pid()
-           and activity.wait_event_type = 'Lock'
-           and cardinality(pg_blocking_pids(activity.pid)) > 0
-           -- pg_stat_activity truncates long statements before the JOIN name
-           -- on installations using the default track_activity_query_size.
-           and activity.query ilike '%last_meaningful_activity_at%'
-      ) as blocked
+    const blocked = await pool.query<{ pid: number }>(`
+      select waiting.pid
+        from pg_locks waiting
+       where waiting.pid <> pg_backend_pid() and not waiting.granted
+       group by waiting.pid
+       order by waiting.pid
+       limit 1
     `);
-    if (blocked.rows[0]?.blocked) return;
+    if (blocked.rows[0]) return blocked.rows[0].pid;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   const diagnostics = await pool.query<{
@@ -829,6 +826,62 @@ describe("smart-reminder consent and concurrency", () => {
       [LEARNER_A],
     );
     expect(reminders.rows.map((row) => row.kind).sort()).toEqual(["challenge", "daily_study", "goal"]);
+  });
+
+  it("locks the user first and revalidates a racing preference opt-out", async () => {
+    const runAt = new Date("2026-07-14T14:00:00.000Z");
+    await pool.query(
+      `insert into notification_preference
+        (user_id,daily_study_enabled,learning_email_enabled,timezone,daily_study_minute,
+         quiet_hours_enabled,row_version)
+       values ($1,true,true,'Asia/Kolkata',1080,false,1)`,
+      [LEARNER_A],
+    );
+
+    const preferenceWriter = await pool.connect();
+    let scheduled: ReturnType<typeof scheduleSmartReminders> | null = null;
+    let blockedRelations: string[] = [];
+    let result: Awaited<ReturnType<typeof scheduleSmartReminders>> | null = null;
+    try {
+      await preferenceWriter.query("begin");
+      await preferenceWriter.query(
+        `select 1 from "user" where id=$1 for update`,
+        [LEARNER_A],
+      );
+      scheduled = scheduleSmartReminders(runAt);
+      const blockedPid = await waitForReminderLockWait();
+      const relationLocks = await pool.query<{ relation_name: string }>(
+        `select relation.relname as relation_name
+           from pg_locks held
+           join pg_class relation on relation.oid = held.relation
+          where held.pid = $1 and held.locktype = 'relation' and held.granted
+          order by relation.relname`,
+        [blockedPid],
+      );
+      blockedRelations = relationLocks.rows.map((row) => row.relation_name);
+      await preferenceWriter.query(
+        `update notification_preference
+            set daily_study_enabled=false,learning_email_enabled=false,
+                row_version=row_version+1
+          where user_id=$1`,
+        [LEARNER_A],
+      );
+      await preferenceWriter.query("commit");
+      result = await scheduled;
+    } finally {
+      await preferenceWriter.query("rollback").catch(() => undefined);
+      preferenceWriter.release();
+      if (scheduled) await scheduled.catch(() => undefined);
+    }
+
+    expect(blockedRelations).toContain("user");
+    expect(blockedRelations).not.toContain("notification_preference");
+    expect(result).toEqual({ candidates: 1, dispatched: 0, failed: 0 });
+    expect((await pool.query("select 1 from smart_reminder_dispatch")).rowCount).toBe(0);
+    expect((await pool.query(
+      "select 1 from notification where type like 'smart_reminder.%'",
+    )).rowCount).toBe(0);
+    expect((await pool.query("select 1 from email_outbox where user_id=$1", [LEARNER_A])).rowCount).toBe(0);
   });
 
   it("sends nothing without opt-in and lets a racing opt-out or email-off change win", async () => {
