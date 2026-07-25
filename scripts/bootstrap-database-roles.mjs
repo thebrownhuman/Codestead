@@ -334,6 +334,16 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     triggers: REVIEWED_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
   }),
+  reviewedCatalogPhase({
+    index: 65,
+    createdAt: "1784936400000",
+    migrationFile: "0065_backup_status_mail_authority.sql",
+    migrationSha256:
+      "3aedb0c34774e187fd853808e78584c64b8828d346a94fc7b817cfc6235fb6a7",
+    routines: REVIEWED_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+  }),
 ]);
 
 function sqlLiteral(value) {

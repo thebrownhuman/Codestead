@@ -3,7 +3,9 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { postgresCiProjectionThrough0064 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
+import {
+  postgresCiProjectionThrough0065,
+} from "./backup-status-mail-authority-0065-ci-contract.mjs";
 import {
   assertPostgresCiProjectionContract,
   projectPostgresCiProjectionContract,
@@ -782,7 +784,7 @@ function runtimeEvidenceUploadProjection(artifactName) {
 }
 
 const canonicalPostgresProjection = projectPostgresCiProjectionContract(
-  postgresCiProjectionThrough0064,
+  postgresCiProjectionThrough0065,
 );
 const reviewedJobContracts = new Map([
   [
@@ -1093,7 +1095,7 @@ function requireCanonicalPostgresCiCrossGuard(blocks) {
     ).join("\n");
     assertPostgresCiProjectionContract(
       projection,
-      postgresCiProjectionThrough0064,
+      postgresCiProjectionThrough0065,
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
