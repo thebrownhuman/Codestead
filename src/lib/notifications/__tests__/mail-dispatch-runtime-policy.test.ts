@@ -3,8 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 import {
   MAIL_DISPATCH_RUNTIME_DEFAULTS,
   MAIL_DISPATCH_RUNTIME_LIMITS,
+  isMailDispatchRuntimePlan,
   planMailDispatchRuntime,
 } from "../mail-dispatch-runtime-policy";
+
+function deepFreezeForTest<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const nestedValue of Object.values(value)) {
+      deepFreezeForTest(nestedValue);
+    }
+    Object.freeze(value);
+  }
+
+  return value;
+}
 
 describe("mail dispatch runtime policy", () => {
   it("plans the conservative single-send defaults as a deeply frozen value", () => {
@@ -154,6 +166,82 @@ describe("mail dispatch runtime policy", () => {
     });
     expect(Object.isFrozen(MAIL_DISPATCH_RUNTIME_DEFAULTS)).toBe(true);
     expect(Object.isFrozen(MAIL_DISPATCH_RUNTIME_LIMITS)).toBe(true);
+  });
+
+  it("brands exact planner-returned identities, including older instances", () => {
+    const olderPlan = planMailDispatchRuntime();
+    const newerPlan = planMailDispatchRuntime({
+      concurrency: 2,
+    });
+
+    expect(olderPlan).not.toBe(newerPlan);
+    expect(isMailDispatchRuntimePlan(olderPlan)).toBe(true);
+    expect(isMailDispatchRuntimePlan(newerPlan)).toBe(true);
+  });
+
+  it("rejects plain, cloned, and deeply frozen equivalent plan values", () => {
+    const issuedPlan = planMailDispatchRuntime();
+    const shallowClone = {
+      ...issuedPlan,
+    };
+    const deeplyFrozenClone = deepFreezeForTest(structuredClone(issuedPlan));
+
+    expect(isMailDispatchRuntimePlan(null)).toBe(false);
+    expect(isMailDispatchRuntimePlan(undefined)).toBe(false);
+    expect(isMailDispatchRuntimePlan({})).toBe(false);
+    expect(isMailDispatchRuntimePlan(shallowClone)).toBe(false);
+    expect(deeplyFrozenClone).toEqual(issuedPlan);
+    expect(Object.isFrozen(deeplyFrozenClone)).toBe(true);
+    expect(Object.isFrozen(deeplyFrozenClone.timeouts)).toBe(true);
+    expect(isMailDispatchRuntimePlan(deeplyFrozenClone)).toBe(false);
+  });
+
+  it("rejects inherited and stale old-contract plan lookalikes", () => {
+    const issuedPlan = planMailDispatchRuntime();
+    const inheritedLookalike = Object.freeze(Object.create(issuedPlan));
+    const stalePlan = structuredClone(issuedPlan);
+
+    Reflect.deleteProperty(stalePlan.timeouts, "watchdogArmAckMs");
+    Reflect.deleteProperty(stalePlan.timeouts, "watchdogDisarmDeliveryMs");
+    Reflect.set(stalePlan.timeouts, "hardWatchdogMs", 50_000);
+    Reflect.set(
+      stalePlan.liveProviderTx2DatabaseTimeouts.postProviderInitiation,
+      "transactionTimeoutMs",
+      55_000,
+    );
+    Reflect.set(
+      stalePlan.providerLease,
+      "postCommitProviderLeaseMs",
+      90_000,
+    );
+    Reflect.set(
+      stalePlan.providerLease,
+      "providerLeaseStampMs",
+      105_000,
+    );
+    deepFreezeForTest(stalePlan);
+
+    expect(Object.getPrototypeOf(inheritedLookalike)).toBe(issuedPlan);
+    expect(Object.isFrozen(inheritedLookalike)).toBe(true);
+    expect(isMailDispatchRuntimePlan(inheritedLookalike)).toBe(false);
+    expect(Object.isFrozen(stalePlan)).toBe(true);
+    expect(isMailDispatchRuntimePlan(stalePlan)).toBe(false);
+  });
+
+  it("cannot mutate or wrap a branded plan into another accepted identity", () => {
+    const issuedPlan = planMailDispatchRuntime();
+    const mutatedClone = structuredClone(issuedPlan);
+    const proxyLookalike = new Proxy(issuedPlan, {});
+
+    expect(
+      Reflect.set(issuedPlan.timeouts, "oauthDeadlineMs", 1),
+    ).toBe(false);
+    expect(isMailDispatchRuntimePlan(issuedPlan)).toBe(true);
+
+    Reflect.set(mutatedClone.timeouts, "oauthDeadlineMs", 1);
+    deepFreezeForTest(mutatedClone);
+    expect(isMailDispatchRuntimePlan(mutatedClone)).toBe(false);
+    expect(isMailDispatchRuntimePlan(proxyLookalike)).toBe(false);
   });
 
   it("gives concurrency two a four-connection pool and exactly two send slots", () => {

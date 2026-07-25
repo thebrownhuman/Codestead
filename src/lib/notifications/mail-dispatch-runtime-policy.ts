@@ -268,6 +268,49 @@ export type MailDispatchRuntimePlan = Readonly<{
   }>;
 }>;
 
+const issuedMailDispatchRuntimePlans = new WeakSet<object>();
+
+function isDeeplyFrozenDataGraph(
+  value: unknown,
+  visited: WeakSet<object>,
+): boolean {
+  if (value === null || typeof value !== "object") {
+    return true;
+  }
+  if (visited.has(value)) {
+    return true;
+  }
+  if (!Object.isFrozen(value)) {
+    return false;
+  }
+
+  visited.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      descriptor === undefined
+      || !("value" in descriptor)
+      || !isDeeplyFrozenDataGraph(descriptor.value, visited)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Verifies exact planner provenance, not structural equivalence.
+ */
+export function isMailDispatchRuntimePlan(
+  value: unknown,
+): value is MailDispatchRuntimePlan {
+  return value !== null
+    && typeof value === "object"
+    && issuedMailDispatchRuntimePlans.has(value)
+    && isDeeplyFrozenDataGraph(value, new WeakSet<object>());
+}
+
 const OVERRIDE_KEYS = Object.freeze([
   "concurrency",
   "poolMaximumConnections",
@@ -975,7 +1018,7 @@ export function planMailDispatchRuntime(
     platformStopMs,
   });
 
-  return Object.freeze({
+  const plan = Object.freeze({
     phases,
     liveProviderTx2PhaseOrder,
     dispatch,
@@ -984,4 +1027,7 @@ export function planMailDispatchRuntime(
     providerLease,
     timeouts,
   });
+
+  issuedMailDispatchRuntimePlans.add(plan);
+  return plan;
 }
