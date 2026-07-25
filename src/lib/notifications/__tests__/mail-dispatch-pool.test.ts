@@ -22,6 +22,9 @@ function poolForPlan(plan = planMailDispatchRuntime()) {
       max: plan.pool.maximumConnections,
       connectionTimeoutMillis: plan.timeouts.poolAcquireMs,
       idleTimeoutMillis: plan.timeouts.poolIdleMs,
+      lock_timeout: plan.timeouts.lockMs,
+      statement_timeout: plan.timeouts.statementMs,
+      query_timeout: plan.timeouts.queryMs,
     },
     query: vi.fn(async () => ({
       rows: [STARTUP_ROW],
@@ -73,7 +76,16 @@ describe("dedicated mail dispatch database resources", () => {
         createdPool,
       ),
     ).toBe(true);
-    expect(Reflect.set(createdPool.options, "max", 99)).toBe(false);
+    for (const option of [
+      "max",
+      "connectionTimeoutMillis",
+      "idleTimeoutMillis",
+      "lock_timeout",
+      "statement_timeout",
+      "query_timeout",
+    ] as const) {
+      expect(Reflect.set(createdPool.options, option, 99)).toBe(false);
+    }
     expect(createDatabase).toHaveBeenCalledWith(createdPool);
     expect(Object.isFrozen(resources)).toBe(true);
   });

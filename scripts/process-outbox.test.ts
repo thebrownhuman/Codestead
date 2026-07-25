@@ -290,7 +290,12 @@ describe("mail worker production composition", () => {
       "current_setting('reserved_connections', true)",
     );
     expect(startupSql).toContain("current_setting('server_version_num')");
-    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
+    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(
+      mocks.pool,
+      expect.objectContaining({
+        postgresMajor: 17,
+      }),
+    );
     expect(mocks.poolQuery.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.PostgresOutboxStore.mock.invocationCallOrder[0]!,
     );
@@ -300,7 +305,12 @@ describe("mail worker production composition", () => {
       claimOwner: string;
       newClaimToken(): string;
       shouldStop(): boolean;
-      provider: { adapter: string };
+      adapter?: string;
+      authorize?: unknown;
+      discardReceipt?: unknown;
+      discardGuard?: unknown;
+      watchdog?: unknown;
+      provider?: { adapter: string };
       policy: Record<string, number>;
     };
     expect(dependencies.store).toBe(mocks.store);
@@ -309,16 +319,19 @@ describe("mail worker production composition", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
     expect(dependencies.shouldStop()).toBe(false);
-    expect(dependencies.provider.adapter).toBe("console");
+    expect(dependencies.adapter).toBe("console");
+    expect(dependencies.authorize).toBeTypeOf("function");
+    expect(dependencies.discardReceipt).toBeTypeOf("function");
+    expect(dependencies.discardGuard).toBeTypeOf("function");
+    expect(dependencies.watchdog).toBeDefined();
+    expect(dependencies.provider).toBeUndefined();
     expect(dependencies.policy).toEqual({
       batchSize: 10,
       materializeLeaseMs: 60_000,
-      providerLeaseMs: 110_000,
       maxMaterializeAttempts: 8,
       maxRetryDelayMs: 6 * 60 * 60_000,
       terminalPersistenceAttempts: 3,
     });
-    expect(dependencies.policy.providerLeaseMs - 15_000).toBe(95_000);
     expect(mocks.db.select).not.toHaveBeenCalled();
     expect(mocks.db.update).not.toHaveBeenCalled();
   });
