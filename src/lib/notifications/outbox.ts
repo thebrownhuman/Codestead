@@ -3,12 +3,23 @@ import { createHash, randomUUID } from "node:crypto";
 import { db } from "@/lib/db/client";
 import { emailOutbox } from "@/lib/db/schema";
 
-export type EmailTemplate =
-  import("./template-authority-policy").EmailTemplate;
+import {
+  isProductionEmailTemplate,
+  isSpecializedAccountEmailTemplate,
+  TEMPLATE_AUTHORITY_POLICIES,
+  type EmailTemplate as AuthorityEmailTemplate,
+  type SpecializedAccountEmailTemplate,
+} from "./template-authority-policy";
+
+export type EmailTemplate = AuthorityEmailTemplate;
 
 export type AccountEmailTemplate = Exclude<
   EmailTemplate,
-  "account-deleted" | "invitation" | "access-rejected" | "access-request-admin"
+  | "account-deleted"
+  | "invitation"
+  | "access-rejected"
+  | "access-request-admin"
+  | SpecializedAccountEmailTemplate
 >;
 
 type EmailInput = {
@@ -48,14 +59,6 @@ type SystemEmailInput = EmailInput & {
 
 export type EnqueueEmailInput = AccountEmailInput | SystemEmailInput;
 
-const SYSTEM_EMAIL_TEMPLATES: Readonly<
-  Record<SystemEmailProducer, readonly EmailTemplate[]>
-> = {
-  "access-request-admin": ["access-request-admin"],
-  "access-request-approved": ["invitation"],
-  "access-request-rejected": ["access-rejected"],
-};
-
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -66,11 +69,31 @@ function queuedEmail(input: EnqueueEmailInput) {
   const operationId = randomUUID();
   const systemInput = "sourceId" in input ? input : undefined;
   const systemProducer = systemInput?.systemProducer;
-  if (
-    systemProducer &&
-    !SYSTEM_EMAIL_TEMPLATES[systemProducer]?.includes(input.template)
-  ) {
+  if (!isProductionEmailTemplate(input.template)) {
+    throw new Error("Email template is not registered for production delivery.");
+  }
+  const policy = TEMPLATE_AUTHORITY_POLICIES[input.template];
+  if (systemProducer && (
+    policy.scope !== "system"
+    || policy.producer !== systemProducer
+  )) {
     throw new Error("System email producer/template pair is not allowed.");
+  }
+  if (!systemProducer && policy.scope !== "account") {
+    throw new Error("Account email template is not allowed for the generic producer.");
+  }
+  if (
+    !systemProducer
+    && isSpecializedAccountEmailTemplate(input.template)
+  ) {
+    throw new Error(
+      `Email template ${input.template} requires its specialized producer.`,
+    );
+  }
+  if (policy.versions.length !== 1) {
+    throw new Error(
+      `Email template ${input.template} must resolve to exactly one production version.`,
+    );
   }
   if (systemInput && !UUID.test(systemInput.sourceId)) {
     throw new Error("System email source ID must be a UUID.");
@@ -91,7 +114,7 @@ function queuedEmail(input: EnqueueEmailInput) {
     deliveryScopeKey: systemProducer ? `s:${operationId}` : `a:${input.userId}`,
     toEmail: recipient,
     template: input.template,
-    templateVersion: "1",
+    templateVersion: policy.versions[0],
     variables: systemProducer
       ? {
           ...input.variables,

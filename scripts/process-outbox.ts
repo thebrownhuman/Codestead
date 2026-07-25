@@ -9,7 +9,9 @@ import {
   sendEmail,
   type OutgoingEmail,
 } from "../src/lib/notifications/mailer";
-import type { EmailTemplate } from "../src/lib/notifications/outbox";
+import {
+  resolveEmailTemplateAuthorityPolicy,
+} from "../src/lib/notifications/template-authority-policy";
 import {
   PostgresOutboxStore,
   type EmailOutboxPayload,
@@ -169,7 +171,14 @@ async function processBatch(
   return processOutboxBatch<EmailOutboxPayload, OutgoingEmail>({
     store,
     materialize: async (claim) => {
-      const template = claim.payload.template as EmailTemplate;
+      const resolvedPolicy = resolveEmailTemplateAuthorityPolicy(
+        claim.payload.template,
+        claim.payload.templateVersion,
+      );
+      if (!resolvedPolicy) {
+        return { kind: "suppressed", code: "TEMPLATE_POLICY_INVALID" };
+      }
+      const template = resolvedPolicy.template;
       const variables = await materializeDeliveryVariables({
         template,
         variables: { ...claim.payload.variables },
