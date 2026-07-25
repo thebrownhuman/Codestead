@@ -76,7 +76,7 @@ assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 65);
 assert.deepEqual(REVIEWED_MIGRATION_LEDGER.at(-1), expected0065LedgerEntry);
 assert.equal(
   REVIEWED_MIGRATION_LEDGER_SHA256,
-  "76f3a90cef0a543f030843be244d65b5ac9a2f31ce31783a7246886e569c004c",
+  "147f39bc290beb15ef98240f056e0fb12ab8c7824ab74a94f0bc54f7245f882d",
 );
 assert.deepEqual(verifyReviewedMigrationRepository(), {
   entryCount: 66,
@@ -295,7 +295,7 @@ assert.deepEqual(
       19,
       null,
       [],
-      ["id", "email", "role", "banned", "status"],
+      ["id", "email", "role", "status", "banned"],
     ],
     [
       'public."user"',
