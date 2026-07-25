@@ -1207,7 +1207,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 57,
+    positiveChecks: 59,
     negativeChecks: 29,
   });
   for (const role of [
@@ -1254,7 +1254,7 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 57,
+    positiveChecks: 59,
     negativeChecks: 29,
   });
   const routineQueries = verified.clients
@@ -1398,7 +1398,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   });
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 57,
+    positiveChecks: 59,
     negativeChecks: 29,
   });
 
@@ -1582,7 +1582,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 57,
+    positiveChecks: 59,
     negativeChecks: 29,
   });
   for (const role of [
