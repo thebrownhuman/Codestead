@@ -92,6 +92,7 @@ COPY --chown=node:node content ./content
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
 COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
 COPY --chown=node:node scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs
+COPY --chown=node:node scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs
 COPY --chown=node:node scripts/backup/create-credential-probe.ts ./scripts/backup/create-credential-probe.ts
 COPY --chown=node:node scripts/backup/enqueue-backup-status.mjs ./scripts/backup/enqueue-backup-status.mjs
 COPY --chown=node:node scripts/lib/runner-power-rehearsal-cli.ts ./scripts/lib/runner-power-rehearsal-cli.ts

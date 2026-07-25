@@ -4,6 +4,7 @@ umask 077
 
 readonly FULL_BACKUP_MAGIC="LEARNCODING_BACKUP_V1"
 readonly EMERGENCY_BACKUP_MAGIC="LEARNCODING_EMERGENCY_V1"
+readonly BACKUP_STATUS_REPORT_DEADLINE_SECONDS="45"
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2
@@ -314,6 +315,17 @@ compose_cmd() {
   "${args[@]}" "$@"
 }
 
+run_compose_managed() {
+  local allotted_seconds="${1:-}"
+  shift || return 125
+  local args=(docker compose)
+  if [[ -f "$COMPOSE_ENV_FILE" ]]; then
+    args+=(--env-file "$COMPOSE_ENV_FILE")
+  fi
+  args+=(-f "$REPO_ROOT/compose.yaml")
+  run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"
+}
+
 emit_alert() {
   local severity="$1" event="$2" message="$3"
   log "alert severity=$severity event=$event message=$message"
@@ -336,7 +348,8 @@ enqueue_backup_status() {
     return 1
   }
 
-  if ! result="$(compose_cmd --profile operations run --rm --no-deps -T \
+  if ! result="$(run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS" \
+    --profile operations run --rm --no-deps -T \
     --pull never \
     --env "BACKUP_REPORT_OUTCOME=$outcome" \
     --env "BACKUP_REPORT_RUN_KEY=$seed" \
