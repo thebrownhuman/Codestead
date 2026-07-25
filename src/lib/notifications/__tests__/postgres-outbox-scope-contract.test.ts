@@ -41,14 +41,17 @@ describe("PostgresOutboxStore delivery authority", () => {
     expect(normalized).toContain("{deletionnotice,payloadsha256}");
     expect(normalized).toContain("deletion_notice_capability_invalid");
     expect(normalized).toContain("account_not_active_at_provider_boundary");
-    expect(normalized).toContain("outbox.template_version = '1'");
+    expect(source).toContain("PRODUCTION_EMAIL_TEMPLATES");
+    expect(source).toContain("TEMPLATE_AUTHORITY_POLICIES");
+    expect(source).toContain('if (policy.scope !== "account") return []');
+    expect(source).toContain("policy.versions.map");
+    expect(source).toContain("trustedSqlLiteral(state.role)");
+    expect(source).toContain("trustedSqlLiteral(state.status)");
+    expect(source).toContain("state.emailVerified");
     expect(normalized).toContain("account_user.email");
-    expect(normalized).toContain("account_user.status = 'pending'");
-    expect(normalized).toContain("${outbox}.template = 'verify-email'");
-    expect(normalized).toContain("${outbox}.template = 'reset-password'");
-    expect(normalized).toContain("account_user.status in ('pending', 'active')");
-    expect(normalized).toContain("${outbox}.template in ( 'lost-device-proof'");
-    expect(normalized).toContain("'weekly-summary', 'backup-status'");
+    expect(normalized).toContain("account_user.email_verified");
+    expect(normalized).toContain("account_user.banned");
+    expect(normalized).not.toContain("'exam-result'");
     expect(normalized).not.toContain("outbox.template not in");
   });
 
@@ -67,6 +70,7 @@ describe("PostgresOutboxStore delivery authority", () => {
     expect(normalized).toContain("admin_recipient.status = 'active'");
     expect(normalized).toContain("admin_recipient.role = 'admin'");
     expect(normalized).toContain("admin_recipient.banned = false");
+    expect(normalized).toContain("admin_recipient.email_verified = true");
     expect(normalized).toContain("source_request.status = 'pending'");
     expect(normalized).toContain("source_request.adult_confirmed_at is not null");
     expect(normalized).toContain("source_request.decided_by is null");

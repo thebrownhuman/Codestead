@@ -21,6 +21,10 @@ import {
   deletionNoticeSecret,
   type AccountDeletionNoticeVariables,
 } from "./deletion-notice-capability";
+import {
+  PRODUCTION_EMAIL_TEMPLATES,
+  TEMPLATE_AUTHORITY_POLICIES,
+} from "./template-authority-policy";
 
 export type EmailOutboxPayload = Readonly<{
   userId: string | null;
@@ -195,36 +199,43 @@ function deletionNoticeCapabilityEvidence(
   return { valid: true, ...binding };
 }
 
+function trustedSqlLiteral(value: string) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+const ACCOUNT_TEMPLATE_AUTHORITY_SQL = PRODUCTION_EMAIL_TEMPLATES.flatMap(
+  (template) => {
+    const policy = TEMPLATE_AUTHORITY_POLICIES[template];
+    if (policy.scope !== "account") return [];
+    const banned = policy.account.banned
+      .map((value) => `account_user.banned = ${value}`)
+      .join(" or ");
+    const states = policy.account.states
+      .map((state) => `(
+        account_user.role = ${trustedSqlLiteral(state.role)}
+        and account_user.status = ${trustedSqlLiteral(state.status)}
+        and account_user.email_verified = ${state.emailVerified}
+      )`)
+      .join(" or ");
+    return policy.versions.map((version) => `(
+      outbox.template = ${trustedSqlLiteral(template)}
+      and outbox.template_version = ${trustedSqlLiteral(version)}
+      and (${banned})
+      and (${states})
+    )`);
+  },
+).join(" or ");
+
 function accountMailAuthorityPredicate(outbox: string, lockClause = "") {
+  const authority = ACCOUNT_TEMPLATE_AUTHORITY_SQL.replaceAll(
+    /\boutbox\./g,
+    `${outbox}.`,
+  );
   return `exists (
     select 1 from public."user" account_user
     where account_user.id = ${outbox}.user_id
       and lower(btrim(account_user.email)) = ${outbox}.to_email
-      and (
-        (
-          ${outbox}.template = 'verify-email'
-          and account_user.status = 'pending'
-        )
-        or (
-          ${outbox}.template = 'reset-password'
-          and account_user.status in ('pending', 'active')
-        )
-        or (
-          ${outbox}.template in (
-            'lost-device-proof', 'learning-request-updated', 'new-device',
-            'session-revocation-requested', 'session-revocation-updated',
-            'session-revoked', 'credential-changed', 'credential-revealed',
-            'fallback-grant-changed', 'learning-plan-changed',
-            'storage-quota-changed', 'inactivity-reminder',
-            'inactivity-reminder-followup', 'inactivity-admin-notice',
-            'daily-study-reminder', 'revision-reminder', 'goal-reminder',
-            'challenge-reminder', 'exam-result', 'mastery-awarded',
-            'appeal-updated', 'assessment-corrected', 'weekly-summary',
-            'backup-status'
-          )
-          and account_user.status = 'active'
-        )
-      )
+      and (${authority})
     ${lockClause}
   )`;
 }
@@ -275,6 +286,7 @@ function systemMailAuthorityPredicate(
             and admin_recipient.status = 'active'
             and admin_recipient.role = 'admin'
             and admin_recipient.banned = false
+            and admin_recipient.email_verified = true
           ${adminAuthorityLock}
         )
       )
@@ -346,6 +358,7 @@ function deletionNoticeCapabilityPredicate(
       where tombstone.id::text = ${outbox}.variables ->> 'tombstoneId'
         and tombstone.user_id = ${outbox}.user_id
         and tombstone.primary_deletion_completed_at is not null
+        and deleted_user.role = 'learner'
         and deleted_user.status = 'deleted'
         and lifecycle.target_user_id = ${outbox}.user_id
         and lifecycle.operation = 'account_deletion'
@@ -641,9 +654,7 @@ async function providerBoundaryDecision(
     select case
       when ${systemAuthoritySql} then 'allowed'
       when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
-      when outbox.template <> 'account-deleted'
-        and outbox.template_version = '1'
-        and ${accountAuthoritySql}
+      when outbox.template <> 'account-deleted' and ${accountAuthoritySql}
         then 'allowed'
       when ${DECISION_DELETION_CAPABILITY_SQL} then 'allowed'
       when outbox.template = 'account-deleted'
@@ -1214,11 +1225,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               or (
                 $7::text = 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
                 and outbox.user_id is not null
-                and outbox.template <> 'account-deleted'
-                and not (
-                  outbox.template_version = '1'
-                  and ${ACCOUNT_MAIL_AUTHORITY_SQL}
-                )
+                and outbox.template <> 'account-deleted' and not (${ACCOUNT_MAIL_AUTHORITY_SQL})
               )
               or (
                 $7::text = 'SYSTEM_EMAIL_AUTHORITY_INVALID'
@@ -1277,9 +1284,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and (
             ${BOUNDARY_SYSTEM_MAIL_AUTHORITY_SQL}
             or (
-              outbox.template <> 'account-deleted'
-              and outbox.template_version = '1'
-              and ${ACCOUNT_MAIL_AUTHORITY_SQL}
+              outbox.template <> 'account-deleted' and ${ACCOUNT_MAIL_AUTHORITY_SQL}
             )
             or ${BOUNDARY_DELETION_CAPABILITY_SQL}
           )

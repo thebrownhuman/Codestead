@@ -306,6 +306,40 @@ describe("mail worker production composition", () => {
       code: "GMAIL_OAUTH_FAILED",
     });
   });
+  it("suppresses an unknown stored template before materialization or provider work", async () => {
+    let materializeResult: unknown;
+    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
+      materialize(claim: unknown): Promise<unknown>;
+    }) => {
+      materializeResult = await dependencies.materialize({
+        phase: "pre-provider",
+        id: "11111111-1111-4111-8111-111111111111",
+        operationId: "22222222-2222-4222-8222-222222222222",
+        claimToken: "33333333-3333-4333-8333-333333333333",
+        claimOwner: "worker",
+        claimVersion: 1,
+        attempt: 1,
+        leaseExpiresAt: new Date("2026-07-23T00:01:00.000Z"),
+        payload: {
+          userId: "learner-1",
+          to: "learner@example.test",
+          template: "exam-result",
+          templateVersion: "1",
+          variables: {},
+        },
+      });
+      return { claimed: 1, swept: 0, outcomes: [] };
+    });
+
+    await loadWorkerOnce();
+
+    expect(materializeResult).toEqual({
+      kind: "suppressed",
+      code: "TEMPLATE_POLICY_INVALID",
+    });
+    expect(mocks.materializeDeliveryVariables).not.toHaveBeenCalled();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
   it("suppresses a row before provider delivery when delivery proof cannot be materialized", async () => {
     mocks.materializeDeliveryVariables.mockResolvedValue(null);
     let materializeResult: unknown;
