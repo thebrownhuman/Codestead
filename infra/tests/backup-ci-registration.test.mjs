@@ -3,8 +3,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertMailDeliveryScope0059PostgresProjection } from "./mail-delivery-scope-0059-ci-contract.mjs";
-import { assertMailRetentionRedaction0063PostgresProjection } from "./mail-retention-redaction-0063-ci-contract.mjs";
+import {
+  assertPostgresCiProjectionContract,
+  canonicalPostgresCiProjectionContract,
+} from "./mail-retention-redaction-0063-ci-contract.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const workflowPath =
@@ -1029,33 +1031,19 @@ function requireReviewedExecutableContracts(blocks) {
   }
 }
 
-function requireMailDeliveryScope0059CrossGuard() {
+function requireCanonicalPostgresCiCrossGuard() {
   const projection = reviewedJobContracts.get("postgres-integration");
   if (projection === undefined) {
-    fail("mail-delivery-scope-0059 cross-guard projection is missing");
+    fail("canonical PostgreSQL CI cross-guard projection is missing");
   }
   try {
-    assertMailDeliveryScope0059PostgresProjection(
+    assertPostgresCiProjectionContract(
       projection.join("\n"),
+      canonicalPostgresCiProjectionContract,
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    fail(`mail-delivery-scope-0059 cross-guard changed: ${detail}`);
-  }
-}
-
-function requireMailRetentionRedaction0063CrossGuard() {
-  const projection = reviewedJobContracts.get("postgres-integration");
-  if (projection === undefined) {
-    fail("mail-retention-redaction-0063 cross-guard projection is missing");
-  }
-  try {
-    assertMailRetentionRedaction0063PostgresProjection(
-      projection.join("\n"),
-    );
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    fail(`mail-retention-redaction-0063 cross-guard changed: ${detail}`);
+    fail(`canonical PostgreSQL CI cross-guard changed: ${detail}`);
   }
 }
 
@@ -1110,8 +1098,7 @@ function validateWorkflow(document) {
     fail("workflow job set is outside the reviewed executable allowlist");
   }
   requireReviewedExecutableContracts(blocks);
-  requireMailDeliveryScope0059CrossGuard();
-  requireMailRetentionRedaction0063CrossGuard();
+  requireCanonicalPostgresCiCrossGuard();
   const backup = requireJob(blocks, "backup-safety");
 
   if (
