@@ -122,7 +122,7 @@ describe("full-schema restore catalog and row snapshot", () => {
         ],
       }),
       objectContractSha256: stableSha256({
-        version: "postgres-object-contract-v2",
+        version: "postgres-object-contract-v3",
         objects: [
         {
           kind: "routine",
@@ -190,6 +190,31 @@ describe("full-schema restore catalog and row snapshot", () => {
     expect(queries[2]).toContain("pg_catalog.pg_range");
     expect(queries[2]).toContain("pg_catalog.pg_sequence");
     expect(queries[2]).toContain("'learncoding_backup_reporter'");
+    for (const rawAcl of [
+      "database.datacl is null",
+      "namespace.nspacl is null",
+      "relation.relacl is null",
+      "attribute.attacl is null",
+      "routine.proacl is null",
+      "type_row.typacl is null",
+      "default_acl.defaclacl is null",
+    ]) {
+      expect(queries[2]).toContain(rawAcl);
+    }
+    expect(queries[2].match(/'acl_is_null'/gu)).toHaveLength(7);
+    expect(queries[2].match(/'effective_acl'/gu)).toHaveLength(7);
+    expect(queries[2]).toContain("pg_catalog.acldefault('d'");
+    expect(queries[2]).toContain("pg_catalog.acldefault('n'");
+    expect(queries[2]).toContain("pg_catalog.acldefault('c'");
+    expect(queries[2]).toContain(
+      "when relation.relkind in ('r', 'p', 'v', 'm', 'f')",
+    );
+    expect(queries[2]).toContain("else '{}'::aclitem[]");
+    expect(queries[2]).toContain("pg_catalog.acldefault('f'");
+    expect(queries[2]).toContain("pg_catalog.acldefault('T'");
+    expect(queries[2]).toContain(
+      "pg_catalog.acldefault(default_acl.defaclobjtype",
+    );
     expect(queries[2]).toContain(
       "relation.relkind in ('r', 'p', 'v', 'm', 'f', 'c')",
     );

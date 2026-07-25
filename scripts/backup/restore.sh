@@ -30,6 +30,15 @@ while (( $# > 0 )); do
   esac
 done
 
+abort_restore_database() {
+  local reason="${1:-database restore failed}"
+
+  if remove_restore_database "$restore_db"; then
+    die "$reason; temporary database was removed"
+  fi
+  die "$reason; cleanup failed; temporary database may remain"
+}
+
 : "${AGE_IDENTITY_FILE:?AGE_IDENTITY_FILE must point to the offline restore identity}"
 require_secure_regular_file "$AGE_IDENTITY_FILE" 600 "$(id -u)" \
   || die "age restore identity must be a single-link mode-0600 file owned by the invoking operator"
@@ -111,7 +120,32 @@ if [[ -n "$restore_db" ]]; then
                   select 1
                     from pg_catalog.pg_db_role_setting setting
                    where setting.setrole = role.oid
-                ) as role_settings_empty
+                ) as role_settings_empty,
+                (
+                  select pg_catalog.count(*) = 1
+                         and pg_catalog.count(*) filter (
+                           where granted.rolname = 'learncoding_owner'
+                             and member.rolname = 'learncoding_migrator'
+                             and not membership.admin_option
+                             and not membership.inherit_option
+                             and membership.set_option
+                         ) = 1
+                    from pg_catalog.pg_auth_members membership
+                    join pg_catalog.pg_roles granted
+                      on granted.oid = membership.roleid
+                    join pg_catalog.pg_roles member
+                      on member.oid = membership.member
+                   where granted.rolname in (
+                     'learncoding_owner', 'learncoding_migrator',
+                     'learncoding_app', 'learncoding_worker', 'learncoding_ops',
+                     'learncoding_backup_reporter'
+                   )
+                      or member.rolname in (
+                        'learncoding_owner', 'learncoding_migrator',
+                        'learncoding_app', 'learncoding_worker', 'learncoding_ops',
+                        'learncoding_backup_reporter'
+                      )
+                ) as membership_contract_exact
            from pg_catalog.pg_authid role
        ) role
       where role.rolname = 'learncoding_owner'
@@ -120,15 +154,15 @@ if [[ -n "$restore_db" ]]; then
         and not role.rolinherit and not role.rolreplication
         and not role.rolbypassrls and role.rolconnlimit = -1
         and role.valid_until_infinity and role.password_is_null
-        and role.role_settings_empty")"
+        and role.role_settings_empty
+        and role.membership_contract_exact")"
   [[ "$restore_owner_count" == 1 ]] \
     || die "exact learncoding_owner restore role is unavailable"
   compose_cmd exec -T postgres sh -ceu 'createdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --owner=learncoding_owner "$1"' _ "$restore_db"
   if ! compose_cmd exec -T postgres sh -ceu \
     'exec pg_restore --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$1" --exit-on-error --no-owner --role=learncoding_owner' _ "$restore_db" \
     <"$destination/database.dump"; then
-    compose_cmd exec -T postgres sh -ceu 'dropdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --if-exists "$1"' _ "$restore_db" || true
-    die "database restore failed; temporary database was removed"
+    abort_restore_database "database restore failed"
   fi
   pre_repair_verification="$(compose_cmd --profile operations run --rm \
     --no-deps --no-build --pull never \
@@ -136,12 +170,10 @@ if [[ -n "$restore_db" ]]; then
     database-role-bootstrap \
     node /app/scripts/verify-pre-repair-restored-database.mjs)" \
     || {
-      compose_cmd exec -T postgres sh -ceu 'dropdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --if-exists "$1"' _ "$restore_db" || true
-      die "raw restored catalog verification failed; temporary database was removed"
+      abort_restore_database "raw restored catalog verification failed"
     }
   if [[ "$pre_repair_verification" != restore_pre_repair_catalog_valid=true ]]; then
-    compose_cmd exec -T postgres sh -ceu 'dropdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --if-exists "$1"' _ "$restore_db" || true
-    die "raw restored catalog verifier returned an invalid acknowledgement; temporary database was removed"
+    abort_restore_database "raw restored catalog verifier returned an invalid acknowledgement"
   fi
   log "database restored into isolated database: $restore_db"
 fi

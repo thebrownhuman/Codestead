@@ -157,6 +157,7 @@ type DatabaseContext = Readonly<{
   requireRestoreOwnerRole: () => Promise<void>;
   prepareAclSuppressionControl: () => Promise<void>;
   verifyAclSuppressionControl: () => Promise<Awaited<ReturnType<typeof requireFullSchemaAclSuppressionControl>>>;
+  resetAfterAclSuppressionControl: () => Promise<void>;
   adminUrl: string;
   ownerUrl: string;
   roleUrls: DisposableRoleUrls;
@@ -307,6 +308,13 @@ async function createDatabaseContext(input: Readonly<{
     port: input.port,
     database: input.database,
   });
+  const maintenanceAdminUrl = databaseUrl({
+    username: POSTGRES_USER,
+    password: input.credentials.bootstrap,
+    host: "127.0.0.1",
+    port: input.port,
+    database: "postgres",
+  });
   const scopedRoleUrls = roleUrls(
     input.port,
     input.database,
@@ -332,6 +340,16 @@ async function createDatabaseContext(input: Readonly<{
     verifyAclSuppressionControl: () => withPools(
       [scopedOwnerUrl],
       async ([owner]) => requireFullSchemaAclSuppressionControl(owner!),
+    ),
+    resetAfterAclSuppressionControl: () => withPools(
+      [maintenanceAdminUrl],
+      async ([admin]) => {
+        const database = requireRestoreDatabaseIdentifier(input.database);
+        await admin!.query(`drop database "${database}" with (force)`);
+        await admin!.query(
+          `create database "${database}" owner learncoding_owner`,
+        );
+      },
     ),
     roleUrls: scopedRoleUrls,
     async reconcileRoles() {
@@ -520,6 +538,18 @@ async function createDatabaseContext(input: Readonly<{
       },
     ),
   };
+}
+
+function requireRestoreDatabaseIdentifier(value: string): string {
+  if (
+    value !== SOURCE_DATABASE
+    && value !== TARGET_DATABASE
+  ) {
+    throw new Error(
+      "full-schema restore database identifier is invalid",
+    );
+  }
+  return value;
 }
 
 async function availablePort(): Promise<number> {

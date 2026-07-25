@@ -46,6 +46,8 @@
     "test:mail-dispatch-binding-0064:pg18": "node infra/tests/mail-dispatch-binding-0064.integration.mjs",
     "test:full-schema-restore:registration": "node infra/tests/full-schema-restore-registration.test.mjs",
     "test:full-schema-restore": "tsx scripts/run-full-schema-restore-gate.ts",
+    "test:full-schema-restore:pg17": "tsx scripts/run-full-schema-restore-gate.ts --postgres-major=17",
+    "test:full-schema-restore:pg18": "tsx scripts/run-full-schema-restore-gate.ts --postgres-major=18",
     "test:e2e": "playwright test",
     "test:browser:auth": "tsx scripts/verify-authenticated-learn-runtime.ts",
     "test:load:smoke": "tsx scripts/load-projection-smoke.ts",

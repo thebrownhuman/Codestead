@@ -23,7 +23,7 @@ describe("restore pre-repair verifier wiring", () => {
     const invalidAckBranch = source.indexOf(
       'if [[ "$pre_repair_verification" !=',
     );
-    const invalidAckCleanup = source.indexOf("dropdb ", invalidAckBranch);
+    const invalidAckCleanup = source.indexOf("abort_restore_database", invalidAckBranch);
     const invalidAck = source.indexOf(
       "raw restored catalog verifier returned an invalid acknowledgement",
       invalidAckCleanup,
@@ -39,6 +39,24 @@ describe("restore pre-repair verifier wiring", () => {
     expect(invalidAckCleanup).toBeGreaterThan(invalidAckBranch);
     expect(invalidAck).toBeGreaterThan(invalidAckCleanup);
     expect(success).toBeGreaterThan(invalidAck);
+  });
+
+  it("acknowledges removal only after verified database cleanup", () => {
+    const source = read("scripts/backup/restore.sh");
+    const helperStart = source.indexOf("abort_restore_database() {");
+    const helperEnd = source.indexOf("\n}", helperStart);
+    const helper = source.slice(helperStart, helperEnd);
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(helper).toContain(
+      'if remove_restore_database "$restore_db"; then',
+    );
+    expect(helper).toContain("temporary database was removed");
+    expect(helper).toContain(
+      "cleanup failed; temporary database may remain",
+    );
+    expect(source.match(/abort_restore_database "/gu)).toHaveLength(3);
+    expect(source).not.toMatch(/dropdb[^\n]*\|\| true/gu);
   });
 
   it("drill verifies the raw catalog before post-restore bootstrap", () => {

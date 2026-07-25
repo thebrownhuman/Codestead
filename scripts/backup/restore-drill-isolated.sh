@@ -387,7 +387,32 @@ restore_owner_count="$(restore_compose exec -T postgres /bin/sh -ceu '
                   select 1
                     from pg_catalog.pg_db_role_setting setting
                    where setting.setrole = role.oid
-                ) as role_settings_empty
+                ) as role_settings_empty,
+                (
+                  select pg_catalog.count(*) = 1
+                         and pg_catalog.count(*) filter (
+                           where granted.rolname = 'learncoding_owner'
+                             and member.rolname = 'learncoding_migrator'
+                             and not membership.admin_option
+                             and not membership.inherit_option
+                             and membership.set_option
+                         ) = 1
+                    from pg_catalog.pg_auth_members membership
+                    join pg_catalog.pg_roles granted
+                      on granted.oid = membership.roleid
+                    join pg_catalog.pg_roles member
+                      on member.oid = membership.member
+                   where granted.rolname in (
+                     'learncoding_owner', 'learncoding_migrator',
+                     'learncoding_app', 'learncoding_worker', 'learncoding_ops',
+                     'learncoding_backup_reporter'
+                   )
+                      or member.rolname in (
+                        'learncoding_owner', 'learncoding_migrator',
+                        'learncoding_app', 'learncoding_worker', 'learncoding_ops',
+                        'learncoding_backup_reporter'
+                      )
+                ) as membership_contract_exact
            from pg_catalog.pg_authid role
        ) role
       where role.rolname = 'learncoding_owner'
@@ -396,7 +421,8 @@ restore_owner_count="$(restore_compose exec -T postgres /bin/sh -ceu '
         and not role.rolinherit and not role.rolreplication
         and not role.rolbypassrls and role.rolconnlimit = -1
         and role.valid_until_infinity and role.password_is_null
-        and role.role_settings_empty")"
+        and role.role_settings_empty
+        and role.membership_contract_exact")"
 [[ "$restore_owner_count" == 1 ]] \
   || die "exact learncoding_owner restore role is unavailable"
 restore_compose exec -T postgres /bin/sh -ceu '

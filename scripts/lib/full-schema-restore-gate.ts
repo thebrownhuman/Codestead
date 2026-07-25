@@ -82,6 +82,7 @@ type TargetDatabase = Readonly<{
   requireRestoreOwnerRole: () => Promise<void>;
   prepareAclSuppressionControl: () => Promise<void>;
   verifyAclSuppressionControl: () => Promise<FullSchemaAclSuppressionControl>;
+  resetAfterAclSuppressionControl: () => Promise<void>;
   snapshot: () => Promise<FullSchemaRestoreSnapshot>;
   runNonNetworkSmoke: () => Promise<FullSchemaRestoreSmoke>;
 }>;
@@ -413,6 +414,7 @@ export async function runFullSchemaRestoreVerification<Archive>(
     aclSuppressionControl = validatedAclSuppressionControl(
       await target.verifyAclSuppressionControl(),
     );
+    await target.resetAfterAclSuppressionControl();
     await target.reconcileRoles();
     await target.verifyRoleBoundaries(false);
     await target.requireRestoreOwnerRole();

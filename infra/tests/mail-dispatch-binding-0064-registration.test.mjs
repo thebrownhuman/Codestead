@@ -8,6 +8,9 @@ import {
   assertMailDispatchBinding0064PostgresProjection,
   mailDispatchBinding0064CiContract,
 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
+import {
+  postgresCiProjectionWithFullSchemaRestore,
+} from "./full-schema-restore-postgres-ci-extension.mjs";
 
 const allocatorProbePath = fileURLToPath(
   new URL(
@@ -186,6 +189,9 @@ const postgresJob =
   workflow.match(
     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
   )?.[0] ?? "";
-assertMailDispatchBinding0064PostgresProjection(postgresJob);
+assertMailDispatchBinding0064PostgresProjection(
+  postgresJob,
+  postgresCiProjectionWithFullSchemaRestore,
+);
 
 console.log("mail-dispatch-binding-0064-registration-tests-ok");

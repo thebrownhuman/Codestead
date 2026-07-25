@@ -33,6 +33,11 @@ describe("production backup ACL contract", () => {
     expect(source).toContain("pg_catalog.pg_authid");
     expect(source).toContain("role.rolname = 'learncoding_owner'");
     expect(source).toContain("role.role_settings_empty");
+    expect(source).toContain("pg_catalog.pg_auth_members");
+    expect(source).toContain("membership.inherit_option");
+    expect(source).toContain("membership.set_option");
+    expect(source).toContain("'learncoding_backup_reporter'");
+    expect(source).toContain("role.membership_contract_exact");
   });
 
   it("creates the manual restore database under the controlled owner", () => {

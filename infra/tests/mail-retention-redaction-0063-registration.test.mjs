@@ -7,6 +7,9 @@ import {
   postgresCiProjectionThrough0064,
 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
 import * as postgresCiProjectionModule from "./mail-retention-redaction-0063-ci-contract.mjs";
+import {
+  postgresCiProjectionWithFullSchemaRestore,
+} from "./full-schema-restore-postgres-ci-extension.mjs";
 
 const { mailRetentionRedaction0063CiContract } = postgresCiProjectionModule;
 
@@ -292,7 +295,7 @@ if (!staticOnly) {
     )?.[0] ?? "";
   postgresCiProjectionModule.assertPostgresCiProjectionContract(
     postgresJob,
-    postgresCiProjectionThrough0064,
+    postgresCiProjectionWithFullSchemaRestore,
   );
 
   const replaceProjectionExactly = (projection, before, after) => {
@@ -308,7 +311,7 @@ if (!staticOnly) {
       () =>
         postgresCiProjectionModule.assertPostgresCiProjectionContract(
           projection,
-          postgresCiProjectionThrough0064,
+          postgresCiProjectionWithFullSchemaRestore,
         ),
       expectedMessage,
       label,
@@ -319,8 +322,8 @@ if (!staticOnly) {
     "the PostgreSQL timeout is one canonical policy",
     replaceProjectionExactly(
       postgresJob,
-      "    timeout-minutes: 20",
-      "    timeout-minutes: 21",
+      "    timeout-minutes: 35",
+      "    timeout-minutes: 34",
     ),
     /timeout-minutes/u,
   );
@@ -379,7 +382,7 @@ if (!staticOnly) {
       () =>
         postgresCiProjectionModule.assertPostgresCiProjectionContract(
           `${postgresJob}      - run: docker run --rm ${differentMajorImage}\n`,
-          postgresCiProjectionThrough0064,
+          postgresCiProjectionWithFullSchemaRestore,
         ),
       `${differentMajorImage} must not be mistaken for PostgreSQL 16`,
     );
@@ -426,12 +429,14 @@ if (!staticOnly) {
       [
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17",
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
       ].join("\n"),
       [
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17",
       ].join("\n"),
     ),
     /PostgreSQL 17 harnesses must run before PostgreSQL 18/u,
@@ -467,11 +472,30 @@ if (!staticOnly) {
     /PostgreSQL 18 scripts/u,
   );
 
+  const postgresJobThrough0064 = [
+    "      - run: npm run test:full-schema-restore:registration\n",
+    "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17\n",
+    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:full-schema-restore:pg18\n",
+  ].reduce(
+    (projection, command) =>
+      replaceProjectionExactly(projection, command, ""),
+    replaceProjectionExactly(
+      postgresJob,
+      "    timeout-minutes: 35",
+      "    timeout-minutes: 20",
+    ),
+  );
+  assert.doesNotThrow(() =>
+    postgresCiProjectionModule.assertPostgresCiProjectionContract(
+      postgresJobThrough0064,
+      postgresCiProjectionThrough0064,
+    ));
+
   const extendedProjection = replaceProjectionExactly(
     replaceProjectionExactly(
       replaceProjectionExactly(
         replaceProjectionExactly(
-          postgresJob,
+          postgresJobThrough0064,
           "    timeout-minutes: 20",
           "    timeout-minutes: 35",
         ),
