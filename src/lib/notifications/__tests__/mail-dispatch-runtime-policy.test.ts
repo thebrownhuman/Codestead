@@ -14,16 +14,43 @@ describe("mail dispatch runtime policy", () => {
       phases: {
         effectiveProviderLeaseStartsAfterTx1Commit: true,
         poolAcquireWithinTransactionBudget: false,
+        poolAcquireWithinHardWatchdogBudget: true,
         shouldStopGateBeforeOauth: true,
         oauthWithinTx2: false,
         shouldStopGateBeforeTx2: true,
         guardedSendWithinTx2: true,
-        liveProviderTx2DatabaseTimeoutsAreStarvationFallback: true,
+        hardWatchdogIsMainEventLoopIndependent: true,
+        hardWatchdogArmedAndReadyBeforeTx2: true,
+        preProviderInitiationDatabaseTimeoutsDisabled: true,
+        preProviderTx2PhaseBudgetIsAggregateDeadline: true,
+        tx2LocksAndFinalLiveFenceBeforeProviderInitiation: true,
+        physicalProviderFetchInitiatedSynchronously: true,
+        postProviderInitiationDatabaseTimeoutsArmedBeforeAwait: true,
+        postProviderTx2PhaseBudgetIsAggregateDeadline: true,
+        postProviderInitiationTimeoutArmFailureIsFatalUnknown: true,
+        postProviderInitiationDatabaseTimeoutsAreStarvationFallback: true,
+        hardWatchdogKillsProcessOnExpiry: true,
+        hardWatchdogClosesDatabaseAndProviderOnExpiry: true,
+        hardWatchdogDisarmedOnlyAfterSafeTx2CompletionAndRelease: true,
         synchronousFatalExitBeforeNormalTx2Unlock: true,
         tx1ProviderBindingPreventsReclaimAndRetry: true,
         revocationOrderedAfterProviderStart: true,
         tx2FallbackRequiresDatabaseOnlyReconciliation: true,
       },
+      liveProviderTx2PhaseOrder: [
+        "armAndReadyIndependentHardWatchdog",
+        "acquireTx2ClientWithinHardWatchdog",
+        "beginTx2AndStartAggregatePreProviderPhaseDeadline",
+        "setPreProviderDatabaseTimeoutsToZero",
+        "acquireLocksAndVerifyFinalLiveFence",
+        "synchronouslyInitiatePhysicalProviderFetch",
+        "armFinitePostInitiationDatabaseTimeouts",
+        "awaitAlreadyInitiatedProviderPromise",
+        "startAggregatePostProviderPhaseDeadline",
+        "persistTerminalOutcome",
+        "commitAndReleaseTx2",
+        "atomicallyDisarmHardWatchdog",
+      ],
       dispatch: {
         concurrency: 1,
         maximumParallelSends: 1,
@@ -46,9 +73,15 @@ describe("mail dispatch runtime policy", () => {
         },
       },
       liveProviderTx2DatabaseTimeouts: {
-        idleInTransactionSessionTimeoutMs: 35_000,
-        transactionTimeoutMs: 50_000,
-        transactionTimeoutMinimumPostgresMajor: 17,
+        preProviderInitiation: {
+          idleInTransactionSessionTimeoutMs: 0,
+          transactionTimeoutMs: 0,
+        },
+        postProviderInitiation: {
+          idleInTransactionSessionTimeoutMs: 35_000,
+          transactionTimeoutMs: 55_000,
+          transactionTimeoutMinimumPostgresMajor: 17,
+        },
       },
       providerLease: {
         postCommitProviderLeaseMs: 90_000,
@@ -67,6 +100,9 @@ describe("mail dispatch runtime policy", () => {
         providerAbortSettlementMs: 5_000,
         fatalExitMarginMs: 5_000,
         persistenceMarginMs: 5_000,
+        preProviderTx2PhaseBudgetMs: 6_000,
+        postProviderTx2PhaseBudgetMs: 6_000,
+        hardWatchdogMs: 50_000,
         drainMs: 100_000,
         poolCloseMs: 5_000,
         shutdownMarginMs: 5_000,
@@ -76,17 +112,34 @@ describe("mail dispatch runtime policy", () => {
     });
     expect(Object.isFrozen(plan)).toBe(true);
     expect(Object.isFrozen(plan.phases)).toBe(true);
+    expect(Object.isFrozen(plan.liveProviderTx2PhaseOrder)).toBe(true);
     expect(Object.isFrozen(plan.dispatch)).toBe(true);
     expect(Object.isFrozen(plan.liveProviderTx2DatabaseTimeouts)).toBe(true);
+    expect(
+      Object.isFrozen(
+        plan.liveProviderTx2DatabaseTimeouts.preProviderInitiation,
+      ),
+    ).toBe(true);
+    expect(
+      Object.isFrozen(
+        plan.liveProviderTx2DatabaseTimeouts.postProviderInitiation,
+      ),
+    ).toBe(true);
     expect(Object.isFrozen(plan.providerLease)).toBe(true);
     expect(Object.isFrozen(plan.pool)).toBe(true);
     expect(Object.isFrozen(plan.pool.localReserves)).toBe(true);
     expect(Object.isFrozen(plan.pool.serverCapacity)).toBe(true);
     expect(Object.isFrozen(plan.timeouts)).toBe(true);
     expect(plan.liveProviderTx2DatabaseTimeouts).toEqual({
-      idleInTransactionSessionTimeoutMs: 35_000,
-      transactionTimeoutMs: 50_000,
-      transactionTimeoutMinimumPostgresMajor: 17,
+      preProviderInitiation: {
+        idleInTransactionSessionTimeoutMs: 0,
+        transactionTimeoutMs: 0,
+      },
+      postProviderInitiation: {
+        idleInTransactionSessionTimeoutMs: 35_000,
+        transactionTimeoutMs: 55_000,
+        transactionTimeoutMinimumPostgresMajor: 17,
+      },
     });
     expect(Object.isFrozen(MAIL_DISPATCH_RUNTIME_DEFAULTS)).toBe(true);
     expect(Object.isFrozen(MAIL_DISPATCH_RUNTIME_LIMITS)).toBe(true);
@@ -151,9 +204,16 @@ describe("mail dispatch runtime policy", () => {
     { statementTimeoutMs: Number.POSITIVE_INFINITY },
     { queryTimeoutMs: 0 },
     { tx1TimeoutMs: Number.NaN },
-    { tx2TransactionTimeoutMs: Number.POSITIVE_INFINITY },
-    { idleInTransactionSessionTimeoutMs: 0 },
+    {
+      postProviderInitiationTransactionTimeoutMs: Number.POSITIVE_INFINITY,
+    },
+    {
+      postProviderInitiationIdleInTransactionSessionTimeoutMs: 0,
+    },
     { persistenceMarginMs: 0 },
+    { preProviderTx2PhaseBudgetMs: 0 },
+    { postProviderTx2PhaseBudgetMs: 0 },
+    { hardWatchdogMs: 0 },
     { postCommitProviderLeaseMs: Number.NaN },
     { providerLeaseStampMs: Number.NaN },
     { drainTimeoutMs: 0 },
@@ -207,11 +267,87 @@ describe("mail dispatch runtime policy", () => {
     }).pool.maximumConnections).toBe(4);
   });
 
+  it("orders zero pre-init timers and synchronous fetch before finite timers", () => {
+    const plan = planMailDispatchRuntime();
+
+    expect(plan.liveProviderTx2PhaseOrder).toEqual([
+      "armAndReadyIndependentHardWatchdog",
+      "acquireTx2ClientWithinHardWatchdog",
+      "beginTx2AndStartAggregatePreProviderPhaseDeadline",
+      "setPreProviderDatabaseTimeoutsToZero",
+      "acquireLocksAndVerifyFinalLiveFence",
+      "synchronouslyInitiatePhysicalProviderFetch",
+      "armFinitePostInitiationDatabaseTimeouts",
+      "awaitAlreadyInitiatedProviderPromise",
+      "startAggregatePostProviderPhaseDeadline",
+      "persistTerminalOutcome",
+      "commitAndReleaseTx2",
+      "atomicallyDisarmHardWatchdog",
+    ]);
+    expect(plan.phases.hardWatchdogIsMainEventLoopIndependent).toBe(true);
+    expect(plan.phases.hardWatchdogArmedAndReadyBeforeTx2).toBe(true);
+    expect(plan.phases.poolAcquireWithinHardWatchdogBudget).toBe(true);
+    expect(plan.phases.preProviderInitiationDatabaseTimeoutsDisabled).toBe(true);
+    expect(plan.phases.preProviderTx2PhaseBudgetIsAggregateDeadline).toBe(true);
+    expect(
+      plan.phases.tx2LocksAndFinalLiveFenceBeforeProviderInitiation,
+    ).toBe(true);
+    expect(plan.phases.physicalProviderFetchInitiatedSynchronously).toBe(true);
+    expect(
+      plan.phases.postProviderInitiationDatabaseTimeoutsArmedBeforeAwait,
+    ).toBe(true);
+    expect(
+      plan.phases.postProviderTx2PhaseBudgetIsAggregateDeadline,
+    ).toBe(true);
+    expect(
+      plan.phases.postProviderInitiationTimeoutArmFailureIsFatalUnknown,
+    ).toBe(true);
+    expect(plan.phases.hardWatchdogKillsProcessOnExpiry).toBe(true);
+    expect(
+      plan.phases.hardWatchdogClosesDatabaseAndProviderOnExpiry,
+    ).toBe(true);
+    expect(
+      plan.phases.hardWatchdogDisarmedOnlyAfterSafeTx2CompletionAndRelease,
+    ).toBe(true);
+    expect(
+      plan.liveProviderTx2DatabaseTimeouts.preProviderInitiation,
+    ).toEqual({
+      idleInTransactionSessionTimeoutMs: 0,
+      transactionTimeoutMs: 0,
+    });
+    expect(
+      plan.liveProviderTx2DatabaseTimeouts.postProviderInitiation,
+    ).toEqual({
+      idleInTransactionSessionTimeoutMs: 35_000,
+      transactionTimeoutMs: 55_000,
+      transactionTimeoutMinimumPostgresMajor: 17,
+    });
+    expect(plan.timeouts.preProviderTx2PhaseBudgetMs).toBe(6_000);
+    expect(plan.timeouts.postProviderTx2PhaseBudgetMs).toBe(6_000);
+    expect(plan.timeouts.hardWatchdogMs).toBe(50_000);
+
+    expect(() => planMailDispatchRuntime({
+      preProviderInitiationIdleInTransactionSessionTimeoutMs: 1,
+    })).toThrow(/pre-provider idle timeout must be exactly zero/i);
+    expect(() => planMailDispatchRuntime({
+      preProviderInitiationTransactionTimeoutMs: 1,
+    })).toThrow(/pre-provider transaction timeout must be exactly zero/i);
+    expect(() => planMailDispatchRuntime({
+      postProviderInitiationIdleInTransactionSessionTimeoutMs: 0,
+    })).toThrow(/post-provider idle-in-transaction session timeout must be a positive safe integer/i);
+    expect(() => planMailDispatchRuntime({
+      postProviderInitiationTransactionTimeoutMs: 0,
+    })).toThrow(/post-provider transaction timeout must be a positive safe integer/i);
+  });
+
   it("guarantees a full post-COMMIT lease from the pre-COMMIT physical stamp", () => {
     const plan = planMailDispatchRuntime();
-    const leasedPathMs = plan.timeouts.oauthDeadlineMs
-      + plan.liveProviderTx2DatabaseTimeouts.transactionTimeoutMs
+    const leasedCorePathMs = plan.timeouts.oauthDeadlineMs
+      + plan.liveProviderTx2DatabaseTimeouts.postProviderInitiation
+        .transactionTimeoutMs
       + plan.timeouts.persistenceMarginMs;
+    const leasedPathWithPoolAcquireMs = leasedCorePathMs
+      + plan.timeouts.poolAcquireMs;
 
     expect(plan.phases.effectiveProviderLeaseStartsAfterTx1Commit).toBe(true);
     expect(plan.phases.shouldStopGateBeforeOauth).toBe(true);
@@ -219,7 +355,7 @@ describe("mail dispatch runtime policy", () => {
     expect(plan.phases.shouldStopGateBeforeTx2).toBe(true);
     expect(plan.phases.guardedSendWithinTx2).toBe(true);
     expect(
-      plan.phases.liveProviderTx2DatabaseTimeoutsAreStarvationFallback,
+      plan.phases.postProviderInitiationDatabaseTimeoutsAreStarvationFallback,
     ).toBe(true);
     expect(plan.phases.synchronousFatalExitBeforeNormalTx2Unlock).toBe(true);
     expect(plan.phases.tx1ProviderBindingPreventsReclaimAndRetry).toBe(true);
@@ -237,7 +373,9 @@ describe("mail dispatch runtime policy", () => {
     expect(plan.providerLease.tx1CommitAckAllowanceMs).toBe(
       plan.timeouts.tx1Ms,
     );
-    expect(leasedPathMs).toBeLessThan(
+    expect(leasedCorePathMs).toBe(80_000);
+    expect(leasedPathWithPoolAcquireMs).toBe(85_000);
+    expect(leasedPathWithPoolAcquireMs).toBeLessThan(
       plan.providerLease.postCommitProviderLeaseMs,
     );
 
@@ -260,7 +398,7 @@ describe("mail dispatch runtime policy", () => {
       postCommitProviderLeaseMs: 300_000,
     })).toThrow(/provider lease/i);
     expect(() => planMailDispatchRuntime({
-      postCommitProviderLeaseMs: leasedPathMs,
+      postCommitProviderLeaseMs: leasedPathWithPoolAcquireMs,
     })).toThrow(/dispatch path must finish before the provider lease/i);
     expect(() => planMailDispatchRuntime({
       providerLeaseStampMs: 90_000,
@@ -285,10 +423,14 @@ describe("mail dispatch runtime policy", () => {
   it("keeps the normal TX2 path inside finite database starvation fallbacks", () => {
     const { liveProviderTx2DatabaseTimeouts, phases, timeouts } =
       planMailDispatchRuntime();
+    const { postProviderInitiation } = liveProviderTx2DatabaseTimeouts;
     const guardedNetworkMs = timeouts.guardedSendDeadlineMs
       + timeouts.providerAbortSettlementMs
       + timeouts.fatalExitMarginMs;
-    const tx2PathMs = (2 * timeouts.queryMs) + guardedNetworkMs;
+    const tx2PathMs = timeouts.preProviderTx2PhaseBudgetMs
+      + guardedNetworkMs
+      + timeouts.postProviderTx2PhaseBudgetMs;
+    const watchedPathMs = timeouts.poolAcquireMs + tx2PathMs;
 
     expect(phases.poolAcquireWithinTransactionBudget).toBe(false);
     expect(timeouts.poolAcquireMs).toBe(5_000);
@@ -298,17 +440,21 @@ describe("mail dispatch runtime policy", () => {
     expect(timeouts.queryMs).toBeLessThan(timeouts.tx1Ms);
     expect(guardedNetworkMs).toBe(30_000);
     expect(tx2PathMs).toBe(42_000);
-    expect(timeouts.queryMs).toBeLessThan(
-      liveProviderTx2DatabaseTimeouts.transactionTimeoutMs,
-    );
+    expect(watchedPathMs).toBe(47_000);
+    expect(timeouts.hardWatchdogMs).toBe(50_000);
+    expect(postProviderInitiation.transactionTimeoutMs).toBe(55_000);
     expect(guardedNetworkMs).toBeLessThan(
-      liveProviderTx2DatabaseTimeouts.idleInTransactionSessionTimeoutMs,
+      postProviderInitiation.idleInTransactionSessionTimeoutMs,
     );
-    expect(liveProviderTx2DatabaseTimeouts.transactionTimeoutMs).toBeGreaterThan(
-      liveProviderTx2DatabaseTimeouts.idleInTransactionSessionTimeoutMs,
+    expect(
+      postProviderInitiation.idleInTransactionSessionTimeoutMs,
+    ).toBeLessThan(
+      postProviderInitiation.transactionTimeoutMs,
     );
-    expect(tx2PathMs).toBeLessThan(
-      liveProviderTx2DatabaseTimeouts.transactionTimeoutMs,
+    expect(tx2PathMs).toBeLessThan(timeouts.hardWatchdogMs);
+    expect(watchedPathMs).toBeLessThan(timeouts.hardWatchdogMs);
+    expect(timeouts.hardWatchdogMs).toBeLessThan(
+      postProviderInitiation.transactionTimeoutMs,
     );
 
     expect(() => planMailDispatchRuntime({
@@ -327,21 +473,35 @@ describe("mail dispatch runtime policy", () => {
       queryTimeoutMs: 15_000,
     })).toThrow(/query timeout must finish inside TX1 and TX2/i);
     expect(() => planMailDispatchRuntime({
-      idleInTransactionSessionTimeoutMs: 30_000,
+      postProviderInitiationIdleInTransactionSessionTimeoutMs: 30_000,
     })).toThrow(/locked provider window must finish before the idle-in-transaction session timeout/i);
     expect(() => planMailDispatchRuntime({
-      idleInTransactionSessionTimeoutMs: 50_000,
+      postProviderInitiationIdleInTransactionSessionTimeoutMs: 55_000,
     })).toThrow(/idle-in-transaction session timeout must finish inside the TX2 transaction timeout/i);
     expect(() => planMailDispatchRuntime({
-      tx2TransactionTimeoutMs: 42_000,
-    })).toThrow(/TX2 path must finish before the TX2 transaction timeout/i);
+      hardWatchdogMs: 47_000,
+    })).toThrow(/pool acquire plus TX2 path must finish before the hard watchdog/i);
+    expect(() => planMailDispatchRuntime({
+      preProviderTx2PhaseBudgetMs: 9_000,
+    })).toThrow(/pool acquire plus TX2 path must finish before the hard watchdog/i);
+    expect(() => planMailDispatchRuntime({
+      postProviderInitiationTransactionTimeoutMs: 50_000,
+    })).toThrow(/hard watchdog must fire before the post-provider transaction timeout/i);
+    expect(() => planMailDispatchRuntime({
+      hardWatchdogMs: 50_001,
+    })).toThrow(/hard watchdog/i);
+    expect(() => planMailDispatchRuntime({
+      postProviderInitiationTransactionTimeoutMs: 60_001,
+    })).toThrow(/post-provider transaction timeout/i);
   });
 
   it("bounds drain and stop time with strict room for pool close", () => {
     const { liveProviderTx2DatabaseTimeouts, providerLease, timeouts } =
       planMailDispatchRuntime();
     const worstSafeShutdownPathMs = timeouts.oauthDeadlineMs
-      + liveProviderTx2DatabaseTimeouts.transactionTimeoutMs
+      + timeouts.poolAcquireMs
+      + liveProviderTx2DatabaseTimeouts.postProviderInitiation
+        .transactionTimeoutMs
       + timeouts.persistenceMarginMs
       + timeouts.poolCloseMs
       + timeouts.shutdownMarginMs;
@@ -407,6 +567,12 @@ describe("mail dispatch runtime policy", () => {
       } as never)).toThrow(/unknown mail dispatch runtime override/i);
       expect(() => planMailDispatchRuntime({
         tx2ProofBudgetMs: 50_000,
+      } as never)).toThrow(/unknown mail dispatch runtime override/i);
+      expect(() => planMailDispatchRuntime({
+        idleInTransactionSessionTimeoutMs: 35_000,
+      } as never)).toThrow(/unknown mail dispatch runtime override/i);
+      expect(() => planMailDispatchRuntime({
+        tx2TransactionTimeoutMs: 55_000,
       } as never)).toThrow(/unknown mail dispatch runtime override/i);
       expect(() => planMailDispatchRuntime({
         providerLeaseMs: 90_000,
