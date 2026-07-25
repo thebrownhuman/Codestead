@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   databaseExecute: vi.fn(),
   transaction: vi.fn(),
 }));
+const UUID_LOG_CANARY = "f1c32bb5-98bf-45c8-978f-7ee80b0406e1";
+const BASE64URL_LOG_CANARY = "ZXlKMWMyVnlTV1FpT2lKbU1XTXpNbUppTlMwNU9HSm1MVFExWXpndE9UYzRaUzAzWldVNE1HSTBOREEyWlRFaWZR";
+const RECIPIENT_LOG_CANARY = "smart-private@recipient.example";
+const RAW_MIME_LOG_CANARY =
+  "RnJvbTogc21hcnQtcHJpdmF0ZUBleGFtcGxlLnRlc3QNClRvOiBzbWFydC1wcml2YXRlQHJlY2lwaWVudC5leGFtcGxl";
 
 vi.mock("@/lib/db/client", () => ({
   db: {
@@ -186,20 +191,20 @@ describe("smart reminder policy", () => {
     ]);
   });
 
-  it("does not log Error names, codes, or messages containing mail canaries", async () => {
+  it("rejects UUID and base64url-shaped error fields from smart-reminder logs", async () => {
     vi.stubEnv("INTEGRATION_TEST", "1");
-    const recipient = "private.person@recipient.example";
-    const token = "bearer-token=smart-reminder-log-canary";
-    const body = "private reminder body must not reach logs";
     const cause = Object.assign(new Error(
-      `${body}; recipient=${recipient}; token=${token}`,
+      `raw=${RAW_MIME_LOG_CANARY}; recipient=${RECIPIENT_LOG_CANARY}`,
     ), {
-      code: `CAUSE:${recipient}`,
+      code: BASE64URL_LOG_CANARY,
     });
-    const failure = Object.assign(new Error(body), {
-      name: `ReminderFailure:${recipient}`,
-      code: `DATABASE:${token}`,
+    const failure = Object.assign(new Error(
+      `operation=${UUID_LOG_CANARY}; recipient=${RECIPIENT_LOG_CANARY}`,
+    ), {
+      name: UUID_LOG_CANARY,
+      code: BASE64URL_LOG_CANARY,
       cause,
+      stack: `provider=${BASE64URL_LOG_CANARY}; outbox=${UUID_LOG_CANARY}`,
     });
     mocks.databaseExecute.mockResolvedValueOnce({
       rows: [{ ...base, quiet_hours_enabled: false }],
@@ -224,11 +229,46 @@ describe("smart reminder policy", () => {
     expect(JSON.parse(entries[0]!)).toEqual({
       event: "smart_reminder.dispatch_failed",
       kind: "daily_study",
-      errorName: "ERROR",
+      code: "SMART_REMINDER_DISPATCH_FAILED",
     });
-    for (const canary of [recipient, token, body]) {
+    for (const canary of [
+      UUID_LOG_CANARY,
+      BASE64URL_LOG_CANARY,
+      RECIPIENT_LOG_CANARY,
+      RAW_MIME_LOG_CANARY,
+    ]) {
       expect(entries[0]).not.toContain(canary);
     }
+  });
+
+  it.each([
+    ["40001", "SMART_REMINDER_SERIALIZATION_FAILURE"],
+    ["40P01", "SMART_REMINDER_DEADLOCK"],
+    ["57014", "SMART_REMINDER_QUERY_CANCELLED"],
+  ] as const)("maps SQLSTATE %s to fixed smart-reminder code %s", async (
+    databaseCode,
+    expectedCode,
+  ) => {
+    mocks.databaseExecute.mockResolvedValueOnce({
+      rows: [{ ...base, quiet_hours_enabled: false }],
+    });
+    mocks.transaction.mockRejectedValueOnce(Object.assign(
+      new Error("database detail must stay private"),
+      { code: databaseCode },
+    ));
+    const logEntry = vi.spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await scheduleSmartReminders(
+      new Date("2026-07-14T14:00:00.000Z"),
+      1,
+    );
+
+    expect(logEntry).toHaveBeenCalledWith(JSON.stringify({
+      event: "smart_reminder.dispatch_failed",
+      kind: "daily_study",
+      code: expectedCode,
+    }));
   });
 
   it("waits through quiet hours", () => {

@@ -5,9 +5,46 @@ import {
 } from "../src/lib/notifications/gmail-reconciliation";
 import { findGmailMessageByMessageId } from "../src/lib/notifications/mailer";
 import { PostgresOutboxStore } from "../src/lib/notifications/postgres-outbox-store";
+import {
+  allowlistedOperationalErrorCode,
+} from "../src/lib/security/operational-code";
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const GMAIL_RECONCILIATION_ERROR_CODE_VALUES = [
+  "GMAIL_RECONCILIATION_ADAPTER_INVALID",
+  "GMAIL_RECONCILIATION_DISABLED",
+  "GMAIL_RECONCILIATION_FAILED",
+  "GMAIL_RECONCILIATION_INPUT_INVALID",
+  "GMAIL_RECONCILIATION_OAUTH_SCOPE_INVALID",
+  "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
+] as const;
+type GmailReconciliationErrorCode =
+  (typeof GMAIL_RECONCILIATION_ERROR_CODE_VALUES)[number];
+const GMAIL_RECONCILIATION_ERROR_CODES = new Set(
+  GMAIL_RECONCILIATION_ERROR_CODE_VALUES,
+);
+
+class GmailReconciliationOperationalError extends Error {
+  readonly code: GmailReconciliationErrorCode;
+
+  constructor(code: GmailReconciliationErrorCode) {
+    super(code);
+    this.name = "GmailReconciliationOperationalError";
+    this.code = code;
+  }
+}
+
+function failReconciliation(code: GmailReconciliationErrorCode): never {
+  throw new GmailReconciliationOperationalError(code);
+}
+
+function reconciliationErrorCode(error: unknown) {
+  return allowlistedOperationalErrorCode(
+    error,
+    GMAIL_RECONCILIATION_ERROR_CODES,
+  ) ?? "GMAIL_RECONCILIATION_FAILED";
+}
 
 function commandInput(args: readonly string[]) {
   let operationId: string | undefined;
@@ -17,7 +54,9 @@ function commandInput(args: readonly string[]) {
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--apply") {
-      if (apply) throw new Error("--apply may be provided only once.");
+      if (apply) {
+        failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
+      }
       apply = true;
       continue;
     }
@@ -27,50 +66,52 @@ function commandInput(args: readonly string[]) {
     ) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) {
-        throw new Error(`${argument} requires a UUID.`);
+        failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
       }
       index += 1;
       if (argument === "--operation-id") {
         if (operationId !== undefined) {
-          throw new Error("--operation-id may be provided only once.");
+          failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
         }
         operationId = value;
       } else {
         if (confirmOperationId !== undefined) {
-          throw new Error("--confirm-operation-id may be provided only once.");
+          failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
         }
         confirmOperationId = value;
       }
       continue;
     }
-    throw new Error(`Unknown Gmail reconciliation argument: ${argument ?? ""}`);
+    failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
   }
 
   if (!operationId || !UUID.test(operationId)) {
-    throw new Error("--operation-id must be a UUID.");
+    failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
   }
   if (confirmOperationId !== undefined && !UUID.test(confirmOperationId)) {
-    throw new Error("--confirm-operation-id must be a UUID.");
+    failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
   }
   if (apply && confirmOperationId !== operationId) {
-    throw new Error(
-      "--apply requires --confirm-operation-id to exactly match --operation-id.",
-    );
+    failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
   }
   if (!apply && confirmOperationId !== undefined) {
-    throw new Error("--confirm-operation-id is valid only with --apply.");
+    failReconciliation("GMAIL_RECONCILIATION_INPUT_INVALID");
   }
   return { operationId, apply, confirmOperationId };
 }
 
 async function main() {
   if (process.env.GMAIL_RECONCILIATION_ENABLED !== "true") {
-    throw new Error("Gmail reconciliation is not explicitly enabled.");
+    failReconciliation("GMAIL_RECONCILIATION_DISABLED");
   }
   if (process.env.MAIL_ADAPTER !== "gmail") {
-    throw new Error("Gmail reconciliation requires MAIL_ADAPTER=gmail.");
+    failReconciliation("GMAIL_RECONCILIATION_ADAPTER_INVALID");
   }
-  assertGmailReconciliationOAuthScopes(process.env.GMAIL_OAUTH_SCOPES);
+  try {
+    assertGmailReconciliationOAuthScopes(process.env.GMAIL_OAUTH_SCOPES);
+  } catch {
+    failReconciliation("GMAIL_RECONCILIATION_OAUTH_SCOPE_INVALID");
+  }
   const input = commandInput(process.argv.slice(2));
   const store = new PostgresOutboxStore(pool);
   const result = await reconcileGmailDelivery(input, {
@@ -87,12 +128,24 @@ async function main() {
   }
 }
 
+async function closePool() {
+  try {
+    await pool.end();
+  } catch {
+    console.error(JSON.stringify({
+      event: "email.gmail_reconciliation_cleanup_failed",
+      code: "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
+    }));
+    process.exitCode = 1;
+  }
+}
+
 main()
   .catch((error) => {
     console.error(JSON.stringify({
       event: "email.gmail_reconciliation_failed",
-      code: error instanceof Error ? error.name : "UNKNOWN",
+      code: reconciliationErrorCode(error),
     }));
     process.exitCode = 1;
   })
-  .finally(() => pool.end());
+  .finally(closePool);

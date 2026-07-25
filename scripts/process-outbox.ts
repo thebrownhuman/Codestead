@@ -22,7 +22,9 @@ import {
   type ItemOutcome,
   type ProcessOutboxBatchResult,
 } from "../src/lib/notifications/outbox-worker";
-import { operationalErrorCode } from "../src/lib/security/operational-code";
+import {
+  allowlistedOperationalErrorCode,
+} from "../src/lib/security/operational-code";
 import { createWorkerHealthReporter } from "./lib/worker-health";
 
 const BATCH_SIZE = 10;
@@ -32,6 +34,19 @@ const MAX_MATERIALIZE_ATTEMPTS = 8;
 const MAX_RETRY_DELAY_MS = 6 * 60 * 60_000;
 const TERMINAL_PERSISTENCE_ATTEMPTS = 3;
 const FENCED_WORKER_MODE = "fenced-postgres-v1";
+const MAIL_WORKER_ERROR_CODES = new Set([
+  "MAIL_WORKER_FAILED",
+  "OUTBOX_WORKER_MODE_INVALID",
+  "POOL_SHUTDOWN_FAILED",
+  "POOL_SHUTDOWN_TIMEOUT",
+] as const);
+
+function mailWorkerErrorCode(error: unknown) {
+  return allowlistedOperationalErrorCode(
+    error,
+    MAIL_WORKER_ERROR_CODES,
+  ) ?? "MAIL_WORKER_FAILED";
+}
 
 class OutboxWorkerModeError extends Error {
   constructor() {
@@ -372,7 +387,7 @@ main()
     console.error(
       JSON.stringify({
         event: "email.worker_failed",
-        code: operationalErrorCode(error),
+        code: mailWorkerErrorCode(error),
       }),
     );
     process.exitCode = 1;

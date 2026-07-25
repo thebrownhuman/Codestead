@@ -8,7 +8,9 @@ import {
   SMART_REMINDER_POLICY_VERSION,
   requireRevocableSourceVariables,
 } from "@/lib/notifications/revocable-source-authority";
-import { boundedOperationalCode, operationalErrorCode } from "@/lib/security/operational-code";
+import {
+  allowlistedOperationalErrorCode,
+} from "@/lib/security/operational-code";
 
 export type SmartReminderKind = "daily_study" | "revision" | "goal" | "challenge" | "weekly_summary";
 export type SmartReminderDatabase = Pick<Database, "execute" | "transaction">;
@@ -19,6 +21,25 @@ type SmartReminderEmailTemplate =
   | "goal-reminder"
   | "challenge-reminder"
   | "weekly-summary";
+
+const SMART_REMINDER_SQLSTATE_CODE_MAP = new Map([
+  ["40001", "SMART_REMINDER_SERIALIZATION_FAILURE"],
+  ["40P01", "SMART_REMINDER_DEADLOCK"],
+  ["57014", "SMART_REMINDER_QUERY_CANCELLED"],
+] as const);
+const SMART_REMINDER_SQLSTATE_CODES = new Set(
+  SMART_REMINDER_SQLSTATE_CODE_MAP.keys(),
+);
+
+function smartReminderErrorCode(error: unknown) {
+  const sqlState = allowlistedOperationalErrorCode(
+    error,
+    SMART_REMINDER_SQLSTATE_CODES,
+  );
+  return sqlState === null
+    ? "SMART_REMINDER_DISPATCH_FAILED"
+    : SMART_REMINDER_SQLSTATE_CODE_MAP.get(sqlState)!;
+}
 
 
 type Candidate = {
@@ -333,23 +354,10 @@ export async function scheduleSmartRemindersWithDatabase(
         }
       } catch (error) {
         failed += 1;
-        const cause = error instanceof Error ? error.cause : undefined;
-        const databaseCode = boundedOperationalCode(
-          typeof error === "object" && error !== null && "code" in error
-            ? (error as { code?: unknown }).code
-            : undefined,
-        );
-        const causeCode = boundedOperationalCode(
-          typeof cause === "object" && cause !== null && "code" in cause
-            ? (cause as { code?: unknown }).code
-            : undefined,
-        );
         console.error(JSON.stringify({
           event: "smart_reminder.dispatch_failed",
           kind: reminder.kind,
-          errorName: operationalErrorCode(error),
-          ...(databaseCode ? { databaseCode } : {}),
-          ...(causeCode ? { causeCode } : {}),
+          code: smartReminderErrorCode(error),
         }));
       }
     }
