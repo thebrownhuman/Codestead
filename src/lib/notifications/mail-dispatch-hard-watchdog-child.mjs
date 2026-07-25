@@ -1,3 +1,4 @@
+import { constants as osConstants } from "node:os";
 import process from "node:process";
 
 const PRODUCTION_TIMEOUT_MS = 55_000;
@@ -12,6 +13,7 @@ const TEST_FAULTS = new Set([
   "DROP_ARM_ACK",
   "DROP_DISARM_ACK",
   "EXIT_AFTER_ARMED",
+  "EXIT_AFTER_ARMED_WITH_MUTATED_KILL",
   "EXIT_BEFORE_READY",
   "MALFORMED_ARMED",
   "MALFORMED_DISARMED",
@@ -41,8 +43,57 @@ const FORBIDDEN_ENVIRONMENT = Object.freeze([
   "LOST_DEVICE_PROOF_KEY_FILE",
 ]);
 
+const capturedReallyExit = typeof process.reallyExit === "function"
+  ? process.reallyExit.bind(process)
+  : undefined;
+const capturedRawKill = typeof process._kill === "function"
+  ? process._kill.bind(process)
+  : undefined;
+const capturedAtomicsWait = typeof Atomics.wait === "function"
+  ? Atomics.wait.bind(Atomics)
+  : undefined;
+const capturedSelfPid = process.pid;
+const capturedSigkill = osConstants.signals.SIGKILL;
+let parkWord;
+try {
+  parkWord = new Int32Array(
+    new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT),
+  );
+} catch {
+  // The final tight loop below remains allocation-free and non-returning.
+}
+
+function parkUntilKilled() {
+  if (capturedAtomicsWait && parkWord) {
+    for (;;) {
+      try {
+        capturedAtomicsWait(parkWord, 0, 0);
+      } catch {
+        break;
+      }
+    }
+  }
+  for (;;) {
+    // Never re-enter the event loop or run cleanup after a fatal boundary.
+  }
+}
+
 function startupFail(code) {
-  process.exit(code);
+  if (capturedReallyExit) {
+    try {
+      capturedReallyExit(code);
+    } catch {
+      // Fall through to the captured raw whole-process kill.
+    }
+  }
+  if (capturedRawKill) {
+    try {
+      capturedRawKill(capturedSelfPid, capturedSigkill);
+    } catch {
+      // Fall through to the preallocated park.
+    }
+  }
+  parkUntilKilled();
 }
 
 function watchdogTimeoutMs() {
@@ -98,8 +149,6 @@ let generation = 0;
 let phase = "idle";
 let readySent = false;
 let killTimer;
-let killRetry;
-let failureExitTimer;
 
 function capturedParentMatches() {
   return process.ppid === parentPid && parentPid > 1;
@@ -111,11 +160,7 @@ function parentIdentityIsLive() {
 
 function clearWatchdogTimers() {
   if (killTimer !== undefined) clearTimeout(killTimer);
-  if (killRetry !== undefined) clearInterval(killRetry);
-  if (failureExitTimer !== undefined) clearTimeout(failureExitTimer);
   killTimer = undefined;
-  killRetry = undefined;
-  failureExitTimer = undefined;
 }
 
 function killCapturedParentForFailure(code) {
@@ -134,21 +179,23 @@ function killCapturedParentForFailure(code) {
     startupFail(code);
   }
 
-  const terminate = () => {
-    if (!capturedParentMatches()) {
-      clearWatchdogTimers();
-      startupFail(0);
-    }
-    try {
-      process.kill(parentPid, "SIGKILL");
-    } catch {
+  if (!capturedParentMatches()) {
+    clearWatchdogTimers();
+    startupFail(0);
+  }
+  try {
+    if (!capturedRawKill || capturedRawKill(parentPid, capturedSigkill) !== 0) {
       clearWatchdogTimers();
       startupFail(70);
     }
-  };
-  terminate();
-  killRetry = setInterval(terminate, 25);
-  failureExitTimer = setTimeout(() => startupFail(code), 250);
+  } catch {
+    clearWatchdogTimers();
+    startupFail(70);
+  }
+  // One successful numeric kill is authoritative, especially on Windows:
+  // retrying could target an unrelated process after PID reuse.
+  clearWatchdogTimers();
+  startupFail(code);
 }
 
 function fail(code) {
@@ -170,7 +217,10 @@ function killParentOnTimeout() {
 
 function send(message, afterSend) {
   process.send(message, (error) => {
-    if (error) fail(66);
+    if (error) {
+      fail(66);
+      return;
+    }
     afterSend?.();
   });
 }
@@ -198,7 +248,9 @@ process.on("exit", () => {
   try {
     // The exit event is synchronous: no timer, promise, logging, or cleanup
     // may run before this last-resort signal is sent.
-    process.kill(parentPid, "SIGKILL");
+    if (capturedRawKill) {
+      capturedRawKill(parentPid, capturedSigkill);
+    }
   } catch {
     // There is no safe asynchronous fallback once ordinary exit has begun.
   }
@@ -237,13 +289,12 @@ process.on("message", (message) => {
     readySent = true;
     generation = message.generation;
     phase = "armed";
-    killTimer = setTimeout(killParentOnTimeout, timeoutMs);
-
     if (testFault === "MALFORMED_ARMED") {
       send({ type: "ARMED", generation, unexpected: true });
       return;
     }
     if (testFault === "DROP_ARM_ACK") return;
+    killTimer = setTimeout(killParentOnTimeout, timeoutMs);
     if (testFault === "DISCONNECT_ON_ARM") {
       disconnect();
       return;
@@ -252,10 +303,22 @@ process.on("message", (message) => {
       setTimeout(() => send({ type: "ARMED", generation }), 50);
       return;
     }
-    if (testFault === "EXIT_AFTER_ARMED") {
+    if (
+      testFault === "EXIT_AFTER_ARMED"
+      || testFault === "EXIT_AFTER_ARMED_WITH_MUTATED_KILL"
+    ) {
       send(
         { type: "ARMED", generation },
-        () => setTimeout(() => startupFail(81), 25),
+        () => {
+          if (testFault === "EXIT_AFTER_ARMED_WITH_MUTATED_KILL") {
+            process.kill = () => false;
+            process._kill = () => 1;
+          }
+          setTimeout(() => {
+            process.exitCode = 0;
+            process.exit(81);
+          }, 25);
+        },
       );
       return;
     }
@@ -322,7 +385,11 @@ process.on("message", (message) => {
     }
     phase = "closing";
     clearWatchdogTimers();
-    send({ type: "CLOSED" });
+    send({ type: "CLOSED" }, () => {
+      phase = "closed";
+      // Disconnect only after Node confirms the CLOSED frame was delivered.
+      disconnect();
+    });
     return;
   }
   fail(69);

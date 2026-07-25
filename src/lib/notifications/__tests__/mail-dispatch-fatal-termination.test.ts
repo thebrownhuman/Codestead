@@ -30,16 +30,16 @@ function startFixture(mode: string) {
   child.stderr.on("data", (chunk: string) => {
     stderr += chunk;
   });
-  const exit = new Promise<Readonly<{
+  const close = new Promise<Readonly<{
     code: number | null;
     signal: NodeJS.Signals | null;
   }>>((resolve, reject) => {
     child.once("error", reject);
-    child.once("exit", (code, signal) => resolve({ code, signal }));
+    child.once("close", (code, signal) => resolve({ code, signal }));
   });
   return {
     child,
-    exit,
+    close,
     stdout: () => stdout,
     stderr: () => stderr,
   };
@@ -55,19 +55,19 @@ async function waitForEntry(run: ReturnType<typeof startFixture>) {
   }
 }
 
-async function exitWithin(
+async function closeWithin(
   run: ReturnType<typeof startFixture>,
   timeoutMs: number,
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      run.exit,
+      run.close,
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () => reject(new Error("Fatal termination fixture did not exit.")),
-          timeoutMs,
-        );
+        timer = setTimeout(() => {
+          run.child.kill("SIGKILL");
+          reject(new Error("Fatal termination fixture did not close."));
+        }, timeoutMs);
       }),
     ]);
   } finally {
@@ -76,9 +76,9 @@ async function exitWithin(
 }
 
 describe("mail dispatch fatal termination", () => {
-  it("exits synchronously with the fixed failure status", async () => {
-    const run = startFixture("exit");
-    const result = await exitWithin(run, 2_000);
+  it("uses the import-captured native main-thread exit with an exact status and no cleanup bytes", async () => {
+    const run = startFixture("native-hostile");
+    const result = await closeWithin(run, 2_000);
 
     expect(result).toEqual({ code: 1, signal: null });
     expect(run.stdout()).toBe("ENTER\n");
@@ -86,32 +86,65 @@ describe("mail dispatch fatal termination", () => {
   });
 
   it.each([
-    "park",
-    "exit-returns",
-    "exit-throws",
-    "shared-array-buffer-throws",
-    "atomics-wait-throws",
+    "really-exit-returns",
+    "really-exit-throws",
+    "really-exit-unavailable",
   ])(
-    "never resumes cleanup for %s",
+    "falls through a %s primitive to the import-captured raw numeric SIGKILL",
+    async (mode) => {
+      const run = startFixture(mode);
+      const result = await closeWithin(run, 2_000);
+
+      expect(run.stdout()).toBe("ENTER\n");
+      expect(run.stderr()).toBe("");
+      if (process.platform === "win32") {
+        expect(result).toEqual({ code: 1, signal: null });
+      } else {
+        expect(result).toEqual({ code: null, signal: "SIGKILL" });
+      }
+    },
+  );
+
+  it("skips reallyExit in a worker and raw-kills the whole process", async () => {
+    const run = startFixture("worker");
+    const result = await closeWithin(run, 2_000);
+
+    expect(run.stdout()).toBe("ENTER\n");
+    expect(run.stderr()).toBe("");
+    if (process.platform === "win32") {
+      expect(result).toEqual({ code: 1, signal: null });
+    } else {
+      expect(result).toEqual({ code: null, signal: "SIGKILL" });
+    }
+  });
+
+  it.each([
+    "park",
+    "kill-returns",
+    "kill-throws",
+    "kill-unavailable",
+    "atomics-mutated",
+    "atomics-returns",
+    "atomics-throws",
+    "atomics-unavailable",
+    "shared-array-buffer-throws",
+  ])(
+    "uses the preallocated non-returning park when native termination cannot complete for %s",
     async (mode) => {
       const run = startFixture(mode);
       await waitForEntry(run);
-      let exited = false;
-      void run.exit.then(() => {
-        exited = true;
+      let closed = false;
+      void run.close.then(() => {
+        closed = true;
       });
 
-      const observationMs =
-        mode === "shared-array-buffer-throws" || mode === "atomics-wait-throws"
-          ? 25
-          : 150;
-      await new Promise((resolve) => setTimeout(resolve, observationMs));
-      expect(exited).toBe(false);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(closed).toBe(false);
       expect(run.stdout()).toBe("ENTER\n");
       expect(run.stderr()).toBe("");
 
       run.child.kill("SIGKILL");
-      await exitWithin(run, 2_000);
+      await closeWithin(run, 2_000);
       expect(run.stdout()).not.toContain("RESUMED");
     },
   );

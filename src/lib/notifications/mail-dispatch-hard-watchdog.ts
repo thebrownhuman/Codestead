@@ -40,6 +40,7 @@ const TEST_FAULTS = new Set([
   "DROP_ARM_ACK",
   "DROP_DISARM_ACK",
   "EXIT_AFTER_ARMED",
+  "EXIT_AFTER_ARMED_WITH_MUTATED_KILL",
   "EXIT_BEFORE_READY",
   "MALFORMED_ARMED",
   "MALFORMED_DISARMED",
@@ -105,6 +106,7 @@ type ControllerState = {
   pending?: PendingHandshake;
   capability?: ArmedMailDispatchHardWatchdog;
   expectedClose: boolean;
+  childClosed: boolean;
 };
 type ArmedState = Readonly<{
   capability: ArmedMailDispatchHardWatchdog;
@@ -347,6 +349,9 @@ function installChildHandlers(state: ControllerState) {
       failController(state, watchdogError("WATCHDOG_CHILD_FAILED"));
     }
   });
+  state.child.once("close", () => {
+    state.childClosed = true;
+  });
   state.child.once("disconnect", () => {
     if (!state.expectedClose) {
       failController(state, watchdogError("WATCHDOG_CHILD_FAILED"));
@@ -354,27 +359,36 @@ function installChildHandlers(state: ControllerState) {
   });
 }
 
-async function waitForChildExit(child: ChildProcess) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
+async function waitForChildClose(state: ControllerState) {
+  if (state.childClosed) return;
   await new Promise<void>((resolve) => {
     let settled = false;
+    let closeBound: ReturnType<typeof setTimeout> | undefined;
     const finish = () => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
-      child.off("exit", finish);
+      clearTimeout(killBound);
+      if (closeBound !== undefined) clearTimeout(closeBound);
+      state.child.off("close", finish);
       resolve();
     };
-    const timeout = setTimeout(() => {
+    const killBound = setTimeout(() => {
+      if (settled) return;
       try {
-        child.kill("SIGKILL");
+        if (
+          !state.childClosed
+          && state.child.exitCode === null
+          && state.child.signalCode === null
+        ) {
+          state.child.kill("SIGKILL");
+        }
       } catch {
-        // A failed kill cannot make graceful close wait without a bound.
-      } finally {
-        finish();
+        // The close-confirmation bound below remains authoritative.
       }
+      if (!settled) closeBound = setTimeout(finish, WATCHDOG_READY_TIMEOUT_MS);
     }, WATCHDOG_READY_TIMEOUT_MS);
-    child.once("exit", finish);
+    state.child.once("close", finish);
+    if (state.childClosed) finish();
   });
 }
 
@@ -407,6 +421,7 @@ export async function startMailDispatchHardWatchdog(
     phase: "starting",
     generation: 0,
     expectedClose: false,
+    childClosed: false,
   };
   installChildHandlers(state);
 
@@ -460,7 +475,7 @@ export async function startMailDispatchHardWatchdog(
         current.phase = "closed";
         clearPending(current, watchdogError("WATCHDOG_CHILD_FAILED"));
         destroyChildBestEffort(current);
-        await waitForChildExit(current.child);
+        await waitForChildClose(current);
         CONTROLLERS.delete(controller);
         return;
       }
@@ -474,12 +489,7 @@ export async function startMailDispatchHardWatchdog(
       }
       current.expectedClose = true;
       current.phase = "closed";
-      try {
-        if (current.child.connected) current.child.disconnect();
-      } catch {
-        destroyChildBestEffort(current);
-      }
-      await waitForChildExit(current.child);
+      await waitForChildClose(current);
       CONTROLLERS.delete(controller);
     },
   }) satisfies MailDispatchHardWatchdog;
