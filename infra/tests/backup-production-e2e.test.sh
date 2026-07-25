@@ -1576,6 +1576,17 @@ operations_image_id="$(docker image inspect --format '{{.Id}}' "$operations_dige
     "$operations_digest")" == "$ownership_project" ]] \
   || fail "operations image ownership is invalid"
 
+docker run --rm --pull never --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges --pids-limit 64 --memory 128m --cpus 1 \
+  --user 1000:1000 --entrypoint node "$operations_digest" \
+  --input-type=module --eval '
+    const loaded = await import(
+      "file:///app/scripts/bootstrap-database-roles.mjs"
+    );
+    if (typeof loaded.runDatabaseRoleBootstrap !== "function") process.exit(1);
+  ' >/dev/null \
+  || fail "offline operations image cannot import the ledger-gated bootstrap"
+
 docker run --rm --name "$resource_prefix-toolbox" \
   --hostname "$resource_prefix-toolbox" \
   --label "$OWNER_LABEL_KEY=$run_id" \

@@ -565,6 +565,7 @@ const requiredBackupRuns = [
 ];
 const expectedApplicationRuns = [
   "npm ci",
+  "npm run test:migration-ledger",
   "npm run production-load:ci-registration",
   "npm run production-load:test-control:bundle",
   "npm run production-load:fixture-runtime:bundle",

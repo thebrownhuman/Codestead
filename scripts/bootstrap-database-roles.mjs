@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
 
+import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
+
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const OWNER_ROLE = "learncoding_owner";
 const MIGRATOR_ROLE = "learncoding_migrator";
@@ -2205,6 +2207,13 @@ export async function cleanupDatabaseBootstrapResources({
 
 export async function runDatabaseRoleBootstrap(options) {
   const parsed = validateDatabaseRoleUrls(options);
+  const verifyAppliedMigrationLedger =
+    options.verifyAppliedMigrationLedger ?? verifyAppliedMigrationLedgerContract;
+  const requireCompleteMigrationLedger =
+    options.requireCompleteMigrationLedger ?? false;
+  if (typeof requireCompleteMigrationLedger !== "boolean") {
+    throw new TypeError("requireCompleteMigrationLedger must be boolean");
+  }
   const cleanupTimeoutMs = normalizeCleanupTimeoutMs(
     options.cleanupTimeoutMs ?? DEFAULT_CLEANUP_TIMEOUT_MS,
   );
@@ -2236,6 +2245,9 @@ export async function runDatabaseRoleBootstrap(options) {
     lockAcquired = true;
     await client.query("begin");
     transactionOpen = true;
+    await verifyAppliedMigrationLedger(client, {
+      requireComplete: requireCompleteMigrationLedger,
+    });
     const inventory = await loadOwnershipInventory(
       client,
       options.postgresUser,
@@ -2283,6 +2295,11 @@ export async function runDatabaseRoleBootstrap(options) {
 }
 
 async function main() {
+  const requireCompleteSetting =
+    process.env.REQUIRE_COMPLETE_MIGRATION_LEDGER ?? "false";
+  if (!/^(?:true|false)$/u.test(requireCompleteSetting)) {
+    throw new Error("REQUIRE_COMPLETE_MIGRATION_LEDGER must be true or false");
+  }
   const checks = await runDatabaseRoleBootstrap({
     postgresUser: process.env.POSTGRES_USER ?? "",
     postgresDatabase: process.env.POSTGRES_DB ?? "",
@@ -2291,6 +2308,7 @@ async function main() {
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
+    requireCompleteMigrationLedger: requireCompleteSetting === "true",
   });
   console.info(
     JSON.stringify({

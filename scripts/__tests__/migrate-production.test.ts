@@ -1,6 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { acquireMigrationLock, runProductionMigration } from "../migrate-production.mjs";
+
+vi.mock("../lib/reviewed-migration-ledger.mjs", () => ({
+  verifyReviewedMigrationRepository: vi.fn(() => ({
+    entryCount: 65,
+    ledgerSha256: "a".repeat(64),
+    tailIndex: 64,
+    tailTag: "0064_mail_outbox_dispatch_binding",
+  })),
+  verifyAppliedMigrationLedger: vi.fn(async () => ({
+    appliedCount: 65,
+    complete: true,
+    ledgerSha256: "a".repeat(64),
+  })),
+}));
+
 function roleAwareQuery(
   unlock: () => Promise<{ rows: Array<Record<string, unknown>> }> = async () => ({
     rows: [{ released: true }],
@@ -29,6 +44,64 @@ function roleAwareQuery(
     return { rows: [] };
   });
 }
+
+it("verifies the reviewed repository and applied ledger around the migration boundary", async () => {
+  const query = roleAwareQuery();
+  const client = { query, release: vi.fn() };
+  const pool = {
+    connect: vi.fn(async () => client),
+    end: vi.fn(async () => undefined),
+  };
+  const migrate = vi.fn(async () => undefined);
+  const migrationsFolder = "/reviewed/drizzle";
+  const verifyReviewedMigrationRepository = vi.fn(() => ({
+    entryCount: 65,
+    ledgerSha256: "a".repeat(64),
+    tailIndex: 64,
+    tailTag: "0064_mail_outbox_dispatch_binding",
+  }));
+  const verifyAppliedMigrationLedger = vi.fn(async () => ({
+    appliedCount: 65,
+    complete: true,
+    ledgerSha256: "a".repeat(64),
+  }));
+
+  await runProductionMigration({
+    connectionString: "postgresql://learncoding_migrator:Fake@postgres/learncoding",
+    pool,
+    migrate,
+    drizzle: vi.fn(() => ({})),
+    migrationsFolder,
+    verifyReviewedMigrationRepository,
+    verifyAppliedMigrationLedger,
+  });
+
+  expect(verifyReviewedMigrationRepository).toHaveBeenCalledWith({
+    drizzleDirectory: migrationsFolder,
+  });
+  expect(verifyAppliedMigrationLedger.mock.calls).toEqual([
+    [client, { requireComplete: false }],
+    [client, { requireComplete: true }],
+  ]);
+  expect(verifyReviewedMigrationRepository.mock.invocationCallOrder[0]).toBeLessThan(
+    verifyAppliedMigrationLedger.mock.invocationCallOrder[0] ?? 0,
+  );
+  const setRoleCall = query.mock.calls.findIndex(([sql]) =>
+    String(sql).includes("SET ROLE learncoding_owner"),
+  );
+  expect(verifyReviewedMigrationRepository.mock.invocationCallOrder[0]).toBeLessThan(
+    query.mock.invocationCallOrder[setRoleCall] ?? 0,
+  );
+  expect(query.mock.invocationCallOrder[setRoleCall]).toBeLessThan(
+    verifyAppliedMigrationLedger.mock.invocationCallOrder[0] ?? 0,
+  );
+  expect(verifyAppliedMigrationLedger.mock.invocationCallOrder[0]).toBeLessThan(
+    migrate.mock.invocationCallOrder[0] ?? 0,
+  );
+  expect(migrate.mock.invocationCallOrder[0]).toBeLessThan(
+    verifyAppliedMigrationLedger.mock.invocationCallOrder[1] ?? 0,
+  );
+});
 
 
   it("uses the shared administration lock and migrates only as the owner role", async () => {

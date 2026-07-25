@@ -21,6 +21,19 @@ export interface MigrationPool {
   end(): Promise<void>;
 }
 
+export interface ReviewedMigrationRepositorySummary {
+  readonly entryCount: number;
+  readonly ledgerSha256: string;
+  readonly tailIndex: number;
+  readonly tailTag: string;
+}
+
+export interface AppliedMigrationLedgerSummary {
+  readonly appliedCount: number;
+  readonly complete: boolean;
+  readonly ledgerSha256: string;
+}
+
 export interface ProductionMigrationOptions {
   connectionString: string;
   pool?: MigrationPool;
@@ -30,6 +43,13 @@ export interface ProductionMigrationOptions {
   ) => Promise<void>;
   drizzle?: (client: MigrationClient) => unknown;
   migrationsFolder?: string;
+  verifyReviewedMigrationRepository?: (options: {
+    drizzleDirectory: string;
+  }) => ReviewedMigrationRepositorySummary;
+  verifyAppliedMigrationLedger?: (
+    client: MigrationClient,
+    options: { requireComplete: boolean },
+  ) => Promise<AppliedMigrationLedgerSummary>;
   lockOptions?: MigrationLockOptions;
   cleanupTimeoutMs?: number;
   unlockTimeoutMs?: number;
