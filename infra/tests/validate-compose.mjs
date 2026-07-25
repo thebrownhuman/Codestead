@@ -1,10 +1,15 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const envFile = path.join(root, "infra/env/compose.env.example");
 const composeFile = path.join(root, "compose.yaml");
+const mailDispatchRuntimePolicy = readFileSync(
+  path.join(root, "src/lib/notifications/mail-dispatch-runtime-policy.ts"),
+  "utf8",
+);
 const failures = [];
 
 const expect = (condition, message) => {
@@ -14,6 +19,21 @@ const keys = (value) => Object.keys(value ?? {}).sort();
 const same = (actual, expected) =>
   JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
 const orderedSame = (actual, expected) => JSON.stringify(actual) === JSON.stringify(expected);
+
+const policyObjectBody = (name) =>
+  new RegExp(
+    `export const ${name} = Object\\.freeze\\(\\{([\\s\\S]*?)\\n\\}\\);`,
+    "u",
+  ).exec(mailDispatchRuntimePolicy)?.[1] ?? "";
+const policyInteger = (body, name) => {
+  const source = new RegExp(
+    `^\\s*${name}:\\s*([0-9][0-9_]*),\\s*$`,
+    "mu",
+  ).exec(body)?.[1];
+  return source === undefined
+    ? Number.NaN
+    : Number(source.replaceAll("_", ""));
+};
 
 const pilotServices = [
   "app",
@@ -46,7 +66,6 @@ const oneShotServices = operationServices;
 const databaseMutatingServices = [
   "app",
   "exam-finalization-worker",
-  "mail-worker",
   "practice-runner-recovery-worker",
   "project-review-correction-worker",
   "regrade-worker",
@@ -225,6 +244,35 @@ expect(
 for (const name of oneShotServices) {
   expect(config.services?.[name]?.restart === "no", `${name} must remain a non-restarting one-shot`);
 }
+expect(
+  policyInteger(
+    policyObjectBody("MAIL_DISPATCH_RUNTIME_DEFAULTS"),
+    "stopTimeoutMs",
+  ) === 120_000 &&
+    policyInteger(
+      policyObjectBody("MAIL_DISPATCH_RUNTIME_DEFAULTS"),
+      "drainTimeoutMs",
+    ) === 100_000 &&
+    policyInteger(
+      policyObjectBody("MAIL_DISPATCH_RUNTIME_LIMITS"),
+      "exclusiveMaximumDrainMs",
+    ) === 105_000 &&
+    policyInteger(
+      policyObjectBody("MAIL_DISPATCH_RUNTIME_DEFAULTS"),
+      "poolCloseTimeoutMs",
+    ) === 5_000,
+  "mail application policy must retain stop=120s, drain=100s with exclusive 105s bound, and pool-close=5s",
+);
+const mailApplicationStopMs = policyInteger(
+  policyObjectBody("MAIL_DISPATCH_RUNTIME_DEFAULTS"),
+  "stopTimeoutMs",
+);
+const mailPlatformStopMs = 135_000;
+expect(
+  config.services?.["mail-worker"]?.stop_grace_period === "2m15s" &&
+    mailPlatformStopMs - mailApplicationStopMs === 15_000,
+  "mail-worker must receive exactly 135 seconds with a 15-second platform margin beyond the 120-second application stop policy",
+);
 expect(
   config.services?.postgres?.stop_grace_period === "2m0s",
   "postgres must receive a two-minute stop budget",
