@@ -1049,7 +1049,8 @@ verify_dispatch_binding_rollback_contract() {
       fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
     }
   done
-  for commit in "$record_git_commit" "$previous_git_commit"; do
+  for commit in "$mail_outbox_dispatch_binding_boundary_commit" \
+    "$record_git_commit" "$previous_git_commit"; do
     run_local_evidence_git cat-file -e "${commit}^{tree}" \
       >/dev/null 2>&1 || fatal "unable to verify trusted 0064 release Git trees"
   done

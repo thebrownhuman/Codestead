@@ -474,6 +474,7 @@ run_rollback() {
   fi
   set +e
   REPO_ROOT="$work/repo" \
+    GIT_OBJECT_DIRECTORY="${RUN_GIT_OBJECT_DIRECTORY:-$work/repo/.git/objects}" \
     COMPOSE_ENV_FILE="$work/compose.env" \
     COMPOSE_FILE_PATH="$work/repo/compose.yaml" \
     RELEASE_LOCK_FILE="$lock_file" \
@@ -820,6 +821,37 @@ if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/
 fi
 echo "ok - rollback refuses a pre-capability image after 0064 regardless of operator assertion"
 
+dispatch_binding_boundary_tree_missing_objects="$work/dispatch-binding-boundary-tree-missing-objects"
+mkdir -p "$dispatch_binding_boundary_tree_missing_objects/pack"
+dispatch_binding_boundary_tree_missing_pack="$(
+  GIT_NO_LAZY_FETCH=1 git -C "$work/repo" cat-file --batch-all-objects \
+      --batch-check='%(objectname)' \
+    | awk -v omitted="$dispatch_binding_boundary_tree" \
+        '$1 != omitted { print $1 }' \
+    | GIT_NO_LAZY_FETCH=1 git -C "$work/repo" pack-objects \
+        "$dispatch_binding_boundary_tree_missing_objects/pack/pack"
+)" || fail "unable to create the missing 0064 boundary-tree fixture"
+[[ "$dispatch_binding_boundary_tree_missing_pack" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+  fail "missing 0064 boundary-tree fixture pack identity is malformed"
+}
+for dispatch_binding_local_evidence in \
+    "${dispatch_binding_boundary_commit}^{commit}" \
+    "${dispatch_binding_pre_boundary_source_commit}^{commit}" \
+    "${dispatch_binding_pre_boundary_source_commit}^{tree}" \
+    "${dispatch_binding_pre_boundary_target_commit}^{commit}" \
+    "${dispatch_binding_pre_boundary_target_commit}^{tree}"; do
+  GIT_OBJECT_DIRECTORY="$dispatch_binding_boundary_tree_missing_objects" \
+    GIT_NO_LAZY_FETCH=1 git -C "$work/repo" cat-file -e \
+      "$dispatch_binding_local_evidence" >/dev/null 2>&1 || {
+    fail "missing 0064 boundary-tree fixture lost required local lineage evidence"
+  }
+done
+if GIT_OBJECT_DIRECTORY="$dispatch_binding_boundary_tree_missing_objects" \
+    GIT_NO_LAZY_FETCH=1 git -C "$work/repo" cat-file -e \
+      "${dispatch_binding_boundary_commit}^{tree}" >/dev/null 2>&1; then
+  fail "missing 0064 boundary-tree fixture unexpectedly retained the boundary tree"
+fi
+
 v2_dispatch_binding_lineage_failures=0
 check_v2_dispatch_binding_lineage_refusal() {
   local scenario="$1" source_commit="$2" source_tree="$3"
@@ -881,6 +913,14 @@ check_v2_dispatch_binding_lineage_refusal \
   "$older_pre_contract_commit" "$older_pre_contract_tree" \
   "$dispatch_binding_pruned_source_commit" "$dispatch_binding_pruned_source_tree" \
   'unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage'
+RUN_GIT_OBJECT_DIRECTORY="$dispatch_binding_boundary_tree_missing_objects" \
+  check_v2_dispatch_binding_lineage_refusal \
+    dispatch-binding-v2-missing-boundary-tree \
+    "$dispatch_binding_pre_boundary_source_commit" \
+    "$dispatch_binding_pre_boundary_source_tree" \
+    "$dispatch_binding_pre_boundary_target_commit" \
+    "$dispatch_binding_pre_boundary_target_tree" \
+    'unable to verify trusted 0064 release Git trees'
 check_v2_dispatch_binding_lineage_refusal \
   dispatch-binding-v2-source-tree-mismatch \
   "$dispatch_binding_pre_boundary_source_commit" "$dispatch_binding_boundary_tree" \
