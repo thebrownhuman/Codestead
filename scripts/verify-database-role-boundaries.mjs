@@ -6,6 +6,7 @@ import { Pool } from "pg";
 import {
   MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
   MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS,
+  MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS,
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS,
   REVIEWED_APPLICATION_CONSTRAINTS,
   REVIEWED_APPLICATION_FUNCTIONS,
@@ -629,16 +630,27 @@ export async function verifyReviewedApplicationTriggers(
 
 export async function verifyMailWorkerOutboxContract(
   client,
-  { requiresDispatchBinding = true } = {},
+  {
+    requiresDispatchBinding = true,
+    requiresProviderEvidence = false,
+  } = {},
 ) {
-  if (typeof requiresDispatchBinding !== "boolean") fail();
+  if (
+    typeof requiresDispatchBinding !== "boolean"
+    || typeof requiresProviderEvidence !== "boolean"
+    || (requiresProviderEvidence && !requiresDispatchBinding)
+  ) fail();
   if (REVIEWED_APPLICATION_CONSTRAINTS.length !== 1) fail();
   const constraint = REVIEWED_APPLICATION_CONSTRAINTS[0];
   if (!constraint) fail();
-  const expectedUpdateColumns = requiresDispatchBinding
+  const expectedUpdateColumns = requiresProviderEvidence
     ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
-    : MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS;
+    : requiresDispatchBinding
+      ? MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS
+      : MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS;
   const expectedBindingColumnCount = requiresDispatchBinding ? 2 : 0;
+  const expectedProviderEvidenceColumnCount =
+    requiresProviderEvidence ? 3 : 0;
 
   const result = await client.query(
     `
@@ -664,6 +676,23 @@ export async function verifyMailWorkerOutboxContract(
           on attribute.attrelid = target.oid
          and attribute.attnum > 0
          and attribute.attname = any($3::text[])
+    ), provider_evidence_columns as (
+      select pg_catalog.count(*)::integer present_count,
+             pg_catalog.count(*) filter (
+               where attribute.atttypid =
+                       'pg_catalog.text'::pg_catalog.regtype
+                 and attribute.atttypmod = -1
+                 and not attribute.attnotnull
+                 and not attribute.atthasdef
+                 and attribute.attgenerated = ''
+                 and attribute.attidentity = ''
+                 and not attribute.attisdropped
+             )::integer exact_count
+        from target
+        join pg_catalog.pg_attribute attribute
+          on attribute.attrelid = target.oid
+         and attribute.attnum > 0
+         and attribute.attname = any($13::text[])
     ), expected_column_acl(attname, privilege_type) as (
       select column_name, 'INSERT'::text
         from pg_catalog.unnest($1::text[]) column_name
@@ -685,6 +714,11 @@ export async function verifyMailWorkerOutboxContract(
                and exact_count = $11::integer
           from binding_columns
       ) binding_columns_exact,
+      (
+        select present_count = $14::integer
+               and exact_count = $14::integer
+          from provider_evidence_columns
+      ) provider_evidence_columns_exact,
       (
         select case when $12::boolean then pg_catalog.count(*) = 1
                and pg_catalog.bool_and(
@@ -848,6 +882,12 @@ export async function verifyMailWorkerOutboxContract(
       constraint.relationOwner,
       expectedBindingColumnCount,
       requiresDispatchBinding,
+      [
+        "provider_correlation_version",
+        "provider_evidence_version",
+        "provider_evidence_sha256",
+      ],
+      expectedProviderEvidenceColumnCount,
     ],
   );
   if (
@@ -856,6 +896,7 @@ export async function verifyMailWorkerOutboxContract(
       outbox_present_exact: true,
       outbox_owner_exact: true,
       binding_columns_exact: true,
+      provider_evidence_columns_exact: true,
       dispatch_constraint_exact: true,
       worker_table_direct_acl_exact: true,
       worker_column_direct_acl_exact: true,
