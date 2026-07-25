@@ -1,5 +1,6 @@
 import type { EmailTemplate } from "./outbox";
 import { materializeLostDeviceProofVariables } from "@/lib/security/lost-device-recovery";
+import { parseRevocableSourceVariables } from "./revocable-source-authority";
 
 /**
  * Expands delivery-only values in memory. Sensitive bearer links must never be
@@ -11,13 +12,17 @@ export async function materializeDeliveryVariables(input: {
   now?: Date;
 }): Promise<Record<string, string> | null> {
   if (input.template !== "lost-device-proof") return input.variables;
-  const requestId = input.variables.recoveryRequestId;
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId ?? "")) {
-    return null;
-  }
+  const parsed = parseRevocableSourceVariables({
+    applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+    template: input.template,
+    templateVersion: "1",
+    variables: input.variables,
+  });
+  if (parsed?.kind !== "lost-device-proof") return null;
+  const requestId = parsed.sourceId;
   return materializeLostDeviceProofVariables({
     requestId,
-    name: input.variables.name ?? "learner",
+    name: input.variables.name,
     now: input.now,
   });
 }

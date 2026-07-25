@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -6,6 +6,10 @@ import { db } from "@/lib/db/client";
 import { notification, user } from "@/lib/db/schema";
 import { requireAuth } from "@/lib/http/authz";
 import { enqueueEmail } from "@/lib/notifications/outbox";
+import {
+  createSessionRevocationSourceVariables,
+  requireRevocableSourceVariables,
+} from "@/lib/notifications/revocable-source-authority";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import {
@@ -68,8 +72,16 @@ export async function POST(request: NextRequest) {
   const admins = await db
     .select({ id: user.id, email: user.email, name: user.name })
     .from(user)
-    .where(eq(user.role, "admin"));
-  const actionUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/admin/learners/${authz.session.user.id}`;
+    .where(and(
+      eq(user.role, "admin"),
+      eq(user.status, "active"),
+      eq(user.banned, false),
+    ));
+  const applicationUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const actionUrl = new URL(
+    `/admin/learners/${authz.session.user.id}`,
+    applicationUrl,
+  ).toString();
   await Promise.all(
     admins.flatMap((admin) => [
       db.insert(notification).values({
@@ -83,7 +95,15 @@ export async function POST(request: NextRequest) {
         to: admin.email,
         userId: admin.id,
         template: "session-revocation-requested",
-        variables: { name: admin.name, device, url: actionUrl },
+        variables: requireRevocableSourceVariables(
+          createSessionRevocationSourceVariables({
+            applicationUrl,
+            name: admin.name,
+            device,
+            requestId,
+            url: actionUrl,
+          }),
+        ),
         idempotencySeed: requestId,
       }),
     ]),

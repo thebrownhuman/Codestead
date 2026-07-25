@@ -28,6 +28,22 @@ describe("delivery-only email variables", () => {
     expect(mocks.materialize).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["missing name", { recoveryRequestId: "10000000-0000-4000-8000-000000000001" }],
+    ["extra bearer", {
+      name: "Learner",
+      recoveryRequestId: "10000000-0000-4000-8000-000000000001",
+      proof: "must-not-be-accepted",
+    }],
+    ["control text", {
+      name: "Learner\nprivate",
+      recoveryRequestId: "10000000-0000-4000-8000-000000000001",
+    }],
+  ])("fails closed for %s persisted proof variables", async (_label, variables) => {
+    await expect(materializeDeliveryVariables({ template: "lost-device-proof", variables })).resolves.toBeNull();
+    expect(mocks.materialize).not.toHaveBeenCalled();
+  });
+
   it("materializes a valid proof only in worker memory", async () => {
     const now = new Date("2026-07-12T12:00:00.000Z");
     const requestId = "10000000-0000-4000-8000-000000000001";

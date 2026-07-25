@@ -2,10 +2,22 @@ import { sql } from "drizzle-orm";
 
 import { db, pool } from "@/lib/db/client";
 import { notification, smartReminderDispatch } from "@/lib/db/schema";
-import { enqueueEmailInTransaction, type AccountEmailTemplate } from "@/lib/notifications/outbox";
+import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
+import {
+  createSmartReminderSourceVariables,
+  SMART_REMINDER_POLICY_VERSION,
+  requireRevocableSourceVariables,
+} from "@/lib/notifications/revocable-source-authority";
 import { boundedOperationalCode, operationalErrorCode } from "@/lib/security/operational-code";
 
 export type SmartReminderKind = "daily_study" | "revision" | "goal" | "challenge" | "weekly_summary";
+type SmartReminderEmailTemplate =
+  | "daily-study-reminder"
+  | "revision-reminder"
+  | "goal-reminder"
+  | "challenge-reminder"
+  | "weekly-summary";
+
 
 type Candidate = {
   id: string;
@@ -40,7 +52,7 @@ const copy: Record<SmartReminderKind, {
   title: string;
   body: string;
   actionUrl: string;
-  template: AccountEmailTemplate;
+  template: SmartReminderEmailTemplate;
 }> = {
   daily_study: {
     title: "One small coding step is enough",
@@ -170,7 +182,7 @@ async function loadCandidates(now: Date, limit: number): Promise<Candidate[]> {
             ) as upcoming_battle
        from "user" u
        join notification_preference p on p.user_id=u.id
-      where u.role='learner' and u.status='active'
+      where u.role='learner' and u.status='active' and u.banned=false
         and (p.daily_study_enabled or p.revision_enabled or p.goal_enabled
           or p.challenge_enabled or p.weekly_summary_enabled)
       order by u.id
@@ -210,7 +222,7 @@ async function dispatch(candidate: Candidate, kind: SmartReminderKind, periodKey
              ) as upcoming_battle
         from "user" u
         join notification_preference p on p.user_id=u.id
-       where u.id=${candidate.id} and u.role='learner' and u.status='active'
+       where u.id=${candidate.id} and u.role='learner' and u.status='active' and u.banned=false
        for update of u,p
     `);
     const current = locked.rows[0] as Candidate | undefined;
@@ -227,7 +239,7 @@ async function dispatch(candidate: Candidate, kind: SmartReminderKind, periodKey
         localPeriodKey: periodKey,
         timezone: current.timezone,
         evidence: {
-          policyVersion: "smart-reminders-2026-07.v1",
+          policyVersion: SMART_REMINDER_POLICY_VERSION,
           reviewDue: kind === "revision",
           activePlan: kind === "goal",
           upcomingBattle: kind === "challenge",
@@ -254,11 +266,17 @@ async function dispatch(candidate: Candidate, kind: SmartReminderKind, periodKey
         userId: current.id,
         to: current.email,
         template: item.template,
-        variables: {
-          name: current.name,
-          url: new URL(item.actionUrl, appUrl).toString(),
-          ...(kind === "weekly_summary" ? { summary: "Your private, evidence-backed weekly summary is ready inside Codestead." } : {}),
-        },
+        variables: requireRevocableSourceVariables(
+          createSmartReminderSourceVariables({
+            applicationUrl: appUrl,
+            dispatchId: receipt.id,
+            kind,
+            name: current.name,
+            periodKey,
+            template: item.template,
+            url: new URL(item.actionUrl, appUrl).toString(),
+          }),
+        ),
         idempotencySeed: `smart-reminder:${receipt.id}`,
       });
     }
