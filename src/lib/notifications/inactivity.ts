@@ -135,8 +135,9 @@ async function persistEmail(
   const idempotencyKey = emailIdempotencyKey(input.template, to, input.seed);
   const inserted = await client.query(
     `insert into email_outbox
-      (user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,status,next_attempt_at)
-     values ($1,'a:' || $1,$2,$3,'2',$4::jsonb,$5,'pending',now())
+      (operation_id,user_id,delivery_scope_key,to_email,template,template_version,
+       variables,idempotency_key,status,next_attempt_at)
+     values (gen_random_uuid(),$1,'a:' || $1,$2,$3,'2',$4::jsonb,$5,'pending',now())
      on conflict (idempotency_key) do nothing
      returning id`,
     [input.userId, to, input.template, JSON.stringify(input.variables), idempotencyKey],

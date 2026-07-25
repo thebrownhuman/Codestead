@@ -524,6 +524,7 @@ const expectedApplicationRuns = [
   "CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:disposable-sandbox",
   "npm run lint",
   "npm run typecheck",
+  "npm run test:mail-writer-inventory",
   "npm run security:dependencies:known",
   "npm run security:secrets",
   "npm run security:encoding",

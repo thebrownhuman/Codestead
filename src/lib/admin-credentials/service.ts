@@ -297,6 +297,7 @@ async function appendCredentialNotice(
   await tx
     .insert(emailOutbox)
     .values({
+      operationId: randomUUID(),
       userId: target.userId,
       deliveryScopeKey: `a:${target.userId}`,
       toEmail: target.ownerEmail.toLowerCase(),
