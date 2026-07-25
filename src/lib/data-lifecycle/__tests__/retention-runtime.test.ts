@@ -159,7 +159,7 @@ const mocks = vi.hoisted(() => {
     if (sql === "release savepoint retention_email_redaction" && state.failReleaseSavepoint) {
       throw new Error("synthetic savepoint release failure");
     }
-    if (sql.includes("from public.redact_unresolved_email_outbox_authority(")) {
+    if (sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")) {
       if (state.failRedaction) {
         throw new Error("synthetic postgres detail learner@example.test");
       }
@@ -281,7 +281,7 @@ describe("retention runtime orchestration", () => {
       String(sql).replace(/\s+/g, " ").trim().toLowerCase()
     ));
     const redaction = statements.findIndex((sql) => (
-      sql.includes("from public.redact_unresolved_email_outbox_authority(")
+      sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")
     ));
     expect(redaction).toBeGreaterThan(-1);
     expect(statements).not.toContain("savepoint retention_email_redaction");
@@ -367,7 +367,7 @@ describe("retention runtime orchestration", () => {
     const savepoint = statements.indexOf("savepoint retention_email_redaction");
     const redaction = statements.findIndex((sql) => (
       sql.startsWith("select disposition, eligible::text as eligible, transitioned::text as transitioned")
-      && sql.includes("from public.redact_unresolved_email_outbox_authority(")
+      && sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")
     ));
     const release = statements.indexOf("release savepoint retention_email_redaction");
     const deleted = statements.findIndex((sql) => (
@@ -433,7 +433,7 @@ describe("retention runtime orchestration", () => {
     const statements = calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
     const savepoint = statements.indexOf("savepoint retention_email_redaction");
     const redaction = statements.findIndex((sql) => (
-      sql.includes("from public.redact_unresolved_email_outbox_authority(")
+      sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")
     ));
     const rollbackTo = statements.indexOf("rollback to savepoint retention_email_redaction");
     const release = statements.indexOf("release savepoint retention_email_redaction");
@@ -478,7 +478,7 @@ describe("retention runtime orchestration", () => {
     const statements = mocks.query.mock.calls.map(([sql]) => (
       String(sql).replace(/\s+/g, " ").trim().toLowerCase()
     ));
-    expect(statements.some((sql) => sql.includes("redact_unresolved_email_outbox_authority"))).toBe(false);
+    expect(statements.some((sql) => sql.includes("redact_quarantined_email_outbox_authority_v2"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("delete from "))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("update email_outbox"))).toBe(false);
     expect(mocks.processFileErasures).not.toHaveBeenCalled();
@@ -496,7 +496,7 @@ describe("retention runtime orchestration", () => {
     expect(report).toMatchObject({ outcome: "succeeded", requiresRetry: false });
     const redactionCall = (
       mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
-    ).find(([sql]) => String(sql).includes("redact_unresolved_email_outbox_authority"));
+    ).find(([sql]) => String(sql).includes("redact_quarantined_email_outbox_authority_v2"));
     expect(redactionCall?.[1]?.[1]).toBe(2);
   });
   it("aborts the relational transaction when redaction rollback-to-savepoint is not confirmed", async () => {
@@ -761,7 +761,7 @@ describe("retention runtime orchestration", () => {
     const calls = mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>;
     const statements = calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
     expect(statements.some((sql) => sql.startsWith("select count(*)"))).toBe(false);
-    expect(statements.some((sql) => sql.includes("redact_unresolved_email_outbox_authority"))).toBe(false);
+    expect(statements.some((sql) => sql.includes("redact_quarantined_email_outbox_authority_v2"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("delete from chat_message"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("delete from email_outbox"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("select id, storage_key from stored_object"))).toBe(needsObjectCheckpoint);

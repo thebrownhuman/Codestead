@@ -31,18 +31,17 @@ describe("mail outbox retention privacy", () => {
   it.each([
     ["eligibility count", fragments.count],
     ["bounded delete", fragments.delete],
-  ] as const)("includes quarantined rows in the terminal-email %s", (_label, fragment) => {
-    expect(fragment).toMatch(/status\s+in\s*\([^)]*'quarantined'[^)]*\)/u);
+  ] as const)("excludes quarantined rows from the terminal-email %s", (_label, fragment) => {
+    expect(fragment).toContain("status in ('sent', 'suppressed', 'failed')");
     expect(fragment).toContain("coalesce(sent_at, updated_at) < $1");
-    expect(fragment).toContain("status = 'quarantined'");
-    expect(fragment).toContain("provider_call_started is not null");
-    expect(fragment).toContain("provider_message_id is null");
-    expect(fragment).toMatch(/not\s*\(\s*status\s*=\s*'quarantined'/u);
+    expect(fragment).not.toContain("'quarantined'");
+    expect(fragment).not.toContain("provider_call_started");
+    expect(fragment).not.toContain("provider_message_id");
   });
 
   it("redacts PII without destroying unresolved provider authority", () => {
     const source = retentionSource();
-    const redactStart = source.indexOf("from public.redact_unresolved_email_outbox_authority(");
+    const redactStart = source.indexOf("from public.redact_quarantined_email_outbox_authority_v2(");
     const redactEnd = source.indexOf(
       "categories.unresolvedEmailDeliveryAuthority =",
       redactStart,
@@ -52,7 +51,7 @@ describe("mail outbox retention privacy", () => {
     const redaction = source.slice(redactStart, redactEnd);
 
     expect(redaction).toContain(
-      "from public.redact_unresolved_email_outbox_authority(",
+      "from public.redact_quarantined_email_outbox_authority_v2(",
     );
     expect(redaction).toContain("$1::timestamptz, $2::integer");
     expect(redaction).not.toContain("update email_outbox");

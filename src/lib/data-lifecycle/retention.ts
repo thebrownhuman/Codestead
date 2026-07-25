@@ -86,6 +86,7 @@ type RedactionCapabilityResult =
       transitioned: number;
       blocked: number;
       malformed: number;
+      malformedTransitioned: number;
     }>
   | Readonly<{
       outcome: "failed";
@@ -167,7 +168,7 @@ async function queryRedactionCapability(
 ) {
   const result = await client.query<RedactionSummaryRow>(
     `select disposition, eligible::text as eligible, transitioned::text as transitioned
-       from public.redact_unresolved_email_outbox_authority(
+       from public.redact_quarantined_email_outbox_authority_v2(
          $1::timestamptz, $2::integer
        )`,
     [cutoff, batchLimit],
@@ -188,8 +189,7 @@ async function queryRedactionCapability(
   const eligible = summaries.get("eligible")!;
   const blocked = summaries.get("blocked")!;
   const malformed = summaries.get("malformed")!;
-  if (parseRedactionCount(blocked.transitioned) !== 0
-      || parseRedactionCount(malformed.transitioned) !== 0) {
+  if (parseRedactionCount(blocked.transitioned) !== 0) {
     throw new Error("Email outbox redaction summary is invalid.");
   }
   return {
@@ -198,6 +198,7 @@ async function queryRedactionCapability(
     transitioned: parseRedactionCount(eligible.transitioned),
     blocked: parseRedactionCount(blocked.eligible),
     malformed: parseRedactionCount(malformed.eligible),
+    malformedTransitioned: parseRedactionCount(malformed.transitioned),
   };
 }
 
@@ -272,8 +273,10 @@ function setRedactionCategories(
   );
   categories.unresolvedEmailDeliveryAuthorityMalformed = transitionedCategory(
     result.malformed,
-    0,
-    "Malformed authority is retained for explicit operator repair and is never auto-redacted.",
+    dryRun ? 0 : result.malformedTransitioned,
+    dryRun
+      ? "dry-run; would redact malformed quarantine payload while retaining non-PII delivery authority"
+      : "Malformed quarantine payload redacted; non-PII delivery authority retained for explicit operator repair.",
   );
 }
 
@@ -748,12 +751,7 @@ export async function runRetention(input: {
     const emailEligible = await count(
       client,
       `select count(*)::text as count from email_outbox
-        where status in ('sent', 'suppressed', 'failed', 'quarantined')
-          and not (
-            status = 'quarantined'
-            and provider_call_started is not null
-            and provider_message_id is null
-          )
+        where status in ('sent', 'suppressed', 'failed')
           and coalesce(sent_at, updated_at) < $1`,
       [cutoffs.terminalEmailDeliveryRecords],
     );
@@ -956,12 +954,7 @@ export async function runRetention(input: {
         const deletedEmail = await client.query<IdRow>(
           `delete from email_outbox where id in (
              select id from email_outbox
-              where status in ('sent', 'suppressed', 'failed', 'quarantined')
-                and not (
-                  status = 'quarantined'
-                  and provider_call_started is not null
-                  and provider_message_id is null
-                )
+              where status in ('sent', 'suppressed', 'failed')
                 and coalesce(sent_at, updated_at) < $1
               order by coalesce(sent_at, updated_at) asc, id asc limit $2
            ) returning id`,

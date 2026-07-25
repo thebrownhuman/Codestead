@@ -218,7 +218,7 @@ describe("0063 mail outbox retention redaction fence release", () => {
 
   it("routes reporting through the capability without duplicating raw eligibility SQL", () => {
     expect(retention).toContain(
-      "from public.redact_unresolved_email_outbox_authority(",
+      "from public.redact_quarantined_email_outbox_authority_v2(",
     );
     expect(retention).not.toContain(
       "update email_outbox\n              set to_email = 'redacted+'",
