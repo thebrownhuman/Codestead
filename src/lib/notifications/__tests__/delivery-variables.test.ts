@@ -11,12 +11,15 @@ import {
   materializeDeliveryWithAuthorityEvidence,
 } from "../delivery-variables";
 
+const APPLICATION_URL = "https://learn.test";
+
 describe("delivery-only email variables", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("passes ordinary template variables through unchanged", async () => {
     const variables = { name: "Learner", url: "https://example.test/settings" };
     const result = await materializeDeliveryWithAuthorityEvidence({
+      applicationUrl: APPLICATION_URL,
       template: "new-device",
       variables,
     });
@@ -36,6 +39,7 @@ describe("delivery-only email variables", () => {
 
   it("rejects malformed recovery references before deriving a bearer", async () => {
     await expect(materializeDeliveryWithAuthorityEvidence({
+      applicationUrl: APPLICATION_URL,
       template: "lost-device-proof",
       variables: { name: "Learner", recoveryRequestId: "not-a-uuid" },
     })).resolves.toBeNull();
@@ -54,7 +58,11 @@ describe("delivery-only email variables", () => {
       recoveryRequestId: "10000000-0000-4000-8000-000000000001",
     }],
   ])("fails closed for %s persisted proof variables", async (_label, variables) => {
-    await expect(materializeDeliveryWithAuthorityEvidence({ template: "lost-device-proof", variables })).resolves.toBeNull();
+    await expect(materializeDeliveryWithAuthorityEvidence({
+      applicationUrl: APPLICATION_URL,
+      template: "lost-device-proof",
+      variables,
+    })).resolves.toBeNull();
     expect(mocks.materialize).not.toHaveBeenCalled();
   });
 
@@ -72,6 +80,7 @@ describe("delivery-only email variables", () => {
     });
     mocks.materialize.mockResolvedValue(delivery);
     const result = await materializeDeliveryWithAuthorityEvidence({
+      applicationUrl: APPLICATION_URL,
       template: "lost-device-proof",
       variables: { name: "Learner", recoveryRequestId: requestId },
       now,
@@ -79,9 +88,42 @@ describe("delivery-only email variables", () => {
     expect(result).toBe(delivery);
     expect(Object.isFrozen(result?.authorityEvidence)).toBe(true);
     expect(mocks.materialize).toHaveBeenCalledWith({
+      applicationUrl: APPLICATION_URL,
       requestId,
       name: "Learner",
       now,
     });
+  });
+
+  it("uses the captured application URL instead of mutable process environment", async () => {
+    const requestId = "10000000-0000-4000-8000-000000000001";
+    const delivery = Object.freeze({
+      authorityEvidence: Object.freeze({
+        kind: "lost-device-proof",
+        sourceId: requestId,
+        proofHash: "a".repeat(64),
+      }),
+      variables: Object.freeze({
+        name: "Learner",
+        url: "https://learn.test/lost-device#proof=ephemeral",
+      }),
+    });
+    mocks.materialize.mockResolvedValue(delivery);
+    vi.stubEnv("APP_URL", "not-an-origin");
+    try {
+      await expect(materializeDeliveryWithAuthorityEvidence({
+        applicationUrl: "https://learn.test",
+        template: "lost-device-proof",
+        variables: { name: "Learner", recoveryRequestId: requestId },
+      })).resolves.toBe(delivery);
+      expect(mocks.materialize).toHaveBeenCalledWith({
+        applicationUrl: "https://learn.test",
+        requestId,
+        name: "Learner",
+        now: undefined,
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

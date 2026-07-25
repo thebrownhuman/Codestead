@@ -349,6 +349,7 @@ export type MaterializedLostDeviceProofDelivery = Readonly<{
 }>;
 
 export async function materializeLostDeviceProofDelivery(input: {
+  applicationUrl: string;
   requestId: string;
   name: string;
   now?: Date;
@@ -375,7 +376,7 @@ export async function materializeLostDeviceProofDelivery(input: {
   if (!authorityEvidence) return null;
   const applicationUrl = new URL(
     "/lost-device",
-    process.env.APP_URL ?? "http://localhost:3000",
+    input.applicationUrl,
   );
   // URL fragments are not sent in HTTP requests or Referer headers, keeping
   // the bearer proof out of ordinary reverse-proxy/application access logs.
@@ -390,6 +391,9 @@ export async function materializeLostDeviceProofVariables(input: {
   name: string;
   now?: Date;
 }): Promise<Record<string, string> | null> {
-  const delivery = await materializeLostDeviceProofDelivery(input);
+  const delivery = await materializeLostDeviceProofDelivery({
+    applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+    ...input,
+  });
   return delivery ? { ...delivery.variables } : null;
 }
