@@ -172,6 +172,37 @@ Do not reset, clean, overwrite, commit as green, or remove these worktrees. Resu
 11. Push the reviewed exact commit directly to `main`, then deploy only that commit to the NUC using `infra/ops/release-production.sh` and the commands in `docs/deployment.md`.
 12. Collect external evidence on the actual NUC: KVM guest/autostart, dedicated tunnel and Access policy, Gmail/Google/Drive credentials, encrypted offsite restore, controlled reboot, and supervised physical AC-cut recovery. Keep learners and uploads disabled until these pass.
 
+## DB-ACL/P3-2 broad runtime-role risk — OPEN / DEFERRED
+
+**Accountable owner:** `DB-ACL/P3-2 — Database & Release Security DRI`
+
+This finding is explicitly **OPEN / DEFERRED**, not green. The current `learncoding_app` and `learncoding_ops` roles retain `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on every current public table and receive the same privileges on future public tables through default privileges. At the audited candidate there are 123 public tables, so compromise of either credential permits arbitrary DML across all rows in all 123 tables. Production has no row-level-security mitigation for this exposure.
+
+Narrowing these two roles is unsafe in a mail-only pass. The application role directly drives Better Auth persistence and broad learner export and account-deletion workflows. The operations credential is shared by lifecycle, seed, administrator-bootstrap, and restore-verification services. A safe change therefore requires a full-system capability inventory, additional service credentials, release ordering, and positive and negative PostgreSQL behavior proofs; trimming grants from the mail path alone could break authentication, export, deletion, recovery, or bootstrap behavior while appearing secure in a narrow test.
+
+Mail-worker and backup-reporter column/routine narrowing are separate controls. Completing either one does **not** close the broad `learncoding_app` / `learncoding_ops` risk.
+
+**Target milestone:** post-mail-authority database privilege-separation hardening, before production pilot or learner-facing release exposure.
+
+Before this finding can be closed, all ten acceptance gates must pass:
+
+1. A checked-in role/table/column/routine manifest replaces both current and default blanket grants.
+2. Every public object is classified as granted or explicitly denied; unknown future objects receive no runtime privileges.
+3. PostgreSQL 18 fresh-install and upgrade paths pass bootstrap → migrate → reconcile twice, with exact `aclexplode`/column/routine/default-ACL comparison and no grant options.
+4. Live positive gates cover auth signup/verification/login/reset/2FA/logout, admin bootstrap, seed replay, learner export, account deletion, retention dry/apply/replay, and every outbox producer.
+5. Negative live probes prove:
+   - app cannot mutate outbox state/payload or perform raw deletion;
+   - ops cannot perform arbitrary user/evidence/outbox DML;
+   - backup reporter cannot read tables;
+   - no login can grant privileges, assume owner, or access another role's objects.
+6. Live mail races cover purge vs worker/reconciler and deletion vs provider boundary in both lock orders.
+7. Compose/restore/service-secret tests prove each container receives only its credential.
+8. Writer inventory includes `scripts/backup/common.sh`, and that writer no longer uses the PostgreSQL superuser.
+9. Exact-SHA rollback refuses privilege-contract regression.
+10. Real deployment credential provisioning/rotation evidence exists; repository tests alone cannot prove the new secrets were installed correctly.
+
+Production release requires either completion of all ten gates or explicit written, release-specific risk acceptance from the accountable owner. Any acceptance must identify the candidate SHA, expiry, compensating controls, and follow-up milestone; it is a temporary release decision and must never be recorded as technical completion. No external credential deployment or rotation has been performed or proven by this documentation change.
+
 ## Important architecture and implementation decisions
 
 - Use Node 22.23.1 for release evidence. The system Node 22.18.0 is below the repository's evidence baseline; the local reviewed toolchain is `C:\tmp\node-v22.23.1-win-x64`.

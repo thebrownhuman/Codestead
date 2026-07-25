@@ -85,6 +85,15 @@ pending_installations:
   local: "none required for lightweight handoff checks; use C:\\tmp\\node-v22.23.1-win-x64"
   external: "NUC exact-SHA release, KVM runner, age/rclone, fresh credentials, Cloudflare Access, Gmail, Google Drive"
 pending_file_edits: []
+p3_2_database_role_risk:
+  status: "OPEN / DEFERRED"
+  accountable_owner: "DB-ACL/P3-2 — Database & Release Security DRI"
+  exposure: "learncoding_app and learncoding_ops retain SELECT/INSERT/UPDATE/DELETE on every current and future public table; compromise permits arbitrary DML across all rows in 123 public tables"
+  production_rls_mitigation: false
+  target_milestone: "post-mail-authority database privilege-separation hardening, before production pilot or learner-facing release exposure"
+  mail_specific_narrowing_closes_risk: false
+  release_condition: "Complete all ten acceptance gates in CONTINUATION.md, or obtain explicit written release-specific risk acceptance from the accountable owner; risk acceptance is not technical completion"
+  external_credential_deployment_proven: false
 current_blockers:
   - "Five tested isolated commits require independent review and integration"
   - "Database least privilege is incomplete"
