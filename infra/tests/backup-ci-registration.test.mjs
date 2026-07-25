@@ -3,7 +3,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { postgresCiProjectionThrough0064 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
+import { postgresCiProjectionThroughFullSchemaRestore } from
+  "./full-schema-restore-postgres-ci-extension.mjs";
 import {
   assertPostgresCiProjectionContract,
   projectPostgresCiProjectionContract,
@@ -546,6 +547,7 @@ const requiredBackupRuns = [
   "npm ci",
   "bash infra/tests/backup-config.test.sh",
   "bash infra/tests/restore-path-safety.test.sh",
+  "bash infra/tests/restore-database-cleanup.test.sh",
   "bash infra/tests/managed-deadline-registration.test.sh",
   "bash infra/tests/managed-deadline-linux.test.sh",
   "bash infra/tests/credential-probe-cleanup.test.sh",
@@ -783,7 +785,7 @@ function runtimeEvidenceUploadProjection(artifactName) {
 }
 
 const canonicalPostgresProjection = projectPostgresCiProjectionContract(
-  postgresCiProjectionThrough0064,
+  postgresCiProjectionThroughFullSchemaRestore,
 );
 const reviewedJobContracts = new Map([
   [
@@ -887,12 +889,9 @@ const reviewedJobContracts = new Map([
       "      - run: npm ci",
       ...canonicalPostgresProjection.registrationLines,
       "      - run: npm run test:mail-dispatch-binding-0064:roles",
-      "      - run: npm run test:full-schema-restore:registration",
       canonicalPostgresProjection.livePg17IntegrationLine,
       canonicalPostgresProjection.dockerPg17PullLine,
-      "      - run: docker pull postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
-      "      - run: npm run test:full-schema-restore -- --postgres-major=17",
       canonicalPostgresProjection.dockerPg17IntegrationLine,
       "      - run: |",
       "          set -Eeuo pipefail",
@@ -920,8 +919,6 @@ const reviewedJobContracts = new Map([
       canonicalPostgresProjection.installLine,
       ...canonicalPostgresProjection.productionPg17Lines,
       ...canonicalPostgresProjection.targetedPg18Lines,
-      "      - run: docker pull postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15",
-      "      - run: npm run test:full-schema-restore -- --postgres-major=18",
     ],
   ],
   [
@@ -1099,7 +1096,7 @@ function requireCanonicalPostgresCiCrossGuard(blocks) {
     ).join("\n");
     assertPostgresCiProjectionContract(
       projection,
-      postgresCiProjectionThrough0064,
+      postgresCiProjectionThroughFullSchemaRestore,
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);

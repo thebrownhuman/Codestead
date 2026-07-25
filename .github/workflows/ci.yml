@@ -280,6 +280,7 @@ jobs:
       - run: npm ci
       - run: bash infra/tests/backup-config.test.sh
       - run: bash infra/tests/restore-path-safety.test.sh
+      - run: bash infra/tests/restore-database-cleanup.test.sh
       - run: bash infra/tests/managed-deadline-registration.test.sh
       - run: bash infra/tests/managed-deadline-linux.test.sh
       - run: bash infra/tests/credential-probe-cleanup.test.sh
@@ -367,7 +368,7 @@ jobs:
 
   postgres-integration:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -381,13 +382,11 @@ jobs:
       - run: npm run test:mail-payload-immutability-0060:registration
       - run: npm run test:mail-retention-redaction-0063:registration
       - run: npm run test:mail-dispatch-binding-0064:registration
-      - run: npm run test:mail-dispatch-binding-0064:roles
       - run: npm run test:full-schema-restore:registration
+      - run: npm run test:mail-dispatch-binding-0064:roles
       - run: npm run test:integration
       - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
-      - run: docker pull postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
       - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737
-      - run: npm run test:full-schema-restore -- --postgres-major=17
       - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh
       - name: Install PostgreSQL 18 from the official PGDG repository
         run: |
@@ -416,12 +415,12 @@ jobs:
           sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17
+      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18
-      - run: docker pull postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
-      - run: npm run test:full-schema-restore -- --postgres-major=18
+      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:full-schema-restore:pg18
 
   curriculum-runtime:
     runs-on: ubuntu-24.04

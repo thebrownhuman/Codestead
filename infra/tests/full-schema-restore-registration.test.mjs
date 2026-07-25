@@ -20,14 +20,23 @@ const preRepairVerifier = read(
 );
 const dockerfile = read("Dockerfile");
 const scripts = packageManifest.scripts;
+const restoreExtensionModule = await import(
+  "./full-schema-restore-postgres-ci-extension.mjs",
+).catch(() => null);
 
 const registrationScript = "test:full-schema-restore:registration";
 const primaryScript = "test:full-schema-restore";
+const pg17Script = "test:full-schema-restore:pg17";
+const pg18Script = "test:full-schema-restore:pg18";
 const registrationCommand =
   "node infra/tests/full-schema-restore-registration.test.mjs";
 const primaryCommand = "tsx scripts/run-full-schema-restore-gate.ts";
-const pg17Command = `npm run ${primaryScript} -- --postgres-major=17`;
-const pg18Command = `npm run ${primaryScript} -- --postgres-major=18`;
+const pg17ScriptCommand = `${primaryCommand} --postgres-major=17`;
+const pg18ScriptCommand = `${primaryCommand} --postgres-major=18`;
+const pg17Command =
+  `POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run ${pg17Script}`;
+const pg18Command =
+  `POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run ${pg18Script}`;
 
 assert.equal(
   scripts[registrationScript],
@@ -39,6 +48,37 @@ assert.equal(
   primaryCommand,
   "package.json must expose the real full-schema restore verifier",
 );
+assert.equal(
+  scripts[pg17Script],
+  pg17ScriptCommand,
+  "package.json must expose the production-pinned PG17 restore verifier",
+);
+assert.equal(
+  scripts[pg18Script],
+  pg18ScriptCommand,
+  "package.json must expose the targeted PG18 restore verifier",
+);
+assert.notEqual(
+  restoreExtensionModule,
+  null,
+  "restore registration must expose a canonical PostgreSQL CI extension",
+);
+const extensionSentinel = Object.freeze({ kind: "canonical-extension" });
+let receivedExtensionInput = null;
+const extensionResult =
+  restoreExtensionModule.defineFullSchemaRestorePostgresCiExtension((input) => {
+    receivedExtensionInput = input;
+    return extensionSentinel;
+  });
+assert.equal(extensionResult, extensionSentinel);
+assert.deepEqual(receivedExtensionInput, {
+  id: "full-schema-restore",
+  kind: "restore",
+  registrationScripts: [registrationScript],
+  productionPg17Scripts: [pg17Script],
+  targetedPg18Scripts: [pg18Script],
+  minimumTimeoutMinutes: 35,
+});
 
 const checkCommands = scripts.check.split(" && ");
 assert.equal(
@@ -60,6 +100,18 @@ assert.match(
   /^    timeout-minutes: 35$/mu,
 );
 assert.doesNotMatch(postgresJob, /continue-on-error:/u);
+assert.deepEqual(
+  postgresJob.match(/^      - run: docker pull postgres:\S+$/gmu) ?? [],
+  [
+    "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+  ],
+  "restore registration must preserve the single canonical PostgreSQL pull",
+);
+assert.doesNotMatch(
+  postgresJob,
+  /docker pull postgres:(?:17|18)-alpine/iu,
+  "restore registration must not create a second PostgreSQL image authority",
+);
 
 for (const command of [
   `npm run ${registrationScript}`,
@@ -78,12 +130,13 @@ const registrationIndex = postgresJob.indexOf(
 );
 const pg17Index = postgresJob.indexOf(`      - run: ${pg17Command}`);
 const installPg18Index = postgresJob.indexOf(
-  "sudo apt-get install --yes --no-install-recommends postgresql-18",
+  "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
 );
 const pg18Index = postgresJob.indexOf(`      - run: ${pg18Command}`);
 assert.ok(registrationIndex >= 0);
-assert.ok(registrationIndex < pg17Index);
-assert.ok(pg17Index < installPg18Index);
+assert.ok(registrationIndex < installPg18Index);
+assert.ok(installPg18Index < pg17Index);
+assert.ok(pg17Index < pg18Index);
 assert.ok(installPg18Index < pg18Index);
 assert.doesNotMatch(
   postgresJob.slice(pg17Index, pg18Index),
@@ -120,6 +173,13 @@ assert.match(
 assert.match(runner, /requireExactFullSchemaRestoreOwnerRole/u);
 assert.match(runner, /requireFullSchemaAclSuppressionControl/u);
 assert.match(runner, /restoreTargetWithoutAcl/u);
+assert.match(runner, /resetAfterAclSuppressionControl/u);
+assert.match(runner, /requireRestoreDatabaseIdentifier/u);
+assert.match(runner, /drop database "\$\{database\}" with \(force\)/u);
+assert.match(
+  runner,
+  /create database "\$\{database\}" owner learncoding_owner/u,
+);
 assert.match(runner, /aclSuppressionControlPublicExecute/u);
 assert.match(runner, /createDisposableIntegrationChildController/u);
 assert.match(runner, /buildDisposableIntegrationChildLaunch/u);
@@ -185,15 +245,28 @@ assert.match(databaseHelper, /acl\.grantee = 0/u);
 assert.match(databaseHelper, /routine\.proacl is null/u);
 assert.match(gateHelper, /await dependencies\.restoreTargetWithoutAcl\(archive\)/u);
 assert.match(gateHelper, /await target\.verifyAclSuppressionControl\(\)/u);
+assert.match(gateHelper, /await target\.resetAfterAclSuppressionControl\(\)/u);
 assert.match(gateHelper, /await dependencies\.restoreTarget\(archive\)/u);
-assert.ok(
-  gateHelper.indexOf("await dependencies.restoreTargetWithoutAcl(archive)")
-    < gateHelper.indexOf("await target.verifyAclSuppressionControl()"),
+const withoutAclIndex = gateHelper.indexOf(
+  "await dependencies.restoreTargetWithoutAcl(archive)",
 );
-assert.ok(
-  gateHelper.indexOf("await target.verifyAclSuppressionControl()")
-    < gateHelper.indexOf("await dependencies.restoreTarget(archive)"),
+const verifySuppressionIndex = gateHelper.indexOf(
+  "await target.verifyAclSuppressionControl()",
 );
+const resetControlIndex = gateHelper.indexOf(
+  "await target.resetAfterAclSuppressionControl()",
+);
+const reconcileAfterControlIndex = gateHelper.indexOf(
+  "await target.reconcileRoles()",
+  resetControlIndex,
+);
+const restoreWithAclIndex = gateHelper.indexOf(
+  "await dependencies.restoreTarget(archive)",
+);
+assert.ok(withoutAclIndex < verifySuppressionIndex);
+assert.ok(verifySuppressionIndex < resetControlIndex);
+assert.ok(resetControlIndex < reconcileAfterControlIndex);
+assert.ok(reconcileAfterControlIndex < restoreWithAclIndex);
 assert.match(ledgerHelper, /journal\.entries\.length < MINIMUM_MIGRATION_COUNT/u);
 assert.match(ledgerHelper, /migration\.hash::text as migration_sha256/u);
 assert.match(ledgerHelper, /result\.rows\.length !== expected\.length/u);

@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { postgresCiProjectionThroughFullSchemaRestore } from
+  "./full-schema-restore-postgres-ci-extension.mjs";
 import {
   assertMailDispatchBinding0064PostgresProjection,
   mailDispatchBinding0064CiContract,
@@ -186,6 +188,9 @@ const postgresJob =
   workflow.match(
     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
   )?.[0] ?? "";
-assertMailDispatchBinding0064PostgresProjection(postgresJob);
+assertMailDispatchBinding0064PostgresProjection(
+  postgresJob,
+  postgresCiProjectionThroughFullSchemaRestore,
+);
 
 console.log("mail-dispatch-binding-0064-registration-tests-ok");

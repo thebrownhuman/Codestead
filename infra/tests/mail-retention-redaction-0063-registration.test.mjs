@@ -3,8 +3,11 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import {
+  fullSchemaRestorePostgresCiExtension,
+  postgresCiProjectionThroughFullSchemaRestore,
+} from "./full-schema-restore-postgres-ci-extension.mjs";
+import {
   mailDispatchBinding0064PostgresCiExtension,
-  postgresCiProjectionThrough0064,
 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
 import * as postgresCiProjectionModule from "./mail-retention-redaction-0063-ci-contract.mjs";
 
@@ -90,12 +93,12 @@ const composedSelfTestContract =
     selfTest0065Extension,
     selfTestRestoreExtension,
   );
-const composedSelfTestContractThrough0064 =
+const composedSelfTestContractThroughRestore =
   postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract(
     mailDispatchBinding0064PostgresCiExtension,
     selfTest0064Extension,
     selfTest0065Extension,
-    selfTestRestoreExtension,
+    fullSchemaRestorePostgresCiExtension,
   );
 for (const key of [
   "registrationScripts",
@@ -292,7 +295,7 @@ if (!staticOnly) {
     )?.[0] ?? "";
   postgresCiProjectionModule.assertPostgresCiProjectionContract(
     postgresJob,
-    postgresCiProjectionThrough0064,
+    postgresCiProjectionThroughFullSchemaRestore,
   );
 
   const replaceProjectionExactly = (projection, before, after) => {
@@ -308,7 +311,7 @@ if (!staticOnly) {
       () =>
         postgresCiProjectionModule.assertPostgresCiProjectionContract(
           projection,
-          postgresCiProjectionThrough0064,
+          postgresCiProjectionThroughFullSchemaRestore,
         ),
       expectedMessage,
       label,
@@ -319,8 +322,8 @@ if (!staticOnly) {
     "the PostgreSQL timeout is one canonical policy",
     replaceProjectionExactly(
       postgresJob,
-      "    timeout-minutes: 20",
-      "    timeout-minutes: 21",
+      "    timeout-minutes: 35",
+      "    timeout-minutes: 34",
     ),
     /timeout-minutes/u,
   );
@@ -379,7 +382,7 @@ if (!staticOnly) {
       () =>
         postgresCiProjectionModule.assertPostgresCiProjectionContract(
           `${postgresJob}      - run: docker run --rm ${differentMajorImage}\n`,
-          postgresCiProjectionThrough0064,
+          postgresCiProjectionThroughFullSchemaRestore,
         ),
       `${differentMajorImage} must not be mistaken for PostgreSQL 16`,
     );
@@ -426,12 +429,14 @@ if (!staticOnly) {
       [
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17",
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
       ].join("\n"),
       [
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17",
       ].join("\n"),
     ),
     /PostgreSQL 17 harnesses must run before PostgreSQL 18/u,
@@ -470,40 +475,33 @@ if (!staticOnly) {
   const extendedProjection = replaceProjectionExactly(
     replaceProjectionExactly(
       replaceProjectionExactly(
-        replaceProjectionExactly(
-          postgresJob,
-          "    timeout-minutes: 20",
-          "    timeout-minutes: 35",
-        ),
-        "      - run: npm run test:integration",
+        postgresJob,
+        "      - run: npm run test:full-schema-restore:registration",
         [
           "      - run: npm run test:self-test-0064:registration",
           "      - run: npm run test:self-test-0065:registration",
-          "      - run: npm run test:self-test-restore:registration",
-          "      - run: npm run test:integration",
+          "      - run: npm run test:full-schema-restore:registration",
         ].join("\n"),
       ),
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+      "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17",
       [
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:self-test-0064",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:self-test-0065",
-        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:self-test-restore",
-        "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:full-schema-restore:pg17",
       ].join("\n"),
     ),
-    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
+    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:full-schema-restore:pg18",
     [
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0064",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0065",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-restore",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:full-schema-restore:pg18",
     ].join("\n"),
   );
   assert.doesNotThrow(
     () =>
       postgresCiProjectionModule.assertPostgresCiProjectionContract(
         extendedProjection,
-        composedSelfTestContractThrough0064,
+        composedSelfTestContractThroughRestore,
       ),
     "0064, 0065, and restore must compose without replacing prior gates",
   );
@@ -515,7 +513,7 @@ if (!staticOnly) {
           "      - run: npm run test:mail-delivery-scope-0059:registration\n",
           "",
         ),
-        composedSelfTestContractThrough0064,
+        composedSelfTestContractThroughRestore,
       ),
     /registration scripts/u,
     "an extension cannot make a prior registration optional",
