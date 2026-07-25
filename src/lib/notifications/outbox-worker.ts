@@ -13,6 +13,7 @@ import {
 import { terminateMailDispatchImmediately } from "./mail-dispatch-fatal-termination";
 import {
   guardedDispatchResultSafeToDisarm,
+  releaseGuardedDispatchWatchdogClaim,
 } from "./postgres-outbox-store";
 import {
   PostProviderPersistenceUnknownError,
@@ -151,9 +152,6 @@ export interface OutboxStore<P = unknown> {
     armedWatchdog: ArmedMailDispatchHardWatchdog,
   ): Promise<GuardedDispatchResult>;
 
-  releaseGuardedDispatchWatchdog(
-    watchdog: ArmedMailDispatchHardWatchdog,
-  ): boolean;
 
   finishGuardedDispatchUnknown(
     uncertainty: GuardedDispatchUncertainty,
@@ -539,7 +537,14 @@ export async function processOutboxBatch<P>(
     } catch {
       return terminateMailDispatchImmediately();
     }
-    if (!deps.store.releaseGuardedDispatchWatchdog(armedWatchdog)) {
+    try {
+      if (releaseGuardedDispatchWatchdogClaim(
+        deps.store as object,
+        armedWatchdog,
+      ) !== true) {
+        return terminateMailDispatchImmediately();
+      }
+    } catch {
       return terminateMailDispatchImmediately();
     }
 
