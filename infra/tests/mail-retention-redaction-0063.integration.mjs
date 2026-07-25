@@ -494,6 +494,13 @@ function scalar(port, database, sql, username = "postgres") {
   }).stdout.trim();
 }
 
+function labeledScalar(port, database, sql, label) {
+  return psql(port, database, sql, {
+    scalar: true,
+    label,
+  }).stdout.trim();
+}
+
 export function parseChildJsonOutput(output, label = "child_json") {
   const safeLabel = childCommandLabel(label);
   if (typeof output !== "string") {
@@ -625,14 +632,29 @@ function migrationLedgerThrough0063() {
   return path.join(migrationDirectory, candidates[0]);
 }
 
-function createFrameworkMigrationSlice(temporaryRoot) {
-  const target = path.join(temporaryRoot, "migrations-through-0063");
+function createFrameworkMigrationSlice(temporaryRoot, maximumIndex) {
+  assert.ok(
+    [62, 63, 64].includes(maximumIndex),
+    "0063 harness migration slice must end at 0062, 0063, or 0064",
+  );
+  const target = path.join(
+    temporaryRoot,
+    `migrations-through-${String(maximumIndex).padStart(4, "0")}`,
+  );
   const targetMeta = path.join(target, "meta");
   mkdirSync(targetMeta, { recursive: true });
   const migrations = readdirSync(migrationDirectory)
     .filter((name) => /^\d{4}_.+\.sql$/u.test(name))
-    .filter((name) => Number.parseInt(name.slice(0, 4), 10) <= 63)
+    .filter(
+      (name) =>
+        Number.parseInt(name.slice(0, 4), 10) <= maximumIndex,
+    )
     .sort();
+  assert.equal(
+    migrations.length,
+    maximumIndex + 1,
+    `expected migrations 0000 through ${String(maximumIndex).padStart(4, "0")}`,
+  );
   for (const migration of migrations) {
     copyFileSync(
       path.join(migrationDirectory, migration),
@@ -641,13 +663,264 @@ function createFrameworkMigrationSlice(temporaryRoot) {
   }
   const journal = JSON.parse(readFileSync(journalPath, "utf8"));
   journal.entries = (journal.entries ?? [])
-    .filter((entry) => entry.idx <= 63);
+    .filter((entry) => entry.idx <= maximumIndex);
   writeFileSync(
     path.join(targetMeta, "_journal.json"),
     `${JSON.stringify(journal, null, 2)}\n`,
     { encoding: "utf8", flag: "wx" },
   );
   return target;
+}
+
+function installHostilePre0063CatalogState(port, database) {
+  psql(port, database, `
+    create role mail_retention_hostile_default nologin;
+    create role mail_retention_hostile_grantor nologin;
+    create role mail_retention_hostile_leaf nologin;
+
+    set role learncoding_owner;
+    grant usage on schema public
+      to mail_retention_hostile_default,
+         mail_retention_hostile_grantor;
+    alter default privileges for role learncoding_owner in schema public
+      grant execute on functions
+      to mail_retention_hostile_default with grant option;
+
+    create or replace function
+      public.classify_email_outbox_retention_redaction(
+        candidate public.email_outbox,
+        cutoff_at timestamp with time zone
+      )
+    returns text
+    language sql
+    volatile
+    security invoker
+    set search_path = public
+    as $hostile_classifier$
+      select 'hostile';
+    $hostile_classifier$;
+    reset role;
+  `, { label: "install_hostile_pre_0063_default_acl" });
+
+  psql(port, database, `
+    set role mail_retention_hostile_default;
+    grant execute on function
+      public.classify_email_outbox_retention_redaction(
+        public.email_outbox,
+        timestamp with time zone
+      )
+      to mail_retention_hostile_leaf;
+    reset role;
+  `, { label: "install_hostile_pre_0063_default_delegation" });
+
+  psql(port, database, `
+    set role learncoding_owner;
+    alter default privileges for role learncoding_owner in schema public
+      revoke execute on functions from mail_retention_hostile_default;
+
+    create or replace function
+      public.enforce_email_outbox_payload_immutable()
+    returns trigger
+    language plpgsql
+    security definer
+    set search_path = public
+    as $hostile_trigger$
+    begin
+      return new;
+    end
+    $hostile_trigger$;
+    reset role;
+  `, { label: "install_hostile_pre_0063_function_drift" });
+
+  psql(port, database, `
+    set role learncoding_owner;
+    grant execute on function
+      public.classify_email_outbox_retention_redaction(
+        public.email_outbox,
+        timestamp with time zone
+      ),
+      public.enforce_email_outbox_payload_immutable(),
+      public.redact_unresolved_email_outbox_authority(
+        timestamp with time zone,
+        integer
+      )
+      to mail_retention_hostile_grantor with grant option;
+    reset role;
+  `, { label: "install_hostile_pre_0063_owner_grants" });
+
+  psql(port, database, `
+    set role mail_retention_hostile_grantor;
+    grant execute on function
+      public.classify_email_outbox_retention_redaction(
+        public.email_outbox,
+        timestamp with time zone
+      ),
+      public.enforce_email_outbox_payload_immutable(),
+      public.redact_unresolved_email_outbox_authority(
+        timestamp with time zone,
+        integer
+      )
+      to mail_retention_hostile_leaf;
+    reset role;
+
+    set role learncoding_owner;
+    revoke usage on schema public
+      from mail_retention_hostile_default,
+           mail_retention_hostile_grantor,
+           mail_retention_hostile_leaf;
+    reset role;
+  `, { label: "install_hostile_pre_0063_delegation" });
+
+  psql(port, database, `
+    set role learncoding_owner;
+    drop trigger email_outbox_payload_immutable on public.email_outbox;
+    create trigger email_outbox_payload_immutable
+      before update of to_email
+      on public.email_outbox
+      for each row
+      execute function public.enforce_email_outbox_payload_immutable();
+    alter table public.email_outbox
+      disable trigger email_outbox_payload_immutable;
+    reset role;
+  `, { label: "install_hostile_pre_0063_trigger" });
+}
+
+function assertHostilePre0063CatalogState(port, database) {
+  assert.equal(
+    labeledScalar(
+      port,
+      database,
+      `select pg_catalog.count(*)::text
+         from pg_catalog.pg_proc as routine
+         cross join lateral pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) as access
+         join pg_catalog.pg_roles as grantee
+           on grantee.oid = access.grantee
+        where routine.oid in (
+          'public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)'::pg_catalog.regprocedure,
+          'public.enforce_email_outbox_payload_immutable()'::pg_catalog.regprocedure,
+          'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)'::pg_catalog.regprocedure
+        )
+          and grantee.rolname in (
+            'mail_retention_hostile_default',
+            'mail_retention_hostile_grantor',
+            'mail_retention_hostile_leaf'
+          );`,
+      "hostile_pre_0063_acl_count",
+    ),
+    "8",
+    "hostile direct/default/delegated function ACL fixture was incomplete",
+  );
+  assert.equal(
+    labeledScalar(
+      port,
+      database,
+      `select pg_catalog.count(*)::text
+         from pg_catalog.pg_proc as routine
+         cross join lateral pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) as access
+         join pg_catalog.pg_roles as grantor
+           on grantor.oid = access.grantor
+         join pg_catalog.pg_roles as grantee
+           on grantee.oid = access.grantee
+        where routine.oid in (
+          'public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)'::pg_catalog.regprocedure,
+          'public.enforce_email_outbox_payload_immutable()'::pg_catalog.regprocedure,
+          'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)'::pg_catalog.regprocedure
+        )
+          and grantor.rolname in (
+            'mail_retention_hostile_default',
+            'mail_retention_hostile_grantor'
+          )
+          and grantee.rolname = 'mail_retention_hostile_leaf'
+          and not access.is_grantable;`,
+      "hostile_pre_0063_delegation_count",
+    ),
+    "4",
+    "hostile non-owner grantor chain fixture was incomplete",
+  );
+  assert.equal(
+    labeledScalar(
+      port,
+      database,
+      `select trigger.tgenabled::text || ':' ||
+              (
+                select pg_catalog.count(*)::text
+                  from pg_catalog.unnest(
+                    trigger.tgattr::smallint[]
+                  ) as watched(attnum)
+              )
+         from pg_catalog.pg_trigger as trigger
+        where trigger.tgrelid =
+                'public.email_outbox'::pg_catalog.regclass
+          and trigger.tgname = 'email_outbox_payload_immutable'
+          and not trigger.tgisinternal;`,
+      "hostile_pre_0063_trigger_shape",
+    ),
+    "D:1",
+    "hostile payload trigger fixture was incomplete",
+  );
+}
+
+function assertHostileFunctionAclsRemoved(port, database) {
+  assert.equal(
+    labeledScalar(
+      port,
+      database,
+      `select pg_catalog.count(*)::text
+         from pg_catalog.pg_proc as routine
+         cross join lateral pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) as access
+         left join pg_catalog.pg_roles as grantor
+           on grantor.oid = access.grantor
+         left join pg_catalog.pg_roles as grantee
+           on grantee.oid = access.grantee
+        where routine.oid in (
+          'public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)'::pg_catalog.regprocedure,
+          'public.enforce_email_outbox_payload_immutable()'::pg_catalog.regprocedure,
+          'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)'::pg_catalog.regprocedure
+        )
+          and (
+            grantor.rolname like 'mail_retention_hostile_%'
+            or grantee.rolname like 'mail_retention_hostile_%'
+          );`,
+      "hostile_post_0063_acl_count",
+    ),
+    "0",
+    "0063 left a hostile direct or delegated function ACL",
+  );
+}
+
+function removeHostileCatalogRoles(port, database) {
+  psql(port, database, `
+    drop role mail_retention_hostile_leaf;
+    drop role mail_retention_hostile_grantor;
+    drop role mail_retention_hostile_default;
+  `, { label: "remove_hostile_post_0063_roles" });
+  assert.equal(
+    labeledScalar(
+      port,
+      database,
+      `select pg_catalog.count(*)::text
+         from pg_catalog.pg_roles
+        where rolname like 'mail_retention_hostile_%';`,
+      "hostile_post_0063_role_count",
+    ),
+    "0",
+    "hostile ACL fixture roles remained after exact convergence",
+  );
 }
 
 async function unusedLoopbackPort() {
@@ -784,30 +1057,41 @@ function catalogAssertionSql() {
       trigger_failure_count integer;
     begin
       with expected(signature, expected_owner, expected_definer,
-                    expected_config, expected_acl) as (
+                    expected_config, expected_body_sha256,
+                    expected_definition_sha256, expected_acl) as (
         values
           (
             'public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)',
             'learncoding_owner',
             true,
             array['search_path=pg_catalog']::text[],
-            array['learncoding_owner:EXECUTE:false']::text[]
+            '7c2d6df1168a89d63ed026c63bc390201a2a6b618e75967eddbe27c3d5bf672c',
+            '67df14d91b1d8f11f1d9627b34e332d14ae871a68482f371d15e149ab81d5853',
+            array[
+              'learncoding_owner>learncoding_owner:EXECUTE:false'
+            ]::text[]
           ),
           (
             'public.enforce_email_outbox_payload_immutable()',
             'learncoding_owner',
             false,
             array['search_path=pg_catalog']::text[],
-            array['learncoding_owner:EXECUTE:false']::text[]
+            '8f78735c7181306c3bfe4f459eaf3f16b69ddbc3f9ea6ee27bb55cfd3dc7eef3',
+            'fe8117eea4298f330247789fb23f0ebe98b09c5184b7e00e29e4409843c83541',
+            array[
+              'learncoding_owner>learncoding_owner:EXECUTE:false'
+            ]::text[]
           ),
           (
             'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)',
             'learncoding_owner',
             true,
             array['search_path=pg_catalog']::text[],
+            'b0ea5923720615a4b1de4df477a7905410cc7cabda7f613ccc88415501cb2469',
+            '81ca308334c8297402ea1788c7fe3728277ddce891572fed6469ceae58e134bb',
             array[
-              'learncoding_ops:EXECUTE:false',
-              'learncoding_owner:EXECUTE:false'
+              'learncoding_owner>learncoding_ops:EXECUTE:false',
+              'learncoding_owner>learncoding_owner:EXECUTE:false'
             ]::text[]
           )
       ), observed as (
@@ -819,9 +1103,25 @@ function catalogAssertionSql() {
                  routine.proconfig,
                  array[]::text[]
                ) as observed_config,
+               pg_catalog.encode(
+                 pg_catalog.sha256(
+                   pg_catalog.convert_to(routine.prosrc, 'UTF8')
+                 ),
+                 'hex'
+               ) as observed_body_sha256,
+               pg_catalog.encode(
+                 pg_catalog.sha256(
+                   pg_catalog.convert_to(
+                     pg_catalog.pg_get_functiondef(routine.oid),
+                     'UTF8'
+                   )
+                 ),
+                 'hex'
+               ) as observed_definition_sha256,
                COALESCE(
                  (
                    select pg_catalog.array_agg(
+                     pg_catalog.pg_get_userbyid(expanded.grantor) || '>' ||
                      (
                        case when expanded.grantee = 0
                          then 'PUBLIC'
@@ -830,6 +1130,7 @@ function catalogAssertionSql() {
                      ) || ':' || expanded.privilege_type || ':' ||
                      expanded.is_grantable::text
                      order by
+                       pg_catalog.pg_get_userbyid(expanded.grantor),
                        case when expanded.grantee = 0
                          then 'PUBLIC'
                          else pg_catalog.pg_get_userbyid(expanded.grantee)
@@ -857,6 +1158,9 @@ function catalogAssertionSql() {
           or observed_owner is distinct from expected_owner
           or observed_definer is distinct from expected_definer
           or observed_config is distinct from expected_config
+          or observed_body_sha256 is distinct from expected_body_sha256
+          or observed_definition_sha256 is distinct from
+               expected_definition_sha256
           or observed_acl is distinct from expected_acl;
 
       select pg_catalog.count(*)::integer
@@ -2118,6 +2422,26 @@ function proveCatalogTamperDetection(port, database) {
   expectCatalogTamperRejected(
     port,
     database,
+    `create or replace function
+       public.classify_email_outbox_retention_redaction(
+         candidate public.email_outbox,
+         cutoff_at timestamp with time zone
+       )
+     returns text
+     language plpgsql
+     stable
+     security definer
+     set search_path = pg_catalog
+     as $tampered_body$
+     begin
+       return 'tampered';
+     end
+     $tampered_body$;`,
+    "routine_body",
+  );
+  expectCatalogTamperRejected(
+    port,
+    database,
     `grant execute on function
        public.classify_email_outbox_retention_redaction(
          public.email_outbox, timestamp with time zone
@@ -2304,8 +2628,12 @@ async function main(control = defaultHarnessControl) {
     if (observedPostgresMajor !== expectedPostgresMajor) {
       throw nativeHarnessFailure("postgres_version_mismatch");
     }
-    const frameworkMigrationDirectory =
-      createFrameworkMigrationSlice(temporaryRoot);
+    const frameworkMigrationDirectoryThrough0062 =
+      createFrameworkMigrationSlice(temporaryRoot, 62);
+    const frameworkMigrationDirectoryThrough0063 =
+      createFrameworkMigrationSlice(temporaryRoot, 63);
+    const frameworkMigrationDirectoryThrough0064 =
+      createFrameworkMigrationSlice(temporaryRoot, 64);
     const port = await unusedLoopbackPort();
 
     run(
@@ -2379,7 +2707,26 @@ async function main(control = defaultHarnessControl) {
     await applyMigrationsWithFramework(
       port,
       database,
-      frameworkMigrationDirectory,
+      frameworkMigrationDirectoryThrough0062,
+    );
+    assert.equal(
+      scalar(
+        port,
+        database,
+        `select pg_catalog.count(*)::text
+           from drizzle.__drizzle_migrations;`,
+      ),
+      "63",
+      "framework did not record migrations 0000 through 0062",
+    );
+
+    installHostilePre0063CatalogState(port, database);
+    assertHostilePre0063CatalogState(port, database);
+
+    await applyMigrationsWithFramework(
+      port,
+      database,
+      frameworkMigrationDirectoryThrough0063,
     );
     assert.equal(
       scalar(
@@ -2393,9 +2740,10 @@ async function main(control = defaultHarnessControl) {
     );
     // The migration must establish authority before bootstrap can repair it.
     assertCatalogContract(port, database);
+    assertHostileFunctionAclsRemoved(port, database);
+    removeHostileCatalogRoles(port, database);
     await runLiveRoleBootstrap(port, database);
     assertCatalogContract(port, database);
-    await runProductionApplicationBoundaryVerifier(port, database);
 
     await proveRedactionContract(port, database);
     await proveClassificationFenceRevalidationRace(
@@ -2422,7 +2770,7 @@ async function main(control = defaultHarnessControl) {
     await applyMigrationsWithFramework(
       port,
       database,
-      frameworkMigrationDirectory,
+      frameworkMigrationDirectoryThrough0063,
     );
     assert.equal(
       scalar(
@@ -2432,7 +2780,7 @@ async function main(control = defaultHarnessControl) {
            from drizzle.__drizzle_migrations;`,
       ),
       "64",
-      "framework replay changed the migration count",
+      "framework replay changed the migration count through 0063",
     );
     assert.equal(
       fixtureDigest(port, database),
@@ -2446,15 +2794,33 @@ async function main(control = defaultHarnessControl) {
     );
 
     proveCatalogTamperDetection(port, database);
+    proveReconciliationAfterRedaction(port, database);
+
+    await applyMigrationsWithFramework(
+      port,
+      database,
+      frameworkMigrationDirectoryThrough0064,
+    );
+    assert.equal(
+      scalar(
+        port,
+        database,
+        `select pg_catalog.count(*)::text
+           from drizzle.__drizzle_migrations;`,
+      ),
+      "65",
+      "framework did not record migrations 0000 through 0064",
+    );
+    await runProductionApplicationBoundaryVerifier(port, database);
     await proveProductionBoundaryTamperAndRestore(
       port,
       database,
       migration0063,
     );
-    proveReconciliationAfterRedaction(port, database);
 
     process.stdout.write("mail_retention_0063=ledger_contiguous:pass\n");
     process.stdout.write("mail_retention_0063=catalog_authority:pass\n");
+    process.stdout.write("mail_retention_0063=hostile_acl_convergence:pass\n");
     process.stdout.write("mail_retention_0063=report_only_and_apply:pass\n");
     process.stdout.write("mail_retention_0063=system_envelopes:pass\n");
     process.stdout.write("mail_retention_0063=fence_classification:pass\n");

@@ -410,7 +410,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     createdAt: "1784929200000",
     migrationFile: "0063_mail_outbox_redaction_fence_release.sql",
     migrationSha256:
-      "b1ff8b57084dcaf6e677aa5eb73d3f0e1156dca406d50f547c8d2c5590260ea2",
+      "e945482f1311c88ee41bb13b12a566aab31a0e1aadd2a1d9ce98ac12acd5c63c",
     routines: REVIEWED_0063_APPLICATION_FUNCTIONS,
     triggers: Object.freeze([REVIEWED_0064_APPLICATION_TRIGGERS[0]]),
     requiresWorkerContract: false,
