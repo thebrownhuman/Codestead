@@ -82,6 +82,7 @@ import {
 } from "@/lib/db/schema";
 
 type DrizzleTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+type TransactionDatabase = Pick<Database, "transaction">;
 type Executor = Database | DrizzleTransaction;
 
 const MASTERY_STATUSES = [
@@ -242,8 +243,10 @@ function mapReview(
 }
 
 export class DrizzleLearningStore implements LearningStore {
+  constructor(private readonly database: TransactionDatabase = db) {}
+
   async transaction<T>(work: (transaction: LearningTransaction) => Promise<T>): Promise<T> {
-    return db.transaction((transaction) => work(new DrizzleLearningTransaction(transaction)));
+    return this.database.transaction((transaction) => work(new DrizzleLearningTransaction(transaction)));
   }
 }
 
@@ -898,6 +901,20 @@ class DrizzleLearningTransaction implements LearningTransaction {
 
   async lockAttemptCreation(userId: string, attemptId: string): Promise<void> {
     await this.lock("learning-attempt-request", `${userId}:${attemptId}`);
+  }
+
+  async lockAttemptSubmissionUser(userId: string): Promise<void> {
+    // The reminder scheduler takes the same account tuple lock first. Make
+    // that order explicit instead of depending on incidental FK key-share
+    // locks acquired later by evidence writes.
+    const [locked] = await this.executor
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, userId))
+      .for("update");
+    if (!locked) {
+      throw new LearningServiceError("LEARNER_NOT_FOUND", "Learner account was not found.", 404);
+    }
   }
 
   async lockPracticeHelpRequest(userId: string, requestId: string): Promise<void> {

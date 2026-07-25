@@ -163,6 +163,8 @@ export interface LearningTransaction {
 
   /** Serialize a deterministic request id before checking or creating its attempt. */
   lockAttemptCreation(userId: string, attemptId: string): Promise<void>;
+  /** Lock the learner row before reading or mutating attempt-submission state. */
+  lockAttemptSubmissionUser(userId: string): Promise<void>;
   resolveActivity(
     userId: string,
     skillId: string,

@@ -17,6 +17,7 @@ const SERIALIZATION_METHODS = new Set([
   "lockPlanInitialization",
   "lockSessionStart",
   "lockAttemptCreation",
+  "lockAttemptSubmissionUser",
   "lockDsaLanguageSwitch",
 ]);
 

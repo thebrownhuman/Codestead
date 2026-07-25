@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { db, pool } from "@/lib/db/client";
+import * as schema from "@/lib/db/schema";
 import {
   activity,
   concept,
@@ -17,6 +20,7 @@ import {
   enrollment,
   lesson,
   masteryEvidence,
+  notificationPreference,
   planRevision,
   reviewSchedule,
   user,
@@ -25,6 +29,7 @@ import { DailyReviewService } from "@/lib/daily-review/service";
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
 import { LearningService } from "@/lib/learning-service/service";
+import { scheduleSmartRemindersWithDatabase } from "@/lib/notifications/smart-reminders";
 
 const LEARNER = "daily-review-learner";
 const OTHER = "daily-review-other";
@@ -44,6 +49,115 @@ const SKILLS = [
   "python.control.iteration",
   "python.control.selection",
 ] as const;
+
+type BackendIdentity = {
+  pid: number;
+  databaseName: string;
+  sessionUser: string;
+  currentUser: string;
+  applicationName: string;
+};
+
+type PoolClientWithProcessId = PoolClient & {
+  readonly processID?: number;
+};
+
+function requiredDatabaseUrl(
+  environmentKey: "DATABASE_APP_URL" | "DATABASE_URL",
+): string {
+  const connectionString = process.env[environmentKey];
+  if (!connectionString) {
+    throw new Error(`Daily review races require ${environmentKey}.`);
+  }
+  return connectionString;
+}
+
+async function identifyDatabaseBackend(
+  client: PoolClient,
+  applicationName: string,
+  expectation: Readonly<{
+    connectionString: string;
+    currentRole?: string;
+  }>,
+): Promise<BackendIdentity> {
+  const parsedUrl = new URL(expectation.connectionString);
+  const processId = (client as PoolClientWithProcessId).processID;
+  if (!Number.isSafeInteger(processId)) {
+    throw new Error("Daily review race client has no PostgreSQL processID.");
+  }
+  await client.query("select set_config('application_name',$1,false)", [applicationName]);
+  const result = await client.query<BackendIdentity>(`
+    select pg_backend_pid()::integer "pid",
+           current_database()::text "databaseName",
+           session_user::text "sessionUser",
+           current_user::text "currentUser",
+           current_setting('application_name')::text "applicationName"
+  `);
+  const identity = result.rows[0];
+  const expectedSessionRole = decodeURIComponent(parsedUrl.username);
+  const expectedCurrentRole = expectation.currentRole ?? expectedSessionRole;
+  const expectedDatabase = decodeURIComponent(parsedUrl.pathname.slice(1));
+  if (
+    !identity
+    || identity.pid !== processId
+    || identity.databaseName !== expectedDatabase
+    || identity.sessionUser !== expectedSessionRole
+    || identity.currentUser !== expectedCurrentRole
+    || identity.applicationName !== applicationName
+  ) {
+    throw new Error(`Daily review race backend identity mismatch: ${JSON.stringify({
+      processIdMatches: identity?.pid === processId,
+      databaseMatches: identity?.databaseName === expectedDatabase,
+      sessionRoleMatches: identity?.sessionUser === expectedSessionRole,
+      currentRoleMatches: identity?.currentUser === expectedCurrentRole,
+      applicationNameMatches: identity?.applicationName === applicationName,
+      actualDatabase: identity?.databaseName ?? null,
+      expectedDatabase,
+      actualSessionRole: identity?.sessionUser ?? null,
+      actualCurrentRole: identity?.currentUser ?? null,
+      expectedSessionRole,
+      expectedCurrentRole,
+    })}`);
+  }
+  return identity;
+}
+
+async function waitForExactBlocker(
+  observer: PoolClient,
+  waitingPid: number,
+  expectedBlockerPid: number,
+): Promise<readonly number[]> {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const result = await observer.query<{ blockers: number[] }>(
+      "select pg_blocking_pids($1::integer) blockers",
+      [waitingPid],
+    );
+    const blockers = result.rows[0]?.blockers ?? [];
+    if (blockers.includes(expectedBlockerPid)) return blockers;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  const diagnostics = await observer.query<{
+    pid: number;
+    state: string | null;
+    waitEventType: string | null;
+    waitEvent: string | null;
+    blockers: number[];
+    query: string | null;
+  }>(`
+    select pid,state,wait_event_type "waitEventType",wait_event "waitEvent",
+           pg_blocking_pids(pid) blockers,left(query,300) query
+      from pg_stat_activity
+     where pid=$1
+  `, [waitingPid]);
+  throw new Error(
+    `Backend ${waitingPid} was not blocked by ${expectedBlockerPid}: ${JSON.stringify(diagnostics.rows)}`,
+  );
+}
+
+type TransactionDatabase = Pick<typeof db, "transaction">;
+function storeForDatabase(database: TransactionDatabase): DrizzleLearningStore {
+  return new DrizzleLearningStore(database);
+}
 
 function assertDisposableDatabase() {
   const connectionString = process.env.DATABASE_URL ?? "";
@@ -486,6 +600,245 @@ describe("daily review PostgreSQL journey", () => {
     const completed = await daily.get(LEARNER);
     expect(completed).toMatchObject({ state: "completed", session: { completedCount: 5, questionCount: 5 } });
     expect(completed.session?.items.every((item) => item.status === "answered" && item.passed)).toBe(true);
+  });
+
+  it("holds an explicit learner update lock while completing a real due review", async () => {
+    await db.insert(notificationPreference).values({
+      userId: LEARNER,
+      revisionEnabled: true,
+      learningEmailEnabled: true,
+      timezone: "Asia/Kolkata",
+      revisionMinute: 0,
+      quietHoursEnabled: false,
+    });
+
+    const suffix = randomUUID().slice(0, 12);
+    const appConnectionString = requiredDatabaseUrl("DATABASE_APP_URL");
+    const ownerConnectionString = requiredDatabaseUrl("DATABASE_URL");
+    const appCanaryPool = new Pool({
+      connectionString: appConnectionString,
+      max: 1,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+    });
+    const schedulerPool = new Pool({
+      connectionString: appConnectionString,
+      max: 1,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+    });
+    const coordinationPool = new Pool({
+      connectionString: appConnectionString,
+      max: 3,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+    });
+    const [ownerSubmissionClient, appCanaryClient, schedulerClient, blockerClient, observerClient, peerClient] = await Promise.all([
+      pool.connect(),
+      appCanaryPool.connect(),
+      schedulerPool.connect(),
+      coordinationPool.connect(),
+      coordinationPool.connect(),
+      coordinationPool.connect(),
+    ]);
+    let submission:
+      | ReturnType<LearningService["submitAttempt"]>
+      | null = null;
+    let scheduled:
+      | ReturnType<typeof scheduleSmartRemindersWithDatabase>
+      | null = null;
+    let peerKeyShare: Promise<unknown> | null = null;
+    let blockerReleased = false;
+    try {
+      const submissionIdentity = await identifyDatabaseBackend(
+        ownerSubmissionClient,
+        `codestead.review-completion.submission.${suffix}`,
+        {
+          connectionString: ownerConnectionString,
+          currentRole: "learncoding_owner",
+        },
+      );
+      await identifyDatabaseBackend(
+        appCanaryClient,
+        `codestead.review-completion.app-canary.${suffix}`,
+        { connectionString: appConnectionString },
+      );
+      const schedulerIdentity = await identifyDatabaseBackend(
+        schedulerClient,
+        `codestead.review-completion.scheduler.${suffix}`,
+        { connectionString: appConnectionString },
+      );
+      await identifyDatabaseBackend(
+        blockerClient,
+        `codestead.review-completion.blocker.${suffix}`,
+        { connectionString: appConnectionString },
+      );
+      await identifyDatabaseBackend(
+        observerClient,
+        `codestead.review-completion.observer.${suffix}`,
+        { connectionString: appConnectionString },
+      );
+      const peerIdentity = await identifyDatabaseBackend(
+        peerClient,
+        `codestead.review-completion.peer.${suffix}`,
+        { connectionString: appConnectionString },
+      );
+
+      const setupLearning = new LearningService({
+        store: new DrizzleLearningStore(),
+        now: () => NOW,
+      });
+      const created = await setupLearning.createAttempt({
+        userId: LEARNER,
+        idempotencyKey: "review-completion-reminder-race-0001",
+        skillId: SKILLS[1]!,
+        kind: "quiz",
+      });
+      expect(created).toMatchObject({
+        state: "ready",
+        attempt: { kind: "quiz" },
+      });
+      const itemKey = created.activity?.specification.itemKey;
+      expect(itemKey).toBe(`${SKILLS[1]}.mcq.a`);
+      if (typeof itemKey !== "string") {
+        throw new Error("The reviewed race fixture has no server-selected item key.");
+      }
+      const appCanaryStore = storeForDatabase(drizzle(appCanaryClient, { schema }));
+      await appCanaryStore.transaction(async (transaction) => {
+        await transaction.lockAttemptSubmissionUser(LEARNER);
+        const ownedAttempt = await transaction.getAttempt(LEARNER, created.attempt!.id);
+        expect(ownedAttempt?.attempt.id).toBe(created.attempt!.id);
+      });
+      await expect(appCanaryStore.transaction(
+        (transaction) => transaction.lockAttemptSubmissionUser(
+          "daily-review-missing-learner",
+        ),
+      )).rejects.toMatchObject({ code: "LEARNER_NOT_FOUND", status: 404 });
+
+      const submissionDatabase = drizzle(ownerSubmissionClient, { schema });
+      const learning = new LearningService({
+        store: storeForDatabase(submissionDatabase),
+        now: () => NOW,
+      });
+
+      await blockerClient.query("begin");
+      const blockedReview = await blockerClient.query<{ id: string }>(
+        `select id
+           from review_schedule
+          where user_id=$1 and status='scheduled' and due_at <= $2
+          order by due_at,id
+          limit 1
+          for update`,
+        [LEARNER, NOW],
+      );
+      expect(blockedReview.rows).toHaveLength(1);
+
+      submission = learning.submitAttempt(LEARNER, created.attempt!.id, {
+        itemKey,
+        responseRevision: 1,
+        answer: { value: "a" },
+        assistanceLevel: "A0",
+        solutionRevealed: false,
+        submittedAt: NOW,
+      });
+      void submission.catch(() => undefined);
+      const submissionBlockers = await waitForExactBlocker(
+        observerClient,
+        submissionIdentity.pid,
+        (blockerClient as PoolClientWithProcessId).processID!,
+      );
+      expect(submissionBlockers).toContain(
+        (blockerClient as PoolClientWithProcessId).processID,
+      );
+
+      const schedulerDatabase = drizzle(schedulerClient, { schema });
+
+      // mastery_evidence already holds an incidental user KEY SHARE lock here.
+      // A peer KEY SHARE therefore distinguishes the explicit account-first
+      // FOR UPDATE contract from that weaker, ordering-dependent FK side effect.
+      peerKeyShare = peerClient.query(
+        `select id from "user" where id=$1 for key share`,
+        [LEARNER],
+      );
+      const peerBlockers = await waitForExactBlocker(
+        observerClient,
+        peerIdentity.pid,
+        submissionIdentity.pid,
+      );
+      expect(peerBlockers).toContain(submissionIdentity.pid);
+      // The scheduler queues behind this peer, whose root blocker is submission.
+      // This proves the complete PostgreSQL waiter chain without skipping a waiter.
+      scheduled = scheduleSmartRemindersWithDatabase(schedulerDatabase, NOW);
+      const schedulerBlockers = await waitForExactBlocker(
+        observerClient,
+        schedulerIdentity.pid,
+        peerIdentity.pid,
+      );
+      expect(schedulerBlockers).toContain(peerIdentity.pid);
+
+      await blockerClient.query("rollback");
+      blockerReleased = true;
+      await expect(submission).resolves.toMatchObject({
+        state: "graded",
+        officialEvidenceRecorded: true,
+      });
+      await expect(peerKeyShare).resolves.toMatchObject({ rowCount: 1 });
+      await expect(scheduled).resolves.toEqual({
+        candidates: 1,
+        dispatched: 0,
+        failed: 0,
+      });
+
+      const effects = await pool.query<{
+        dispatches: string;
+        notifications: string;
+        emails: string;
+      }>(`
+        select
+          (select count(*)::text from smart_reminder_dispatch
+            where user_id=$1 and kind='revision') dispatches,
+          (select count(*)::text from notification
+            where user_id=$1 and type='smart_reminder.revision') notifications,
+          (select count(*)::text from email_outbox
+            where user_id=$1 and template='revision-reminder') emails
+      `, [LEARNER]);
+      expect(effects.rows[0]).toEqual({
+        dispatches: "0",
+        notifications: "0",
+        emails: "0",
+      });
+      const reviewState = await pool.query<{
+        originalStatus: string;
+        scheduledSuccessors: string;
+      }>(`
+        select
+          (select status from review_schedule where id=$1) "originalStatus",
+          (select count(*)::text from review_schedule
+            where user_id=$2 and status='scheduled' and due_at > $3) "scheduledSuccessors"
+      `, [blockedReview.rows[0]!.id, LEARNER, NOW]);
+      expect(reviewState.rows[0]).toEqual({
+        originalStatus: "completed",
+        scheduledSuccessors: "1",
+      });
+    } finally {
+      if (!blockerReleased) {
+        await blockerClient.query("rollback").catch(() => undefined);
+      }
+      if (submission) await submission.catch(() => undefined);
+      if (scheduled) await scheduled.catch(() => undefined);
+      if (peerKeyShare) await peerKeyShare.catch(() => undefined);
+      schedulerClient.release();
+      ownerSubmissionClient.release();
+      appCanaryClient.release();
+      blockerClient.release();
+      observerClient.release();
+      peerClient.release();
+      await Promise.all([
+        appCanaryPool.end(),
+        schedulerPool.end(),
+        coordinationPool.end(),
+      ]);
+    }
   });
 
   it("exports deletion counts and erases an attempt-bound daily allocation before its source attempt", async () => {
