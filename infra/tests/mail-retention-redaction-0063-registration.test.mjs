@@ -308,6 +308,12 @@ for (const [label, definition] of [
   );
 }
 
+assert.match(
+  integrationHarness,
+  /function createFrameworkMigrationSlice\(temporaryRoot, maximumIndex\) \{\s*assert\.ok\(\s*\[62, 63, 64, 65\]\.includes\(maximumIndex\),\s*"0063 harness migration slice must end at 0062, 0063, 0064, or 0065",\s*\);/u,
+  "0063 migration slices must accept exactly 0062 through 0065",
+);
+
 const rawCatalogAssertion = integrationHarness.indexOf(
   "assertHostileFunctionAclsRemoved(port, database)",
 );
@@ -319,14 +325,24 @@ const latestPhaseMigration = integrationHarness.indexOf(
   "frameworkMigrationDirectoryThrough0064",
   postMigrationBootstrap,
 );
+const composedBoundaryMigration = integrationHarness.indexOf(
+  "frameworkMigrationDirectoryThrough0065",
+  latestPhaseMigration,
+);
+const composedBoundaryMigrationCount = integrationHarness.indexOf(
+  '"66"',
+  composedBoundaryMigration,
+);
 const broadBoundaryVerifier = integrationHarness.indexOf(
   "await runProductionApplicationBoundaryVerifier(port, database)",
-  latestPhaseMigration,
+  composedBoundaryMigrationCount,
 );
 assert.ok(rawCatalogAssertion >= 0);
 assert.ok(postMigrationBootstrap > rawCatalogAssertion);
 assert.ok(latestPhaseMigration > postMigrationBootstrap);
-assert.ok(broadBoundaryVerifier > latestPhaseMigration);
+assert.ok(composedBoundaryMigration > latestPhaseMigration);
+assert.ok(composedBoundaryMigrationCount > composedBoundaryMigration);
+assert.ok(broadBoundaryVerifier > composedBoundaryMigrationCount);
 
 const boundaryVerifierCommand =
   'command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]';

@@ -634,8 +634,8 @@ function migrationLedgerThrough0063() {
 
 function createFrameworkMigrationSlice(temporaryRoot, maximumIndex) {
   assert.ok(
-    [62, 63, 64].includes(maximumIndex),
-    "0063 harness migration slice must end at 0062, 0063, or 0064",
+    [62, 63, 64, 65].includes(maximumIndex),
+    "0063 harness migration slice must end at 0062, 0063, 0064, or 0065",
   );
   const target = path.join(
     temporaryRoot,
@@ -2642,6 +2642,8 @@ async function main(control = defaultHarnessControl) {
       createFrameworkMigrationSlice(temporaryRoot, 63);
     const frameworkMigrationDirectoryThrough0064 =
       createFrameworkMigrationSlice(temporaryRoot, 64);
+    const frameworkMigrationDirectoryThrough0065 =
+      createFrameworkMigrationSlice(temporaryRoot, 65);
     const port = await unusedLoopbackPort();
 
     run(
@@ -2818,6 +2820,21 @@ async function main(control = defaultHarnessControl) {
       ),
       "65",
       "framework did not record migrations 0000 through 0064",
+    );
+    await applyMigrationsWithFramework(
+      port,
+      database,
+      frameworkMigrationDirectoryThrough0065,
+    );
+    assert.equal(
+      scalar(
+        port,
+        database,
+        `select pg_catalog.count(*)::text
+           from drizzle.__drizzle_migrations;`,
+      ),
+      "66",
+      "framework did not record migrations 0000 through 0065",
     );
     await runProductionApplicationBoundaryVerifier(port, database);
     await proveProductionBoundaryTamperAndRestore(
