@@ -16,6 +16,7 @@ import {
   type ArmedMailDispatchHardWatchdog,
   type MailDispatchHardWatchdog,
 } from "../mail-dispatch-hard-watchdog";
+import { planMailDispatchRuntime } from "../mail-dispatch-runtime-policy";
 
 function fatalExit(error: Error): never {
   throw error;
@@ -54,9 +55,20 @@ async function closeController(
 
 describe("mail dispatch external hard watchdog", () => {
   it("binds and packages the exact production timer implementation", () => {
+    const policy = planMailDispatchRuntime();
+
     expect(MAIL_DISPATCH_HARD_WATCHDOG_TIMEOUT_MS).toBe(55_000);
     expect(MAIL_DISPATCH_WATCHDOG_ARM_ACK_TIMEOUT_MS).toBe(2_000);
     expect(MAIL_DISPATCH_WATCHDOG_DISARM_DELIVERY_TIMEOUT_MS).toBe(2_000);
+    expect(MAIL_DISPATCH_HARD_WATCHDOG_TIMEOUT_MS).toBe(
+      policy.timeouts.hardWatchdogMs,
+    );
+    expect(MAIL_DISPATCH_WATCHDOG_ARM_ACK_TIMEOUT_MS).toBe(
+      policy.timeouts.watchdogArmAckMs,
+    );
+    expect(MAIL_DISPATCH_WATCHDOG_DISARM_DELIVERY_TIMEOUT_MS).toBe(
+      policy.timeouts.watchdogDisarmDeliveryMs,
+    );
     expect(
       MAIL_DISPATCH_WATCHDOG_ARM_ACK_TIMEOUT_MS
       + 47_000
