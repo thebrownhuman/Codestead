@@ -232,6 +232,8 @@ export type MailDispatchRuntimePlan = Readonly<{
    * The physical stamp is persisted inside TX1. Including the full TX1
    * commit-ack allowance guarantees the effective lease after COMMIT without
    * a second write: stamp = TX1 allowance + post-COMMIT lease.
+   * Every configured stamp must also expire strictly before process stop, so
+   * no accepted override can outlive either process or platform termination.
    */
   providerLease: Readonly<{
     postCommitProviderLeaseMs: number;
@@ -265,6 +267,49 @@ export type MailDispatchRuntimePlan = Readonly<{
     platformStopMs: number;
   }>;
 }>;
+
+const issuedMailDispatchRuntimePlans = new WeakSet<object>();
+
+function isDeeplyFrozenDataGraph(
+  value: unknown,
+  visited: WeakSet<object>,
+): boolean {
+  if (value === null || typeof value !== "object") {
+    return true;
+  }
+  if (visited.has(value)) {
+    return true;
+  }
+  if (!Object.isFrozen(value)) {
+    return false;
+  }
+
+  visited.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      descriptor === undefined
+      || !("value" in descriptor)
+      || !isDeeplyFrozenDataGraph(descriptor.value, visited)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Verifies exact planner provenance, not structural equivalence.
+ */
+export function isMailDispatchRuntimePlan(
+  value: unknown,
+): value is MailDispatchRuntimePlan {
+  return value !== null
+    && typeof value === "object"
+    && issuedMailDispatchRuntimePlans.has(value)
+    && isDeeplyFrozenDataGraph(value, new WeakSet<object>());
+}
 
 const OVERRIDE_KEYS = Object.freeze([
   "concurrency",
@@ -846,6 +891,11 @@ export function planMailDispatchRuntime(
       "Mail drain, pool close, and shutdown margin must finish before stop timeout.",
     );
   }
+  if (providerLeaseStampMs >= stopTimeoutMs) {
+    throw new Error(
+      "Mail provider lease stamp must finish before stop timeout.",
+    );
+  }
   if (stopTimeoutMs >= platformStopMs) {
     throw new Error(
       "Mail process stop must finish before the platform stop.",
@@ -968,7 +1018,7 @@ export function planMailDispatchRuntime(
     platformStopMs,
   });
 
-  return Object.freeze({
+  const plan = Object.freeze({
     phases,
     liveProviderTx2PhaseOrder,
     dispatch,
@@ -977,4 +1027,7 @@ export function planMailDispatchRuntime(
     providerLease,
     timeouts,
   });
+
+  issuedMailDispatchRuntimePlans.add(plan);
+  return plan;
 }
