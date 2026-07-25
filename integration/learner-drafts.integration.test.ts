@@ -8,6 +8,7 @@ import {
   DraftVersionConflictError,
   PostgresLearnerDraftRepository,
 } from "@/lib/drafts/repository";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const FIRST_USER = "draft-sync-learner-one";
 const SECOND_USER = "draft-sync-learner-two";
@@ -22,13 +23,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await truncateMutableApplicationTables(pool);
 }
 
 beforeEach(async () => {

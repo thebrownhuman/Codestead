@@ -5,6 +5,7 @@ import { issueCourseCertificate, loadPublicCertificate, revokeCourseCertificate 
 import { createLearnerExport } from "@/lib/data-lifecycle/export";
 import { pool } from "@/lib/db/client";
 import { loadPublicPortfolio, updatePublicPortfolio } from "@/lib/portfolio/service";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const LEARNER = "milestone-integration-learner";
 const OTHER = "milestone-integration-other";
@@ -31,11 +32,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema='public' and table_type='BASE TABLE'`);
-  const names = tables.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 async function seedEligibleLearningEvidence() {

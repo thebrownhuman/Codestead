@@ -6,6 +6,7 @@ import {
   resolveMentorLearner,
 } from "@/lib/admin-mentor/evidence-reader";
 import { pool } from "@/lib/db/client";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const ADMIN = "mentor-evidence-admin";
 const LEARNER = "mentor-evidence-learner";
@@ -23,11 +24,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 const examResult = {

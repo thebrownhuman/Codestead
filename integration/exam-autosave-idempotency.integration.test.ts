@@ -19,6 +19,7 @@ import {
   EXAM_POLICY_VERSION,
   type ExamFormSnapshot,
 } from "@/lib/exams/contracts";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const OWNER_ID = "exam-autosave-owner";
 const OTHER_ID = "exam-autosave-other";
@@ -41,13 +42,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await truncateMutableApplicationTables(pool);
 }
 
 const form: ExamFormSnapshot = {

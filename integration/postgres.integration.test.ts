@@ -116,6 +116,7 @@ import {
   decideAppeal,
   getAdminAppealDetail,
 } from "@/lib/appeals/admin-service";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 
 const USER_A = "integration-user-a";
@@ -242,16 +243,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const identifiers = result.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(", ");
-  await pool.query(`TRUNCATE TABLE ${identifiers} RESTART IDENTITY CASCADE`);
+  await truncateMutableApplicationTables(pool);
 }
 
 async function seedUsers(options: { quota?: number } = {}) {

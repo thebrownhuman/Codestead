@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { loadTutorStructuredMemory, TUTOR_MEMORY_LIMITS } from "@/lib/ai/tutor-memory";
 import { pool } from "@/lib/db/client";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const LEARNER = "tutor-memory-learner";
 const OTHER = "tutor-memory-other";
@@ -25,11 +26,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 function envelope(itemVariantId: string, tags: string[]) {

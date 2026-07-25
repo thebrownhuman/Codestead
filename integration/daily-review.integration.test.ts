@@ -30,6 +30,7 @@ import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
 import { LearningService } from "@/lib/learning-service/service";
 import { scheduleSmartRemindersWithDatabase } from "@/lib/notifications/smart-reminders";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const LEARNER = "daily-review-learner";
 const OTHER = "daily-review-other";
@@ -168,12 +169,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 function reviewedBank(skillId: string, itemId: string): Record<string, unknown> {

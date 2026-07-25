@@ -27,6 +27,7 @@ import {
   queueProjectReviewCorrection,
   requestProjectReviewCorrectionRetry,
 } from "@/lib/projects/review-correction-service";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const ADMIN_ID = "project-correction-admin";
 const LEARNER_ID = "project-correction-learner";
@@ -60,13 +61,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 function reviewResult(commitSha: string, findings: ReviewFinding[] = CORRECTED_FINDINGS) {

@@ -15,6 +15,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import { consentInsert } from "@/lib/privacy/consent";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const ADMIN_ID = "credential-admin-integration";
 const LEARNER_ID = "credential-learner-integration";
@@ -30,13 +31,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await truncateMutableApplicationTables(pool);
 }
 
 beforeEach(async () => {

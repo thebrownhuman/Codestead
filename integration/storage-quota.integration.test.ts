@@ -17,6 +17,7 @@ import {
   DEFAULT_STORAGE_QUOTA_BYTES,
   MAX_STORAGE_QUOTA_BYTES,
 } from "@/lib/storage/policy";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const LEARNER_ID = "quota-integration-learner";
 const LEARNER_PUBLIC_ID = "b1000000-0000-4000-8000-000000000001";
@@ -34,13 +35,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await truncateMutableApplicationTables(pool);
 }
 
 beforeEach(async () => {

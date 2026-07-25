@@ -17,6 +17,7 @@ import {
 } from "@/lib/runner/power-rehearsal-admin";
 import { holdRunnerDispatchForPowerRehearsal } from "@/lib/runner/power-rehearsal-hold";
 import { buildPracticeRunnerRequest, PRACTICE_LIMITS } from "@/lib/runner/practice-dispatch";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const ADMIN = "rehearsal-admin";
 const LEARNER_ONE = "rehearsal-learner-one";
@@ -35,13 +36,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 async function createHeldDispatch(input: {

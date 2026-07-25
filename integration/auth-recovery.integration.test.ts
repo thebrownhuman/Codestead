@@ -38,6 +38,7 @@ import {
   verifyLostDeviceProof,
 } from "@/lib/security/lost-device-recovery";
 import { and, eq } from "drizzle-orm";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const ADMIN_ID = "auth-recovery-admin";
 const ADMIN_SESSION_ID = "auth-recovery-admin-session";
@@ -62,15 +63,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name
-      from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  const names = tables.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 async function seedSecurityActors(now = new Date()) {

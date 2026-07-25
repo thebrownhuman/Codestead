@@ -11,6 +11,7 @@ import {
   startModuleProject,
   transitionModuleProjectTemplate,
 } from "@/lib/projects/module-project-service";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const ADMIN = "module-project-admin";
 const LEARNER = "module-project-learner";
@@ -39,11 +40,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema='public' and table_type='BASE TABLE'`);
-  const names = tables.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 function planFor(projectBrief: ModuleProjectBrief) {

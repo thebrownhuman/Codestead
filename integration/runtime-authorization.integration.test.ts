@@ -53,6 +53,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import { PostgresLearnerDraftRepository } from "@/lib/drafts/repository";
+import { truncateMutableApplicationTables } from "./helpers/truncate-application-tables";
 
 const LEARNER_A = "runtime-auth-learner-a";
 const LEARNER_B = "runtime-auth-learner-b";
@@ -80,13 +81,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`truncate table ${names} restart identity cascade`);
+  await truncateMutableApplicationTables(pool);
 }
 
 function asLearner(userId: typeof LEARNER_A | typeof LEARNER_B) {
