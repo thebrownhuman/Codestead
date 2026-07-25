@@ -6,6 +6,7 @@ import {
   createBattle,
   getBattle,
   listBattles,
+  joinBattle,
   submitBattle,
 } from "@/lib/battles/service";
 import {
@@ -23,6 +24,8 @@ import {
 import { hashCurriculumValue } from "@/lib/curriculum-publication/hash";
 import { pool } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
+import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
+import { LearningService } from "@/lib/learning-service/service";
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { createLearnerExport } from "@/lib/data-lifecycle/export";
 import {
@@ -31,6 +34,7 @@ import {
 } from "@/lib/notifications/smart-reminders";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 
+import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 const NOW = new Date("2026-07-14T12:00:00.000Z");
 const ADMIN = "community-battle-admin";
 const LEARNER_A = "community-battle-a";
@@ -46,6 +50,10 @@ const LESSON = "cb100000-0000-4000-8000-000000000004";
 const CONCEPT = "cb100000-0000-4000-8000-000000000005";
 const ACTIVITY = "cb100000-0000-4000-8000-000000000006";
 const ARTIFACT = "cb100000-0000-4000-8000-000000000007";
+const PLAN_FOUNDATIONS_COURSE = "cb700000-0000-4000-8000-000000000001";
+const PLAN_FOUNDATIONS_VERSION = "cb700000-0000-4000-8000-000000000002";
+const PLAN_PYTHON_COURSE = "cb700000-0000-4000-8000-000000000003";
+const PLAN_PYTHON_VERSION = "cb700000-0000-4000-8000-000000000004";
 const ITEM = "python.variables.choice.1";
 let communityOperationSequence = 0;
 let reminderRaceSequence = 0;
@@ -349,6 +357,137 @@ async function waitForBackendBlockers(
   throw new Error(`Backend ${waitingPid} did not enter a PostgreSQL lock wait.`);
 }
 
+function createRestrictedAppPool() {
+  return new Pool({
+    connectionString: reminderAppDatabaseUrl,
+    max: 1,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  });
+}
+
+async function identifyRestrictedPoolBackend(databasePool: Pool, applicationName: string) {
+  const client = await databasePool.connect();
+  try {
+    return await identifyReminderBackend(client, applicationName);
+  } finally {
+    client.release();
+  }
+}
+
+async function waitForExactBackendLock(
+  observer: PoolClient,
+  waiting: ReminderBackendIdentity,
+  blocker: ReminderBackendIdentity,
+  queryFragments: readonly string[],
+) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const result = await observer.query<{
+      pid: number;
+      backend_type: string;
+      datname: string;
+      usename: string;
+      application_name: string;
+      state: string | null;
+      wait_event_type: string | null;
+      query: string | null;
+      blockers: number[];
+    }>(`
+      select activity.pid,activity.backend_type,activity.datname,activity.usename,
+             activity.application_name,activity.state,activity.wait_event_type,
+             activity.query,pg_blocking_pids(activity.pid) blockers
+        from pg_stat_activity activity
+       where activity.pid=$1
+    `, [waiting.pid]);
+    const row = result.rows[0];
+    const normalizedQuery = row?.query?.toLowerCase() ?? "";
+    if (
+      row?.pid === waiting.pid
+      && row.backend_type === "client backend"
+      && row.datname === waiting.databaseName
+      && row.usename === waiting.sessionUser
+      && row.application_name === waiting.applicationName
+      && row.state === "active"
+      && row.wait_event_type === "Lock"
+      && row.blockers.includes(blocker.pid)
+      && queryFragments.every((fragment) => normalizedQuery.includes(fragment.toLowerCase()))
+    ) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(
+    `Backend ${waiting.pid} did not enter the expected lock wait behind ${blocker.pid}.`,
+  );
+}
+
+async function beginLearnerAuthorityErasure(client: PoolClient, userId: string) {
+  await client.query("begin");
+  await client.query(
+    "select pg_advisory_xact_lock(hashtext($1))",
+    [userAuthorityLockKey(userId)],
+  );
+  await client.query(`select id from "user" where id=$1 for update`, [userId]);
+  await client.query("select set_config('app.account_deletion_authorized','1',true)");
+}
+
+async function finishLearnerAuthorityErasure(client: PoolClient, userId: string) {
+  await client.query(
+    `update "user" set status='deleted',row_version=row_version+1,updated_at=clock_timestamp()
+      where id=$1`,
+    [userId],
+  );
+  await client.query("delete from coding_battle_submission where user_id=$1", [userId]);
+  await client.query("delete from coding_battle_participant where user_id=$1", [userId]);
+  await client.query(
+    "delete from plan_revision where enrollment_id in (select id from enrollment where user_id=$1)",
+    [userId],
+  );
+  await client.query("delete from enrollment where user_id=$1", [userId]);
+  await client.query("delete from learner_profile where user_id=$1", [userId]);
+  await client.query("delete from cohort_profile where user_id=$1", [userId]);
+  await client.query("delete from consent_record where user_id=$1", [userId]);
+  await client.query("commit");
+}
+
+async function eraseLearnerAuthorityScope(databasePool: Pool, userId: string) {
+  const client = await databasePool.connect();
+  try {
+    await beginLearnerAuthorityErasure(client, userId);
+    await finishLearnerAuthorityErasure(client, userId);
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function seedPlanInitializationPublications() {
+  await pool.query(
+    `insert into course (id,slug,title,summary,domain)
+     values ($1,'programming-foundations','Programming foundations','Plan race fixture.','programming'),
+            ($2,'python','Python','Plan race fixture.','programming')`,
+    [PLAN_FOUNDATIONS_COURSE, PLAN_PYTHON_COURSE],
+  );
+  await pool.query(
+    `insert into course_version
+      (id,course_id,version,stage,scope_statement,content_hash)
+     values ($1,$2,'0.1.0','beta','Plan race foundation scope.',$5),
+            ($3,$4,'0.1.0','beta','Plan race Python scope.',$5)`,
+    [PLAN_FOUNDATIONS_VERSION, PLAN_FOUNDATIONS_COURSE, PLAN_PYTHON_VERSION, PLAN_PYTHON_COURSE, "d".repeat(64)],
+  );
+  await pool.query(
+    `insert into curriculum_publication_pointer
+      (course_id,current_course_version_id,updated_by,reason,updated_at)
+     values ($1,$2,$5,'Publish plan race foundation.',$6),
+            ($3,$4,$5,'Publish plan race Python.',$6)`,
+    [PLAN_FOUNDATIONS_COURSE, PLAN_FOUNDATIONS_VERSION, PLAN_PYTHON_COURSE, PLAN_PYTHON_VERSION, ADMIN, NOW],
+  );
+  await pool.query(
+    `insert into learner_profile (user_id,self_reported_level,selected_tracks)
+     values ($1,'beginner','["python"]'::jsonb)`,
+    [LEARNER_A],
+  );
+}
 async function waitForReminderLockWait(
   observer: PoolClient,
   scheduler: ReminderBackendIdentity,
@@ -461,6 +600,258 @@ afterAll(async () => {
   await pool.end();
 });
 
+describe("user-authority resurrection races", () => {
+  it("lets blocked plan initialization finish before deletion, then leaves no resurrected plan rows", async () => {
+    await seedPlanInitializationPublications();
+    const planPool = createRestrictedAppPool();
+    const erasurePool = createRestrictedAppPool();
+    const [publicationBlocker, observer, userWaiter] = await Promise.all([
+      reminderAppPool.connect(),
+      reminderAppPool.connect(),
+      reminderAppPool.connect(),
+    ]);
+    let initialization: ReturnType<LearningService["initializePlans"]> | null = null;
+    let erasure: ReturnType<typeof eraseLearnerAuthorityScope> | null = null;
+    let userWait: Promise<unknown> | null = null;
+    try {
+      const blockerIdentity = await identifyReminderBackend(
+        publicationBlocker,
+        "codestead.plan.publication-blocker",
+      );
+      await identifyReminderBackend(observer, "codestead.plan.race-observer");
+      const userWaiterIdentity = await identifyReminderBackend(
+        userWaiter,
+        "codestead.plan.user-row-waiter",
+      );
+      const initializerIdentity = await identifyRestrictedPoolBackend(
+        planPool,
+        "codestead.plan.initializer",
+      );
+      const erasureIdentity = await identifyRestrictedPoolBackend(
+        erasurePool,
+        "codestead.plan.eraser",
+      );
+      await publicationBlocker.query("begin");
+      await publicationBlocker.query(
+        "lock table curriculum_publication_pointer in access exclusive mode",
+      );
+      const service = new LearningService({
+        store: new DrizzleLearningStore(drizzle(planPool, { schema })),
+      });
+      initialization = service.initializePlans(LEARNER_A, "plan-race-writer-first");
+      await waitForExactBackendLock(
+        observer,
+        initializerIdentity,
+        blockerIdentity,
+        ["curriculum_publication_pointer", "course_version"],
+      );
+      userWait = userWaiter.query(
+        `select u.id from "user" u where u.id=$1 for update of u`,
+        [LEARNER_A],
+      );
+      await waitForExactBackendLock(
+        observer,
+        userWaiterIdentity,
+        initializerIdentity,
+        ['from "user" u', "for update of u"],
+      );
+      erasure = eraseLearnerAuthorityScope(erasurePool, LEARNER_A);
+      await waitForExactBackendLock(
+        observer,
+        erasureIdentity,
+        initializerIdentity,
+        ["pg_advisory_xact_lock", "hashtext"],
+      );
+      await publicationBlocker.query("commit");
+      await expect(initialization).resolves.toMatchObject({ state: "ready" });
+      await expect(userWait).resolves.toBeDefined();
+      await expect(erasure).resolves.toBeUndefined();
+    } finally {
+      await publicationBlocker.query("rollback").catch(() => undefined);
+      if (initialization) await initialization.catch(() => undefined);
+      if (userWait) await userWait.catch(() => undefined);
+      if (erasure) await erasure.catch(() => undefined);
+      publicationBlocker.release();
+      observer.release();
+      userWaiter.release();
+      await planPool.end();
+      await erasurePool.end();
+    }
+    const remaining = await pool.query<{ enrollments: string; revisions: string }>(
+      `select
+         (select count(*)::text from enrollment where user_id=$1) enrollments,
+         (select count(*)::text from plan_revision revision
+           join enrollment owned on owned.id=revision.enrollment_id
+          where owned.user_id=$1) revisions`,
+      [LEARNER_A],
+    );
+    expect(remaining.rows[0]).toEqual({ enrollments: "0", revisions: "0" });
+  });
+
+  it("lets a blocked battle join finish before deletion, then leaves no resurrected participant", async () => {
+    const battle = await createInviteBattle();
+    const joinPool = createRestrictedAppPool();
+    const erasurePool = createRestrictedAppPool();
+    const [battleBlocker, observer, userWaiter] = await Promise.all([
+      reminderAppPool.connect(),
+      reminderAppPool.connect(),
+      reminderAppPool.connect(),
+    ]);
+    let joining: ReturnType<typeof joinBattle> | null = null;
+    let erasure: ReturnType<typeof eraseLearnerAuthorityScope> | null = null;
+    let userWait: Promise<unknown> | null = null;
+    try {
+      const blockerIdentity = await identifyReminderBackend(
+        battleBlocker,
+        "codestead.battle.row-blocker",
+      );
+      await identifyReminderBackend(observer, "codestead.battle.race-observer");
+      const userWaiterIdentity = await identifyReminderBackend(
+        userWaiter,
+        "codestead.battle.user-row-waiter",
+      );
+      const joinIdentity = await identifyRestrictedPoolBackend(
+        joinPool,
+        "codestead.battle.joiner",
+      );
+      const erasureIdentity = await identifyRestrictedPoolBackend(
+        erasurePool,
+        "codestead.battle.eraser",
+      );
+      await battleBlocker.query("begin");
+      await battleBlocker.query(
+        "select id from coding_battle where id=$1 for update",
+        [battle.id],
+      );
+      joining = joinBattle({ actorUserId: LEARNER_B, battleId: battle.id, now: NOW }, joinPool);
+      await waitForExactBackendLock(
+        observer,
+        joinIdentity,
+        blockerIdentity,
+        ["from coding_battle battle", "for update of battle"],
+      );
+      userWait = userWaiter.query(
+        `select u.id from "user" u where u.id=$1 for update of u`,
+        [LEARNER_B],
+      );
+      await waitForExactBackendLock(
+        observer,
+        userWaiterIdentity,
+        joinIdentity,
+        ['from "user" u', "for update of u"],
+      );
+      erasure = eraseLearnerAuthorityScope(erasurePool, LEARNER_B);
+      await waitForExactBackendLock(
+        observer,
+        erasureIdentity,
+        joinIdentity,
+        ["pg_advisory_xact_lock", "hashtext"],
+      );
+      await battleBlocker.query("commit");
+      await expect(joining).resolves.toEqual({ joined: true });
+      await expect(userWait).resolves.toBeDefined();
+      await expect(erasure).resolves.toBeUndefined();
+    } finally {
+      await battleBlocker.query("rollback").catch(() => undefined);
+      if (joining) await joining.catch(() => undefined);
+      if (userWait) await userWait.catch(() => undefined);
+      if (erasure) await erasure.catch(() => undefined);
+      battleBlocker.release();
+      observer.release();
+      userWaiter.release();
+      await joinPool.end();
+      await erasurePool.end();
+    }
+    expect((await pool.query(
+      "select 1 from coding_battle_participant where battle_id=$1 and user_id=$2",
+      [battle.id, LEARNER_B],
+    )).rowCount).toBe(0);
+  });
+  it("makes plan initialization wait behind deletion and reject the deleted learner", async () => {
+    await seedPlanInitializationPublications();
+    const planPool = createRestrictedAppPool();
+    const erasurePool = createRestrictedAppPool();
+    const eraser = await erasurePool.connect();
+    const observer = await reminderAppPool.connect();
+    let initialization: ReturnType<LearningService["initializePlans"]> | null = null;
+    try {
+      const eraserIdentity = await identifyReminderBackend(
+        eraser,
+        "codestead.plan.deletion-first-eraser",
+      );
+      await identifyReminderBackend(observer, "codestead.plan.deletion-first-observer");
+      const initializerIdentity = await identifyRestrictedPoolBackend(
+        planPool,
+        "codestead.plan.deletion-first-initializer",
+      );
+      await beginLearnerAuthorityErasure(eraser, LEARNER_A);
+      const service = new LearningService({
+        store: new DrizzleLearningStore(drizzle(planPool, { schema })),
+      });
+      initialization = service.initializePlans(LEARNER_A, "plan-race-deletion-first");
+      await waitForExactBackendLock(
+        observer,
+        initializerIdentity,
+        eraserIdentity,
+        ["pg_advisory_xact_lock", "hashtext"],
+      );
+      await finishLearnerAuthorityErasure(eraser, LEARNER_A);
+      await expect(initialization).resolves.toMatchObject({
+        state: "empty",
+        warnings: ["Learner account is unavailable."],
+      });
+    } finally {
+      await eraser.query("rollback").catch(() => undefined);
+      if (initialization) await initialization.catch(() => undefined);
+      eraser.release();
+      observer.release();
+      await planPool.end();
+      await erasurePool.end();
+    }
+    expect((await pool.query("select 1 from enrollment where user_id=$1", [LEARNER_A])).rowCount).toBe(0);
+  });
+
+  it("makes battle join wait behind deletion and reject without reinserting participation", async () => {
+    const battle = await createInviteBattle();
+    const joinPool = createRestrictedAppPool();
+    const erasurePool = createRestrictedAppPool();
+    const eraser = await erasurePool.connect();
+    const observer = await reminderAppPool.connect();
+    let joining: ReturnType<typeof joinBattle> | null = null;
+    try {
+      const eraserIdentity = await identifyReminderBackend(
+        eraser,
+        "codestead.battle.deletion-first-eraser",
+      );
+      await identifyReminderBackend(observer, "codestead.battle.deletion-first-observer");
+      const joinIdentity = await identifyRestrictedPoolBackend(
+        joinPool,
+        "codestead.battle.deletion-first-joiner",
+      );
+      await beginLearnerAuthorityErasure(eraser, LEARNER_B);
+      joining = joinBattle({ actorUserId: LEARNER_B, battleId: battle.id, now: NOW }, joinPool);
+      await waitForExactBackendLock(
+        observer,
+        joinIdentity,
+        eraserIdentity,
+        ["pg_advisory_xact_lock", "hashtext"],
+      );
+      await finishLearnerAuthorityErasure(eraser, LEARNER_B);
+      await expect(joining).rejects.toMatchObject({ code: "NOT_FOUND" });
+    } finally {
+      await eraser.query("rollback").catch(() => undefined);
+      if (joining) await joining.catch(() => undefined);
+      eraser.release();
+      observer.release();
+      await joinPool.end();
+      await erasurePool.end();
+    }
+    expect((await pool.query(
+      "select 1 from coding_battle_participant where battle_id=$1 and user_id=$2",
+      [battle.id, LEARNER_B],
+    )).rowCount).toBe(0);
+  });
+});
 describe("closed-cohort community", () => {
   it("fails closed across membership, ownership, reports, pagination, and secret-like content", async () => {
     const groupRequestId = nextCommunityRequestId();
