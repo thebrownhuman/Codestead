@@ -488,14 +488,26 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
                pg_catalog.statement_timestamp() - interval '31 days'
        WHERE id = $1::uuid
     `, [redactionRow.id]);
-    const redacted = await ops.query<{ id: string }>(`
-      SELECT id::text
+    const redactionSummary = await ops.query<{
+      disposition: string;
+      eligible: string;
+      transitioned: string;
+    }>(`
+      SELECT disposition, eligible::text, transitioned::text
         FROM public.redact_unresolved_email_outbox_authority(
           pg_catalog.statement_timestamp() - interval '30 days',
-          10
+          1000
         )
     `);
-    expect(redacted.rows.map(({ id }) => id)).toContain(redactionRow.id);
+    const eligibleSummary = redactionSummary.rows.find(
+      ({ disposition }) => disposition === "eligible",
+    );
+    expect(eligibleSummary).toBeDefined();
+    expect(Number(eligibleSummary?.eligible)).toBeGreaterThanOrEqual(1);
+    expect(Number(eligibleSummary?.transitioned)).toBeGreaterThanOrEqual(1);
+    expect(Number(eligibleSummary?.eligible)).toBeGreaterThanOrEqual(
+      Number(eligibleSummary?.transitioned),
+    );
     const preserved = await owner.query<{
       to_email: string;
       dispatch_binding_version: string;
