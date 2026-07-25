@@ -353,6 +353,29 @@ if (!staticOnly) {
     `${postgresJob}      - run: docker run --rm postgres:16-bookworm\n`,
     /PostgreSQL 16/u,
   );
+  for (const bypassingPg16Image of [
+    "postgres:16rc1",
+    "postgres:16_rc1",
+  ]) {
+    expectProjectionRejected(
+      `${bypassingPg16Image} cannot bypass the PostgreSQL 16 image-major guard`,
+      `${postgresJob}      - run: docker run --rm ${bypassingPg16Image}\n`,
+      /PostgreSQL 16/u,
+    );
+  }
+  for (const differentMajorImage of [
+    "postgres:160-bookworm",
+    "postgres:161",
+  ]) {
+    assert.doesNotThrow(
+      () =>
+        postgresCiProjectionModule.assertPostgresCiProjectionContract(
+          `${postgresJob}      - run: docker run --rm ${differentMajorImage}\n`,
+          postgresCiProjectionModule.canonicalPostgresCiProjectionContract,
+        ),
+      `${differentMajorImage} must not be mistaken for PostgreSQL 16`,
+    );
+  }
   expectProjectionRejected(
     "the pinned Docker integration cannot regress from PostgreSQL 17 to 16",
     replaceProjectionExactly(

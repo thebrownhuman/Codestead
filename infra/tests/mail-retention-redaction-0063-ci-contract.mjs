@@ -341,7 +341,7 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
   );
   assert.doesNotMatch(
     postgresProjection,
-    /(?:postgresql-16|POSTGRES_16_BIN|\/postgresql\/16\/bin|\bpostgres:16(?:\b|[-.]))/iu,
+    /(?:postgresql-16|POSTGRES_16_BIN|\/postgresql\/16\/bin|\bpostgres:16(?!\d))/iu,
     "PostgreSQL 16 must not appear in the canonical CI matrix",
   );
 
