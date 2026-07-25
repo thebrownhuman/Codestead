@@ -24,8 +24,10 @@ import {
 } from "../mail-dispatch-runtime-startup";
 import {
   authorizeCommittedPreparedDispatch,
+  discardGuardedPreparedDispatch,
   guardedDispatchResultSafeToDisarm,
   mailDispatchPreparedRuntimePlan,
+  releaseGuardedDispatchWatchdogClaim,
   PostgresOutboxStore,
   type OutboxPgClient,
   type OutboxPgPool,
@@ -331,6 +333,143 @@ function dispatchClient(input: Readonly<{
   ]);
 }
 
+function tupleValues(tuple: AuthorityTuple) {
+  return [
+    tuple.provider_correlation_version,
+    tuple.provider_evidence_version,
+    tuple.provider_evidence_sha256,
+  ];
+}
+
+function finalizerScopeRow(tuple: AuthorityTuple) {
+  return {
+    ...scopeRow(),
+    dispatch_binding_version: tuple.dispatch_binding_version,
+    dispatch_binding_sha256: tuple.dispatch_binding_sha256,
+    provider_correlation_version: tuple.provider_correlation_version,
+    provider_evidence_version: tuple.provider_evidence_version,
+    provider_evidence_sha256: tuple.provider_evidence_sha256,
+  };
+}
+
+function committedSentRow(tuple: AuthorityTuple) {
+  return {
+    status: "sent",
+    claim_version: claim.claimVersion,
+    user_id: USER_ID,
+    delivery_scope_key: SCOPE_KEY,
+    adapter: tuple.adapter,
+    provider_message_id: "gmail-provider-id",
+    provider_call_started: PROVIDER_STARTED_AT,
+    sent_at: "2026-07-25 06:00:10.000000+00",
+    quarantined_at: null,
+    last_error_code: null,
+    claim_token: null,
+    claim_owner: null,
+    lease_expires_at: null,
+    dispatch_binding_version: tuple.dispatch_binding_version,
+    dispatch_binding_sha256: tuple.dispatch_binding_sha256,
+    provider_correlation_version: tuple.provider_correlation_version,
+    provider_evidence_version: tuple.provider_evidence_version,
+    provider_evidence_sha256: tuple.provider_evidence_sha256,
+  };
+}
+
+function committedFinalizerClient(tuple: () => AuthorityTuple) {
+  return new ScriptedClient("finalizer", [
+    { contains: "begin" },
+    {
+      contains: "pg_advisory_xact_lock",
+      respond: (values) => {
+        expect(values).toEqual([SCOPE_LOCK_KEY]);
+        return { rows: [] };
+      },
+    },
+    {
+      contains: "for update",
+      respond: (values, sql) => {
+        const authority = tuple();
+        expect(sql).toContain("provider_correlation_version = $13::text");
+        expect(sql).toContain(
+          "provider_evidence_version is not distinct from $14::text",
+        );
+        expect(sql).toContain(
+          "provider_evidence_sha256 is not distinct from $15::text",
+        );
+        expect(values.slice(12, 15)).toEqual(tupleValues(authority));
+        return { rows: [finalizerScopeRow(authority)] };
+      },
+    },
+    {
+      contains: "set provider_message_id = $7::text",
+      respond: (values, sql) => {
+        const authority = tuple();
+        expect(sql).toContain("provider_correlation_version = $14::text");
+        expect(sql).toContain(
+          "provider_evidence_version is not distinct from $15::text",
+        );
+        expect(sql).toContain(
+          "provider_evidence_sha256 is not distinct from $16::text",
+        );
+        expect(values.slice(13, 16)).toEqual(tupleValues(authority));
+        return { rows: [] };
+      },
+    },
+    {
+      contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'",
+      respond: (values, sql) => {
+        const authority = tuple();
+        expect(sql).toContain("provider_correlation_version = $13::text");
+        expect(sql).toContain(
+          "provider_evidence_version is not distinct from $14::text",
+        );
+        expect(sql).toContain(
+          "provider_evidence_sha256 is not distinct from $15::text",
+        );
+        expect(values.slice(12, 15)).toEqual(tupleValues(authority));
+        return { rows: [] };
+      },
+    },
+    {
+      contains: "select status::text",
+      respond: (values, sql) => {
+        const authority = tuple();
+        expect(sql).toContain("provider_correlation_version = $10::text");
+        expect(sql).toContain(
+          "provider_evidence_version is not distinct from $11::text",
+        );
+        expect(sql).toContain(
+          "provider_evidence_sha256 is not distinct from $12::text",
+        );
+        expect(values.slice(9, 12)).toEqual(tupleValues(authority));
+        return { rows: [committedSentRow(authority)] };
+      },
+    },
+    { contains: "commit" },
+  ]);
+}
+
+function tamperedFinalizerClient(tuple: () => AuthorityTuple) {
+  return new ScriptedClient("tampered-finalizer", [
+    { contains: "begin" },
+    { contains: "pg_advisory_xact_lock" },
+    {
+      contains: "for update",
+      respond: (values, sql) => {
+        const authority = tuple();
+        expect(sql).toContain("provider_correlation_version = $13::text");
+        expect(values.slice(12, 15)).toEqual(tupleValues(authority));
+        return {
+          rows: [{
+            ...finalizerScopeRow(authority),
+            provider_correlation_version: "tampered-provider-correlation-v1",
+          }],
+        };
+      },
+    },
+    { contains: "commit" },
+  ]);
+}
 async function authorizeFixture(
   pool: ScriptedPool,
   inspection: MailDispatchRuntimeStartupInspection,
@@ -382,7 +521,7 @@ async function closeWatchdog(
   if (armed && isMailDispatchHardWatchdogArmed(armed)) {
     await disarmMailDispatchHardWatchdog(armed);
   }
-  if (armed) store?.releaseGuardedDispatchWatchdog(armed);
+  if (armed && store) releaseGuardedDispatchWatchdogClaim(store, armed);
   await controller?.close();
 }
 
@@ -488,7 +627,7 @@ describe("guarded PostgreSQL outbox dispatch", () => {
       ).toBe(false);
 
       await disarmMailDispatchHardWatchdog(armed);
-      expect(fixture.store.releaseGuardedDispatchWatchdog(armed)).toBe(true);
+      expect(releaseGuardedDispatchWatchdogClaim(fixture.store, armed)).toBe(true);
       armed = undefined;
       tx1.expectConsumed();
       tx2.expectConsumed();
@@ -540,7 +679,11 @@ describe("guarded PostgreSQL outbox dispatch", () => {
       },
       { contains: "commit" },
     ]);
-    const pool = new ScriptedPool([tx1, tx2, control]);
+    const finalizer = committedFinalizerClient(() => {
+      if (!tuple) throw new Error("TX1 tuple was not captured.");
+      return tuple;
+    });
+    const pool = new ScriptedPool([tx1, tx2, control, finalizer]);
     const inspection = await inspectMailDispatchRuntime(pool);
     const fixture = await authorizeFixture(pool, inspection);
     let controller: MailDispatchHardWatchdog | undefined;
@@ -585,7 +728,7 @@ describe("guarded PostgreSQL outbox dispatch", () => {
       ).toBe(true);
 
       await disarmMailDispatchHardWatchdog(armed);
-      expect(fixture.store.releaseGuardedDispatchWatchdog(armed)).toBe(true);
+      expect(releaseGuardedDispatchWatchdogClaim(fixture.store, armed)).toBe(true);
       armed = undefined;
 
       if (result.kind !== "persistence-unknown") {
@@ -593,15 +736,61 @@ describe("guarded PostgreSQL outbox dispatch", () => {
       }
       await expect(
         fixture.store.finishGuardedDispatchUnknown(result.uncertainty),
-      ).rejects.toThrow("No scripted PostgreSQL client remains.");
+      ).resolves.toEqual({
+        result: { kind: "applied" },
+        exit: {
+          kind: "sent",
+          providerMessageId: "gmail-provider-id",
+        },
+      });
       await expect(
         fixture.store.finishGuardedDispatchUnknown(result.uncertainty),
       ).resolves.toBeNull();
+      expect(finalizer.releaseCalls).toEqual([false]);
+      expect(pool.connected).toEqual([tx1, tx2, control, finalizer]);
       tx1.expectConsumed();
       tx2.expectConsumed();
       control.expectConsumed();
+      finalizer.expectConsumed();
     } finally {
       await closeWatchdog(controller, fixture.store, armed);
     }
+  });
+
+  it("rejects a tampered provider-authority tuple before any terminal write", async () => {
+    vi.stubEnv("GMAIL_CLIENT_ID", "fixture-client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "fixture-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "fixture-refresh");
+
+    let tuple: AuthorityTuple | undefined;
+    const tx1 = boundaryClient((issued) => {
+      tuple = issued;
+    });
+    const tamperedFinalizer = tamperedFinalizerClient(() => {
+      if (!tuple) throw new Error("TX1 tuple was not captured.");
+      return tuple;
+    });
+    const pool = new ScriptedPool([tx1, tamperedFinalizer]);
+    const inspection = await inspectMailDispatchRuntime(pool);
+    const fixture = await authorizeFixture(pool, inspection);
+
+    await expect(fixture.store.finishAfterProvider(
+      fixture.boundary.permit,
+      { kind: "sent", providerMessageId: "gmail-provider-id" },
+    )).resolves.toEqual({ kind: "lost" });
+    expect(tamperedFinalizer.calls.map(({ sql }) => sql)).toEqual([
+      "begin",
+      expect.stringContaining("pg_advisory_xact_lock"),
+      expect.stringContaining("for update"),
+      "commit",
+    ]);
+    expect(tamperedFinalizer.releaseCalls).toEqual([false]);
+    expect(discardGuardedPreparedDispatch(
+      fixture.store,
+      fixture.boundary.permit,
+      fixture.guarded,
+    )).toBe(true);
+    tx1.expectConsumed();
+    tamperedFinalizer.expectConsumed();
   });
 });

@@ -1108,6 +1108,22 @@ function issueSafeGuardedDispatchResult<T extends GuardedDispatchResult>(
   return issued;
 }
 
+export function releaseGuardedDispatchWatchdogClaim(
+  store: object,
+  watchdog: ArmedMailDispatchHardWatchdog,
+): boolean {
+  try {
+    if (
+      CLAIMED_HARD_WATCHDOGS.get(watchdog) !== store
+      || watchdogIsHealthy(watchdog)
+    ) return false;
+    CLAIMED_HARD_WATCHDOGS.delete(watchdog);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function guardedDispatchResultSafeToDisarm(
   store: object,
   watchdog: ArmedMailDispatchHardWatchdog,
@@ -1216,10 +1232,12 @@ async function lockPermitScope(
     delivery_scope_key: permit.deliveryScopeKey,
   });
   if (!(await advisoryLock(client, expectedScope.lockKey, wait))) return null;
-  const result = await client.query<CandidateRow & BindingRow>(
+  const result = await client.query<CandidateRow & ProviderAuthorityRow>(
     `
     select id::text, user_id, operation_id::text, delivery_scope_key, claim_version,
-           dispatch_binding_version, dispatch_binding_sha256
+           dispatch_binding_version, dispatch_binding_sha256,
+           provider_correlation_version, provider_evidence_version,
+           provider_evidence_sha256
     from public.email_outbox
     where id = $1::uuid
       and operation_id = $2::uuid
@@ -1229,6 +1247,9 @@ async function lockPermitScope(
       and delivery_scope_key = $9::text
       and dispatch_binding_version = $10::text
       and dispatch_binding_sha256 = $11::text
+      and provider_correlation_version = $13::text
+      and provider_evidence_version is not distinct from $14::text
+      and provider_evidence_sha256 is not distinct from $15::text
       and (
         (
           claim_version = $5::integer
@@ -1267,16 +1288,17 @@ async function lockPermitScope(
       permit.bindingVersion,
       permit.bindingSha256,
       permit.leaseExpiresAt,
+      permit.providerCorrelationVersion,
+      permit.providerEvidenceVersion,
+      permit.providerEvidenceSha256,
     ],
   );
   if (result.rows.length !== 1) return null;
   const row = result.rows[0]!;
   const scope = deliveryScope(row);
-  const binding = exactBindingFromRow(row, permit.adapter);
   return scope.key === expectedScope.key &&
     scope.userId === expectedScope.userId &&
-    binding?.bindingVersion === permit.bindingVersion &&
-    binding.bindingSha256 === permit.bindingSha256
+    exactProviderAuthorityRow(row, permit)
     ? scope
     : null;
 }
@@ -2768,13 +2790,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         deadline: acquireDeadline,
       });
     } catch {
-      discardGuardOrTerminate(
-        channel,
-        capability,
-        guarded,
-        armedWatchdog,
-      );
-      return safeResult({ kind: "lost" });
+      return retainLiveTx2OrTerminate(armedWatchdog);
     }
 
     // The aggregate pre-provider clock starts immediately before BEGIN. Every
@@ -3221,7 +3237,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         delivery_scope_key: permit.deliveryScopeKey,
       }).lockKey,
       teardownConfirmationMs:
-        runtime.startupInspection.plan.timeouts.watchdogDisarmDeliveryMs,
+        runtime.startupInspection.plan.timeouts.watchdogTeardownConfirmationMs,
       closed: false,
       teardownConfirmed: false,
     };
@@ -3355,16 +3371,6 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     return safeResult({ kind: "applied" as const, exit });
   }
 
-  releaseGuardedDispatchWatchdog(
-    watchdog: ArmedMailDispatchHardWatchdog,
-  ): boolean {
-    if (
-      CLAIMED_HARD_WATCHDOGS.get(watchdog) !== this
-      || watchdogIsHealthy(watchdog)
-    ) return false;
-    CLAIMED_HARD_WATCHDOGS.delete(watchdog);
-    return true;
-  }
 
   async finishGuardedDispatchUnknown(
     uncertainty: GuardedDispatchUncertainty,
@@ -3432,11 +3438,15 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and delivery_scope_key = $8::text
               and dispatch_binding_version = $11::text
               and dispatch_binding_sha256 = $12::text
+              and provider_correlation_version = $14::text
+              and provider_evidence_version is not distinct from $15::text
+              and provider_evidence_sha256 is not distinct from $16::text
             returning status::text, claim_version, user_id, delivery_scope_key,
                       adapter, provider_message_id, provider_call_started, sent_at,
                       quarantined_at, last_error_code, claim_token::text,
                       claim_owner, lease_expires_at, dispatch_binding_version,
-                      dispatch_binding_sha256
+                      dispatch_binding_sha256, provider_correlation_version,
+                      provider_evidence_version, provider_evidence_sha256
           `,
               [
                 permit.id,
@@ -3452,6 +3462,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 permit.bindingVersion,
                 permit.bindingSha256,
                 permit.leaseExpiresAt,
+                permit.providerCorrelationVersion,
+                permit.providerEvidenceVersion,
+                permit.providerEvidenceSha256,
               ],
             )
           : await client.query<TerminalRow>(
@@ -3492,11 +3505,15 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and delivery_scope_key = $9::text
               and dispatch_binding_version = $12::text
               and dispatch_binding_sha256 = $13::text
+              and provider_correlation_version = $15::text
+              and provider_evidence_version is not distinct from $16::text
+              and provider_evidence_sha256 is not distinct from $17::text
             returning status::text, claim_version, user_id, delivery_scope_key,
                       adapter, provider_message_id, provider_call_started, sent_at,
                       quarantined_at, last_error_code, claim_token::text,
                       claim_owner, lease_expires_at, dispatch_binding_version,
-                      dispatch_binding_sha256
+                      dispatch_binding_sha256, provider_correlation_version,
+                      provider_evidence_version, provider_evidence_sha256
           `,
               [
                 permit.id,
@@ -3513,6 +3530,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 permit.bindingVersion,
                 permit.bindingSha256,
                 permit.leaseExpiresAt,
+                permit.providerCorrelationVersion,
+                permit.providerEvidenceVersion,
+                permit.providerEvidenceSha256,
               ],
             );
 
@@ -3556,11 +3576,15 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and sent_at is null
             and dispatch_binding_version = $11::text
             and dispatch_binding_sha256 = $12::text
+            and provider_correlation_version = $13::text
+            and provider_evidence_version is not distinct from $14::text
+            and provider_evidence_sha256 is not distinct from $15::text
           returning status::text, claim_version, user_id, delivery_scope_key,
                     adapter, provider_message_id, provider_call_started, sent_at,
                     quarantined_at, last_error_code, claim_token::text,
                     claim_owner, lease_expires_at, dispatch_binding_version,
-                    dispatch_binding_sha256
+                    dispatch_binding_sha256, provider_correlation_version,
+                    provider_evidence_version, provider_evidence_sha256
         `,
           [
             permit.id,
@@ -3575,6 +3599,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             code,
             permit.bindingVersion,
             permit.bindingSha256,
+            permit.providerCorrelationVersion,
+            permit.providerEvidenceVersion,
+            permit.providerEvidenceSha256,
           ],
         );
         updated = result.rows[0];
@@ -3627,7 +3654,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                adapter, provider_message_id, provider_call_started, sent_at,
                quarantined_at, last_error_code, claim_token::text,
                claim_owner, lease_expires_at, dispatch_binding_version,
-               dispatch_binding_sha256
+               dispatch_binding_sha256, provider_correlation_version,
+               provider_evidence_version, provider_evidence_sha256
         from public.email_outbox
         where id = $1::uuid
           and operation_id = $2::uuid
@@ -3644,6 +3672,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           )
           and dispatch_binding_version = $8::text
           and dispatch_binding_sha256 = $9::text
+          and provider_correlation_version = $10::text
+          and provider_evidence_version is not distinct from $11::text
+          and provider_evidence_sha256 is not distinct from $12::text
       `,
         [
           permit.id,
@@ -3655,6 +3686,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           permit.claimVersion,
           permit.bindingVersion,
           permit.bindingSha256,
+          permit.providerCorrelationVersion,
+          permit.providerEvidenceVersion,
+          permit.providerEvidenceSha256,
         ],
       );
       if (existing.rows.length !== 1) return { kind: "lost" };
