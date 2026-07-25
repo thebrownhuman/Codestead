@@ -1,6 +1,6 @@
 # Data lifecycle, export, and account deletion
 
-Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v4 adds account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
+Policy version `2026-07-25.v5` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v5 partitions exact terminal Gmail and non-external console outcomes from unresolved Gmail authority, whose recipient PII is redacted while non-PII correlation evidence remains. It is an interim composition: every over-cutoff blocked, malformed, or unclassified PII row remains under retry-required health until release, repair, or the future `0067_mail_outbox_quarantine_redaction_authority_v2` capability is reviewed and composed. Physical deletion also remains fail-closed until a composed durable hashed idempotency ledger and the ops-only `email_outbox_idempotency_coverage_authority(uuid[])` capability prove no-replay coverage for the exact bounded batch in the same transaction. Without that authority v5 retains terminal rows and requires retry, so v5 is not full mail-privacy or terminal-deletion closure by itself. Version v4 added account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
 
 ## Retention categories
 
@@ -15,8 +15,15 @@ Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/polic
 | Administrator audit chain | At least 24 months | No automatic purge at launch; reports the older population as retained |
 | `temporary` objects | 24 hours | Remove file, quota rows, and metadata |
 | Quarantined, terminal scanner-error, or user-soft-deleted objects | 7 days | Remove file, quota rows, and metadata |
-| Terminal sent/suppressed/failed/quarantined email delivery records | 30 days | Delete delivery record |
+| Terminal sent/suppressed/failed email delivery records, pre-provider quarantines, and exact released late Gmail receipt records | 30 days | Delete only after strict-true durable hashed no-replay coverage for the exact bounded IDs in the same transaction; otherwise retain and require retry |
+| Exact released non-external console quarantines with no provider receipt | 30 days | Delete only after the same strict-true no-replay coverage; otherwise retain and require retry |
+| Valid released unresolved Gmail authority with neither provider ID nor sent timestamp | 30 days | Redact recipient PII; retain non-PII correlation authority until reconciliation |
+| Blocked, malformed, or unclassified provider-started authority | 30-day health threshold | Retain; every over-cutoff blocked complete claim, including an expired lease, and every malformed or repair-required shape makes the run require retry |
 | Mastery state and official evidence | Until administrator account deletion | Never touched by scheduled retention |
+
+Provider-started quarantines fail closed and the report partitions are disjoint. A quarantined late Gmail receipt is terminal only when it has a nonblank provider ID, `sent_at` and `quarantined_at`, `claim_version >= 2`, null token/owner/lease fields, `ABANDONED_POST_PROVIDER_BOUNDARY`, exact `gmail-raw-v1` binding with a lowercase 64-hex digest, a valid account or system delivery scope, and the 30-day age. A non-external console quarantine is terminal only when it has the corresponding released successor shape, `adapter='console'`, null provider ID and `sent_at`, exact `console-json-v1` binding with a lowercase 64-hex digest, and the same scope, boundary, successor, and age checks. Even those exact rows are only deletion candidates: v5 passes the exact sorted IDs to `email_outbox_idempotency_coverage_authority(uuid[])` and requires strict `true` before revalidating and deleting the same IDs in that transaction. An absent, false, or failed coverage capability retains the entire affected batch and returns `completed_with_errors` with `requiresRetry=true`. No broader quarantined-row deletion exists.
+
+The reviewed 0063 capability separately redacts only valid released Gmail rows with a provider-call boundary but no provider ID or `sent_at`; it retains their non-PII operation, deterministic message binding, immutable dispatch digest, boundary, scope, and error authority for later reconciliation. A complete claim is counted as blocked whether its lease is live or expired; it is never redacted until the fence is atomically released. Malformed payloads, incomplete receipts, invalid scopes, unknown adapters, provider-ID ambiguity, partial claims, and expired unclassified claims are counted but never generically deleted. Every over-cutoff blocked, malformed, or repair-required PII count makes the run `completed_with_errors` with `requiresRetry=true` and the stable `EMAIL_OUTBOX_REDACTION_RETRYABLE` code. A later run must use a fresh reviewed idempotency key after release or repair; replaying the completed-with-errors key is not remediation. Operator repair remains valid, but centralized safe redaction for all released Gmail ambiguity belongs to `0067_mail_outbox_quarantine_redaction_authority_v2`; do not claim v5 privacy closure until that successor is composed and verified.
 
 User uploads classified `user_upload` remain until user deletion or administrator account deletion. Future AI attachment writers must set `retention_class=ai_request_attachment`; temporary writers must set `temporary`. The database rejects unknown classes.
 
@@ -29,7 +36,7 @@ cd /opt/learncoding
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --dry-run \
-  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:dry-run
+  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:dry-run
 ```
 
 Apply requires the exact reviewed policy version:
@@ -38,8 +45,8 @@ Apply requires the exact reviewed policy version:
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --apply \
-  --confirm 2026-07-14.v4 \
-  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:apply
+  --confirm 2026-07-25.v5 \
+  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:apply
 ```
 
 The default key is policy/version/date/mode. Reusing a successful key returns the recorded report without deleting again. A running key fails closed; a failed key requires a new reviewed key. Every category reports eligible, physically deleted, retained, and `hasMore`; state-only changes such as expiring a request or marking a backup tombstone eligible for operator review use `transitioned` and keep `deleted=0`. Rerun with a new key when a bounded batch reports more. Failed object-file removal leaves metadata in place for retry.

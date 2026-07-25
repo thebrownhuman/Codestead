@@ -25,19 +25,41 @@ function terminalEmailFragments() {
   };
 }
 
+function nonExternalConsoleFragments() {
+  const source = retentionSource();
+  const countStart = source.indexOf("const nonExternalConsoleEmailEligible = await count(");
+  const countEnd = source.indexOf("const unclassifiedEmailAuthorityBlocked = await count(", countStart);
+  const deleteStart = source.indexOf("const deletedNonExternalConsoleEmail = await client.query<IdRow>(");
+  const deleteEnd = source.indexOf(
+    "categories.nonExternalConsoleDeliveryQuarantines =",
+    deleteStart,
+  );
+
+  expect(countStart).toBeGreaterThanOrEqual(0);
+  expect(countEnd).toBeGreaterThan(countStart);
+  expect(deleteStart).toBeGreaterThanOrEqual(0);
+  expect(deleteEnd).toBeGreaterThan(deleteStart);
+
+  return {
+    count: source.slice(countStart, countEnd),
+    delete: source.slice(deleteStart, deleteEnd),
+  };
+}
+
 describe("mail outbox retention privacy", () => {
   const fragments = terminalEmailFragments();
+  const consoleFragments = nonExternalConsoleFragments();
 
   it.each([
     ["eligibility count", fragments.count],
     ["bounded delete", fragments.delete],
-  ] as const)("includes quarantined rows in the terminal-email %s", (_label, fragment) => {
-    expect(fragment).toMatch(/status\s+in\s*\([^)]*'quarantined'[^)]*\)/u);
+  ] as const)("keeps only pre-provider and exact full-receipt quarantines terminal in the %s", (_label, fragment) => {
+    expect(fragment).toMatch(/status\s+in\s*\([^)]*'sent'[^)]*'suppressed'[^)]*'failed'[^)]*\)/u);
     expect(fragment).toContain("coalesce(sent_at, updated_at) < $1");
     expect(fragment).toContain("status = 'quarantined'");
-    expect(fragment).toContain("provider_call_started is not null");
-    expect(fragment).toContain("provider_message_id is null");
-    expect(fragment).toMatch(/not\s*\(\s*status\s*=\s*'quarantined'/u);
+    expect(fragment).toContain("provider_call_started is null");
+    expect(fragment).toContain("provider_message_id is not null");
+    expect(fragment).toContain("sent_at is not null");
   });
 
   it("redacts PII without destroying unresolved provider authority", () => {
@@ -68,5 +90,62 @@ describe("mail outbox retention privacy", () => {
     expect(source).toContain('outcome: "failed"');
     expect(source).toContain('outcome: "completed_with_errors"');
     expect(source).toContain("requiresRetry: true");
+  });
+
+  it("declares separate report surfaces for console deletion and unclassified repair", () => {
+    const source = retentionSource();
+
+    expect(source).toContain("const nonExternalConsoleEmailEligible = await count(");
+    expect(source).toContain("const unclassifiedEmailAuthorityRepairRequired = await count(");
+    expect(source).toContain("categories.nonExternalConsoleDeliveryQuarantines =");
+    expect(source).toContain("categories.unclassifiedEmailDeliveryAuthorityRepairRequired =");
+    expect(source).toContain("categories.unclassifiedEmailDeliveryAuthorityBlocked =");
+    expect(source).not.toContain(
+      "public.classify_email_outbox_retention_redaction",
+    );
+    expect(source).toContain("/* unresolved_email_redaction_domain */");
+    expect(source).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
+    expect(source).toContain("status = 'quarantined'");
+    expect(source).toContain("provider_call_started is not null");
+  });
+
+  it.each([
+    ["eligibility count", fragments.count],
+    ["bounded delete", fragments.delete],
+  ] as const)(
+    "requires an exact released successor for post-boundary terminal deletion in the %s",
+    (_label, fragment) => {
+      expect(fragment).toContain("claim_version >= 2");
+      expect(fragment).toContain("claim_token is null");
+      expect(fragment).toContain("claim_owner is null");
+      expect(fragment).toContain("lease_expires_at is null");
+      expect(fragment).toContain("last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'");
+      expect(fragment).toContain("adapter = 'gmail'");
+      expect(fragment).toContain("dispatch_binding_version = 'gmail-raw-v1'");
+      expect(fragment).toContain("dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'");
+      expect(fragment).toContain("provider_message_id is not null");
+      expect(fragment).toContain("sent_at is not null");
+      expect(fragment).toContain("delivery_scope_key = 'a:' || user_id");
+      expect(fragment).toContain("delivery_scope_key = 's:' || operation_id::text");
+    },
+  );
+
+  it.each([
+    ["eligibility count", consoleFragments.count],
+    ["bounded delete", consoleFragments.delete],
+  ] as const)("deletes only an exact released no-receipt console successor in the %s", (_label, fragment) => {
+    expect(fragment).toContain("claim_version >= 2");
+    expect(fragment).toContain("claim_token is null");
+    expect(fragment).toContain("claim_owner is null");
+    expect(fragment).toContain("lease_expires_at is null");
+    expect(fragment).toContain("last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'");
+    expect(fragment).toContain("adapter = 'console'");
+    expect(fragment).toContain("dispatch_binding_version = 'console-json-v1'");
+    expect(fragment).toContain("dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'");
+    expect(fragment).toContain("provider_message_id is null");
+    expect(fragment).toContain("sent_at is null");
+    expect(fragment).toContain("quarantined_at < $1::timestamptz");
+    expect(fragment).toContain("delivery_scope_key = 'a:' || user_id");
+    expect(fragment).toContain("delivery_scope_key = 's:' || operation_id::text");
   });
 });

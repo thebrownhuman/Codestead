@@ -801,7 +801,7 @@ services:
       - retention
       - --apply
       - --confirm
-      - 2026-07-14.v4
+      - 2026-07-25.v5
     restart: "no"
     environment:
       NODE_ENV: production
