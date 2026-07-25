@@ -58,13 +58,17 @@ export type PostProviderExit =
   | { readonly kind: "failed"; readonly code: string }
   | { readonly kind: "quarantined"; readonly code: string };
 
+export type GuardedDispatchAuthorization = Readonly<{
+  binding: DispatchBinding;
+  authorityEvidence?: LostDeviceAuthorityEvidence;
+}>;
+
 export type GuardedDispatchResult =
   | { readonly kind: "applied"; readonly exit: PostProviderExit }
   | { readonly kind: "lost" };
 
 export type GuardedDispatchInput = Readonly<{
-  binding: DispatchBinding;
-  authorityEvidence?: LostDeviceAuthorityEvidence;
+  authorization: GuardedDispatchAuthorization;
   invoke(signal: AbortSignal): Promise<PostProviderExit>;
 }>;
 
@@ -103,8 +107,7 @@ export interface OutboxStore<P = unknown> {
     input: Readonly<{
       adapter: string;
       leaseMs: number;
-      binding: DispatchBinding;
-      authorityEvidence?: LostDeviceAuthorityEvidence;
+      authorization: GuardedDispatchAuthorization;
     }>,
   ): Promise<BoundaryResult>;
 
