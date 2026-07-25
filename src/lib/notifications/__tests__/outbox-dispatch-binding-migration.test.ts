@@ -266,6 +266,12 @@ describe("0064 email outbox dispatch binding", () => {
     );
     expect(pinnedIntegration).toContain("DATABASE_WORKER_URL");
     expect(pinnedIntegration).toContain("DATABASE_OPS_URL");
+    expect(pinnedIntegration).toContain(
+      "const setupClient = await owner.connect();",
+    );
+    expect(pinnedIntegration).toContain(
+      'function_name: "enforce_email_outbox_dispatch_binding",',
+    );
     expect(integrationRunner).toContain(
       "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
     );
