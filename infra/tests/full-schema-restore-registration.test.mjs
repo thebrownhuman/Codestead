@@ -101,6 +101,10 @@ assert.match(runner, /deriveMigrationLedgerContract/u);
 assert.match(runner, /databaseBackupReporterUrl/u);
 assert.match(runner, /createSafeFullSchemaRestoreTaskRoot/u);
 assert.match(runner, /createFullSchemaRestoreLifecycle/u);
+assert.match(
+  runner,
+  /verifyReviewedMailAuthorityCatalogContracts/u,
+);
 assert.match(runner, /createDisposableIntegrationChildController/u);
 assert.match(runner, /buildDisposableIntegrationChildLaunch/u);
 assert.match(runner, /runFullSchemaArchiveDump/u);

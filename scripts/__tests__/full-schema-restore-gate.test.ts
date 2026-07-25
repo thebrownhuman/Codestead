@@ -213,6 +213,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: sourceReconcile,
         verifyRoleBoundaries: async () => undefined,
+        verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
         snapshot: async () => snapshot(),
@@ -220,6 +221,7 @@ describe("full-schema restore verification", () => {
       target: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
         runNonNetworkSmoke: async () => ({
           claimedRows: 1,
@@ -249,6 +251,9 @@ describe("full-schema restore verification", () => {
         verifyRoleBoundaries: async (requireApplicationObjects) => {
           trace.push(`source.boundary:${String(requireApplicationObjects)}`);
         },
+        verifyMailAuthorityCatalog: async () => {
+          trace.push("source.catalog");
+        },
         migrate: async () => { trace.push("source.migrate"); },
         seedRepresentativeMailRows: async () => {
           trace.push("source.seed");
@@ -262,6 +267,9 @@ describe("full-schema restore verification", () => {
         reconcileRoles: async () => { trace.push("target.roles"); },
         verifyRoleBoundaries: async (requireApplicationObjects) => {
           trace.push(`target.boundary:${String(requireApplicationObjects)}`);
+        },
+        verifyMailAuthorityCatalog: async () => {
+          trace.push("target.catalog");
         },
         snapshot: async () => {
           trace.push("target.snapshot");
@@ -294,8 +302,10 @@ describe("full-schema restore verification", () => {
       "source.roles",
       "source.boundary:false",
       "source.migrate",
+      "source.catalog",
       "source.roles",
       "source.boundary:true",
+      "source.catalog",
       "source.seed",
       "source.snapshot",
       "archive.dump",
@@ -303,8 +313,10 @@ describe("full-schema restore verification", () => {
       "target.boundary:false",
       "archive.restore",
       "archive.dispose",
+      "target.catalog",
       "target.roles",
       "target.boundary:true",
+      "target.catalog",
       "target.snapshot",
       "target.smoke",
     ]);
@@ -319,6 +331,68 @@ describe("full-schema restore verification", () => {
       },
     });
   });
+
+  it.each(["source", "target"] as const)(
+    "rejects identical source/target catalog tamper at the %s manifest gate",
+    async (failingStage) => {
+      const identicalTamper = snapshot({
+        objectContractSha256: digest("identical-tampered-routine"),
+      });
+      const dump = vi.fn(async () => "archive");
+      const restore = vi.fn(async () => undefined);
+      const sourceCatalog = vi.fn(async () => {
+        if (failingStage === "source") {
+          throw new Error("reviewed mail-authority catalog failed");
+        }
+      });
+      const targetCatalog = vi.fn(async () => {
+        if (failingStage === "target") {
+          throw new Error("reviewed mail-authority catalog failed");
+        }
+      });
+      const targetSnapshot = vi.fn(async () => identicalTamper);
+
+      await expect(runFullSchemaRestoreVerification({
+        expectedPostgresMajor: 17,
+        migration,
+        source: {
+          reconcileRoles: async () => undefined,
+          verifyRoleBoundaries: async () => undefined,
+          verifyMailAuthorityCatalog: sourceCatalog,
+          migrate: async () => undefined,
+          seedRepresentativeMailRows: async () => undefined,
+          snapshot: async () => identicalTamper,
+        },
+        target: {
+          reconcileRoles: async () => undefined,
+          verifyRoleBoundaries: async () => undefined,
+          verifyMailAuthorityCatalog: targetCatalog,
+          snapshot: targetSnapshot,
+          runNonNetworkSmoke: async () => ({
+            claimedRows: 1,
+            redactedRows: 2,
+            externalCalls: 0,
+          }),
+        },
+        dumpSource: dump,
+        restoreTarget: restore,
+        disposeArchive: () => undefined,
+      })).rejects.toThrow("reviewed mail-authority catalog failed");
+
+      expect(sourceCatalog).toHaveBeenCalledTimes(
+        failingStage === "source" ? 1 : 2,
+      );
+      if (failingStage === "source") {
+        expect(dump).not.toHaveBeenCalled();
+        expect(targetCatalog).not.toHaveBeenCalled();
+      } else {
+        expect(dump).toHaveBeenCalledOnce();
+        expect(restore).toHaveBeenCalledOnce();
+        expect(targetCatalog).toHaveBeenCalledOnce();
+        expect(targetSnapshot).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it.each([
     ["PostgreSQL major", { postgresMajor: 18 }],
@@ -345,6 +419,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
         snapshot: async () => snapshot(),
@@ -352,6 +427,7 @@ describe("full-schema restore verification", () => {
       target: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(restoredOverride),
         runNonNetworkSmoke: smoke,
       },
@@ -375,6 +451,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
         snapshot: async () => snapshot(),
@@ -382,6 +459,7 @@ describe("full-schema restore verification", () => {
       target: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
         runNonNetworkSmoke: async () => smoke,
       },
@@ -402,6 +480,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
         snapshot: async () => snapshot(),
@@ -413,6 +492,7 @@ describe("full-schema restore verification", () => {
             throw new Error("target setup failed");
           }
         },
+        verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
         runNonNetworkSmoke: async () => ({
           claimedRows: 1,

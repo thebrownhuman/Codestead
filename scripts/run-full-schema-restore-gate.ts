@@ -23,6 +23,7 @@ import {
 } from "./lib/full-schema-restore-database";
 import {
   seedRepresentativeMailAuthorityRows,
+  verifyRestoredBackupAuthorityRows,
 } from "./lib/full-schema-restore-fixtures";
 import {
   deriveMigrationLedgerContract,
@@ -133,6 +134,9 @@ type BoundaryModule = Readonly<{
   verifyDatabaseRoleBoundaries: (
     input: Record<string, unknown>,
   ) => Promise<unknown>;
+  verifyReviewedMailAuthorityCatalogContracts: (
+    client: InstanceType<typeof Pool>,
+  ) => Promise<unknown>;
 }>;
 
 type DatabaseContext = Readonly<{
@@ -144,6 +148,7 @@ type DatabaseContext = Readonly<{
   verifyRoleBoundaries: (
     requireApplicationObjects: boolean,
   ) => Promise<void>;
+  verifyMailAuthorityCatalog: () => Promise<void>;
   migrate: () => Promise<void>;
   seedRepresentativeMailRows: () => Promise<void>;
   snapshot: () => ReturnType<typeof collectFullSchemaRestoreSnapshot>;
@@ -362,6 +367,30 @@ async function createDatabaseContext(input: Readonly<{
         createPool: (options) => new Pool(options),
       });
     },
+    async verifyMailAuthorityCatalog() {
+      const boundaryModule = await import(
+        /* @vite-ignore */ boundaryModulePath
+      ) as BoundaryModule;
+      if (
+        typeof boundaryModule
+          .verifyReviewedMailAuthorityCatalogContracts !== "function"
+      ) {
+        throw new Error(
+          "full-schema restore reviewed catalog verifier is unavailable",
+        );
+      }
+      const pool = new Pool({
+        connectionString: scopedOwnerUrl,
+        application_name: "codestead_full_schema_restore_catalog",
+        max: 1,
+      });
+      try {
+        await boundaryModule
+          .verifyReviewedMailAuthorityCatalogContracts(pool);
+      } finally {
+        await pool.end();
+      }
+    },
     async migrate() {
       const migrationModule = await import(
         /* @vite-ignore */ migrationModulePath
@@ -390,13 +419,25 @@ async function createDatabaseContext(input: Readonly<{
       async ([owner]) => collectFullSchemaRestoreSnapshot(owner!),
     ),
     runNonNetworkSmoke: () => withPools(
-      [scopedRoleUrls.worker, scopedRoleUrls.ops, scopedOwnerUrl],
-      async ([worker, ops, verifier]) =>
-        runFullSchemaRestoreDatabaseSmoke({
+      [
+        scopedRoleUrls.worker,
+        scopedRoleUrls.ops,
+        scopedOwnerUrl,
+        scopedRoleUrls.backupReporter,
+      ],
+      async ([worker, ops, verifier, backupReporter]) => {
+        const smoke = await runFullSchemaRestoreDatabaseSmoke({
           worker: worker!,
           ops: ops!,
           verifier: verifier!,
-        }),
+        });
+        await verifyRestoredBackupAuthorityRows({
+          owner: verifier!,
+          worker: worker!,
+          backupReporter: backupReporter!,
+        });
+        return smoke;
+      },
     ),
   };
 }

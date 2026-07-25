@@ -202,9 +202,6 @@ const OBJECT_CONTRACT_SQL = `
               sequence.seqtypid, -1
             ),
             'increment', sequence.seqincrement::text,
-            'last_value', pg_catalog.pg_sequence_last_value(
-              relation.oid::pg_catalog.regclass
-            )::text,
             'maximum', sequence.seqmax::text,
             'minimum', sequence.seqmin::text,
             'start', sequence.seqstart::text
@@ -255,7 +252,7 @@ const OBJECT_CONTRACT_SQL = `
         on attribute_default.adrelid = attribute.attrelid
        and attribute_default.adnum = attribute.attnum
      where namespace.nspname in ('public', 'drizzle')
-       and relation.relkind in ('r', 'p', 'v', 'm', 'f')
+       and relation.relkind in ('r', 'p', 'v', 'm', 'f', 'c')
        and attribute.attnum > 0
        and not attribute.attisdropped
 
@@ -582,6 +579,78 @@ export function hashFullSchemaObjectContract(
   });
 }
 
+function quotedIdentifier(value: unknown): string | undefined {
+  if (
+    typeof value !== "string"
+    || value.length === 0
+    || /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    return undefined;
+  }
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+async function withExactSequenceState(
+  client: FullSchemaRestoreQueryClient,
+  rows: readonly Record<string, unknown>[],
+): Promise<readonly Record<string, unknown>[]> {
+  const enriched: Record<string, unknown>[] = [];
+  for (const row of rows) {
+    if (row.kind !== "relation" || row.identity !== "S") {
+      enriched.push(row);
+      continue;
+    }
+    const schemaName = quotedIdentifier(row.schema_name);
+    const objectName = quotedIdentifier(row.object_name);
+    const attributes = row.attributes;
+    if (
+      schemaName === undefined
+      || objectName === undefined
+      || attributes === null
+      || typeof attributes !== "object"
+      || Array.isArray(attributes)
+    ) {
+      throw new Error("full-schema restore sequence contract is invalid");
+    }
+    const sequence = (attributes as Record<string, unknown>).sequence;
+    if (
+      sequence === null
+      || typeof sequence !== "object"
+      || Array.isArray(sequence)
+    ) {
+      throw new Error("full-schema restore sequence contract is invalid");
+    }
+    const stateResult = await client.query(`
+      select sequence_state.last_value::text as last_value,
+             sequence_state.is_called
+        from ${schemaName}.${objectName} sequence_state
+    `);
+    const state = stateResult.rows[0];
+    if (
+      stateResult.rows.length !== 1
+      || Object.keys(state ?? {}).sort().join(",") !==
+        "is_called,last_value"
+      || typeof state?.last_value !== "string"
+      || !/^-?[0-9]+$/u.test(state.last_value)
+      || typeof state.is_called !== "boolean"
+    ) {
+      throw new Error("full-schema restore sequence contract is invalid");
+    }
+    enriched.push({
+      ...row,
+      attributes: {
+        ...(attributes as Record<string, unknown>),
+        sequence: {
+          ...(sequence as Record<string, unknown>),
+          is_called: state.is_called,
+          last_value: state.last_value,
+        },
+      },
+    });
+  }
+  return enriched;
+}
+
 export async function collectFullSchemaRestoreSnapshot(
   client: FullSchemaRestoreQueryClient,
 ): Promise<FullSchemaRestoreSnapshot> {
@@ -591,6 +660,10 @@ export async function collectFullSchemaRestoreSnapshot(
   const journalResult = await client.query(JOURNAL_SQL);
   const objectResult = await client.query(OBJECT_CONTRACT_SQL);
   const mailResult = await client.query(MAIL_ROWS_SQL);
+  const objectRows = await withExactSequenceState(
+    client,
+    objectResult.rows,
+  );
 
   const versionNumber = positiveInteger(
     versionResult.rows[0]?.server_version_num,
@@ -600,7 +673,7 @@ export async function collectFullSchemaRestoreSnapshot(
   let objectContractSha256: string | undefined;
   try {
     objectContractSha256 = hashFullSchemaObjectContract(
-      objectResult.rows,
+      objectRows,
     );
   } catch {
     objectContractSha256 = undefined;
