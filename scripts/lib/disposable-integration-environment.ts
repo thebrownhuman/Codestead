@@ -1,4 +1,6 @@
-type Environment = Readonly<Record<string, string | undefined>>;
+export type DisposableIntegrationEnvironmentSource =
+  Readonly<Record<string, string | undefined>>;
+type Environment = DisposableIntegrationEnvironmentSource;
 
 export type RetentionOpsEnvironment = Readonly<{
   databaseUrl: string;
@@ -9,9 +11,12 @@ const DISPOSABLE_DATABASE = "learncoding_integration";
 const DISPOSABLE_HOST = "127.0.0.1";
 const OWNER_ASSUMPTION = "-c role=learncoding_owner";
 const PLATFORM_ENVIRONMENT_KEYS = Object.freeze([
+  "PATH",
   "CI",
+  "GITHUB_ACTIONS",
   "LANG",
   "LC_ALL",
+  "TERM",
   "TZ",
   "NO_COLOR",
   "FORCE_COLOR",
@@ -96,10 +101,16 @@ export async function runWithValidatedRetentionOpsEnvironment<T>(
 }
 
 function environmentValue(environment: Environment, canonicalName: string) {
-  if (environment[canonicalName] !== undefined) return environment[canonicalName];
-  const matchedName = Object.keys(environment).find(
-    (name) => name.toUpperCase() === canonicalName,
+  if (Object.prototype.hasOwnProperty.call(environment, canonicalName)) {
+    return environment[canonicalName];
+  }
+  const matchedNames = Object.keys(environment).filter(
+    (name) =>
+      name.toUpperCase() === canonicalName
+      && environment[name] !== undefined,
   );
+  if (matchedNames.length > 1) failValidation();
+  const matchedName = matchedNames[0];
   return matchedName === undefined ? undefined : environment[matchedName];
 }
 

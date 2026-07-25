@@ -563,7 +563,9 @@ describe("database least-privilege bootstrap", () => {
     );
     expect(source).toContain("new Pool({ connectionString: input.databaseUrl, max: 1 })");
     expect(source).toContain("verifyDisposableRoleBoundaryAdapter({");
-    expect(source).toContain("env: minimalNodeTestEnvironment(process.env)");
+    expect(source).toContain("buildDisposableToolEnvironment(");
+    expect(source).toContain("env: toolEnvironment");
+    expect(source).not.toContain("options.env ?? process.env");
     expect(source).toContain("expectedJournalCount");
     expect(source).toContain("postgresUser: input.integrationUser");
     expect(source).toContain("verifyDatabaseRoleBootstrapState");
@@ -571,7 +573,10 @@ describe("database least-privilege bootstrap", () => {
     expect(source).toContain("verifyDisposableIntegrationRoleBoundaries({");
     expect(source).toContain("migrate: () => runDisposableIntegrationMigration(roleUrls.migrator)");
     expect(source).toContain("verifyTopology: () => verifyDisposableIntegrationTopology(topology)");
-    expect(source).toContain("sanitizedIntegrationEnvironment(process.env)");
+    expect(source).toContain(
+      "buildDisposableIntegrationRuntimeEnvironment(process.env",
+    );
+    expect(source).not.toContain("sanitizedIntegrationEnvironment");
     expect(source).toContain("ownerAssumingDatabaseUrl(roleUrls.migrator)");
     expect(source).toContain('client.release();\n    await pool.end();');
     expect(source).not.toContain("journal_count !== 63");
