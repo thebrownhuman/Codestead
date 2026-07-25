@@ -403,6 +403,9 @@ export const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "updated_at",
   "dispatch_binding_version",
   "dispatch_binding_sha256",
+  "provider_correlation_version",
+  "provider_evidence_version",
+  "provider_evidence_sha256",
 ]);
 export const MAIL_WORKER_OUTBOX_INSERT_COLUMNS = Object.freeze([
   "operation_id",
@@ -433,20 +436,37 @@ export const MAIL_WORKER_OUTBOX_UPDATE_COLUMNS = Object.freeze([
   "updated_at",
   "dispatch_binding_version",
   "dispatch_binding_sha256",
+  "provider_correlation_version",
+  "provider_evidence_version",
+  "provider_evidence_sha256",
 ]);
 const MAIL_WORKER_DISPATCH_BINDING_COLUMNS = Object.freeze([
   "dispatch_binding_version",
   "dispatch_binding_sha256",
 ]);
+const MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS = Object.freeze([
+  "provider_correlation_version",
+  "provider_evidence_version",
+  "provider_evidence_sha256",
+]);
+export const MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS = Object.freeze(
+  MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
+    (column) => !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column),
+  ),
+);
 export const MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS = Object.freeze(
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
-    (column) => !MAIL_WORKER_DISPATCH_BINDING_COLUMNS.includes(column),
+    (column) =>
+      !MAIL_WORKER_DISPATCH_BINDING_COLUMNS.includes(column)
+      && !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column),
   ),
 );
 
 export function mailWorkerOutboxPrivilegesSql() {
   const insertColumns = MAIL_WORKER_OUTBOX_INSERT_COLUMNS.join(", ");
   const updateColumns = MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.join(", ");
+  const preEvidenceUpdateColumns =
+    MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS.join(", ");
   const preBindingUpdateColumns =
     MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS.join(", ");
   return `
@@ -454,6 +474,8 @@ export function mailWorkerOutboxPrivilegesSql() {
     declare
       binding_column_count integer;
       binding_column_exact_count integer;
+      provider_evidence_column_count integer;
+      provider_evidence_column_exact_count integer;
       existing_columns text;
     begin
       if pg_catalog.to_regrole('learncoding_worker') is not null
@@ -488,6 +510,41 @@ export function mailWorkerOutboxPrivilegesSql() {
             using errcode = '23514';
         end if;
 
+        select pg_catalog.count(*)::integer,
+               pg_catalog.count(*) filter (
+                 where attribute.atttypid = 'pg_catalog.text'::pg_catalog.regtype
+                   and attribute.atttypmod = -1
+                   and not attribute.attnotnull
+                   and not attribute.atthasdef
+                   and attribute.attgenerated = ''
+                   and attribute.attidentity = ''
+                   and not attribute.attisdropped
+               )::integer
+          into provider_evidence_column_count,
+               provider_evidence_column_exact_count
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+                 pg_catalog.to_regclass('public.email_outbox')
+           and attribute.attname in (
+             'provider_correlation_version',
+             'provider_evidence_version',
+             'provider_evidence_sha256'
+           )
+           and attribute.attnum > 0;
+
+        if provider_evidence_column_count not in (0, 3)
+           or (
+             provider_evidence_column_count = 3
+             and provider_evidence_column_exact_count <> 3
+           )
+           or (
+             binding_column_count <> 2
+             and provider_evidence_column_count = 3
+           ) then
+          raise exception 'email outbox provider evidence column contract is invalid'
+            using errcode = '23514';
+        end if;
+
         select pg_catalog.string_agg(
                  pg_catalog.format('%I', attribute.attname),
                  ', ' order by attribute.attnum
@@ -512,9 +569,13 @@ export function mailWorkerOutboxPrivilegesSql() {
         execute ${sqlLiteral(
           `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
         )};
-        if binding_column_count = 2 then
+        if provider_evidence_column_count = 3 then
           execute ${sqlLiteral(
             `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
+          )};
+        elsif binding_column_count = 2 then
+          execute ${sqlLiteral(
+            `grant update (${preEvidenceUpdateColumns}) on table public.email_outbox to learncoding_worker`,
           )};
         else
           execute ${sqlLiteral(

@@ -5,6 +5,14 @@ const CANONICAL_UUID =
 const CORRELATION_DOMAIN =
   "codestead.mail.provider-correlation.v1";
 
+export const LEGACY_RAW_PROVIDER_CORRELATION_VERSION =
+  "legacy-raw-v0" as const;
+export const OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION =
+  "opaque-sha256-v1" as const;
+export type ProviderCorrelationVersion =
+  | typeof LEGACY_RAW_PROVIDER_CORRELATION_VERSION
+  | typeof OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION;
+
 function updateLengthFramed(
   hash: ReturnType<typeof createHash>,
   value: string,

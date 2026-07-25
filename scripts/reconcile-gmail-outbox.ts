@@ -1,9 +1,11 @@
 import { pool } from "../src/lib/db/client";
+import {
+  findGmailMessageByMessageId,
+} from "../src/lib/notifications/gmail-correlation-lookup";
 import { assertGmailReconciliationOAuthScopes } from "../src/lib/notifications/gmail-oauth-scopes";
 import {
   reconcileGmailDelivery,
 } from "../src/lib/notifications/gmail-reconciliation";
-import { findGmailMessageByMessageId } from "../src/lib/notifications/mailer";
 import { PostgresOutboxStore } from "../src/lib/notifications/postgres-outbox-store";
 
 const UUID =
