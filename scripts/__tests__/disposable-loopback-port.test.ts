@@ -1,6 +1,12 @@
+import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { inspect } from "node:util";
 
 import { describe, expect, it, vi } from "vitest";
+
+import { DisposableIntegrationLifecycleError } from
+  "../lib/disposable-integration-error";
 
 type LoopbackListener = Readonly<{
   close: () => Promise<void>;
@@ -17,8 +23,12 @@ type LoopbackPortModule = Readonly<{
   ) => Promise<number>;
 }>;
 
-async function loadLoopbackPortModule(): Promise<LoopbackPortModule | null> {
-  const modulePath = "../lib/disposable-loopback-port";
+const nativeModulePath = "../lib/disposable-loopback-port.mjs";
+const typedModulePath = "../lib/disposable-loopback-port.ts";
+
+async function loadLoopbackPortModule(
+  modulePath = typedModulePath,
+): Promise<LoopbackPortModule | null> {
   try {
     return await import(/* @vite-ignore */ modulePath) as LoopbackPortModule;
   } catch {
@@ -36,6 +46,121 @@ function renderedFailure(error: unknown): string {
 }
 
 describe("disposable loopback port allocator", () => {
+  it("imports and uses the canonical module in an actual Node process", () => {
+    const probePath = path.resolve(
+      process.cwd(),
+      "scripts/__tests__/disposable-loopback-port-native-probe.mjs",
+    );
+    const result = spawnSync(process.execPath, [probePath], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toBe("");
+    const probe = JSON.parse(result.stdout) as {
+      deterministicPort: number;
+      events: string[];
+      kernelAssignedPort: number;
+      modulePath: string;
+    };
+    expect(probe.deterministicPort).toBe(54_321);
+    expect(probe.events).toEqual([
+      "open:127.0.0.1:0:5432",
+      "close:5432",
+      "open:127.0.0.1:0:54321",
+      "close:54321",
+    ]);
+    expect(probe.kernelAssignedPort).not.toBe(5432);
+    expect(probe.modulePath).toMatch(/disposable-loopback-port\.mjs$/u);
+  });
+
+  it("keeps native ESM and typed TypeScript surfaces behaviorally aligned", async () => {
+    const nativeModule = await loadLoopbackPortModule(nativeModulePath);
+    const typedModule = await loadLoopbackPortModule(typedModulePath);
+    expect(typeof nativeModule?.allocateDisposableLoopbackPort).toBe(
+      "function",
+    );
+    expect(typeof typedModule?.allocateDisposableLoopbackPort).toBe(
+      "function",
+    );
+    if (
+      !nativeModule?.allocateDisposableLoopbackPort
+      || !typedModule?.allocateDisposableLoopbackPort
+    ) return;
+
+    const exercise = async (allocatorModule: LoopbackPortModule) => {
+      const events: string[] = [];
+      const assignedPorts = [5432, 54_321];
+      const port = await allocatorModule.allocateDisposableLoopbackPort?.({
+        openListener: async (input) => {
+          const assignedPort = assignedPorts.shift();
+          if (assignedPort === undefined) throw new Error("unexpected allocation");
+          events.push(`open:${input.host}:${input.port}:${assignedPort}`);
+          return {
+            port: assignedPort,
+            close: async () => {
+              events.push(`close:${assignedPort}`);
+            },
+          };
+        },
+      });
+      return { events, port };
+    };
+
+    await expect(exercise(nativeModule)).resolves.toEqual(
+      await exercise(typedModule),
+    );
+  });
+
+  it("preserves shared lifecycle failure identity across both surfaces", async () => {
+    const nativeModule = await loadLoopbackPortModule(nativeModulePath);
+    const typedModule = await loadLoopbackPortModule(typedModulePath);
+    expect(typeof nativeModule?.allocateDisposableLoopbackPort).toBe(
+      "function",
+    );
+    expect(typeof typedModule?.allocateDisposableLoopbackPort).toBe(
+      "function",
+    );
+    if (
+      !nativeModule?.allocateDisposableLoopbackPort
+      || !typedModule?.allocateDisposableLoopbackPort
+    ) return;
+
+    const exerciseFailure = async (allocatorModule: LoopbackPortModule) => {
+      try {
+        await allocatorModule.allocateDisposableLoopbackPort?.({
+          openListener: async () => ({
+            port: 54_321,
+            close: async () => {
+              throw new Error("raw-close-canary");
+            },
+          }),
+        });
+      } catch (error) {
+        return error;
+      }
+      return undefined;
+    };
+    const failures = await Promise.all([
+      exerciseFailure(nativeModule),
+      exerciseFailure(typedModule),
+    ]);
+    for (const failure of failures) {
+      expect(failure).toBeInstanceOf(DisposableIntegrationLifecycleError);
+    }
+  });
+
+  it("keeps the typed surface as an explicit thin native-module re-export", async () => {
+    const source = await readFile(
+      "scripts/lib/disposable-loopback-port.ts",
+      "utf8",
+    );
+    expect(source).toContain('"./disposable-loopback-port.mjs"');
+    expect(source).not.toContain("node:net");
+    expect(source).not.toContain("MAXIMUM_ALLOCATION_ATTEMPTS");
+  });
+
   it("closes rejected 5432 before retrying a kernel-assigned loopback port", async () => {
     const allocatorModule = await loadLoopbackPortModule();
     expect(typeof allocatorModule?.allocateDisposableLoopbackPort)

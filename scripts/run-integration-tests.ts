@@ -18,7 +18,7 @@ import {
   createIntegrationOutputSanitizer,
 } from "./lib/disposable-integration-runtime";
 import { allocateDisposableLoopbackPort } from
-  "./lib/disposable-loopback-port";
+  "./lib/disposable-loopback-port.mjs";
 import { buildDisposableToolEnvironment } from
   "./lib/disposable-tool-environment";
 import {
