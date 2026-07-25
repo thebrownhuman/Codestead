@@ -25,6 +25,7 @@ requireText(compose, "database_bootstrap_url", "restore compose");
 requireText(compose, "database_migrator_url", "restore compose");
 requireText(compose, "database_worker_url", "restore compose");
 requireText(compose, "database_ops_url", "restore compose");
+requireText(compose, "database_backup_reporter_url", "restore compose");
 requireText(compose, "/run/learncoding-postgres", "restore compose");
 requireText(compose, "POSTGRES_UID", "restore compose");
 requireText(compose, "POSTGRES_GID", "restore compose");
@@ -69,6 +70,7 @@ for (const expected of [
   "learncoding_migrator",
   "learncoding_worker",
   "learncoding_ops",
+  "learncoding_backup_reporter",
   "negative probes",
   "down --volumes --remove-orphans",
   "source=offsite",

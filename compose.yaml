@@ -94,6 +94,7 @@ services:
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+      DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
       - source: database_bootstrap_url
         target: database_bootstrap_url
@@ -105,6 +106,8 @@ services:
         target: database_worker_url
       - source: database_ops_url
         target: database_ops_url
+      - source: database_backup_reporter_url
+        target: database_backup_reporter_url
     group_add:
       - $SECRETS_GID
     depends_on:
@@ -188,6 +191,37 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - data
+    <<: [*hardened, *codestead-managed]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+    logging: *default-logging
+
+  backup-status-reporter:
+    profiles: ["operations"]
+    platform: ${DEPLOY_PLATFORM:-linux/amd64}
+    image: ${APP_OPERATIONS_IMAGE:?Set APP_OPERATIONS_IMAGE to a reviewed immutable operations image digest}
+    entrypoint: []
+    build:
+      context: .
+      target: operations
+    command: ["node", "/app/scripts/backup/enqueue-backup-status.mjs"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-learncoding}
+      DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
+    secrets:
+      - source: database_backup_reporter_url
+        target: database_backup_reporter_url
+    group_add:
+      - $SECRETS_GID
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     networks:
       - data
     <<: [*hardened, *codestead-managed]
@@ -985,6 +1019,8 @@ secrets:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_ops_url
   better_auth_secret:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/better_auth_secret
+  database_backup_reporter_url:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_backup_reporter_url
   bootstrap_admin_password:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/bootstrap_admin_password
   lost_device_proof_key:

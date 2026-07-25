@@ -33,6 +33,7 @@ type DatabaseRoleModule = {
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
     databaseOpsUrl: string;
+    databaseBackupReporterUrl: string;
   }) => Record<
     string,
     { username: string; hostname: string; database: string }
@@ -95,6 +96,8 @@ const urls = {
     "postgresql://learncoding_worker:worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
   databaseOpsUrl:
     "postgresql://learncoding_ops:ops-Fake-E-000000000000000000000@postgres:5432/learncoding",
+  databaseBackupReporterUrl:
+    "postgresql://learncoding_backup_reporter:backup-reporter-Fake-F-000000000000@postgres:5432/learncoding",
 };
 
 describe("database least-privilege bootstrap", () => {
@@ -159,6 +162,18 @@ describe("database least-privilege bootstrap", () => {
         configuration: ["search_path=pg_catalog"],
         allowedRoles: [],
       },
+      {
+        signature: "public.enqueue_backup_status_mail_authority(text,text)",
+        role: "learncoding_backup_reporter",
+        grantSql:
+          "grant execute on function public.enqueue_backup_status_mail_authority(text, text) to learncoding_backup_reporter",
+      },
+      {
+        signature: "public.backup_status_mail_authorized(uuid)",
+        role: "learncoding_worker",
+        grantSql:
+          "grant execute on function public.backup_status_mail_authorized(uuid) to learncoding_worker",
+      },
     ]);
     for (const routine of routines) {
       expect(routine.bodySha256).toMatch(/^[0-9a-f]{64}$/u);
@@ -193,8 +208,14 @@ describe("database least-privilege bootstrap", () => {
     expect(reviewedGrant).toContain(
       "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer) to learncoding_ops",
     );
+    expect(reviewedGrant).toContain(
+      "grant execute on function public.enqueue_backup_status_mail_authority(text,text) to learncoding_backup_reporter",
+    );
+    expect(reviewedGrant).toContain(
+      "grant execute on function public.backup_status_mail_authorized(uuid) to learncoding_worker",
+    );
     expect(reviewedGrant).not.toMatch(
-      /to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu,
+      /to\s+(public|learncoding_app|learncoding_migrator)\b/iu,
     );
 
     const source = await import("node:fs/promises").then(({ readFile }) =>
@@ -278,6 +299,7 @@ describe("database least-privilege bootstrap", () => {
       "learncoding_owner",
       "learncoding_migrator",
       "learncoding_app",
+      "learncoding_backup_reporter",
       "learncoding_worker",
       "learncoding_ops",
     ]) {
@@ -376,6 +398,7 @@ describe("database least-privilege bootstrap", () => {
       migrator: ["learncoding_migrator", "postgres", "learncoding"],
       worker: ["learncoding_worker", "postgres", "learncoding"],
       ops: ["learncoding_ops", "postgres", "learncoding"],
+      backupReporter: ["learncoding_backup_reporter", "postgres", "learncoding"],
     });
   });
 

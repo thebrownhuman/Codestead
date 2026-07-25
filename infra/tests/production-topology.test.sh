@@ -252,6 +252,7 @@ printf '%s' 'postgresql://learncoding_app:TopologyFixtureApplicationPassword-000
 printf '%s' 'postgresql://learncoding_migrator:TopologyFixtureMigratorPassword-00000003@postgres:5432/learncoding' >"$secrets_dir/database_migrator_url"
 printf '%s' 'postgresql://learncoding_worker:TopologyFixtureWorkerPassword-0000000004@postgres:5432/learncoding' >"$secrets_dir/database_worker_url"
 printf '%s' 'postgresql://learncoding_ops:TopologyFixtureOperationsPassword-00000005@postgres:5432/learncoding' >"$secrets_dir/database_ops_url"
+printf '%s' 'postgresql://learncoding_backup_reporter:TopologyFixtureBackupReporterPassword-000000006@postgres:5432/learncoding' >"$secrets_dir/database_backup_reporter_url"
 printf '%s' 'topology-better-auth-secret-000000000000000000000000' >"$secrets_dir/better_auth_secret"
 printf '%s' 'TopologyBootstrapPassword-Only-For-CI-42' >"$secrets_dir/bootstrap_admin_password"
 printf '%s' 'topology-lost-device-proof-0000000000000000000000' >"$secrets_dir/lost_device_proof_key"

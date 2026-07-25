@@ -1217,6 +1217,20 @@ test("fails closed when the fixed GRANT probe errors for any SQLSTATE", async ()
   }
 });
 
+test("post-migration mode fails closed on insecure or missing authority routines", async () => {
+  const harness = makePoolHarness({ privilegedRoutinesExact: false });
+  await assert.rejects(
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: harness.factory,
+      lockTimeoutMs: 50,
+      requireApplicationObjects: true,
+    }),
+    DatabaseRoleBoundaryError,
+  );
+  assert.equal(harness.pools.every((pool) => pool.ended), true);
+});
+
 test("fails closed when a forbidden statement succeeds or the lock remains held", async () => {
   const permissive = makePoolHarness({ allowForbidden: true });
   await assert.rejects(

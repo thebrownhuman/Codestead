@@ -334,7 +334,7 @@ emit_alert() {
 }
 
 enqueue_backup_status() {
-  local outcome="$1" seed="$2" key result
+  local outcome="$1" seed="$2" result
   case "$outcome" in
     success|failure) ;;
     *)
@@ -347,60 +347,11 @@ enqueue_backup_status() {
     return 1
   }
 
-  key="$(printf '%s' "backup-status:$outcome:$seed" | sha256sum)"
-  key="${key%% *}"
-  if ! result="$({
-    cat <<'SQL'
-WITH administrator AS MATERIALIZED (
-  SELECT id, lower(email) AS email
-  FROM "user"
-  WHERE role = 'admin'
-    AND status = 'active'
-    AND coalesce(banned, false) = false
-), inserted AS (
-  INSERT INTO email_outbox (
-    operation_id,
-    user_id,
-    delivery_scope_key,
-    to_email,
-    template,
-    template_version,
-    variables,
-    idempotency_key
-  )
-  SELECT
-    gen_random_uuid(),
-    id,
-    'a:' || id,
-    email,
-    'backup-status',
-    '1',
-    jsonb_build_object(
-      'name', 'administrator',
-      'summary', CASE :'report_outcome'
-        WHEN 'success' THEN 'The nightly encrypted backup completed and passed local verification. No archive is attached to this email.'
-        WHEN 'failure' THEN 'The nightly encrypted backup did not complete. Review the protected operations logs; no archive or log is attached to this email.'
-      END
-    ),
-    :'report_key'
-  FROM administrator
-  ON CONFLICT (idempotency_key) DO NOTHING
-  RETURNING id
-)
-SELECT CASE
-  WHEN EXISTS (SELECT 1 FROM inserted) THEN 'queued'
-  WHEN EXISTS (
-    SELECT 1 FROM email_outbox WHERE idempotency_key = :'report_key'
-  ) THEN 'existing'
-  WHEN NOT EXISTS (SELECT 1 FROM administrator) THEN 'no-admin'
-  ELSE 'not-queued'
-END;
-SQL
-  } | compose_cmd exec -T \
-    --env "BACKUP_REPORT_KEY=$key" \
+  if ! result="$(compose_cmd --profile operations run --rm --no-deps -T \
+    --pull never \
     --env "BACKUP_REPORT_OUTCOME=$outcome" \
-    postgres sh -ceu \
-      'exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 --set=report_key="$BACKUP_REPORT_KEY" --set=report_outcome="$BACKUP_REPORT_OUTCOME"')"; then
+    --env "BACKUP_REPORT_RUN_KEY=$seed" \
+    backup-status-reporter)"; then
     log "backup status report could not reach the application outbox"
     return 1
   fi
@@ -412,10 +363,6 @@ SQL
       ;;
     existing)
       log "backup status report was already queued"
-      ;;
-    no-admin)
-      log "backup status report was not queued because no active administrator exists"
-      return 1
       ;;
     *)
       log "backup status report returned an invalid acknowledgement"
