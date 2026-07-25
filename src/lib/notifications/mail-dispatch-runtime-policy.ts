@@ -13,7 +13,9 @@ export const MAIL_DISPATCH_RUNTIME_LIMITS = Object.freeze({
   maximumPostProviderInitiationTransactionTimeoutMs: 60_000,
   maximumPostProviderInitiationIdleInTransactionSessionTimeoutMs: 60_000,
   maximumAggregateTx2PhaseMs: 15_000,
-  maximumHardWatchdogMs: 50_000,
+  maximumWatchdogArmAckMs: 2_000,
+  maximumWatchdogDisarmDeliveryMs: 2_000,
+  maximumHardWatchdogMs: 55_000,
   maximumProviderRequestMs: 20_000,
   maximumProviderAbortSettlementMs: 5_000,
   maximumFatalExitMarginMs: 5_000,
@@ -48,13 +50,15 @@ export const MAIL_DISPATCH_RUNTIME_DEFAULTS = Object.freeze({
   preProviderInitiationIdleInTransactionSessionTimeoutMs: 0,
   preProviderInitiationTransactionTimeoutMs: 0,
   postProviderInitiationIdleInTransactionSessionTimeoutMs: 35_000,
-  postProviderInitiationTransactionTimeoutMs: 55_000,
+  postProviderInitiationTransactionTimeoutMs: 60_000,
   preProviderTx2PhaseBudgetMs: 6_000,
   postProviderTx2PhaseBudgetMs: 6_000,
-  hardWatchdogMs: 50_000,
+  watchdogArmAckTimeoutMs: 2_000,
+  watchdogDisarmDeliveryTimeoutMs: 2_000,
+  hardWatchdogMs: 55_000,
   persistenceMarginMs: 5_000,
-  postCommitProviderLeaseMs: 90_000,
-  providerLeaseStampMs: 105_000,
+  postCommitProviderLeaseMs: 95_000,
+  providerLeaseStampMs: 110_000,
   drainTimeoutMs: 100_000,
   poolCloseTimeoutMs: 5_000,
   shutdownMarginMs: 5_000,
@@ -87,6 +91,8 @@ export type MailDispatchRuntimeOverrides = Readonly<{
   postProviderInitiationTransactionTimeoutMs?: number;
   preProviderTx2PhaseBudgetMs?: number;
   postProviderTx2PhaseBudgetMs?: number;
+  watchdogArmAckTimeoutMs?: number;
+  watchdogDisarmDeliveryTimeoutMs?: number;
   hardWatchdogMs?: number;
   persistenceMarginMs?: number;
   postCommitProviderLeaseMs?: number;
@@ -104,11 +110,15 @@ export type MailDispatchRuntimePlan = Readonly<{
     poolAcquireWithinTransactionBudget: false;
     poolAcquireWithinHardWatchdogBudget: true;
     shouldStopGateBeforeOauth: true;
+    oauthDeadlineIsAggregateRequestAndAbortSettlement: true;
     oauthWithinTx2: false;
     shouldStopGateBeforeTx2: true;
     guardedSendWithinTx2: true;
     hardWatchdogIsMainEventLoopIndependent: true;
     hardWatchdogArmedAndReadyBeforeTx2: true;
+    perDispatchWatchdogArmAckRequiredBeforePoolAcquire: true;
+    hardWatchdogTimerStartsBeforeArmedAck: true;
+    watchdogArmAckTimeoutIsBounded: true;
     preProviderInitiationDatabaseTimeoutsDisabled: true;
     preProviderTx2PhaseBudgetIsAggregateDeadline: true;
     tx2LocksAndFinalLiveFenceBeforeProviderInitiation: true;
@@ -119,14 +129,18 @@ export type MailDispatchRuntimePlan = Readonly<{
     postProviderInitiationDatabaseTimeoutsAreStarvationFallback: true;
     hardWatchdogKillsProcessOnExpiry: true;
     hardWatchdogClosesDatabaseAndProviderOnExpiry: true;
-    hardWatchdogDisarmedOnlyAfterSafeTx2CompletionAndRelease: true;
+    postReleaseWatchdogDisarmDeliveryIsBounded: true;
+    hardWatchdogDisarmSentOnlyAfterSafeTx2CompletionAndRelease: true;
+    hardWatchdogTimerClearedAfterBoundedDisarmDelivery: true;
     synchronousFatalExitBeforeNormalTx2Unlock: true;
     tx1ProviderBindingPreventsReclaimAndRetry: true;
     revocationOrderedAfterProviderStart: true;
     tx2FallbackRequiresDatabaseOnlyReconciliation: true;
   }>;
   liveProviderTx2PhaseOrder: readonly [
-    "armAndReadyIndependentHardWatchdog",
+    "sendPerDispatchWatchdogArm",
+    "childStartsHardTimerBeforeArmedAck",
+    "receiveArmedAckWithinDeadline",
     "acquireTx2ClientWithinHardWatchdog",
     "beginTx2AndStartAggregatePreProviderPhaseDeadline",
     "setPreProviderDatabaseTimeoutsToZero",
@@ -137,7 +151,8 @@ export type MailDispatchRuntimePlan = Readonly<{
     "startAggregatePostProviderPhaseDeadline",
     "persistTerminalOutcome",
     "commitAndReleaseTx2",
-    "atomicallyDisarmHardWatchdog",
+    "sendPostReleaseWatchdogDisarm",
+    "childClearsHardTimerWithinDeadline",
   ];
   dispatch: Readonly<{
     concurrency: number;
@@ -174,17 +189,29 @@ export type MailDispatchRuntimePlan = Readonly<{
    * PostgreSQL 16 uses the post-initiation idle timeout plus finite query
    * guards; transaction_timeout is additionally applied on PostgreSQL 17+.
    *
-   * A main-event-loop-independent hard watchdog is armed and ready before
-   * TX2. It kills the process and closes database/provider transports if the
-   * main loop freezes before post-initiation timers are armed. Failure to arm
-   * those timers after provider initiation is fatal/unknown and cannot retry.
-   * The watchdog covers the bounded pool checkout as well as TX2. The
-   * pre-provider and post-provider phase budgets are aggregate runtime
-   * deadlines, not aliases for a per-query timeout; integration must enforce
-   * each across all statements in its phase.
+   * A main-event-loop-independent child starts the hard watchdog timer before
+   * acknowledging each per-dispatch ARM. The parent must receive ARMED within
+   * the returned ARM/ACK bound before pool checkout. It kills the process and
+   * closes database/provider transports if the main loop freezes before
+   * post-initiation timers are armed. Failure to arm those timers after
+   * provider initiation is fatal/unknown and cannot retry. The watchdog
+   * covers both bounded control-plane deliveries, the bounded pool checkout,
+   * and TX2. The pre-provider and post-provider phase budgets are aggregate
+   * runtime deadlines, not aliases for a per-query timeout; integration must
+   * enforce each across all statements in its phase.
    *
-   * The watchdog is disarmed atomically only after safe TX2 completion,
-   * COMMIT, and client release.
+   * The PostgreSQL 17 transaction timer begins when the finite value is SET
+   * after provider initiation, not at BEGIN or fetch; the independent watchdog
+   * remains the authoritative hard cap.
+   *
+   * The parent sends DISARM only after safe TX2 completion, COMMIT, and client
+   * release. The child must receive it and clear the timer within the returned
+   * DISARM delivery bound.
+   *
+   * oauthDeadlineMs is the aggregate OAuth request-and-abort-settlement
+   * deadline. Integration must enforce one absolute deadline across both
+   * portions; it must not add the abort-settlement allowance after the
+   * returned OAuth deadline.
    *
    * The durable TX1 started/binding state prevents reclaim or retry; late
    * outcome handling is database-only reconciliation, with revocation ordered
@@ -218,6 +245,9 @@ export type MailDispatchRuntimePlan = Readonly<{
     statementMs: number;
     queryMs: number;
     tx1Ms: number;
+    /**
+     * Aggregate OAuth request plus abort-settlement deadline.
+     */
     oauthDeadlineMs: number;
     guardedSendDeadlineMs: number;
     providerAbortSettlementMs: number;
@@ -225,6 +255,8 @@ export type MailDispatchRuntimePlan = Readonly<{
     persistenceMarginMs: number;
     preProviderTx2PhaseBudgetMs: number;
     postProviderTx2PhaseBudgetMs: number;
+    watchdogArmAckMs: number;
+    watchdogDisarmDeliveryMs: number;
     hardWatchdogMs: number;
     drainMs: number;
     poolCloseMs: number;
@@ -259,6 +291,8 @@ const OVERRIDE_KEYS = Object.freeze([
   "postProviderInitiationTransactionTimeoutMs",
   "preProviderTx2PhaseBudgetMs",
   "postProviderTx2PhaseBudgetMs",
+  "watchdogArmAckTimeoutMs",
+  "watchdogDisarmDeliveryTimeoutMs",
   "hardWatchdogMs",
   "persistenceMarginMs",
   "postCommitProviderLeaseMs",
@@ -527,6 +561,14 @@ export function planMailDispatchRuntime(
     overrides,
     "postProviderTx2PhaseBudgetMs",
   );
+  const watchdogArmAckTimeoutMs = configured(
+    overrides,
+    "watchdogArmAckTimeoutMs",
+  );
+  const watchdogDisarmDeliveryTimeoutMs = configured(
+    overrides,
+    "watchdogDisarmDeliveryTimeoutMs",
+  );
   const hardWatchdogMs = configured(overrides, "hardWatchdogMs");
   const persistenceMarginMs = configured(overrides, "persistenceMarginMs");
   const postCommitProviderLeaseMs = configured(
@@ -567,6 +609,14 @@ export function planMailDispatchRuntime(
     ],
     ["Mail pre-provider aggregate TX2 phase budget", preProviderTx2PhaseBudgetMs],
     ["Mail post-provider aggregate TX2 phase budget", postProviderTx2PhaseBudgetMs],
+    [
+      "Mail watchdog ARM acknowledgement timeout",
+      watchdogArmAckTimeoutMs,
+    ],
+    [
+      "Mail watchdog DISARM delivery timeout",
+      watchdogDisarmDeliveryTimeoutMs,
+    ],
     ["Mail hard watchdog", hardWatchdogMs],
     ["Mail persistence margin", persistenceMarginMs],
     ["Mail post-COMMIT provider lease", postCommitProviderLeaseMs],
@@ -649,6 +699,16 @@ export function planMailDispatchRuntime(
     "Mail post-provider aggregate TX2 phase budget",
   );
   assertMaximum(
+    watchdogArmAckTimeoutMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumWatchdogArmAckMs,
+    "Mail watchdog ARM acknowledgement timeout",
+  );
+  assertMaximum(
+    watchdogDisarmDeliveryTimeoutMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumWatchdogDisarmDeliveryMs,
+    "Mail watchdog DISARM delivery timeout",
+  );
+  assertMaximum(
     hardWatchdogMs,
     MAIL_DISPATCH_RUNTIME_LIMITS.maximumHardWatchdogMs,
     "Mail hard watchdog",
@@ -716,13 +776,17 @@ export function planMailDispatchRuntime(
     + lockedProviderWindowMs
     + postProviderTx2PhaseBudgetMs;
   const watchedPathMs = poolAcquireTimeoutMs + tx2PathMs;
+  const watchdogControlPathMs = watchdogArmAckTimeoutMs
+    + watchedPathMs
+    + watchdogDisarmDeliveryTimeoutMs;
   if (
     !Number.isSafeInteger(tx2PathMs)
     || !Number.isSafeInteger(watchedPathMs)
-    || watchedPathMs >= hardWatchdogMs
+    || !Number.isSafeInteger(watchdogControlPathMs)
+    || watchdogControlPathMs >= hardWatchdogMs
   ) {
     throw new Error(
-      "Mail pool acquire plus TX2 path must finish before the hard watchdog.",
+      "Mail watchdog control path must finish before the hard watchdog.",
     );
   }
   if (hardWatchdogMs >= postProviderInitiationTransactionTimeoutMs) {
@@ -732,6 +796,7 @@ export function planMailDispatchRuntime(
   }
 
   const leasedDispatchPathMs = oauthDeadlineMs
+    + watchdogArmAckTimeoutMs
     + poolAcquireTimeoutMs
     + postProviderInitiationTransactionTimeoutMs
     + persistenceMarginMs;
@@ -792,11 +857,15 @@ export function planMailDispatchRuntime(
     poolAcquireWithinTransactionBudget: false as const,
     poolAcquireWithinHardWatchdogBudget: true as const,
     shouldStopGateBeforeOauth: true as const,
+    oauthDeadlineIsAggregateRequestAndAbortSettlement: true as const,
     oauthWithinTx2: false as const,
     shouldStopGateBeforeTx2: true as const,
     guardedSendWithinTx2: true as const,
     hardWatchdogIsMainEventLoopIndependent: true as const,
     hardWatchdogArmedAndReadyBeforeTx2: true as const,
+    perDispatchWatchdogArmAckRequiredBeforePoolAcquire: true as const,
+    hardWatchdogTimerStartsBeforeArmedAck: true as const,
+    watchdogArmAckTimeoutIsBounded: true as const,
     preProviderInitiationDatabaseTimeoutsDisabled: true as const,
     preProviderTx2PhaseBudgetIsAggregateDeadline: true as const,
     tx2LocksAndFinalLiveFenceBeforeProviderInitiation: true as const,
@@ -807,14 +876,18 @@ export function planMailDispatchRuntime(
     postProviderInitiationDatabaseTimeoutsAreStarvationFallback: true as const,
     hardWatchdogKillsProcessOnExpiry: true as const,
     hardWatchdogClosesDatabaseAndProviderOnExpiry: true as const,
-    hardWatchdogDisarmedOnlyAfterSafeTx2CompletionAndRelease: true as const,
+    postReleaseWatchdogDisarmDeliveryIsBounded: true as const,
+    hardWatchdogDisarmSentOnlyAfterSafeTx2CompletionAndRelease: true as const,
+    hardWatchdogTimerClearedAfterBoundedDisarmDelivery: true as const,
     synchronousFatalExitBeforeNormalTx2Unlock: true as const,
     tx1ProviderBindingPreventsReclaimAndRetry: true as const,
     revocationOrderedAfterProviderStart: true as const,
     tx2FallbackRequiresDatabaseOnlyReconciliation: true as const,
   });
   const liveProviderTx2PhaseOrder = Object.freeze([
-    "armAndReadyIndependentHardWatchdog",
+    "sendPerDispatchWatchdogArm",
+    "childStartsHardTimerBeforeArmedAck",
+    "receiveArmedAckWithinDeadline",
     "acquireTx2ClientWithinHardWatchdog",
     "beginTx2AndStartAggregatePreProviderPhaseDeadline",
     "setPreProviderDatabaseTimeoutsToZero",
@@ -825,7 +898,8 @@ export function planMailDispatchRuntime(
     "startAggregatePostProviderPhaseDeadline",
     "persistTerminalOutcome",
     "commitAndReleaseTx2",
-    "atomicallyDisarmHardWatchdog",
+    "sendPostReleaseWatchdogDisarm",
+    "childClearsHardTimerWithinDeadline",
   ] as const);
   const dispatch = Object.freeze({
     concurrency,
@@ -884,6 +958,8 @@ export function planMailDispatchRuntime(
     persistenceMarginMs,
     preProviderTx2PhaseBudgetMs,
     postProviderTx2PhaseBudgetMs,
+    watchdogArmAckMs: watchdogArmAckTimeoutMs,
+    watchdogDisarmDeliveryMs: watchdogDisarmDeliveryTimeoutMs,
     hardWatchdogMs,
     drainMs: drainTimeoutMs,
     poolCloseMs: poolCloseTimeoutMs,
