@@ -12,6 +12,7 @@ import {
   type DispatchBinding,
   type MailDispatchAuthority,
   type PreparedEmailAuthorization,
+  type SourceAuthoritySha256,
 } from "../mailer";
 import { outboxMessageId } from "../provider-correlation";
 
@@ -19,6 +20,10 @@ const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
 const MESSAGE_ID = outboxMessageId(OPERATION_ID);
 const OTHER_MESSAGE_ID = outboxMessageId("55555555-5555-4555-8555-555555555555");
 const BOUNDARY_UUID = "33333333-3333-4333-8333-333333333333";
+const SOURCE_AUTHORITY_SHA256 =
+  "a".repeat(64) as SourceAuthoritySha256;
+const OTHER_SOURCE_AUTHORITY_SHA256 =
+  "b".repeat(64) as SourceAuthoritySha256;
 const AUTHORITY: MailDispatchAuthority = Object.freeze({
   id: "11111111-1111-4111-8111-111111111111",
   operationId: OPERATION_ID,
@@ -26,6 +31,7 @@ const AUTHORITY: MailDispatchAuthority = Object.freeze({
   claimOwner: "mail-worker:test",
   claimVersion: 7,
   deliveryScopeKey: "a:learner-1",
+  sourceAuthoritySha256: SOURCE_AUTHORITY_SHA256,
   recipient: "learner@example.test",
   template: "invitation",
   templateVersion: "1",
@@ -142,6 +148,73 @@ describe("prepared mail dispatch", () => {
       rfc822: `${prepared.rfc822.slice(0, -1)}X`,
     };
     expect(preparedEmailBindingMatches(changedByte, AUTHORITY)).toBe(false);
+  });
+
+  it("invalidates the prepared binding when source authority changes", () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
+    const prepared = prepareEmail({
+      to: "learner@example.test",
+      template: "invitation",
+      templateVersion: "1",
+      variables: {},
+    }, gmailPreparation());
+
+    expect(preparedEmailBindingMatches(prepared, AUTHORITY)).toBe(true);
+    expect(preparedEmailBindingMatches(prepared, {
+      ...AUTHORITY,
+      sourceAuthoritySha256: OTHER_SOURCE_AUTHORITY_SHA256,
+    })).toBe(false);
+  });
+
+  it.each([
+    ["uppercase", "A".repeat(64)],
+    ["short", "a".repeat(63)],
+  ])("rejects an invalid %s source-authority digest before rendering", (
+    _case,
+    sourceAuthoritySha256,
+  ) => {
+    const randomUuid = vi.spyOn(crypto, "randomUUID");
+
+    expect(() => prepareEmail({
+      to: "learner@example.test",
+      template: "invitation",
+      templateVersion: "1",
+      variables: {},
+    }, {
+      ...gmailPreparation(),
+      authority: {
+        ...AUTHORITY,
+        sourceAuthoritySha256: sourceAuthoritySha256 as SourceAuthoritySha256,
+      },
+    })).toThrow("Invalid mail dispatch source authority SHA-256.");
+    expect(randomUuid).not.toHaveBeenCalled();
+  });
+
+  it("accepts randomized MIME only for the same authority and source digest without rerendering", () => {
+    const randomUuid = vi.spyOn(crypto, "randomUUID");
+    const prepared = prepareEmail({
+      to: "learner@example.test",
+      template: "invitation",
+      templateVersion: "1",
+      variables: {},
+    }, gmailPreparation());
+    if (prepared.adapter !== "gmail") {
+      throw new Error("Expected Gmail preparation.");
+    }
+
+    expect(prepared.rfc822).toMatch(
+      /boundary="learncoding-[0-9a-f-]{36}"/,
+    );
+    expect(preparedEmailBindingMatches(prepared, AUTHORITY)).toBe(true);
+    expect(preparedEmailBindingMatches(prepared, {
+      ...AUTHORITY,
+      claimToken: "different-authority",
+    })).toBe(false);
+    expect(preparedEmailBindingMatches(prepared, {
+      ...AUTHORITY,
+      sourceAuthoritySha256: OTHER_SOURCE_AUTHORITY_SHA256,
+    })).toBe(false);
+    expect(randomUuid).toHaveBeenCalledOnce();
   });
 
   it.each([

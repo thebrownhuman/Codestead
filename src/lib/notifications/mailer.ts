@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   gmailCorrelationHeader,
   prepareEmail,
@@ -10,6 +12,7 @@ import {
   type PreparedConsoleEmail,
   type PreparedEmail,
   type PreparedGmailEmail,
+  type SourceAuthoritySha256,
 } from "./prepared-dispatch";
 import { outboxMessageId } from "./provider-correlation";
 import {
@@ -35,6 +38,7 @@ export type {
   PreparedEmail,
   PreparedGmailEmail,
   ProviderPayloadSha256,
+  SourceAuthoritySha256,
 } from "./prepared-dispatch";
 export type MailDeliveryFailure = Readonly<{
   kind: "definitely-rejected" | "ambiguous" | "fatal";
@@ -491,6 +495,7 @@ function snapshotDispatchAuthority(
     claimOwner: authority.claimOwner,
     claimVersion: authority.claimVersion,
     deliveryScopeKey: authority.deliveryScopeKey,
+    sourceAuthoritySha256: authority.sourceAuthoritySha256,
     recipient: authority.recipient,
     template: authority.template,
     templateVersion: authority.templateVersion,
@@ -642,6 +647,10 @@ function compatibilityInput(
   };
 }
 
+const COMPATIBILITY_SOURCE_AUTHORITY_SHA256 = createHash("sha256")
+  .update("codestead.mail.compatibility-wrapper.v1", "utf8")
+  .digest("hex") as SourceAuthoritySha256;
+
 function compatibilityAuthority(
   input: AuthoritativeOutgoingEmail,
   operationId: string,
@@ -653,6 +662,7 @@ function compatibilityAuthority(
     claimOwner: "compatibility-wrapper",
     claimVersion: 1,
     deliveryScopeKey: `compatibility:${operationId}`,
+    sourceAuthoritySha256: COMPATIBILITY_SOURCE_AUTHORITY_SHA256,
     recipient: input.to,
     template: input.template,
     templateVersion: input.templateVersion,
