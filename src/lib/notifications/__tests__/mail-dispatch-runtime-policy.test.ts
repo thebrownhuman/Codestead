@@ -11,6 +11,12 @@ describe("mail dispatch runtime policy", () => {
     const plan = planMailDispatchRuntime();
 
     expect(plan).toEqual({
+      phases: {
+        providerLeaseStartsAfterTx1Commit: true,
+        poolAcquireWithinTransactionBudget: false,
+        oauthWithinTx2: false,
+        guardedSendWithinTx2: true,
+      },
       dispatch: {
         concurrency: 1,
         maximumParallelSends: 1,
@@ -23,30 +29,42 @@ describe("mail dispatch runtime policy", () => {
           maintenanceConnections: 1,
           totalConnections: 2,
         },
-        serverGlobalReserve: {
-          gmailReconciliationConnections: 1,
+        serverCapacity: {
+          maximumConnections: 100,
+          adminReservedConnections: 3,
+          otherProcessPoolMaximumConnections: 80,
+          sumProcessPoolMaximumConnections: 83,
+          gmailReconciliationReserveConnections: 1,
+          remainingConnections: 13,
         },
       },
       timeouts: {
+        poolAcquireMs: 5_000,
+        poolIdleMs: 30_000,
+        lockMs: 2_000,
+        statementMs: 5_000,
+        queryMs: 6_000,
+        tx1Ms: 15_000,
         oauthDeadlineMs: 20_000,
         guardedSendDeadlineMs: 20_000,
         providerAbortSettlementMs: 5_000,
-        providerTerminationMs: 5_000,
-        tx1Ms: 15_000,
-        tx2Ms: 50_000,
-        statementMs: 5_000,
+        fatalExitMarginMs: 5_000,
         idleInTransactionSessionMs: 35_000,
-        providerLeaseMs: 100_000,
-        drainMs: 105_000,
+        tx2Ms: 50_000,
+        persistenceMarginMs: 5_000,
+        providerLeaseMs: 90_000,
+        drainMs: 100_000,
         poolCloseMs: 5_000,
+        shutdownMarginMs: 5_000,
         stopMs: 120_000,
       },
     });
     expect(Object.isFrozen(plan)).toBe(true);
+    expect(Object.isFrozen(plan.phases)).toBe(true);
     expect(Object.isFrozen(plan.dispatch)).toBe(true);
     expect(Object.isFrozen(plan.pool)).toBe(true);
     expect(Object.isFrozen(plan.pool.localReserves)).toBe(true);
-    expect(Object.isFrozen(plan.pool.serverGlobalReserve)).toBe(true);
+    expect(Object.isFrozen(plan.pool.serverCapacity)).toBe(true);
     expect(Object.isFrozen(plan.timeouts)).toBe(true);
     expect(Object.isFrozen(MAIL_DISPATCH_RUNTIME_DEFAULTS)).toBe(true);
     expect(Object.isFrozen(MAIL_DISPATCH_RUNTIME_LIMITS)).toBe(true);
@@ -67,8 +85,13 @@ describe("mail dispatch runtime policy", () => {
         maintenanceConnections: 1,
         totalConnections: 2,
       },
-      serverGlobalReserve: {
-        gmailReconciliationConnections: 1,
+      serverCapacity: {
+        maximumConnections: 100,
+        adminReservedConnections: 3,
+        otherProcessPoolMaximumConnections: 80,
+        sumProcessPoolMaximumConnections: 84,
+        gmailReconciliationReserveConnections: 1,
+        remainingConnections: 12,
       },
     });
   });
@@ -82,8 +105,9 @@ describe("mail dispatch runtime policy", () => {
       plan.pool.maximumConnections - plan.pool.localReserves.totalConnections,
     ).toBe(10);
     expect(
-      plan.pool.serverGlobalReserve.gmailReconciliationConnections,
-    ).toBe(1);
+      plan.pool.serverCapacity.sumProcessPoolMaximumConnections,
+    ).toBe(92);
+    expect(plan.pool.serverCapacity.remainingConnections).toBe(4);
   });
 
   it.each([0, 11, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
@@ -94,6 +118,29 @@ describe("mail dispatch runtime policy", () => {
       );
     },
   );
+
+  it.each([
+    { serverMaximumConnections: 0 },
+    { serverAdminReserveConnections: 1.5 },
+    { otherProcessPoolMaximumConnections: Number.POSITIVE_INFINITY },
+    { poolAcquireTimeoutMs: Number.NaN },
+    { poolIdleTimeoutMs: 0 },
+    { lockTimeoutMs: 1.5 },
+    { statementTimeoutMs: Number.POSITIVE_INFINITY },
+    { queryTimeoutMs: 0 },
+    { tx1TimeoutMs: Number.NaN },
+    { tx2TimeoutMs: Number.POSITIVE_INFINITY },
+    { idleInTransactionSessionTimeoutMs: 0 },
+    { persistenceMarginMs: 0 },
+    { providerLeaseMs: Number.NaN },
+    { drainTimeoutMs: 0 },
+    { poolCloseTimeoutMs: 0 },
+    { stopTimeoutMs: 0 },
+  ])("rejects invalid numeric override %#", (overrides) => {
+    expect(() => planMailDispatchRuntime(overrides as never)).toThrow(
+      /positive safe integer/i,
+    );
+  });
 
   it("rejects pool overrides that weaken local or server-global reserves", () => {
     expect(() => planMailDispatchRuntime({
@@ -111,6 +158,21 @@ describe("mail dispatch runtime policy", () => {
     })).toThrow(
       /server-global Gmail reconciliation reserve must be exactly one connection/i,
     );
+    expect(() => planMailDispatchRuntime({
+      concurrency: 2,
+      serverMaximumConnections: 87,
+    })).toThrow(/server capacity must retain the Gmail reconciliation reserve/i);
+
+    const exactCapacity = planMailDispatchRuntime({
+      concurrency: 2,
+      serverMaximumConnections: 88,
+      serverAdminReserveConnections: 3,
+      otherProcessPoolMaximumConnections: 80,
+    });
+    expect(exactCapacity.pool.serverCapacity.remainingConnections).toBe(0);
+    expect(
+      exactCapacity.pool.serverCapacity.sumProcessPoolMaximumConnections,
+    ).toBe(84);
 
     expect(planMailDispatchRuntime({
       concurrency: 2,
@@ -123,16 +185,19 @@ describe("mail dispatch runtime policy", () => {
 
   it("caps OAuth and guarded send separately and keeps the path inside the lease", () => {
     const plan = planMailDispatchRuntime();
-    const completeDispatchPathMs = plan.timeouts.tx1Ms
-      + plan.timeouts.oauthDeadlineMs
-      + plan.timeouts.tx2Ms;
+    const leasedPathMs = plan.timeouts.oauthDeadlineMs
+      + plan.timeouts.tx2Ms
+      + plan.timeouts.persistenceMarginMs;
 
+    expect(plan.phases.providerLeaseStartsAfterTx1Commit).toBe(true);
+    expect(plan.phases.oauthWithinTx2).toBe(false);
+    expect(plan.phases.guardedSendWithinTx2).toBe(true);
     expect(plan.timeouts.oauthDeadlineMs).toBeLessThanOrEqual(20_000);
     expect(plan.timeouts.guardedSendDeadlineMs).toBeLessThanOrEqual(20_000);
     expect(plan.timeouts.providerAbortSettlementMs).toBeLessThanOrEqual(5_000);
-    expect(plan.timeouts.providerTerminationMs).toBeLessThanOrEqual(5_000);
+    expect(plan.timeouts.fatalExitMarginMs).toBeLessThanOrEqual(5_000);
     expect(plan.timeouts.providerLeaseMs).toBeLessThan(300_000);
-    expect(completeDispatchPathMs).toBeLessThan(
+    expect(leasedPathMs).toBeLessThan(
       plan.timeouts.providerLeaseMs,
     );
 
@@ -146,74 +211,97 @@ describe("mail dispatch runtime policy", () => {
       providerAbortSettlementTimeoutMs: 5_001,
     })).toThrow(/provider abort settlement timeout/i);
     expect(() => planMailDispatchRuntime({
-      providerTerminationTimeoutMs: 0,
-    })).toThrow(/provider termination timeout/i);
+      fatalExitMarginMs: 0,
+    })).toThrow(/fatal exit margin/i);
     expect(() => planMailDispatchRuntime({
-      providerTerminationTimeoutMs: 5_001,
-    })).toThrow(/provider termination timeout/i);
+      fatalExitMarginMs: 5_001,
+    })).toThrow(/fatal exit margin/i);
     expect(() => planMailDispatchRuntime({
       providerLeaseMs: 300_000,
     })).toThrow(/provider lease/i);
     expect(() => planMailDispatchRuntime({
-      providerLeaseMs: completeDispatchPathMs,
+      providerLeaseMs: leasedPathMs,
     })).toThrow(/dispatch path must finish before the provider lease/i);
   });
 
   it("makes both transaction and PostgreSQL session budgets explicit and ordered", () => {
-    const { timeouts } = planMailDispatchRuntime();
+    const { phases, timeouts } = planMailDispatchRuntime();
+    const guardedNetworkMs = timeouts.guardedSendDeadlineMs
+      + timeouts.providerAbortSettlementMs
+      + timeouts.fatalExitMarginMs;
+    const tx2PathMs = (2 * timeouts.queryMs) + guardedNetworkMs;
 
-    expect(timeouts.tx1Ms).toBeGreaterThan(timeouts.statementMs);
-    expect(timeouts.tx2Ms).toBeGreaterThan(timeouts.statementMs);
+    expect(phases.poolAcquireWithinTransactionBudget).toBe(false);
+    expect(timeouts.poolAcquireMs).toBe(5_000);
+    expect(timeouts.poolIdleMs).toBe(30_000);
+    expect(timeouts.lockMs).toBeLessThan(timeouts.statementMs);
+    expect(timeouts.statementMs).toBeLessThan(timeouts.queryMs);
+    expect(timeouts.queryMs).toBeLessThan(timeouts.tx1Ms);
+    expect(timeouts.queryMs).toBeLessThan(timeouts.tx2Ms);
+    expect(guardedNetworkMs).toBeLessThan(
+      timeouts.idleInTransactionSessionMs,
+    );
     expect(timeouts.tx2Ms).toBeGreaterThan(
       timeouts.idleInTransactionSessionMs,
     );
-    expect(timeouts.idleInTransactionSessionMs).toBeGreaterThan(
-      timeouts.guardedSendDeadlineMs
-        + timeouts.providerAbortSettlementMs
-        + timeouts.providerTerminationMs,
-    );
-    expect(() => planMailDispatchRuntime({
-      oauthDeadlineMs: 20_000,
-      idleInTransactionSessionTimeoutMs: 31_000,
-    })).not.toThrow();
+    expect(tx2PathMs).toBeLessThan(timeouts.tx2Ms);
 
     expect(() => planMailDispatchRuntime({
-      tx1TimeoutMs: 5_000,
-    })).toThrow(/statement timeout must finish inside tx1 and tx2/i);
+      poolAcquireTimeoutMs: 5_001,
+    })).toThrow(/pool acquire timeout/i);
     expect(() => planMailDispatchRuntime({
-      tx2TimeoutMs: 5_000,
-    })).toThrow(/statement timeout must finish inside tx1 and tx2/i);
+      poolIdleTimeoutMs: 0,
+    })).toThrow(/pool idle timeout/i);
+    expect(() => planMailDispatchRuntime({
+      lockTimeoutMs: 5_000,
+    })).toThrow(/lock timeout must finish before statement timeout/i);
+    expect(() => planMailDispatchRuntime({
+      statementTimeoutMs: 6_000,
+    })).toThrow(/statement timeout must finish before query timeout/i);
+    expect(() => planMailDispatchRuntime({
+      queryTimeoutMs: 15_000,
+    })).toThrow(/query timeout must finish inside TX1 and TX2/i);
     expect(() => planMailDispatchRuntime({
       idleInTransactionSessionTimeoutMs: 30_000,
-    })).toThrow(/guarded send, abort settlement, and termination must finish before/i);
+    })).toThrow(/locked provider window must finish before idle-in-transaction timeout/i);
     expect(() => planMailDispatchRuntime({
       idleInTransactionSessionTimeoutMs: 50_000,
     })).toThrow(/idle-in-transaction timeout must finish inside TX2/i);
+    expect(() => planMailDispatchRuntime({
+      tx2TimeoutMs: 42_000,
+    })).toThrow(/TX2 path must finish before the TX2 timeout/i);
   });
 
   it("bounds drain and stop time with strict room for pool close", () => {
     const { timeouts } = planMailDispatchRuntime();
 
-    expect(timeouts.drainMs).toBeLessThanOrEqual(105_000);
+    expect(timeouts.drainMs).toBeLessThan(105_000);
     expect(timeouts.stopMs).toBeLessThanOrEqual(120_000);
-    expect(timeouts.providerLeaseMs).toBeLessThanOrEqual(timeouts.drainMs);
-    expect(timeouts.drainMs + timeouts.poolCloseMs).toBeLessThan(
+    expect(timeouts.providerLeaseMs).toBeLessThan(timeouts.drainMs);
+    expect(
+      timeouts.drainMs + timeouts.poolCloseMs + timeouts.shutdownMarginMs,
+    ).toBeLessThan(
       timeouts.stopMs,
     );
 
     expect(() => planMailDispatchRuntime({
-      drainTimeoutMs: 105_001,
+      drainTimeoutMs: 105_000,
     })).toThrow(/drain timeout/i);
     expect(() => planMailDispatchRuntime({
       stopTimeoutMs: 120_001,
     })).toThrow(/stop timeout/i);
     expect(() => planMailDispatchRuntime({
       poolCloseTimeoutMs: 15_000,
-    })).toThrow(/drain and pool close must finish before stop timeout/i);
+    })).toThrow(/drain, pool close, and shutdown margin must finish before stop timeout/i);
     expect(() => planMailDispatchRuntime({
       providerLeaseMs: 100_000,
-      drainTimeoutMs: 99_000,
-    })).toThrow(/provider lease must fit inside the drain timeout/i);
+    })).toThrow(/provider lease must finish before the drain timeout/i);
+    expect(() => planMailDispatchRuntime({
+      shutdownMarginMs: 0,
+    })).toThrow(/shutdown margin/i);
+    expect(() => planMailDispatchRuntime({
+      stopTimeoutMs: 110_000,
+    })).toThrow(/drain, pool close, and shutdown margin must finish before stop timeout/i);
   });
 
   it("ignores ambient configuration, emits no logs, and rejects unknown input", () => {
@@ -228,6 +316,14 @@ describe("mail dispatch runtime policy", () => {
         concurrency: 2,
         databaseUrl: "postgres://must-not-flow-through-policy",
       } as never)).toThrow(/unknown mail dispatch runtime override/i);
+      expect(() => planMailDispatchRuntime(null as never)).toThrow(
+        /overrides must be a plain own-property object/i,
+      );
+      const inherited = Object.create({ concurrency: 10 }) as Record<
+        string,
+        number
+      >;
+      expect(() => planMailDispatchRuntime(inherited)).toThrow(/inherited overrides/i);
       expect(info).not.toHaveBeenCalled();
       expect(error).not.toHaveBeenCalled();
     } finally {
