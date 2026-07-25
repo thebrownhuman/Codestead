@@ -174,9 +174,13 @@ Do not reset, clean, overwrite, commit as green, or remove these worktrees. Resu
 
 ## DB-ACL/P3-2 broad runtime-role risk — OPEN / DEFERRED
 
-**Accountable owner:** `DB-ACL/P3-2 — Database & Release Security DRI`
+**Accountable owner:** `@thebrownhuman / DB-ACL/P3-2 DRI`
 
-This finding is explicitly **OPEN / DEFERRED**, not green. The current `learncoding_app` and `learncoding_ops` roles retain `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on every current public table and receive the same privileges on future public tables through default privileges. At the audited candidate there are 123 public tables, so compromise of either credential permits arbitrary DML across all rows in all 123 tables. Production has no row-level-security mitigation for this exposure.
+This finding is explicitly **OPEN / DEFERRED**, not green. In the expected final 0065/0066 composition there are 125 public tables and 1,471 columns. The scoped mail-authority pass protects the two new backup-authority tables and their nine columns from both `learncoding_app` and `learncoding_ops`, but both roles retain table-level `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the other 123 tables. Those table grants confer effective `SELECT`, `INSERT`, and `UPDATE` on 1,462 of 1,471 columns.
+
+The three 0066 provider-correlation columns are on `email_outbox`, one of those 123 broadly granted tables. Column-level `REVOKE` statements do not override the table-level grants, so this handoff does **not** claim that app or ops is denied those columns by ACL. Database triggers enforce the reviewed mail transition rules, but trigger enforcement is not least-privilege role separation.
+
+Owner default privileges also grant the same broad CRUD set to future public tables. Unless a future migration and post-migration privilege reconciliation explicitly carve a new table out, it joins the broad app/ops surface. Production has no row-level-security mitigation for either the current exposure or that future-default-grant risk.
 
 Narrowing these two roles is unsafe in a mail-only pass. The application role directly drives Better Auth persistence and broad learner export and account-deletion workflows. The operations credential is shared by lifecycle, seed, administrator-bootstrap, and restore-verification services. A safe change therefore requires a full-system capability inventory, additional service credentials, release ordering, and positive and negative PostgreSQL behavior proofs; trimming grants from the mail path alone could break authentication, export, deletion, recovery, or bootstrap behavior while appearing secure in a narrow test.
 
@@ -201,7 +205,7 @@ Before this finding can be closed, all ten acceptance gates must pass:
 9. Exact-SHA rollback refuses privilege-contract regression.
 10. Real deployment credential provisioning/rotation evidence exists; repository tests alone cannot prove the new secrets were installed correctly.
 
-Production release requires either completion of all ten gates or explicit written, release-specific risk acceptance from the accountable owner. Any acceptance must identify the candidate SHA, expiry, compensating controls, and follow-up milestone; it is a temporary release decision and must never be recorded as technical completion. No external credential deployment or rotation has been performed or proven by this documentation change.
+Production release requires either completion of all ten gates or explicit written, release-specific risk acceptance from `@thebrownhuman / DB-ACL/P3-2 DRI`. Any acceptance must identify the exact candidate SHA, expiry, compensating controls, and follow-up milestone. It is a temporary release decision and is never technical completion of P3-2. No external credential deployment or rotation has been performed or proven by this documentation change.
 
 ## Important architecture and implementation decisions
 
