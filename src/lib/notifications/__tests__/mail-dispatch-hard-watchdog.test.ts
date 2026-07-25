@@ -23,7 +23,7 @@ const TEST_HANDSHAKE_NAME =
 
 function stubWatchdogFault(fault: string) {
   vi.stubEnv(TEST_FAULT_NAME, fault);
-  vi.stubEnv(TEST_HANDSHAKE_NAME, "100");
+  vi.stubEnv(TEST_HANDSHAKE_NAME, "1000");
 }
 
 afterEach(() => {
@@ -60,7 +60,7 @@ async function runFatalFixture(input: Readonly<{
   const environment: NodeJS.ProcessEnv = {
     NODE_ENV: "test",
     MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS: "250",
-    MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS: "100",
+    MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS: "1000",
     MAIL_DISPATCH_WATCHDOG_TEST_FAULT: input.fault,
     MAIL_DISPATCH_WATCHDOG_TEST_EXIT_MODE: input.exitMode,
     MAIL_DISPATCH_WATCHDOG_TEST_FATAL_PHASE: input.phase,

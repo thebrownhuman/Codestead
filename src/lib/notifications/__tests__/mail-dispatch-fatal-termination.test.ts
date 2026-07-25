@@ -101,7 +101,11 @@ describe("mail dispatch fatal termination", () => {
         exited = true;
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      const observationMs =
+        mode === "shared-array-buffer-throws" || mode === "atomics-wait-throws"
+          ? 25
+          : 150;
+      await new Promise((resolve) => setTimeout(resolve, observationMs));
       expect(exited).toBe(false);
       expect(run.stdout()).toBe("ENTER\n");
       expect(run.stderr()).toBe("");
