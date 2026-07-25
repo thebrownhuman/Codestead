@@ -1223,15 +1223,17 @@ async function proveExtendedTransitionMatrix(port, database) {
     scalar(
       port,
       database,
-      `SELECT pg_catalog.count(*)::text
+      `SELECT disposition || '|' || eligible::text || '|' ||
+              transitioned::text
          FROM public.redact_unresolved_email_outbox_authority(
            pg_catalog.statement_timestamp() - interval '30 days',
-           10
-         );`,
+           1000
+         )
+        WHERE disposition = 'eligible';`,
       "learncoding_ops",
     ),
-    "1",
-    "0063 redaction did not consume the released bound fixture",
+    "eligible|1|1",
+    "0063 redaction summary did not transition the released bound fixture",
   );
   assert.equal(
     scalar(
