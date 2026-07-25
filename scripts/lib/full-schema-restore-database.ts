@@ -93,14 +93,22 @@ export async function prepareFullSchemaAclSuppressionControl(
   `);
 }
 
-const ACL_SUPPRESSION_CONTROL_ROUTINE =
-  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)";
+const ACL_SUPPRESSION_CONTROL_ROUTINES = [
+  "public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)",
+  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+] as const;
 
 export async function requireFullSchemaAclSuppressionControl(
   client: FullSchemaRestoreQueryClient,
 ): Promise<FullSchemaAclSuppressionControl> {
   const result = await client.query(`
-    select routine.proacl is null as proacl_is_null,
+    with candidate(priority, signature) as (
+      values
+        (1, 'public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)'::text),
+        (2, 'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)'::text)
+    )
+    select candidate.signature as routine,
+           routine.proacl is null as proacl_is_null,
            exists (
              select 1
                from pg_catalog.aclexplode(
@@ -112,14 +120,20 @@ export async function requireFullSchemaAclSuppressionControl(
               where acl.grantee = 0
                 and acl.privilege_type = 'EXECUTE'
            ) as public_execute
-      from pg_catalog.pg_proc routine
-     where routine.oid = pg_catalog.to_regprocedure($1)::oid
-  `, [ACL_SUPPRESSION_CONTROL_ROUTINE]);
+      from candidate
+      join pg_catalog.pg_proc routine
+        on routine.oid = pg_catalog.to_regprocedure(candidate.signature)
+     order by candidate.priority
+  `);
   const row = result.rows[0];
   if (
     result.rows.length !== 1
     || row?.proacl_is_null !== true
     || row.public_execute !== true
+    || typeof row.routine !== "string"
+    || !ACL_SUPPRESSION_CONTROL_ROUTINES.includes(
+      row.routine as typeof ACL_SUPPRESSION_CONTROL_ROUTINES[number],
+    )
   ) {
     throw new Error(
       "full-schema restore ACL suppression control failed",
@@ -128,10 +142,9 @@ export async function requireFullSchemaAclSuppressionControl(
   return {
     proaclIsNull: true,
     publicExecute: true,
-    routine: ACL_SUPPRESSION_CONTROL_ROUTINE,
+    routine: row.routine,
   };
 }
-
 function canonicalJson(value: unknown): string {
   if (value === null) return "null";
   if (typeof value === "string" || typeof value === "boolean") {
@@ -951,7 +964,7 @@ const CLAIM_SQL = `
   returning id
 `;
 
-const REDACT_SQL = `
+const REDACT_V1_SQL = `
   select summary.disposition,
          summary.eligible::text as eligible,
          summary.transitioned::text as transitioned
@@ -967,6 +980,21 @@ const REDACT_SQL = `
    end
 `;
 
+const REDACT_V2_SQL = `
+  select summary.disposition,
+         summary.eligible::text as eligible,
+         summary.transitioned::text as transitioned
+    from public.redact_quarantined_email_outbox_authority_v2(
+      pg_catalog.statement_timestamp() - interval '30 days',
+      100
+    ) summary
+   order by case summary.disposition
+     when 'eligible' then 1
+     when 'blocked' then 2
+     when 'malformed' then 3
+     else 4
+   end
+`;
 const VERIFY_REDACTION_SQL = `
   select outbox.id::text as id,
          outbox.idempotency_key,
@@ -1100,9 +1128,12 @@ export async function runFullSchemaRestoreDatabaseSmoke(input: Readonly<{
   worker: FullSchemaRestoreQueryClient;
   ops: FullSchemaRestoreQueryClient;
   verifier: FullSchemaRestoreQueryClient;
+  redactionAuthority?: "v1" | "v2";
 }>): Promise<FullSchemaRestoreSmoke> {
   const claimedRows = await probeWorkerClaim(input.worker);
-  const redaction = await input.ops.query(REDACT_SQL);
+  const redaction = await input.ops.query(
+    input.redactionAuthority === "v2" ? REDACT_V2_SQL : REDACT_V1_SQL,
+  );
   const verification = await input.verifier.query(VERIFY_REDACTION_SQL);
   const redactedRows = transitionedRedactionRows(redaction.rows);
   const verifiedRows = verifiedRedactedRows(verification.rows);

@@ -150,7 +150,10 @@ const BINDING_COLUMNS_SQL = `
      and not attribute.attisdropped
      and attribute.attname in (
        'dispatch_binding_version',
-       'dispatch_binding_sha256'
+       'dispatch_binding_sha256',
+       'provider_correlation_version',
+       'provider_evidence_version',
+       'provider_evidence_sha256'
      )
    order by attribute.attname
 `;
@@ -202,6 +205,41 @@ const ARM_BINDING_SQL = `
   returning id
 `;
 
+const ARM_CORRELATION_EVIDENCE_SQL = `
+  update public.email_outbox
+     set provider_call_started = pg_catalog.statement_timestamp(),
+         adapter = 'gmail',
+         dispatch_binding_version = 'gmail-raw-v1',
+         dispatch_binding_sha256 = case id
+           when '${QUARANTINED_ACCOUNT_ID}'::uuid
+             then '${"a".repeat(64)}'
+           else '${"b".repeat(64)}'
+         end,
+         provider_correlation_version = 'opaque-sha256-v1',
+         provider_evidence_version = 'gmail-header-evidence-v1',
+         provider_evidence_sha256 = case id
+           when '${QUARANTINED_ACCOUNT_ID}'::uuid
+             then '${"c".repeat(64)}'
+           else '${"d".repeat(64)}'
+         end,
+         lease_expires_at =
+           pg_catalog.statement_timestamp() + interval '120 seconds',
+         updated_at = pg_catalog.statement_timestamp()
+   where id in (
+     '${QUARANTINED_ACCOUNT_ID}'::uuid,
+     '${QUARANTINED_SYSTEM_ID}'::uuid
+   )
+     and status = 'sending'
+     and claim_token is not null
+     and claim_owner = 'full-schema-restore-fixture'
+     and lease_expires_at > pg_catalog.statement_timestamp()
+     and provider_call_started is null
+     and adapter is null
+     and provider_correlation_version is null
+     and provider_evidence_version is null
+     and provider_evidence_sha256 is null
+  returning id
+`;
 const RELEASE_BOUND_ROWS_SQL = `
   update public.email_outbox
      set status = 'quarantined',
@@ -443,12 +481,20 @@ export async function seedRepresentativeMailAuthorityRows(input: Readonly<{
   const observed = bindingColumns.rows.map((row) => row.attname);
   if (
     observed.some((name) => typeof name !== "string")
-    || (
-      observed.length !== 0
-      && (
-        observed.length !== 2
-        || observed[0] !== "dispatch_binding_sha256"
-        || observed[1] !== "dispatch_binding_version"
+    || !(
+      observed.length === 0
+      || (
+        observed.length === 2
+        && observed[0] === "dispatch_binding_sha256"
+        && observed[1] === "dispatch_binding_version"
+      )
+      || (
+        observed.length === 5
+        && observed[0] === "dispatch_binding_sha256"
+        && observed[1] === "dispatch_binding_version"
+        && observed[2] === "provider_correlation_version"
+        && observed[3] === "provider_evidence_sha256"
+        && observed[4] === "provider_evidence_version"
       )
     )
   ) {
@@ -457,9 +503,11 @@ export async function seedRepresentativeMailAuthorityRows(input: Readonly<{
     );
   }
 
-  if (observed.length === 2) {
+  if (observed.length >= 2) {
     exactReturnedRows(await input.worker.query(CLAIM_FOR_BINDING_SQL), 2);
-    exactReturnedRows(await input.worker.query(ARM_BINDING_SQL), 2);
+    exactReturnedRows(await input.worker.query(
+      observed.length === 5 ? ARM_CORRELATION_EVIDENCE_SQL : ARM_BINDING_SQL,
+    ), 2);
     exactReturnedRows(
       await input.owner.query(RELEASE_BOUND_ROWS_SQL),
       2,

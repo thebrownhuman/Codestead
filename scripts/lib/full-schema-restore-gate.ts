@@ -10,6 +10,19 @@ type MigrationJournalEntry = Readonly<{
 
 const MINIMUM_RESTORE_MIGRATION_INDEX = 63;
 const MIGRATION_LEDGER_VERSION = "drizzle-migration-ledger-v1";
+const FINAL_REDACTION_AUTHORITY_MIGRATION_INDEX = 68;
+const LEGACY_REDACTION_ROUTINE =
+  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)";
+const V2_REDACTION_ROUTINE =
+  "public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)";
+
+export function expectedFullSchemaRedactionRoutine(
+  migrationTailIndex: number,
+): string {
+  return migrationTailIndex >= FINAL_REDACTION_AUTHORITY_MIGRATION_INDEX
+    ? V2_REDACTION_ROUTINE
+    : LEGACY_REDACTION_ROUTINE;
+}
 
 export type MigrationLedgerEntryContract = Readonly<{
   idx: number;
@@ -318,12 +331,14 @@ function validatedArchiveEvidence(
 
 function validatedAclSuppressionControl(
   value: FullSchemaAclSuppressionControl,
+  migrationTailIndex: number,
 ): FullSchemaAclSuppressionControl {
   if (
     value.proaclIsNull !== true
     || value.publicExecute !== true
-    || value.routine !==
-      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)"
+    || value.routine !== expectedFullSchemaRedactionRoutine(
+      migrationTailIndex,
+    )
   ) {
     throw new Error(
       "full-schema restore ACL suppression control failed",
@@ -413,6 +428,7 @@ export async function runFullSchemaRestoreVerification<Archive>(
     await dependencies.restoreTargetWithoutAcl(archive);
     aclSuppressionControl = validatedAclSuppressionControl(
       await target.verifyAclSuppressionControl(),
+      dependencies.migration.tailIndex,
     );
     await target.resetAfterAclSuppressionControl();
     await target.reconcileRoles();
