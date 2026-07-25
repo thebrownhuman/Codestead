@@ -41,24 +41,35 @@ export class MailDispatchDbDeadline {
   readonly startedAtMs: number;
   readonly expiresAtMs: number;
 
-  readonly #now: MailDispatchMonotonicNow;
-  #lastObservedAtMs: number;
+  readonly #clock: {
+    readonly now: MailDispatchMonotonicNow;
+    lastObservedAtMs: number;
+  };
 
   constructor(input: Readonly<{
     phase: MailDispatchDbDeadlinePhase;
     budgetMs: number;
     now?: MailDispatchMonotonicNow;
-  }>) {
+  }>, parent?: MailDispatchDbDeadline) {
     if (!Number.isSafeInteger(input.budgetMs) || input.budgetMs <= 0) {
       throw new Error(
         "Mail dispatch database deadline budget must be a positive safe integer.",
       );
     }
     this.phase = input.phase;
-    this.#now = input.now ?? defaultMonotonicNow;
-    this.startedAtMs = assertFiniteNow(this.#now());
-    this.#lastObservedAtMs = this.startedAtMs;
-    this.expiresAtMs = this.startedAtMs + input.budgetMs;
+    if (parent) {
+      this.#clock = parent.#clock;
+      this.startedAtMs = parent.#readNow();
+    } else {
+      const now = input.now ?? defaultMonotonicNow;
+      const startedAtMs = assertFiniteNow(now());
+      this.#clock = { now, lastObservedAtMs: startedAtMs };
+      this.startedAtMs = startedAtMs;
+    }
+    const requestedExpiry = this.startedAtMs + input.budgetMs;
+    this.expiresAtMs = parent
+      ? Math.min(parent.expiresAtMs, requestedExpiry)
+      : requestedExpiry;
     if (
       !Number.isFinite(this.expiresAtMs)
       || Math.abs(this.expiresAtMs) > Number.MAX_SAFE_INTEGER
@@ -68,12 +79,12 @@ export class MailDispatchDbDeadline {
   }
 
   #readNow(): number {
-    const observedAtMs = assertFiniteNow(this.#now());
-    this.#lastObservedAtMs = Math.max(
-      this.#lastObservedAtMs,
+    const observedAtMs = assertFiniteNow(this.#clock.now());
+    this.#clock.lastObservedAtMs = Math.max(
+      this.#clock.lastObservedAtMs,
       observedAtMs,
     );
-    return this.#lastObservedAtMs;
+    return this.#clock.lastObservedAtMs;
   }
 
   remainingMs(): number {
@@ -91,6 +102,22 @@ export function createMailDispatchDbDeadline(
   return new MailDispatchDbDeadline(input);
 }
 
+export function createCappedMailDispatchDbDeadline(input: Readonly<{
+  parent: MailDispatchDbDeadline;
+  budgetMs: number;
+  phase?: MailDispatchDbDeadlinePhase;
+}>): MailDispatchDbDeadline {
+  if (!(input.parent instanceof MailDispatchDbDeadline)) {
+    throw new Error("Mail dispatch parent database deadline is invalid.");
+  }
+  return new MailDispatchDbDeadline(
+    {
+      phase: input.phase ?? input.parent.phase,
+      budgetMs: input.budgetMs,
+    },
+    input.parent,
+  );
+}
 export class MailDispatchDbDeadlineExceededError extends Error {
   readonly code = "MAIL_DISPATCH_DB_DEADLINE_EXCEEDED" as const;
   readonly phase: MailDispatchDbDeadlinePhase;

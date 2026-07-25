@@ -6,6 +6,7 @@ import {
   MailDispatchDbClientLease,
   MailDispatchDbDeadlineExceededError,
   connectMailDispatchDbWithin,
+  createCappedMailDispatchDbDeadline,
   createMailDispatchDbDeadline,
   queryMailDispatchDbWithin,
   type MailDispatchDbClient,
@@ -91,6 +92,59 @@ describe("mail dispatch database deadlines", () => {
 
     now = 80;
     expect(deadline.remainingMs()).toBe(40);
+  });
+
+  it("caps a child at the parent's absolute cutoff after time advances", () => {
+    let now = 0;
+    const parent = createMailDispatchDbDeadline({
+      phase: "pre-provider",
+      budgetMs: 100,
+      now: () => now,
+    });
+
+    now = 25;
+    expect(parent.remainingMs()).toBe(75);
+
+    now = 90;
+    const child = createCappedMailDispatchDbDeadline({
+      parent,
+      budgetMs: 50,
+      phase: "post-provider",
+    });
+
+    expect(child.phase).toBe("post-provider");
+    expect(child.startedAtMs).toBe(90);
+    expect(child.expiresAtMs).toBe(parent.expiresAtMs);
+
+    now = 95;
+    expect(child.remainingMs()).toBe(5);
+  });
+
+  it("shares the parent's monotonic clamp when the clock rolls back", () => {
+    let now = 0;
+    const parent = createMailDispatchDbDeadline({
+      phase: "pre-provider",
+      budgetMs: 100,
+      now: () => now,
+    });
+
+    now = 60;
+    expect(parent.remainingMs()).toBe(40);
+
+    now = 20;
+    const child = createCappedMailDispatchDbDeadline({
+      parent,
+      budgetMs: 30,
+    });
+    expect(child.startedAtMs).toBe(60);
+    expect(child.expiresAtMs).toBe(90);
+
+    now = 80;
+    expect(child.remainingMs()).toBe(10);
+
+    now = 30;
+    expect(parent.remainingMs()).toBe(20);
+    expect(child.remainingMs()).toBe(10);
   });
 
   it("releases an owned client at most once", () => {
@@ -324,6 +378,40 @@ describe("mail dispatch database deadlines", () => {
     );
 
     await vi.advanceTimersByTimeAsync(39);
+    expect(database.release).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await rejected;
+    expect(database.release).toHaveBeenCalledWith(true);
+  });
+
+  it("destroys a query at an earlier capped child cutoff", async () => {
+    vi.useFakeTimers();
+    const parent = createMailDispatchDbDeadline({
+      phase: "pre-provider",
+      budgetMs: 100,
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    const child = createCappedMailDispatchDbDeadline({
+      parent,
+      budgetMs: 25,
+    });
+    const queryResult = deferred<MailDispatchDbQueryResult>();
+    const database = client(() => queryResult.promise);
+    const lease = new MailDispatchDbClientLease(database.client);
+    const pending = queryMailDispatchDbWithin({
+      lease,
+      deadline: child,
+      text: "select 1",
+    });
+    const rejected = expect(pending).rejects.toBeInstanceOf(
+      MailDispatchDbDeadlineExceededError,
+    );
+
+    expect(parent.expiresAtMs - parent.startedAtMs).toBe(100);
+    expect(child.expiresAtMs - parent.startedAtMs).toBe(35);
+
+    await vi.advanceTimersByTimeAsync(24);
     expect(database.release).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
