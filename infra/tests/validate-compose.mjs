@@ -586,6 +586,7 @@ const databaseBoundaryEnvironments = {
     DATABASE_WORKER_URL_FILE: "/run/secrets/database_worker_url",
     POSTGRES_DB: "learncoding",
     POSTGRES_USER: "learncoding",
+    REQUIRE_COMPLETE_MIGRATION_LEDGER: "false",
   },
   "database-negative-probes": {
     DATABASE_MIGRATOR_URL_FILE: "/run/secrets/database_migrator_url",
