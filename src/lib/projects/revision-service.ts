@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
 
@@ -17,6 +17,8 @@ export type ProjectRevisionErrorCode =
   | "IDEMPOTENCY_MISMATCH"
   | "FILE_NOT_AVAILABLE"
   | "WRITE_CONFLICT";
+
+type ProjectRevisionPool = Pick<Pool, "connect">;
 
 export class ProjectRevisionError extends Error {
   constructor(
@@ -304,7 +306,8 @@ export async function createProjectRevision(input: {
   reflection?: string | null;
   fileIds?: readonly string[];
   now?: Date;
-}): Promise<Readonly<{ revision: ProjectRevisionRecord; duplicate: boolean }>> {
+}, databasePool: ProjectRevisionPool = pool): Promise<
+  Readonly<{ revision: ProjectRevisionRecord; duplicate: boolean }>> {
   if (!input.userId || input.userId.length > 255) {
     throw new ProjectRevisionError("INVALID_INPUT", "Authenticated owner is invalid.");
   }
@@ -315,7 +318,7 @@ export async function createProjectRevision(input: {
     throw new ProjectRevisionError("INVALID_INPUT", "Revision timestamp is invalid.");
   }
 
-  const client = await pool.connect();
+  const client = await databasePool.connect();
   try {
     await client.query("begin");
     const owned = await client.query<{ id: string }>(

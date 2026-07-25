@@ -242,8 +242,10 @@ function mapReview(
 }
 
 export class DrizzleLearningStore implements LearningStore {
+  constructor(private readonly database: Database = db) {}
+
   async transaction<T>(work: (transaction: LearningTransaction) => Promise<T>): Promise<T> {
-    return db.transaction((transaction) => work(new DrizzleLearningTransaction(transaction)));
+    return this.database.transaction((transaction) => work(new DrizzleLearningTransaction(transaction)));
   }
 }
 
@@ -508,6 +510,14 @@ class DrizzleLearningTransaction implements LearningTransaction {
       );
     }
     return mapSession(row);
+  }
+
+  async lockMeaningfulActivityUser(userId: string): Promise<void> {
+    await this.executor
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, userId))
+      .for("update");
   }
 
   async updateSession(

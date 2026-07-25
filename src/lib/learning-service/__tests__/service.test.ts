@@ -15,6 +15,7 @@ const USER_ID = "learner-1";
 const SERIALIZATION_METHODS = new Set([
   "lockPlanInitialization",
   "lockSessionStart",
+  "lockMeaningfulActivityUser",
   "lockAttemptCreation",
   "lockDsaLanguageSwitch",
 ]);
@@ -337,8 +338,22 @@ describe("adaptive learning application service", () => {
 
   it("grades authored deterministic work and persists evidence, mastery, review, and attempt atomically", async () => {
     const ownedAttempt = attemptContext({ grading: { kind: "exact", acceptedAnswers: ["42"] } });
-    const appendOfficialEvidence = vi.fn(async () => true);
-    const writeMastery = vi.fn(async () => true);
+    const order: string[] = [];
+    const lockMeaningfulActivityUser = vi.fn(async () => {
+      order.push("lock-user");
+    });
+    const insertResponseIfAbsent = vi.fn(async () => {
+      order.push("insert-response");
+      return true;
+    });
+    const appendOfficialEvidence = vi.fn(async () => {
+      order.push("append-evidence");
+      return true;
+    });
+    const writeMastery = vi.fn(async () => {
+      order.push("write-mastery");
+      return true;
+    });
     const writeReview = vi.fn(async (input: { dueAt: Date; intervalDays: number; reason: string }) => ({
       id: "review-1",
       userId: USER_ID,
@@ -351,16 +366,23 @@ describe("adaptive learning application service", () => {
       reason: input.reason,
       status: "scheduled",
     }));
-    const gradeAttempt = vi.fn(async () => true);
+    const gradeAttempt = vi.fn(async () => {
+      order.push("grade-attempt");
+      return true;
+    });
+    const touchMeaningfulActivity = vi.fn(async () => {
+      order.push("touch-user");
+    });
     const service = serviceWith({
       getAttempt: vi.fn(async () => ownedAttempt),
-      insertResponseIfAbsent: vi.fn(async () => true),
+      lockMeaningfulActivityUser,
+      insertResponseIfAbsent,
       getMasteryBundle: vi.fn(async () => ({ mastery: null, evidence: [], activeReview: null })),
       appendOfficialEvidence,
       writeMastery,
       writeReview: writeReview as LearningTransaction["writeReview"],
       gradeAttempt,
-      touchMeaningfulActivity: vi.fn(async () => undefined),
+      touchMeaningfulActivity,
     });
     const result = await service.submitAttempt(USER_ID, ownedAttempt.attempt.id, {
       itemKey: "main",
@@ -376,6 +398,15 @@ describe("adaptive learning application service", () => {
     expect(writeMastery).toHaveBeenCalledOnce();
     expect(writeReview).toHaveBeenCalledOnce();
     expect(gradeAttempt).toHaveBeenCalledOnce();
+    expect(lockMeaningfulActivityUser).toHaveBeenCalledWith(USER_ID);
+    expect(order).toEqual([
+      "lock-user",
+      "insert-response",
+      "append-evidence",
+      "write-mastery",
+      "grade-attempt",
+      "touch-user",
+    ]);
   });
 
   it("uses durable attempt assistance when a forged client submits A0/false after help and solution reveal", async () => {

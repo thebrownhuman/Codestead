@@ -98,6 +98,9 @@ function createHarness(scenario: CreateScenario = {}) {
       if (scenario.rollbackFails) throw new Error("rollback failed");
       return { rows: [] };
     }
+    if (statement.startsWith("select id from \"user\" where")) {
+      return { rows: [{ id: userId }] };
+    }
     if (statement.startsWith("select id from project where")) {
       return { rows: scenario.owned === false ? [] : [{ id: projectId }] };
     }
@@ -294,6 +297,16 @@ describe("createProjectRevision transaction", () => {
       JSON.stringify({ meaningful: true, policyVersion: "project-revision-meaningful-v1" }),
       now,
     ]);
+    const userLockIndex = harness.calls.findIndex(
+      (call) => call.statement.startsWith("select id from \"user\" where")
+        && call.statement.endsWith("for update"),
+    );
+    const projectLockIndex = harness.calls.findIndex(
+      (call) => call.statement.startsWith("select id from project where")
+        && call.statement.endsWith("for update"),
+    );
+    expect(userLockIndex).toBe(1);
+    expect(projectLockIndex).toBeGreaterThan(userLockIndex);
     expect(harness.calls.at(-1)?.statement).toBe("commit");
     expect(harness.released()).toBe(true);
   });
