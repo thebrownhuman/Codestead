@@ -13,7 +13,11 @@ import type {
 } from "./outbox-worker";
 
 import type { GmailReconciliationFence } from "./gmail-reconciliation";
-import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import {
+  USER_AUTHORITY_ADVISORY_LOCK_SQL,
+  USER_AUTHORITY_TRY_ADVISORY_LOCK_SQL,
+  userAuthorityLockKey,
+} from "@/lib/security/user-authority-lock";
 import {
   accountDeletionNoticeBinding,
   deletionNoticeSecret,
@@ -565,13 +569,13 @@ async function advisoryLock(
 ) {
   if (wait) {
     await client.query(
-      "select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext($1))",
+      USER_AUTHORITY_ADVISORY_LOCK_SQL,
       [key],
     );
     return true;
   }
   const result = await client.query<{ locked: boolean }>(
-    "select pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtext($1)) as locked",
+    USER_AUTHORITY_TRY_ADVISORY_LOCK_SQL,
     [key],
   );
   return result.rows[0]?.locked === true;

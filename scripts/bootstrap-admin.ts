@@ -4,6 +4,7 @@ import { auth } from "../src/lib/auth";
 import { db, pool } from "../src/lib/db/client";
 import { user } from "../src/lib/db/schema";
 import { runAuthorizedBootstrap } from "../src/lib/security/activation-context";
+import { lockUserAuthority } from "../src/lib/security/user-authority-lock";
 
 async function main() {
   const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
@@ -45,15 +46,18 @@ async function main() {
       body: { email, password, name },
     }),
   );
-  await db
-    .update(user)
-    .set({
-      role: "admin",
-      status: "pending",
-      mustChangePassword: true,
-      adultConfirmedAt: new Date(),
-    })
-    .where(eq(user.id, result.user.id));
+  await db.transaction(async (tx) => {
+    await lockUserAuthority(tx, result.user.id);
+    await tx
+      .update(user)
+      .set({
+        role: "admin",
+        status: "pending",
+        mustChangePassword: true,
+        adultConfirmedAt: new Date(),
+      })
+      .where(eq(user.id, result.user.id));
+  });
   console.info(
     JSON.stringify({
       event: "bootstrap_admin.created",
