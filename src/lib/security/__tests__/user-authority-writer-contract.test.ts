@@ -76,6 +76,97 @@ describe("production user-authority writers", () => {
     expect(update).toBeGreaterThan(lock);
   });
 
+  it("serializes lost-device issuance in canonical authority order", () => {
+    const recoverySource = source(
+      "src/lib/security/lost-device-recovery.ts",
+    );
+    expect(recoverySource).toContain(
+      'import { lockUserAuthority } from "@/lib/security/user-authority-lock"',
+    );
+
+    const issueProof = compact(
+      recoverySource.slice(
+        recoverySource.indexOf("export async function issueLostDeviceProof"),
+        recoverySource.indexOf("type VerifiedProof"),
+      ),
+    );
+    const transaction = issueProof.indexOf(
+      "return database.transaction(async (tx)",
+    );
+    const accountLock = issueProof.indexOf(
+      "await lockUserAuthority(tx, candidate.userId)",
+      transaction,
+    );
+    const activeUserRead = issueProof.indexOf(
+      ".select({ id: user.id, name: user.name, email: user.email })",
+      accountLock,
+    );
+    const activeUserLock = issueProof.indexOf(
+      '.for("update")',
+      activeUserRead,
+    );
+    const requestLock = issueProof.indexOf(
+      "`lost-device:${candidate.userId}`",
+      activeUserLock,
+    );
+    const sessionRead = issueProof.indexOf(
+      ".from(session)",
+      requestLock,
+    );
+    const sessionLock = issueProof.indexOf(
+      '.for("update")',
+      sessionRead,
+    );
+    const proofRead = issueProof.indexOf(
+      ".from(lostDeviceProof)",
+      sessionLock,
+    );
+    const proofLock = issueProof.indexOf(
+      '.for("update")',
+      proofRead,
+    );
+    const outboxEnqueue = issueProof.indexOf(
+      "await enqueueEmailInTransaction(tx",
+      proofLock,
+    );
+
+    expect(transaction).toBeGreaterThanOrEqual(0);
+    for (const [earlier, later] of [
+      [transaction, accountLock],
+      [accountLock, activeUserRead],
+      [activeUserRead, activeUserLock],
+      [activeUserLock, requestLock],
+      [requestLock, sessionRead],
+      [sessionRead, sessionLock],
+      [sessionLock, proofRead],
+      [proofRead, proofLock],
+      [proofLock, outboxEnqueue],
+    ]) {
+      expect(later).toBeGreaterThan(earlier);
+    }
+
+    const activeUserBoundary = issueProof.slice(
+      activeUserRead,
+      activeUserLock,
+    );
+    expect(activeUserBoundary).toContain(
+      "eq(user.id, candidate.userId)",
+    );
+    expect(activeUserBoundary).toContain(
+      "sql`lower(${user.email}) = ${normalizedEmail}`",
+    );
+    expect(activeUserBoundary).toContain('eq(user.role, "learner")');
+    expect(activeUserBoundary).toContain('eq(user.status, "active")');
+    expect(activeUserBoundary).toContain("eq(user.emailVerified, true)");
+    expect(activeUserBoundary).toContain("eq(user.banned, false)");
+
+    const afterAccountLock = issueProof.slice(accountLock);
+    expect(afterAccountLock).toContain("to: activeUser.email");
+    expect(afterAccountLock).toContain("name: activeUser.name");
+    expect(afterAccountLock).not.toContain("to: candidate.email");
+    expect(afterAccountLock).not.toContain("name: candidate.name");
+  });
+
   it("keeps generic Better Auth user/admin mutations outside the raw HTTP surface", () => {
     const managementPolicy = source(
       "src/lib/security/better-auth-management-policy.ts",
