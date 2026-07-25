@@ -466,20 +466,19 @@ BEGIN
      WHERE routine.oid = pg_catalog.to_regprocedure(
        'public.enforce_email_outbox_provider_correlation_evidence()'
      )
-       AND expanded.grantee <> routine.proowner
   LOOP
     IF candidate_grantee = 0 THEN
       EXECUTE
         'REVOKE ALL ON FUNCTION ' ||
         'public.enforce_email_outbox_provider_correlation_evidence() ' ||
-        'FROM PUBLIC';
+        'FROM PUBLIC CASCADE';
     ELSE
       candidate_name := pg_catalog.pg_get_userbyid(candidate_grantee);
       IF candidate_name IS NOT NULL THEN
         EXECUTE pg_catalog.format(
           'REVOKE ALL ON FUNCTION ' ||
           'public.enforce_email_outbox_provider_correlation_evidence() ' ||
-          'FROM %I',
+          'FROM %I CASCADE',
           candidate_name
         );
       END IF;
@@ -519,7 +518,7 @@ BEGIN
         'REVOKE ALL (' ||
         'provider_correlation_version, provider_evidence_version, ' ||
         'provider_evidence_sha256' ||
-        ') ON TABLE public.email_outbox FROM PUBLIC';
+        ') ON TABLE public.email_outbox FROM PUBLIC CASCADE';
     ELSE
       candidate_name := pg_catalog.pg_get_userbyid(candidate_grantee);
       IF candidate_name IS NOT NULL THEN
@@ -527,7 +526,7 @@ BEGIN
           'REVOKE ALL (' ||
           'provider_correlation_version, provider_evidence_version, ' ||
           'provider_evidence_sha256' ||
-          ') ON TABLE public.email_outbox FROM %I',
+          ') ON TABLE public.email_outbox FROM %I CASCADE',
           candidate_name
         );
       END IF;
@@ -540,3 +539,99 @@ GRANT UPDATE (
   provider_evidence_version,
   provider_evidence_sha256
 ) ON TABLE public.email_outbox TO learncoding_worker;
+--> statement-breakpoint
+DO $verify_provider_authority_acl$
+DECLARE
+  function_acl_exact boolean;
+  column_acl_exact boolean;
+BEGIN
+  WITH target AS (
+    SELECT routine.oid, routine.proowner
+      FROM pg_catalog.pg_proc AS routine
+     WHERE routine.oid = pg_catalog.to_regprocedure(
+       'public.enforce_email_outbox_provider_correlation_evidence()'
+     )
+  ),
+  observed(grantor, grantee, privilege_type, is_grantable) AS (
+    SELECT expanded.grantor,
+           expanded.grantee,
+           expanded.privilege_type,
+           expanded.is_grantable
+      FROM target
+      CROSS JOIN LATERAL pg_catalog.aclexplode(
+        COALESCE(
+          (
+            SELECT routine.proacl
+              FROM pg_catalog.pg_proc AS routine
+             WHERE routine.oid = target.oid
+          ),
+          pg_catalog.acldefault('f', target.proowner)
+        )
+      ) AS expanded
+  ),
+  expected(grantor, grantee, privilege_type, is_grantable) AS (
+    SELECT owner_role.oid,
+           owner_role.oid,
+           'EXECUTE'::text,
+           false
+      FROM pg_catalog.pg_roles AS owner_role
+     WHERE owner_role.rolname = 'learncoding_owner'
+  )
+  SELECT NOT EXISTS (
+    (SELECT * FROM observed EXCEPT ALL SELECT * FROM expected)
+    UNION ALL
+    (SELECT * FROM expected EXCEPT ALL SELECT * FROM observed)
+  )
+    INTO function_acl_exact;
+
+  WITH observed(
+    column_name, grantor, grantee, privilege_type, is_grantable
+  ) AS (
+    SELECT attribute.attname::text,
+           expanded.grantor,
+           expanded.grantee,
+           expanded.privilege_type,
+           expanded.is_grantable
+      FROM pg_catalog.pg_attribute AS attribute
+      CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS expanded
+     WHERE attribute.attrelid = 'public.email_outbox'::pg_catalog.regclass
+       AND attribute.attname = ANY (ARRAY[
+         'provider_correlation_version',
+         'provider_evidence_version',
+         'provider_evidence_sha256'
+       ]::pg_catalog.name[])
+       AND attribute.attnum > 0
+       AND NOT attribute.attisdropped
+  ),
+  expected(
+    column_name, grantor, grantee, privilege_type, is_grantable
+  ) AS (
+    SELECT column_name,
+           owner_role.oid,
+           worker_role.oid,
+           'UPDATE'::text,
+           false
+      FROM pg_catalog.unnest(ARRAY[
+        'provider_correlation_version',
+        'provider_evidence_version',
+        'provider_evidence_sha256'
+      ]::text[]) AS reviewed(column_name)
+      CROSS JOIN pg_catalog.pg_roles AS owner_role
+      CROSS JOIN pg_catalog.pg_roles AS worker_role
+     WHERE owner_role.rolname = 'learncoding_owner'
+       AND worker_role.rolname = 'learncoding_worker'
+  )
+  SELECT NOT EXISTS (
+    (SELECT * FROM observed EXCEPT ALL SELECT * FROM expected)
+    UNION ALL
+    (SELECT * FROM expected EXCEPT ALL SELECT * FROM observed)
+  )
+    INTO column_acl_exact;
+
+  IF function_acl_exact IS DISTINCT FROM true
+     OR column_acl_exact IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'email outbox provider authority ACL contract is invalid'
+      USING ERRCODE = '42501';
+  END IF;
+END
+$verify_provider_authority_acl$;

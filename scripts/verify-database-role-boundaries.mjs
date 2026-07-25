@@ -636,9 +636,21 @@ export async function verifyMailWorkerOutboxContract(
     || typeof requiresProviderEvidence !== "boolean"
     || (requiresProviderEvidence && !requiresDispatchBinding)
   ) fail();
-  if (REVIEWED_APPLICATION_CONSTRAINTS.length !== 1) fail();
-  const constraint = REVIEWED_APPLICATION_CONSTRAINTS[0];
-  if (!constraint) fail();
+  if (REVIEWED_APPLICATION_CONSTRAINTS.length !== 2) fail();
+  const dispatchConstraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
+    ({ name }) => name === "email_outbox_dispatch_binding_valid",
+  );
+  const providerEvidenceConstraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
+    ({ name }) =>
+      name === "email_outbox_provider_correlation_evidence_valid",
+  );
+  if (
+    !dispatchConstraint
+    || !providerEvidenceConstraint
+    || !/^[0-9a-f]{64}$/u.test(
+      providerEvidenceConstraint.normalizedExpressionSha256,
+    )
+  ) fail();
   const expectedUpdateColumns = requiresProviderEvidence
     ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
     : requiresDispatchBinding
@@ -753,6 +765,56 @@ export async function verifyMailWorkerOutboxContract(
            and constraint_row.conname =
                  $5::text
       ) dispatch_constraint_exact,
+      (
+        select case when $21::boolean then pg_catalog.count(*) = 1
+               and pg_catalog.bool_and(
+                 constraint_row.contype::text
+                   is not distinct from $17::text
+                 and constraint_row.convalidated
+                   is not distinct from $18::boolean
+                 and not constraint_row.connoinherit
+                 and pg_catalog.encode(
+                       pg_catalog.sha256(
+                         pg_catalog.convert_to(
+                           pg_catalog.regexp_replace(
+                             pg_catalog.regexp_replace(
+                               pg_catalog.pg_get_expr(
+                                 constraint_row.conbin,
+                                 constraint_row.conrelid,
+                                 true
+                               ),
+                               '"?email_outbox"?[.]',
+                               '',
+                               'g'
+                             ),
+                             '[[:space:]"]',
+                             '',
+                             'g'
+                           ),
+                           'UTF8'
+                         )
+                       ),
+                       'hex'
+                     ) is not distinct from $19::text
+                 and (
+                   select pg_catalog.array_agg(
+                            attribute.attname::text order by attribute.attname
+                          )
+                     from pg_catalog.unnest(constraint_row.conkey)
+                          constrained(attnum)
+                     join pg_catalog.pg_attribute attribute
+                       on attribute.attrelid = constraint_row.conrelid
+                      and attribute.attnum = constrained.attnum
+                 ) is not distinct from $20::text[]
+               )
+               else pg_catalog.count(*) = 0
+               end
+          from pg_catalog.pg_constraint constraint_row
+         where constraint_row.conrelid =
+                 pg_catalog.to_regclass($15::text)
+           and constraint_row.conname =
+                 $16::text
+      ) provider_evidence_constraint_exact,
       (
         with observed(
           grantor, grantee, privilege_type, is_grantable
@@ -869,13 +931,13 @@ export async function verifyMailWorkerOutboxContract(
       MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
       expectedUpdateColumns,
       ["dispatch_binding_version", "dispatch_binding_sha256"],
-      constraint.relation,
-      constraint.name,
-      constraint.type,
-      constraint.validated,
-      constraint.normalizedExpression,
-      constraint.columns,
-      constraint.relationOwner,
+      dispatchConstraint.relation,
+      dispatchConstraint.name,
+      dispatchConstraint.type,
+      dispatchConstraint.validated,
+      dispatchConstraint.normalizedExpression,
+      dispatchConstraint.columns,
+      dispatchConstraint.relationOwner,
       expectedBindingColumnCount,
       requiresDispatchBinding,
       [
@@ -884,6 +946,13 @@ export async function verifyMailWorkerOutboxContract(
         "provider_evidence_sha256",
       ],
       expectedProviderEvidenceColumnCount,
+      providerEvidenceConstraint.relation,
+      providerEvidenceConstraint.name,
+      providerEvidenceConstraint.type,
+      providerEvidenceConstraint.validated,
+      providerEvidenceConstraint.normalizedExpressionSha256,
+      providerEvidenceConstraint.columns,
+      requiresProviderEvidence,
     ],
   );
   if (
@@ -894,6 +963,7 @@ export async function verifyMailWorkerOutboxContract(
       binding_columns_exact: true,
       provider_evidence_columns_exact: true,
       dispatch_constraint_exact: true,
+      provider_evidence_constraint_exact: true,
       worker_table_direct_acl_exact: true,
       worker_column_direct_acl_exact: true,
       worker_effective_privileges_exact: true,
@@ -925,6 +995,8 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
   ];
   const expectedTriggers = phase?.triggers ?? [];
   const requiresDispatchBinding = phase?.requiresWorkerContract === true;
+  const requiresProviderEvidence =
+    phase?.requiresProviderEvidence === true;
 
   const result = await client.query(
     `
@@ -976,7 +1048,17 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
                       pg_catalog.to_regclass('public.email_outbox')
                 and constraint_row.conname =
                       'email_outbox_dispatch_binding_valid'
-           ) reviewed_constraint_presence_exact`,
+           ) reviewed_constraint_presence_exact,
+           (
+             select pg_catalog.count(*) = (
+                      case when $8::boolean then 1 else 0 end
+                    )
+               from pg_catalog.pg_constraint constraint_row
+              where constraint_row.conrelid =
+                      pg_catalog.to_regclass('public.email_outbox')
+                and constraint_row.conname =
+                      'email_outbox_provider_correlation_evidence_valid'
+           ) reviewed_provider_evidence_constraint_presence_exact`,
     [
       allRoutineSignatures,
       expectedRoutineSignatures,
@@ -985,6 +1067,7 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
       expectedTriggers.map(({ relation }) => relation),
       expectedTriggers.map(({ name }) => name),
       requiresDispatchBinding,
+      requiresProviderEvidence,
     ],
   );
   if (
@@ -993,6 +1076,7 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
       reviewed_routine_presence_exact: true,
       reviewed_trigger_presence_exact: true,
       reviewed_constraint_presence_exact: true,
+      reviewed_provider_evidence_constraint_presence_exact: true,
     })
   )
     fail("reviewed-mail-authority-footprint");
@@ -1006,7 +1090,10 @@ export async function verifyReviewedMailAuthorityCatalogContracts(client) {
   );
   const routinesVerified = await verifyReviewedApplicationRoutines(client);
   const triggersVerified = await verifyReviewedApplicationTriggers(client);
-  const workerContractsVerified = await verifyMailWorkerOutboxContract(client);
+  const workerContractsVerified = await verifyMailWorkerOutboxContract(client, {
+    requiresDispatchBinding: true,
+    requiresProviderEvidence: true,
+  });
   return {
     routinesVerified,
     triggersVerified,

@@ -97,7 +97,7 @@ test("production verifier models the intermediate 0064/0065 and final 0066 grant
 test("0066 migration seals its privileged objects without relying on bootstrap ordering", () => {
   assert.equal(
     sha256(migration),
-    "e017bb05c92c4f7e1ce30bd027043d7f5bc8855a551426c6fecd9575509b00cb",
+    "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9",
   );
   assert.match(
     migration,
@@ -109,7 +109,19 @@ test("0066 migration seals its privileged objects without relying on bootstrap o
   );
   assert.match(
     migration,
-    /REVOKE ALL ON FUNCTION ' \|\|\s*'public\.enforce_email_outbox_provider_correlation_evidence\(\) ' \|\|\s*'FROM PUBLIC'/u,
+    /REVOKE ALL ON FUNCTION ' \|\|\s*'public\.enforce_email_outbox_provider_correlation_evidence\(\) ' \|\|\s*'FROM PUBLIC CASCADE'/u,
+  );
+  assert.match(
+    migration,
+    /public\.enforce_email_outbox_provider_correlation_evidence\(\) ' \|\|\s*'FROM %I CASCADE'/u,
+  );
+  assert.match(
+    migration,
+    /\) ON TABLE public\.email_outbox FROM PUBLIC CASCADE'/u,
+  );
+  assert.match(
+    migration,
+    /\) ON TABLE public\.email_outbox FROM %I CASCADE'/u,
   );
   assert.match(
     migration,
@@ -203,7 +215,7 @@ test("0066 exact routine, trigger, constraint, and phase are frozen in the verif
     "status",
   ]);
   assert.equal(
-    sha256(constraint.normalizedExpression),
+    constraint.normalizedExpressionSha256,
     "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
   );
 
@@ -231,7 +243,7 @@ test("0066 exact routine, trigger, constraint, and phase are frozen in the verif
       createdAt: "1784940000000",
       migrationFile: "0066_mail_outbox_provider_correlation_evidence.sql",
       migrationSha256:
-        "e017bb05c92c4f7e1ce30bd027043d7f5bc8855a551426c6fecd9575509b00cb",
+        "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9",
       requiresWorkerContract: true,
       requiresProviderEvidence: true,
     },
