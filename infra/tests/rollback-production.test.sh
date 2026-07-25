@@ -95,14 +95,18 @@ dispatch_binding_source_ref="$(
 [[ "$dispatch_binding_source_ref" == refs/* ]] || {
   fail "0064 boundary is not reachable from a trusted source ref"
 }
+"${source_git[@]}" merge-base --is-ancestor \
+  "$older_pre_contract_commit" "$dispatch_binding_source_ref" || {
+  fail "0064 fixture ref does not retain the complete legacy rollback ancestry"
+}
 dispatch_binding_source_distance="$(
   "${source_git[@]}" rev-list --count \
-    "$dispatch_binding_boundary_commit..$dispatch_binding_source_ref" | tr -d '\r'
+    "$older_pre_contract_commit..$dispatch_binding_source_ref" | tr -d '\r'
 )"
 [[ "$dispatch_binding_source_distance" =~ ^[0-9]+$ ]] || {
   fail "dispatch binding boundary source distance is invalid"
 }
-dispatch_binding_source_depth="$((dispatch_binding_source_distance + 2))"
+dispatch_binding_source_depth="$((dispatch_binding_source_distance + 1))"
 git -C "$work/repo" remote add dispatch-binding-boundary \
   "ext::git -c safe.directory=$source_git_dir -c uploadpack.allowFilter=true upload-pack $source_git_dir"
 git -C "$work/repo" config extensions.partialClone dispatch-binding-boundary
@@ -116,6 +120,41 @@ git -c protocol.ext.allow=always -C "$work/repo" fetch --quiet --filter=blob:non
 dispatch_binding_boundary_tree="$(
   git -C "$work/repo" rev-parse --verify "${dispatch_binding_boundary_commit}^{tree}"
 )"
+dispatch_binding_pre_boundary_source_commit="$(
+  git -C "$work/repo" rev-parse --verify "${dispatch_binding_boundary_commit}^"
+)"
+dispatch_binding_pre_boundary_source_tree="$(
+  git -C "$work/repo" rev-parse --verify \
+    "${dispatch_binding_pre_boundary_source_commit}^{tree}"
+)"
+dispatch_binding_pre_boundary_target_commit="$(
+  git -C "$work/repo" rev-parse --verify \
+    "${dispatch_binding_pre_boundary_source_commit}^"
+)"
+dispatch_binding_pre_boundary_target_tree="$(
+  git -C "$work/repo" rev-parse --verify \
+    "${dispatch_binding_pre_boundary_target_commit}^{tree}"
+)"
+git -C "$work/repo" merge-base --is-ancestor \
+  "$dispatch_binding_pre_boundary_target_commit" \
+  "$dispatch_binding_pre_boundary_source_commit" || {
+  fail "pre-0064 fixture target is not an ancestor of its source"
+}
+dispatch_binding_pruned_source_commit="$(
+  "${source_git[@]}" rev-parse --verify "${older_pre_contract_commit}^" | tr -d '\r'
+)"
+dispatch_binding_pruned_source_tree="$(
+  "${source_git[@]}" rev-parse --verify \
+    "${dispatch_binding_pruned_source_commit}^{tree}" | tr -d '\r'
+)"
+[[ "$dispatch_binding_pruned_source_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+  && "$dispatch_binding_pruned_source_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+  fail "pruned pre-0064 fixture evidence is malformed"
+}
+if GIT_NO_LAZY_FETCH=1 git -C "$work/repo" cat-file -e \
+    "${dispatch_binding_pruned_source_commit}^{commit}" >/dev/null 2>&1; then
+  fail "pruned pre-0064 fixture object is unexpectedly available"
+fi
 dispatch_binding_index="$work/dispatch-binding.index"
 dispatch_binding_capability_blob="$(
   printf '%s\n' \
@@ -168,6 +207,11 @@ dispatch_binding_unapproved_target_commit="$(
 dispatch_binding_unapproved_target_tree="$(
   git -C "$work/repo" rev-parse --verify 'HEAD^{tree}'
 )"
+dispatch_binding_unapproved_legacy_source_commit="$(
+  printf '%s\n' 'fixture unapproved legacy image without 0064 migration' \
+    | git -C "$work/repo" commit-tree "$dispatch_binding_unapproved_target_tree" \
+      -p "$dispatch_binding_unapproved_target_commit"
+)"
 dispatch_binding_unapproved_migration_blob="$(
   printf '%s\n' '-- unapproved 0064 dispatch binding lineage fixture' \
     | git -C "$work/repo" hash-object -w --stdin
@@ -194,10 +238,10 @@ rm -f -- "$dispatch_binding_index"
   >/dev/null || fail "unable to generate canonical rollback fixture"
 cp "$work/repo/RELEASE.SHA256SUMS" "$work/valid-release-manifest"
 
-previous_commit="1111111111111111111111111111111111111111"
-candidate_commit="2222222222222222222222222222222222222222"
-previous_tree="3333333333333333333333333333333333333333"
-candidate_tree="4444444444444444444444444444444444444444"
+previous_commit="$dispatch_binding_pre_boundary_target_commit"
+candidate_commit="$dispatch_binding_pre_boundary_source_commit"
+previous_tree="$dispatch_binding_pre_boundary_target_tree"
+candidate_tree="$dispatch_binding_pre_boundary_source_tree"
 printf '%s\n' "$previous_commit" >"$work/records/20260719T000000Z-1/git-commit.txt"
 printf '%s\n' "$previous_tree" >"$work/records/20260719T000000Z-1/git-tree.txt"
 printf '%s\n' 'previous verified application image record bytes' \
@@ -775,6 +819,116 @@ if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/
   fail "0064 no-binding rollback refusal disclosed Git or capability hashes"
 fi
 echo "ok - rollback refuses a pre-capability image after 0064 regardless of operator assertion"
+
+v2_dispatch_binding_lineage_failures=0
+check_v2_dispatch_binding_lineage_refusal() {
+  local scenario="$1" source_commit="$2" source_tree="$3"
+  local target_commit="$4" target_tree="$5" expected_error="$6"
+  local backup="$work/$scenario.valid.override.yaml" case_failed=false
+  set_rollback_git_evidence \
+    "$source_commit" "$source_tree" "$target_commit" "$target_tree"
+  cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" "$backup"
+  printf '%s\n' 'not-services:' \
+    >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+  run_rollback "$scenario" --schema-backward-compatible
+  mv "$backup" "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+  chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+  if [[ "$ROLLBACK_STATUS" == 0 ]]; then
+    case_failed=true
+  fi
+  assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "$scenario refusal"
+  [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "$scenario refusal reached smoke"
+  [[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "$scenario refusal wrote stdout"
+  if ! grep -Fq "$expected_error" "$ROLLBACK_CASE/stderr"; then
+    case_failed=true
+  fi
+  if grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr"; then
+    case_failed=true
+  fi
+  if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+    "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+    fail "$scenario refusal disclosed Git hashes"
+  fi
+  if [[ "$case_failed" == true ]]; then
+    printf 'unsafe V2 dispatch-binding lineage case: %s\n' "$scenario" >&2
+    v2_dispatch_binding_lineage_failures="$((v2_dispatch_binding_lineage_failures + 1))"
+  fi
+}
+
+check_v2_dispatch_binding_lineage_refusal \
+  dispatch-binding-v2-unrelated-no-migration \
+  "$dispatch_binding_unapproved_legacy_source_commit" \
+  "$dispatch_binding_unapproved_target_tree" \
+  "$dispatch_binding_unapproved_target_commit" \
+  "$dispatch_binding_unapproved_target_tree" \
+  'legacy mail outbox contract evidence requires exact source and previous images strictly before 0064_mail_outbox_dispatch_binding'
+check_v2_dispatch_binding_lineage_refusal \
+  dispatch-binding-v2-unknown-source \
+  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  "$dispatch_binding_pre_boundary_target_commit" \
+  "$dispatch_binding_pre_boundary_target_tree" \
+  'unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage'
+check_v2_dispatch_binding_lineage_refusal \
+  dispatch-binding-v2-unknown-target \
+  "$dispatch_binding_pre_boundary_source_commit" \
+  "$dispatch_binding_pre_boundary_source_tree" \
+  cccccccccccccccccccccccccccccccccccccccc \
+  dddddddddddddddddddddddddddddddddddddddd \
+  'unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage'
+check_v2_dispatch_binding_lineage_refusal \
+  dispatch-binding-v2-pruned-shallow-target \
+  "$older_pre_contract_commit" "$older_pre_contract_tree" \
+  "$dispatch_binding_pruned_source_commit" "$dispatch_binding_pruned_source_tree" \
+  'unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage'
+check_v2_dispatch_binding_lineage_refusal \
+  dispatch-binding-v2-source-tree-mismatch \
+  "$dispatch_binding_pre_boundary_source_commit" "$dispatch_binding_boundary_tree" \
+  "$dispatch_binding_pre_boundary_target_commit" \
+  "$dispatch_binding_pre_boundary_target_tree" \
+  'trusted 0064 release Git tree evidence does not match repository objects'
+check_v2_dispatch_binding_lineage_refusal \
+  dispatch-binding-v2-target-tree-mismatch \
+  "$dispatch_binding_pre_boundary_source_commit" \
+  "$dispatch_binding_pre_boundary_source_tree" \
+  "$dispatch_binding_pre_boundary_target_commit" "$dispatch_binding_boundary_tree" \
+  'trusted 0064 release Git tree evidence does not match repository objects'
+check_v2_dispatch_binding_lineage_refusal \
+  dispatch-binding-v2-nonancestor \
+  "$dispatch_binding_pre_boundary_target_commit" \
+  "$dispatch_binding_pre_boundary_target_tree" \
+  "$dispatch_binding_pre_boundary_source_commit" \
+  "$dispatch_binding_pre_boundary_source_tree" \
+  'the previous image is not an ancestor of the recorded source image'
+(( v2_dispatch_binding_lineage_failures == 0 )) || {
+  fail "$v2_dispatch_binding_lineage_failures unsafe V2 dispatch-binding lineage cases reached later rollback validation"
+}
+echo "ok - V2 rollback requires exact local strictly pre-0064 source and target lineage"
+
+set_rollback_git_evidence \
+  "$dispatch_binding_pre_boundary_source_commit" \
+  "$dispatch_binding_pre_boundary_source_tree" \
+  "$dispatch_binding_pre_boundary_target_commit" \
+  "$dispatch_binding_pre_boundary_target_tree"
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/dispatch-binding-v2-pre-boundary-valid.override.yaml"
+printf '%s\n' 'not-services:' \
+  >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+run_rollback dispatch-binding-v2-exact-pre-boundary --schema-backward-compatible
+mv "$work/dispatch-binding-v2-pre-boundary-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "exact pre-0064 V2 gate fixture unexpectedly completed rollback"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "exact pre-0064 V2 gate"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "exact pre-0064 V2 gate reached smoke"
+grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" || {
+  fail "exact local pre-0064 V2 evidence did not pass the dispatch-binding lineage gate"
+}
+if grep -Eq '0064_mail_outbox_dispatch_binding|trusted 0064 release' \
+  "$ROLLBACK_CASE/stderr"; then
+  fail "exact local pre-0064 V2 evidence was rejected by the dispatch-binding lineage gate"
+fi
+echo "ok - rollback permits exact local V2 lineage only wholly before 0064"
 
 set_rollback_git_evidence \
   "$dispatch_binding_unapproved_source_commit" "$dispatch_binding_unapproved_source_tree" \

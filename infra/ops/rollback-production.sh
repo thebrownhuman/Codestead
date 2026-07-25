@@ -1035,45 +1035,24 @@ load_dispatch_binding_capability() {
 }
 
 verify_dispatch_binding_rollback_contract() {
-  local record_tree_from_git previous_tree_from_git
+  local commit record_tree_from_git previous_tree_from_git
   local source_contains_boundary=false target_contains_boundary=false
+  local source_predates_boundary=false target_predates_boundary=false
+  local source_contains_migration=false target_contains_migration=false
+  local source_migration_entry target_migration_entry
   local source_runtime source_privilege target_runtime target_privilege
-  if ! run_local_evidence_git cat-file -e \
-      "${mail_outbox_dispatch_binding_boundary_commit}^{commit}" >/dev/null 2>&1; then
-    if [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ]] \
-      || run_local_evidence_git cat-file -e \
-        "$record_git_commit:drizzle/0064_mail_outbox_dispatch_binding.sql" \
-        >/dev/null 2>&1; then
-      fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
-    fi
-    return 0
-  fi
-  if ! run_local_evidence_git cat-file -e \
-      "${record_git_commit}^{commit}" >/dev/null 2>&1; then
-    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
+
+  for commit in "$mail_outbox_dispatch_binding_boundary_commit" \
+    "$record_git_commit" "$previous_git_commit"; do
+    run_local_evidence_git cat-file -e "${commit}^{commit}" \
+      >/dev/null 2>&1 || {
       fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
     }
-    return 0
-  fi
-  if git_commit_is_ancestor \
-      "$mail_outbox_dispatch_binding_boundary_commit" "$record_git_commit"; then
-    source_contains_boundary=true
-  fi
-  if [[ "$source_contains_boundary" != true ]]; then
-    if run_local_evidence_git cat-file -e \
-      "$record_git_commit:drizzle/0064_mail_outbox_dispatch_binding.sql" \
-      >/dev/null 2>&1; then
-      fatal "0064_mail_outbox_dispatch_binding exists outside its approved Git lineage"
-    fi
-    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
-      fatal "SCHEMA_VERSION=3 dispatch binding evidence is not bound to the 0064 authority lineage"
-    }
-    return 0
-  fi
-  run_local_evidence_git cat-file -e \
-    "${previous_git_commit}^{commit}" >/dev/null 2>&1 || {
-    fatal "unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage"
-  }
+  done
+  for commit in "$record_git_commit" "$previous_git_commit"; do
+    run_local_evidence_git cat-file -e "${commit}^{tree}" \
+      >/dev/null 2>&1 || fatal "unable to verify trusted 0064 release Git trees"
+  done
   record_tree_from_git="$(run_local_evidence_git rev-parse --verify \
     "${record_git_commit}^{tree}" 2>/dev/null)" || {
     fatal "unable to verify trusted 0064 release Git trees"
@@ -1087,8 +1066,54 @@ verify_dispatch_binding_rollback_contract() {
     fatal "trusted 0064 release Git tree evidence does not match repository objects"
   }
   git_commit_is_ancestor "$previous_git_commit" "$record_git_commit" || {
-    fatal "the previous image is not an ancestor of the 0064 release image"
+    fatal "the previous image is not an ancestor of the recorded source image"
   }
+
+  if git_commit_is_strictly_before_boundary \
+      "$record_git_commit" "$mail_outbox_dispatch_binding_boundary_commit"; then
+    source_predates_boundary=true
+  fi
+  if git_commit_is_strictly_before_boundary \
+      "$previous_git_commit" "$mail_outbox_dispatch_binding_boundary_commit"; then
+    target_predates_boundary=true
+  fi
+  source_migration_entry="$(run_local_evidence_git ls-tree "$record_git_commit" -- \
+    drizzle/0064_mail_outbox_dispatch_binding.sql 2>/dev/null)" || {
+    fatal "unable to verify the source 0064 migration tree"
+  }
+  target_migration_entry="$(run_local_evidence_git ls-tree "$previous_git_commit" -- \
+    drizzle/0064_mail_outbox_dispatch_binding.sql 2>/dev/null)" || {
+    fatal "unable to verify the previous 0064 migration tree"
+  }
+  [[ -z "$source_migration_entry" ]] || source_contains_migration=true
+  [[ -z "$target_migration_entry" ]] || target_contains_migration=true
+
+  if [[ "$source_predates_boundary" == true \
+    && "$target_predates_boundary" == true ]]; then
+    [[ "$source_contains_migration" != true \
+      && "$target_contains_migration" != true ]] || {
+      fatal "0064_mail_outbox_dispatch_binding exists before its approved Git lineage"
+    }
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
+      fatal "SCHEMA_VERSION=3 dispatch binding evidence is not bound to the 0064 authority lineage"
+    }
+    return 0
+  fi
+
+  if git_commit_is_ancestor \
+      "$mail_outbox_dispatch_binding_boundary_commit" "$record_git_commit"; then
+    source_contains_boundary=true
+  fi
+  if [[ "$source_contains_boundary" != true ]]; then
+    [[ "$source_contains_migration" != true ]] || {
+      fatal "0064_mail_outbox_dispatch_binding exists outside its approved Git lineage"
+    }
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
+      fatal "SCHEMA_VERSION=3 dispatch binding evidence is not bound to the 0064 authority lineage"
+    }
+    fatal "legacy mail outbox contract evidence requires exact source and previous images strictly before 0064_mail_outbox_dispatch_binding"
+  fi
+
   [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ]] || {
     fatal "0064_mail_outbox_dispatch_binding is forward-only; SCHEMA_VERSION=3 exact dispatch binding capability evidence is required"
   }
