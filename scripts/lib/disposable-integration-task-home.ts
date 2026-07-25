@@ -12,8 +12,9 @@ import path from "node:path";
 
 import { disposableIntegrationFailure } from
   "./disposable-integration-error";
-import { secureWindowsPathForCurrentUser } from
-  "./windows-current-user-acl";
+import { secureDisposableWindowsPath } from "./disposable-windows-acl";
+
+export { parseWindowsWhoamiUserSid } from "./disposable-windows-acl";
 
 const TASK_HOME_MODE = 0o700;
 
@@ -34,9 +35,9 @@ export type DisposableIntegrationTaskHome = Readonly<{
 }>;
 
 function secureWindowsDirectory(directoryPath: string): void {
-  secureWindowsPathForCurrentUser({
+  secureDisposableWindowsPath({
     targetPath: directoryPath,
-    permissions: "(OI)(CI)F",
+    kind: "directory",
     failureCode: "task_home_windows_acl_failed",
   });
 }

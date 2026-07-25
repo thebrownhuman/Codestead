@@ -16,8 +16,7 @@ import {
   disposableIntegrationFailure,
 } from
   "./disposable-integration-error";
-import { secureWindowsPathForCurrentUser } from
-  "./windows-current-user-acl";
+import { secureDisposableWindowsPath } from "./disposable-windows-acl";
 
 const PASSWORD_FILE_NAME = "postgres-password";
 const PASSWORD_FILE_MODE = 0o600;
@@ -58,12 +57,9 @@ function secureWindowsPath(
   targetPath: string,
   kind: "directory" | "file",
 ): void {
-  const permissions = kind === "directory"
-    ? "(OI)(CI)F"
-    : "(R,W,D)";
-  secureWindowsPathForCurrentUser({
+  secureDisposableWindowsPath({
     targetPath,
-    permissions,
+    kind,
     failureCode: "password_file_windows_acl_failed",
   });
 }

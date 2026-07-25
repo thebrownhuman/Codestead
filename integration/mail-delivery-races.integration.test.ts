@@ -11,6 +11,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
@@ -22,6 +23,12 @@ import {
   type PreparedDispatchEnvelope,
 } from "@/lib/notifications/guarded-prepared-dispatch";
 import {
+  disarmMailDispatchHardWatchdog,
+  startMailDispatchHardWatchdog,
+  type ArmedMailDispatchHardWatchdog,
+  type MailDispatchHardWatchdog,
+} from "@/lib/notifications/mail-dispatch-hard-watchdog";
+import {
   inspectMailDispatchRuntime,
   type MailDispatchRuntimeStartupInspection,
 } from "@/lib/notifications/mail-dispatch-runtime-startup";
@@ -29,8 +36,11 @@ import {
   captureMailTransportConfiguration,
 } from "@/lib/notifications/mailer-transport-internal";
 import {
+  authorizeCommittedPreparedDispatch,
+  guardedDispatchResultSafeToDisarm,
   mailDispatchPreparedRuntimePlan,
   PostgresOutboxStore,
+  releaseGuardedDispatchWatchdogClaim,
   type EmailOutboxPayload,
   type OutboxPgClient,
   type OutboxPgPool,
@@ -40,15 +50,23 @@ import {
   PRODUCTION_EMAIL_TEMPLATES,
   type EmailTemplate,
 } from "@/lib/notifications/template-authority-policy";
+import {
+  USER_AUTHORITY_ADVISORY_LOCK_SQL,
+  userAuthorityLockKey,
+} from "@/lib/security/user-authority-lock";
 import type {
+  GuardedDispatchResult,
   OutboxClaim,
   ProviderCallPermit,
 } from "@/lib/notifications/outbox-worker";
 
 const ADMIN_ID = "mail-race-admin";
 const LEARNER_ID = "mail-race-learner";
+const SECONDARY_USER_ID = "mail-race-secondary";
 const LEARNER_PUBLIC_ID = "90000000-0000-4000-8000-000000000001";
+const SECONDARY_PUBLIC_ID = "90000000-0000-4000-8000-000000000002";
 const LEARNER_EMAIL = "mail-race-learner@integration.invalid";
+const SECONDARY_EMAIL = "mail-race-secondary@integration.invalid";
 
 const ROW_IDS = [
   "91000000-0000-4000-8000-000000000001",
@@ -67,6 +85,25 @@ const STALE_TOKENS = [
   "94000000-0000-4000-8000-000000000001",
   "94000000-0000-4000-8000-000000000002",
 ] as const;
+
+const BACKUP_AUTHORITY_IDS = [
+  "96000000-0000-4000-8000-000000000001",
+  "96000000-0000-4000-8000-000000000002",
+] as const;
+const BACKUP_OUTBOX_IDS = [
+  "97000000-0000-4000-8000-000000000001",
+  "97000000-0000-4000-8000-000000000002",
+] as const;
+const BACKUP_OPERATION_IDS = [
+  "98000000-0000-4000-8000-000000000001",
+  "98000000-0000-4000-8000-000000000002",
+] as const;
+const BACKUP_RUN_KEYS = [
+  "20260725T000001Z",
+  "20260725T000002Z",
+] as const;
+const BACKUP_SUCCESS_SUMMARY =
+  "The nightly encrypted backup completed and passed local verification. No archive is attached to this email.";
 
 const ZERO_ERASURE_SUMMARY = {
   total: 0,
@@ -100,12 +137,14 @@ function normalizeSql(text: string) {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((done) => {
+function deferred<T = void>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
     resolve = done;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 async function within<T>(promise: Promise<T>, label: string, timeoutMs = 3_000): Promise<T> {
@@ -282,9 +321,20 @@ const mailPool = new Pool({
     process.env.DATABASE_WORKER_URL
     ?? process.env.DATABASE_URL
     ?? "postgresql://learncoding:learncoding@localhost:5432/learncoding",
-  connectionTimeoutMillis: 5_000,
+  connectionTimeoutMillis: 2_000,
   idleTimeoutMillis: 30_000,
   max: 3,
+});
+
+const adminWriterPool = new Pool({
+  application_name: "codestead_admin_epoch_writer",
+  connectionString:
+    process.env.DATABASE_APP_URL
+    ?? process.env.DATABASE_URL
+    ?? "postgresql://learncoding:learncoding@localhost:5432/learncoding",
+  connectionTimeoutMillis: 2_000,
+  idleTimeoutMillis: 30_000,
+  max: 1,
 });
 
 let mailInspection: MailDispatchRuntimeStartupInspection | null = null;
@@ -292,7 +342,7 @@ let mailInspection: MailDispatchRuntimeStartupInspection | null = null;
 class InstrumentedPool implements OutboxPgPool {
   readonly options = Object.freeze({
     max: 3,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 2_000,
     idleTimeoutMillis: 30_000,
   });
 
@@ -393,6 +443,50 @@ async function beginBoundary(
   });
 }
 
+type GuardedDispatchRun = Readonly<{
+  store: PostgresOutboxStore;
+  controller: MailDispatchHardWatchdog;
+  armed: ArmedMailDispatchHardWatchdog;
+  completion: Promise<GuardedDispatchResult>;
+}>;
+
+async function startGuardedGmailDispatch(
+  claim: OutboxClaim<EmailOutboxPayload>,
+  selectedStore: PostgresOutboxStore,
+): Promise<GuardedDispatchRun> {
+  const boundary = await beginBoundary(claim, selectedStore, "gmail");
+  if (boundary.kind !== "applied") {
+    throw new Error(`Expected applied Gmail boundary, got ${boundary.kind}.`);
+  }
+  const guarded = await authorizeCommittedPreparedDispatch(
+    selectedStore,
+    boundary.receipt,
+  );
+  const controller = await startMailDispatchHardWatchdog();
+  const armed = await controller.arm();
+  const completion = selectedStore.dispatchAfterProviderBoundary(
+    boundary.permit,
+    guarded,
+    armed,
+  );
+  return { store: selectedStore, controller, armed, completion };
+}
+
+async function completeGuardedDispatch(
+  run: GuardedDispatchRun,
+): Promise<GuardedDispatchResult> {
+  const result = await within(run.completion, "guarded Gmail dispatch", 10_000);
+  expect(
+    guardedDispatchResultSafeToDisarm(run.store, run.armed, result),
+  ).toBe(true);
+  expect(
+    guardedDispatchResultSafeToDisarm(run.store, run.armed, result),
+  ).toBe(false);
+  await disarmMailDispatchHardWatchdog(run.armed);
+  expect(releaseGuardedDispatchWatchdogClaim(run.store, run.armed)).toBe(true);
+  await run.controller.close();
+  return result;
+}
 function assertDisposableDatabase() {
   const connectionString = process.env.DATABASE_URL ?? "";
   if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
@@ -438,6 +532,84 @@ async function waitForAdvisoryWaiters(blockerPid: number, expectedCount: number)
   throw new Error(`Expected ${expectedCount} operation(s) to wait on advisory lock held by PID ${blockerPid}.`);
 }
 
+type AdvisoryBlock = Readonly<{
+  blocker_pid: number;
+  blocker_role: string;
+  blocker_application: string;
+  waiter_pid: number;
+  waiter_role: string;
+  waiter_application: string;
+  waiter_query: string;
+  wait_event_type: string | null;
+  wait_event: string | null;
+  classid: string;
+  objid: string;
+}>;
+
+async function waitForAdvisoryBlock(
+  blockerPid: number,
+  label: string,
+): Promise<AdvisoryBlock> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const result = await pool.query<AdvisoryBlock>(`
+      select blocker.pid::integer as blocker_pid,
+             blocker_activity.usename::text as blocker_role,
+             coalesce(blocker_activity.application_name, '')::text
+               as blocker_application,
+             waiter.pid::integer as waiter_pid,
+             waiter_activity.usename::text as waiter_role,
+             coalesce(waiter_activity.application_name, '')::text
+               as waiter_application,
+             waiter_activity.query::text as waiter_query,
+             waiter_activity.wait_event_type::text as wait_event_type,
+             waiter_activity.wait_event::text as wait_event,
+             blocker.classid::text as classid,
+             blocker.objid::text as objid
+        from pg_catalog.pg_locks as blocker
+        join pg_catalog.pg_locks as waiter
+          on waiter.locktype = blocker.locktype
+         and waiter.database is not distinct from blocker.database
+         and waiter.classid is not distinct from blocker.classid
+         and waiter.objid is not distinct from blocker.objid
+         and waiter.objsubid is not distinct from blocker.objsubid
+        join pg_catalog.pg_stat_activity as blocker_activity
+          on blocker_activity.pid = blocker.pid
+        join pg_catalog.pg_stat_activity as waiter_activity
+          on waiter_activity.pid = waiter.pid
+       where blocker.pid = $1
+         and blocker.locktype = 'advisory'
+         and blocker.granted
+         and not waiter.granted
+         and waiter.pid <> blocker.pid
+       order by waiter.pid
+    `, [blockerPid]);
+    if (result.rows.length === 1) return result.rows[0]!;
+    if (result.rows.length > 1) {
+      throw new Error(`${label} had multiple advisory waiters.`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`${label} did not expose its advisory blocker in time.`);
+}
+
+function expectAdvisoryLockCoordinates(block: AdvisoryBlock) {
+  expect(block.classid).toMatch(/^(?:0|[1-9][0-9]*)$/u);
+  expect(block.objid).toMatch(/^(?:0|[1-9][0-9]*)$/u);
+}
+
+async function deadlockCount(): Promise<bigint> {
+  const result = await pool.query<{ deadlocks: string }>(`
+    select deadlocks::text as deadlocks
+      from pg_catalog.pg_stat_database
+     where datname = pg_catalog.current_database()
+  `);
+  const value = result.rows[0]?.deadlocks;
+  if (!value || !/^(?:0|[1-9][0-9]*)$/u.test(value)) {
+    throw new Error("PostgreSQL deadlock counter is unavailable.");
+  }
+  return BigInt(value);
+}
 async function seedOutboxRows(kind: "pending" | "expired-pre-provider", count = 2) {
   const now = Date.now();
   await db.insert(emailOutbox).values(
@@ -460,6 +632,222 @@ async function seedOutboxRows(kind: "pending" | "expired-pre-provider", count = 
       nextAttemptAt: new Date(now - 180_000 + index),
     })),
   );
+}
+
+type BackupAuthorityFixture = Readonly<{
+  authorityEpoch: string;
+  authorityId: string;
+  outboxId: string;
+  operationId: string;
+  runKey: string;
+}>;
+
+async function adminAuthorityEpoch(): Promise<string> {
+  const result = await pool.query<{ authority_epoch: string }>(`
+    select authority_epoch::text as authority_epoch
+      from public.backup_status_mail_admin_guard
+     where singleton is true
+  `);
+  const value = result.rows[0]?.authority_epoch;
+  if (!value) {
+    throw new Error("Backup-status administrator authority guard is missing.");
+  }
+  return value;
+}
+
+type AdministratorHandoffState = Readonly<{
+  active_admins: number;
+  prior_role: string;
+  source_epoch: string;
+  successor_role: string;
+}>;
+
+async function administratorHandoffState(
+  authorityId: string,
+): Promise<AdministratorHandoffState> {
+  const result = await pool.query<AdministratorHandoffState>(`
+    select (
+             select pg_catalog.count(*)::integer
+               from public."user"
+              where role = 'admin'
+                and status = 'active'
+                and coalesce(banned, false) = false
+           ) as active_admins,
+           (
+             select role::text
+               from public."user"
+              where id = $2::text
+           ) as prior_role,
+           source.authority_epoch::text as source_epoch,
+           (
+             select role::text
+               from public."user"
+              where id = $3::text
+           ) as successor_role
+      from public.backup_status_mail_authority as source
+     where source.id = $1::uuid
+  `, [authorityId, ADMIN_ID, SECONDARY_USER_ID]);
+  if (result.rows.length !== 1) {
+    throw new Error("Administrator handoff authority evidence is missing.");
+  }
+  return result.rows[0]!;
+}
+
+async function seedBackupStatusOutbox(
+  index: 0 | 1,
+): Promise<BackupAuthorityFixture> {
+  const client = await pool.connect();
+  let open = false;
+  try {
+    await client.query("begin");
+    open = true;
+    const authorityEpoch = await client.query<{ authority_epoch: string }>(`
+      select authority_epoch::text as authority_epoch
+        from public.backup_status_mail_admin_guard
+       where singleton is true
+    `);
+    const selectedEpoch = authorityEpoch.rows[0]?.authority_epoch;
+    if (!selectedEpoch) {
+      throw new Error("Backup-status administrator authority guard is missing.");
+    }
+
+    await client.query(`
+      insert into public.email_outbox (
+        id,
+        operation_id,
+        user_id,
+        delivery_scope_key,
+        to_email,
+        template,
+        template_version,
+        variables,
+        idempotency_key
+      ) values (
+        $1::uuid,
+        $2::uuid,
+        $3::text,
+        'a:' || $3::text,
+        $4::text,
+        'backup-status',
+        '1',
+        pg_catalog.jsonb_build_object(
+          'name',
+          'Administrator',
+          'summary',
+          $5::text
+        ),
+        'backup-status:v1:' || $6::text
+      )
+    `, [
+      BACKUP_OUTBOX_IDS[index],
+      BACKUP_OPERATION_IDS[index],
+      ADMIN_ID,
+      "mail-race-admin@integration.invalid",
+      BACKUP_SUCCESS_SUMMARY,
+      BACKUP_RUN_KEYS[index],
+    ]);
+    await client.query(`
+      insert into public.backup_status_mail_authority (
+        id,
+        run_key,
+        outcome,
+        outbox_id,
+        operation_id,
+        authority_epoch
+      ) values (
+        $1::uuid,
+        $2::text,
+        'success',
+        $3::uuid,
+        $4::uuid,
+        $5::uuid
+      )
+    `, [
+      BACKUP_AUTHORITY_IDS[index],
+      BACKUP_RUN_KEYS[index],
+      BACKUP_OUTBOX_IDS[index],
+      BACKUP_OPERATION_IDS[index],
+      selectedEpoch,
+    ]);
+    await client.query("commit");
+    open = false;
+    return {
+      authorityEpoch: selectedEpoch,
+      authorityId: BACKUP_AUTHORITY_IDS[index],
+      outboxId: BACKUP_OUTBOX_IDS[index],
+      operationId: BACKUP_OPERATION_IDS[index],
+      runKey: BACKUP_RUN_KEYS[index],
+    };
+  } catch (error) {
+    if (open) await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+type AdminHandoffTransaction = Readonly<{
+  client: PoolClient;
+  pid: number;
+}>;
+
+async function beginAdminHandoffTransaction(): Promise<AdminHandoffTransaction> {
+  const client = await adminWriterPool.connect();
+  let open = false;
+  try {
+    await client.query("begin");
+    open = true;
+    const pid = (
+      await client.query<{ pid: number }>(
+        "select pg_catalog.pg_backend_pid()::integer as pid",
+      )
+    ).rows[0]!.pid;
+    return { client, pid };
+  } catch (error) {
+    if (open) await client.query("rollback").catch(() => undefined);
+    client.release();
+    throw error;
+  }
+}
+
+async function transferAdministratorAuthority(client: PoolClient) {
+  const userIds = [ADMIN_ID, SECONDARY_USER_ID].sort();
+  for (const userId of userIds) {
+    await client.query(
+      USER_AUTHORITY_ADVISORY_LOCK_SQL,
+      [userAuthorityLockKey(userId)],
+    );
+  }
+  for (const userId of userIds) {
+    const locked = await client.query<{ id: string }>(`
+      select id
+        from public."user"
+       where id = $1::text
+       for update
+    `, [userId]);
+    if (locked.rows.length !== 1) {
+      throw new Error("Administrator handoff user is missing.");
+    }
+  }
+
+  const demoted = await client.query(`
+    update public."user"
+       set role = 'learner'
+     where id = $1::text
+       and role = 'admin'
+  `, [ADMIN_ID]);
+  if (demoted.rowCount !== 1) {
+    throw new Error("Current administrator was not demoted exactly once.");
+  }
+  const promoted = await client.query(`
+    update public."user"
+       set role = 'admin'
+     where id = $1::text
+       and role = 'learner'
+  `, [SECONDARY_USER_ID]);
+  if (promoted.rowCount !== 1) {
+    throw new Error("Successor administrator was not promoted exactly once.");
+  }
 }
 
 async function requireClaim(
@@ -590,6 +978,15 @@ beforeEach(async () => {
       publicId: LEARNER_PUBLIC_ID,
       name: "Mail Race Learner",
       email: LEARNER_EMAIL,
+      emailVerified: true,
+      role: "learner",
+      status: "active",
+    },
+    {
+      id: SECONDARY_USER_ID,
+      publicId: SECONDARY_PUBLIC_ID,
+      name: "Mail Race Secondary",
+      email: SECONDARY_EMAIL,
       role: "learner",
       status: "active",
     },
@@ -597,6 +994,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   if (objectStorageRoot) {
     await rm(objectStorageRoot, { recursive: true, force: true });
     objectStorageRoot = "";
@@ -608,6 +1007,7 @@ afterAll(async () => {
   else process.env.DELETION_TOMBSTONE_KEY = previousDeletionKey;
   await Promise.all([
     mailPool.end(),
+    adminWriterPool.end(),
     pool.end(),
   ]);
 });
@@ -984,77 +1384,513 @@ describe("real PostgreSQL mail delivery races", () => {
       last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
     });
   });
-  it("makes a committed provider boundary win when deletion queues behind its account lock", async () => {
+  it("makes deletion win the account lock before TX1 with provider callback zero", async () => {
+    vi.stubEnv("GMAIL_CLIENT_ID", "integration-client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "integration-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "integration-refresh");
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+      throw new Error("Provider transport must not run after deletion wins.");
+    });
+    vi.stubGlobal("fetch", fetch);
+
     await seedOutboxRows("pending", 1);
-    const claim = await requireClaim(CLAIM_TOKENS[0], "boundary-before-deletion-worker");
-    const boundaryPause = new QueryPause();
-    const boundaryStore = await instrumentedStore(new InstrumentedPool({
-      after: async (event) => {
-        if (isBlockingAdvisoryLock(event.sql)) await boundaryPause.hold(event.pid);
+    const boundaryPid = deferred<number>();
+    let observeBoundaryLock = false;
+    const selectedStore = await instrumentedStore(new InstrumentedPool({
+      before: async (event) => {
+        if (observeBoundaryLock && isBlockingAdvisoryLock(event.sql)) {
+          observeBoundaryLock = false;
+          boundaryPid.resolve(event.pid);
+        }
       },
     }));
-    const boundary = beginBoundary(claim, boundaryStore);
-    await within(boundaryPause.reached, "provider boundary account lock");
-    const deletion = deleteLearnerAccount(
-      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000001"),
-      zeroErasureDependencies(),
+    const claim = await requireClaim(
+      CLAIM_TOKENS[0],
+      "deletion-first-real-worker",
+      selectedStore,
     );
+    const deadlocksBefore = await deadlockCount();
+    const runnerBarrier = await pool.connect();
+    let barrierOpen = false;
+    let deletion: ReturnType<typeof deleteLearnerAccount> | null = null;
+    let boundary: ReturnType<typeof beginBoundary> | null = null;
+    let deletionBlock: AdvisoryBlock | null = null;
+    let boundaryBlock: AdvisoryBlock | null = null;
+    let providerCallsWhileBlocked = -1;
+    let boundaryOutcome: Awaited<ReturnType<typeof beginBoundary>> | null = null;
+    let deletionReport: Awaited<ReturnType<typeof deleteLearnerAccount>> | null = null;
 
-    let waitError: unknown = null;
     try {
-      await waitForAdvisoryWaiters(boundaryPause.pid!, 1);
-    } catch (error) {
-      waitError = error;
+      await runnerBarrier.query("begin");
+      barrierOpen = true;
+      await runnerBarrier.query(
+        "select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext($1))",
+        [`runner-learner:${LEARNER_ID}`],
+      );
+      const runnerBarrierPid = (
+        await runnerBarrier.query<{ pid: number }>(
+          "select pg_catalog.pg_backend_pid()::integer as pid",
+        )
+      ).rows[0]!.pid;
+
+      deletion = deleteLearnerAccount(
+        deletionInput(
+          objectStorageRoot,
+          "95000000-0000-4000-8000-000000000002",
+        ),
+        zeroErasureDependencies(),
+      );
+      deletionBlock = await waitForAdvisoryBlock(
+        runnerBarrierPid,
+        "deletion waiting behind the runner barrier",
+      );
+
+      observeBoundaryLock = true;
+      boundary = beginBoundary(claim, selectedStore, "gmail");
+      const workerPid = await within(
+        boundaryPid.promise,
+        "TX1 account-lock attempt",
+      );
+      boundaryBlock = await waitForAdvisoryBlock(
+        deletionBlock.waiter_pid,
+        "TX1 waiting behind deletion authority",
+      );
+      providerCallsWhileBlocked = fetch.mock.calls.length;
+
+      await runnerBarrier.query("commit");
+      barrierOpen = false;
+      [boundaryOutcome, deletionReport] = await Promise.all([
+        boundary,
+        deletion,
+      ]);
+
+      expect(boundaryBlock.waiter_pid).toBe(workerPid);
     } finally {
-      boundaryPause.release();
+      if (barrierOpen) await runnerBarrier.query("rollback").catch(() => undefined);
+      runnerBarrier.release();
+      await Promise.allSettled([
+        ...(boundary ? [boundary] : []),
+        ...(deletion ? [deletion] : []),
+      ]);
     }
-    const [boundaryOutcome, deletionOutcome] = await Promise.allSettled([boundary, deletion]);
-    if (waitError) throw waitError;
 
-    expect(boundaryOutcome).toMatchObject({
-      status: "fulfilled",
-      value: { kind: "applied" },
+    expect(deletionBlock).toMatchObject({
+      blocker_application: "",
     });
-    expect(deletionOutcome.status).toBe("rejected");
-    if (deletionOutcome.status === "rejected") {
-      expect(deletionOutcome.reason).toMatchObject({ code: "PROVIDER_OPERATION_IN_PROGRESS" });
-    }
-    expect((await pool.query<{ status: string }>(
-      `select status::text from "user" where id = $1`,
-      [LEARNER_ID],
-    )).rows[0]?.status).toBe("active");
-    expect((await outboxState())[0]!.provider_call_started).not.toBeNull();
-  });
+    expectAdvisoryLockCoordinates(deletionBlock!);
+    expect(boundaryBlock).toMatchObject({
+      blocker_pid: deletionBlock!.waiter_pid,
+      waiter_application: "codestead_mail_delivery_races",
+      waiter_role: "learncoding_worker",
+    });
+    expectAdvisoryLockCoordinates(boundaryBlock!);
+    expect(providerCallsWhileBlocked).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(boundaryOutcome?.kind).not.toBe("applied");
+    expect(deletionReport).toMatchObject({
+      primaryStoreDeletionComplete: true,
+      objectFileErasureComplete: true,
+    });
+    expect(await deadlockCount()).toBe(deadlocksBefore);
 
-  it("makes deletion win before the provider boundary and emits one capability-bound notice", async () => {
-    await seedOutboxRows("pending", 1);
-    const claim = await requireClaim(CLAIM_TOKENS[0], "deletion-before-boundary-worker");
-    const erasurePause = new QueryPause();
-    const deletion = deleteLearnerAccount(
-      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000002"),
-      zeroErasureDependencies(erasurePause),
+    const original = await pool.query<{ count: number }>(`
+      select count(*)::integer as count
+        from public.email_outbox
+       where operation_id = $1::uuid
+    `, [claim.operationId]);
+    expect(original.rows[0]?.count).toBe(0);
+    const notices = (await outboxState()).filter(
+      (row) => row.template === "account-deleted",
     );
-    await within(erasurePause.reached, "deletion file-erasure checkpoint");
-
-    const selectedStore = store();
-    const boundary = await beginBoundary(claim, selectedStore);
-    expect(boundary).toEqual({ kind: "lost" });
-
-    erasurePause.release();
-    const report = await deletion;
-    expect(report.primaryStoreDeletionComplete).toBe(true);
-
-    const notices = (await outboxState()).filter((row) => row.template === "account-deleted");
     expect(notices).toHaveLength(1);
     expect(notices[0]!.variables).toEqual(expect.objectContaining({
-      tombstoneId: report.tombstoneId,
-      deletionRunId: report.runId,
+      tombstoneId: deletionReport!.tombstoneId,
+      deletionRunId: deletionReport!.runId,
     }));
+  });
 
-    const noticeClaim = await requireClaim(CLAIM_TOKENS[1], "deletion-notice-worker");
-    expect(noticeClaim.id).toBe(notices[0]!.id);
-    const noticeStore = store();
-    await expect(beginBoundary(noticeClaim, noticeStore))
-      .resolves.toMatchObject({ kind: "applied" });
+  it("holds TX2 account authority through one ambiguous provider callback before deletion", async () => {
+    vi.stubEnv("GMAIL_CLIENT_ID", "integration-client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "integration-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "integration-refresh");
+    const sendStarted = deferred<void>();
+    const sendResult = deferred<Response>();
+    let providerCallbackCount = 0;
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url) => {
+      if (String(url) === "https://oauth2.googleapis.com/token") {
+        return new Response('{"access_token":"integration-access"}', {
+          status: 200,
+        });
+      }
+      if (
+        String(url)
+          === "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+      ) {
+        providerCallbackCount += 1;
+        sendStarted.resolve();
+        return await sendResult.promise;
+      }
+      throw new Error("Unexpected Gmail integration URL.");
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await seedOutboxRows("pending", 1);
+    const tx2Pid = deferred<number>();
+    let capturedTx2Pid = false;
+    const selectedStore = await instrumentedStore(new InstrumentedPool({
+      after: async (event) => {
+        if (
+          !capturedTx2Pid
+          && event.sql.startsWith("select 1 from public.email_outbox")
+        ) {
+          capturedTx2Pid = true;
+          tx2Pid.resolve(event.pid);
+        }
+      },
+    }));
+    const claim = await requireClaim(
+      CLAIM_TOKENS[0],
+      "tx2-first-real-worker",
+      selectedStore,
+    );
+    const deadlocksBefore = await deadlockCount();
+    const run = await startGuardedGmailDispatch(claim, selectedStore);
+    const [providerTx2Pid] = await within(
+      Promise.all([tx2Pid.promise, sendStarted.promise]).then(
+        ([pid]) => [pid] as const,
+      ),
+      "TX2 provider callback",
+      10_000,
+    );
+    expect(providerCallbackCount).toBe(1);
+
+    const deletion = deleteLearnerAccount(
+      deletionInput(
+        objectStorageRoot,
+        "95000000-0000-4000-8000-000000000001",
+      ),
+      zeroErasureDependencies(),
+    );
+    const deletionBlock = await waitForAdvisoryBlock(
+      providerTx2Pid,
+      "deletion waiting behind live TX2",
+    );
+    expect(deletionBlock).toMatchObject({
+      blocker_application: "codestead_mail_delivery_races",
+      blocker_role: "learncoding_worker",
+    });
+    expectAdvisoryLockCoordinates(deletionBlock);
+    expect(deletionBlock.waiter_pid).not.toBe(providerTx2Pid);
+    expect(providerCallbackCount).toBe(1);
+
+    sendResult.reject(new Error("ambiguous Gmail provider outcome"));
+    const dispatchResult = await completeGuardedDispatch(run);
+    const deletionOutcome = await Promise.allSettled([deletion]);
+
+    expect(dispatchResult).toEqual({
+      kind: "applied",
+      exit: {
+        kind: "quarantined",
+        code: "PROVIDER_OUTCOME_UNKNOWN",
+      },
+    });
+    expect(deletionOutcome[0]?.status).toBe("rejected");
+    if (deletionOutcome[0]?.status === "rejected") {
+      expect(deletionOutcome[0].reason).toMatchObject({
+        code: "PROVIDER_OPERATION_IN_PROGRESS",
+      });
+    }
+    expect(providerCallbackCount).toBe(1);
+    expect(await deadlockCount()).toBe(deadlocksBefore);
+    expect((await outboxState())[0]).toMatchObject({
+      id: claim.id,
+      status: "quarantined",
+      provider_message_id: null,
+      sent_at: null,
+      last_error_code: "PROVIDER_OUTCOME_UNKNOWN",
+    });
+    await expect(selectedStore.claimNext({
+      owner: "tx2-no-resend-probe",
+      token: CLAIM_TOKENS[1],
+      leaseMs: 120_000,
+    })).resolves.toBeNull();
+    expect((await pool.query<{ status: string }>(
+      `select status::text from public."user" where id = $1`,
+      [LEARNER_ID],
+    )).rows[0]?.status).toBe("active");
+  });
+
+  it("makes a different-user admin epoch writer beat TX2 with provider callback zero", async () => {
+    vi.stubEnv("GMAIL_CLIENT_ID", "integration-client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "integration-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "integration-refresh");
+    let providerCallbackCount = 0;
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url) => {
+      if (String(url) === "https://oauth2.googleapis.com/token") {
+        return new Response('{"access_token":"integration-access"}', {
+          status: 200,
+        });
+      }
+      if (
+        String(url)
+          === "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+      ) {
+        providerCallbackCount += 1;
+        throw new Error(
+          "Provider send must not run after the administrator epoch changes.",
+        );
+      }
+      throw new Error("Unexpected Gmail integration URL.");
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const fixture = await seedBackupStatusOutbox(0);
+    const tx2Pid = deferred<number>();
+    let observeTx2AccountLock = false;
+    let capturedTx2Pid = false;
+    const selectedStore = await instrumentedStore(new InstrumentedPool({
+      before: async (event) => {
+        if (
+          observeTx2AccountLock
+          && !capturedTx2Pid
+          && isBlockingAdvisoryLock(event.sql)
+        ) {
+          capturedTx2Pid = true;
+          tx2Pid.resolve(event.pid);
+        }
+      },
+    }));
+    const claim = await requireClaim(
+      CLAIM_TOKENS[0],
+      "admin-epoch-writer-first-worker",
+      selectedStore,
+    );
+    expect(claim.id).toBe(fixture.outboxId);
+    const boundary = await beginBoundary(claim, selectedStore, "gmail");
+    if (boundary.kind !== "applied") {
+      throw new Error(`Expected applied Gmail boundary, got ${boundary.kind}.`);
+    }
+    const guarded = await authorizeCommittedPreparedDispatch(
+      selectedStore,
+      boundary.receipt,
+    );
+    const deadlocksBefore = await deadlockCount();
+    const handoff = await beginAdminHandoffTransaction();
+    let handoffOpen = true;
+    let run: GuardedDispatchRun | null = null;
+    let runClosed = false;
+
+    try {
+      await transferAdministratorAuthority(handoff.client);
+      observeTx2AccountLock = true;
+      const controller = await startMailDispatchHardWatchdog();
+      const armed = await controller.arm();
+      run = {
+        store: selectedStore,
+        controller,
+        armed,
+        completion: selectedStore.dispatchAfterProviderBoundary(
+          boundary.permit,
+          guarded,
+          armed,
+        ),
+      };
+      const providerTx2Pid = await within(
+        tx2Pid.promise,
+        "TX2 account authority lock",
+      );
+      const block = await waitForAdvisoryBlock(
+        handoff.pid,
+        "TX2 waiting behind the two-user administrator handoff",
+      );
+
+      expect(block).toMatchObject({
+        blocker_pid: handoff.pid,
+        blocker_role: "learncoding_app",
+        blocker_application: "codestead_admin_epoch_writer",
+        waiter_pid: providerTx2Pid,
+        waiter_role: "learncoding_worker",
+        waiter_application: "codestead_mail_delivery_races",
+      });
+      expectAdvisoryLockCoordinates(block);
+      expect(providerCallbackCount).toBe(0);
+
+      await handoff.client.query("commit");
+      handoffOpen = false;
+      const dispatchResult = await completeGuardedDispatch(run);
+      runClosed = true;
+
+      expect(dispatchResult).toEqual({ kind: "lost" });
+      expect(providerCallbackCount).toBe(0);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      if (handoffOpen) {
+        await handoff.client.query("rollback").catch(() => undefined);
+      }
+      handoff.client.release();
+      if (run && !runClosed) {
+        await completeGuardedDispatch(run).catch(() => undefined);
+      }
+    }
+
+    const currentEpoch = await adminAuthorityEpoch();
+    expect(currentEpoch).not.toBe(fixture.authorityEpoch);
+    expect(await deadlockCount()).toBe(deadlocksBefore);
+    expect((await outboxState())[0]).toMatchObject({
+      id: fixture.outboxId,
+      status: "sending",
+      adapter: "gmail",
+      provider_message_id: null,
+      sent_at: null,
+      quarantined_at: null,
+      last_error_code: null,
+    });
+    expect((await outboxState())[0]!.provider_call_started).not.toBeNull();
+    await expect(selectedStore.claimNext({
+      owner: "admin-epoch-writer-first-no-resend",
+      token: CLAIM_TOKENS[1],
+      leaseMs: 120_000,
+    })).resolves.toBeNull();
+    expect(await administratorHandoffState(fixture.authorityId)).toEqual({
+      active_admins: 1,
+      prior_role: "learner",
+      source_epoch: fixture.authorityEpoch,
+      successor_role: "admin",
+    });
+  });
+
+  it("holds TX2 administrator epoch authority through one callback before a different-user writer", async () => {
+    vi.stubEnv("GMAIL_CLIENT_ID", "integration-client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "integration-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "integration-refresh");
+    const sendStarted = deferred<void>();
+    const sendResult = deferred<Response>();
+    let providerCallbackCount = 0;
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url) => {
+      if (String(url) === "https://oauth2.googleapis.com/token") {
+        return new Response('{"access_token":"integration-access"}', {
+          status: 200,
+        });
+      }
+      if (
+        String(url)
+          === "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+      ) {
+        providerCallbackCount += 1;
+        sendStarted.resolve();
+        return await sendResult.promise;
+      }
+      throw new Error("Unexpected Gmail integration URL.");
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const fixture = await seedBackupStatusOutbox(1);
+    const tx2Pid = deferred<number>();
+    let capturedTx2Pid = false;
+    const selectedStore = await instrumentedStore(new InstrumentedPool({
+      before: async (event) => {
+        if (
+          !capturedTx2Pid
+          && event.sql.includes("backup_status_mail_authorized")
+        ) {
+          capturedTx2Pid = true;
+          tx2Pid.resolve(event.pid);
+        }
+      },
+    }));
+    const claim = await requireClaim(
+      CLAIM_TOKENS[0],
+      "admin-epoch-tx2-first-worker",
+      selectedStore,
+    );
+    expect(claim.id).toBe(fixture.outboxId);
+    const deadlocksBefore = await deadlockCount();
+    const run = await startGuardedGmailDispatch(claim, selectedStore);
+    let runClosed = false;
+    let providerSettled = false;
+    const [providerTx2Pid] = await within(
+      Promise.all([tx2Pid.promise, sendStarted.promise]).then(
+        ([pid]) => [pid] as const,
+      ),
+      "backup-status TX2 provider callback",
+      10_000,
+    );
+    expect(providerCallbackCount).toBe(1);
+
+    const handoff = await beginAdminHandoffTransaction();
+    let handoffOpen = true;
+    const transferring = transferAdministratorAuthority(handoff.client);
+
+    try {
+      const block = await waitForAdvisoryBlock(
+        providerTx2Pid,
+        "two-user administrator handoff waiting behind TX2",
+      );
+      expect(block).toMatchObject({
+        blocker_pid: providerTx2Pid,
+        blocker_role: "learncoding_worker",
+        blocker_application: "codestead_mail_delivery_races",
+        waiter_pid: handoff.pid,
+        waiter_role: "learncoding_app",
+        waiter_application: "codestead_admin_epoch_writer",
+      });
+      expectAdvisoryLockCoordinates(block);
+      expect(providerCallbackCount).toBe(1);
+
+      providerSettled = true;
+      sendResult.reject(new Error("ambiguous Gmail provider outcome"));
+      const dispatchResult = await completeGuardedDispatch(run);
+      runClosed = true;
+      await within(transferring, "two-user administrator handoff");
+      await handoff.client.query("commit");
+      handoffOpen = false;
+
+      expect(dispatchResult).toEqual({
+        kind: "applied",
+        exit: {
+          kind: "quarantined",
+          code: "PROVIDER_OUTCOME_UNKNOWN",
+        },
+      });
+      expect(providerCallbackCount).toBe(1);
+    } finally {
+      if (!providerSettled) {
+        providerSettled = true;
+        sendResult.reject(new Error("forced test cleanup"));
+      }
+      await within(
+        transferring,
+        "two-user administrator handoff cleanup",
+      ).catch(() => undefined);
+      if (handoffOpen) {
+        await handoff.client.query("rollback").catch(() => undefined);
+      }
+      handoff.client.release();
+      if (!runClosed) {
+        await completeGuardedDispatch(run).catch(() => undefined);
+      }
+    }
+
+    const currentEpoch = await adminAuthorityEpoch();
+    expect(currentEpoch).not.toBe(fixture.authorityEpoch);
+    expect(await deadlockCount()).toBe(deadlocksBefore);
+    expect((await outboxState())[0]).toMatchObject({
+      id: fixture.outboxId,
+      status: "quarantined",
+      provider_message_id: null,
+      sent_at: null,
+      last_error_code: "PROVIDER_OUTCOME_UNKNOWN",
+    });
+    await expect(selectedStore.claimNext({
+      owner: "admin-epoch-tx2-first-no-resend",
+      token: CLAIM_TOKENS[1],
+      leaseMs: 120_000,
+    })).resolves.toBeNull();
+    expect(await administratorHandoffState(fixture.authorityId)).toEqual({
+      active_admins: 1,
+      prior_role: "learner",
+      source_epoch: fixture.authorityEpoch,
+      successor_role: "admin",
+    });
   });
 });
