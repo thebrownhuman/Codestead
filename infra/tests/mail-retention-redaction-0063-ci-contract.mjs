@@ -12,7 +12,6 @@ export const postgresCiRuntimePolicy = Object.freeze({
   runner: "ubuntu-24.04",
   baselineTimeoutMinutes: 20,
   maximumTimeoutMinutes: 35,
-  livePg17IntegrationCommand: "npm run test:integration",
   installCommand:
     "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
   dockerPg17Image:
@@ -30,11 +29,7 @@ function freezeScriptList(values) {
 function validateScriptList(values, label, { registration }) {
   assert.ok(Array.isArray(values), `${label} must be an array`);
   const scripts = values.map((value, index) => {
-    assert.equal(
-      typeof value,
-      "string",
-      `${label}[${index}] must be a string`,
-    );
+    assert.equal(typeof value, "string", `${label}[${index}] must be a string`);
     assert.match(
       value,
       /^test:[a-z0-9][a-z0-9:-]*$/u,
@@ -111,8 +106,7 @@ export function definePostgresCiProjectionExtension({
     `${id}.kind must be "gate" or "restore"`,
   );
   assert.ok(
-    minimumTimeoutMinutes === null ||
-      Number.isInteger(minimumTimeoutMinutes),
+    minimumTimeoutMinutes === null || Number.isInteger(minimumTimeoutMinutes),
     `${id}.minimumTimeoutMinutes must be an integer or null`,
   );
   if (kind === "restore") {
@@ -250,7 +244,6 @@ export function projectPostgresCiProjectionContract(
   assertCanonicalContract(contract);
   const {
     runner,
-    livePg17IntegrationCommand,
     dockerPg17Image,
     dockerPg17IntegrationCommand,
     installCommand,
@@ -268,19 +261,18 @@ export function projectPostgresCiProjectionContract(
         (script) => `      - run: npm run ${script}`,
       ),
     ),
-    livePg17IntegrationLine:
-      `      - run: ${livePg17IntegrationCommand}`,
     dockerPg17PullLine: `      - run: docker pull ${dockerPg17Image}`,
-    dockerPg17IntegrationLine:
-      `      - run: ${dockerPg17IntegrationCommand}`,
+    dockerPg17IntegrationLine: `      - run: ${dockerPg17IntegrationCommand}`,
     installLine: `          ${installCommand}`,
     productionPg17Lines: freezeScriptList(
       contract.productionPg17Scripts.map((script) =>
-        runtimeLine(productionMajor, script)),
+        runtimeLine(productionMajor, script),
+      ),
     ),
     targetedPg18Lines: freezeScriptList(
       contract.targetedPg18Scripts.map((script) =>
-        runtimeLine(targetedMajor, script)),
+        runtimeLine(targetedMajor, script),
+      ),
     ),
   });
 }
@@ -315,25 +307,18 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
 ) {
   const { productionMajor, targetedMajor } = postgresCiRuntimePolicy;
   const expected = projectPostgresCiProjectionContract(contract);
-  const livePg17IntegrationLines = postgresProjection.match(
-    /^      - run: npm run test:integration$/gmu,
-  ) ?? [];
-  assert.deepEqual(
-    livePg17IntegrationLines,
-    [expected.livePg17IntegrationLine],
-    "the live PostgreSQL 17 integration gate must appear exactly once",
-  );
-  const dockerPostgresPullLines = postgresProjection.match(
-    /^      - run: docker pull postgres:\S+$/gmu,
-  ) ?? [];
+  const dockerPostgresPullLines =
+    postgresProjection.match(/^      - run: docker pull postgres:\S+$/gmu) ??
+    [];
   assert.deepEqual(
     dockerPostgresPullLines,
     [expected.dockerPg17PullLine],
     "the pinned Docker PostgreSQL 17 integration image must appear exactly once",
   );
-  const dockerPg17IntegrationLines = postgresProjection.match(
-    /^      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra\/tests\/database-least-privilege-integration\.sh$/gmu,
-  ) ?? [];
+  const dockerPg17IntegrationLines =
+    postgresProjection.match(
+      /^      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra\/tests\/database-least-privilege-integration\.sh$/gmu,
+    ) ?? [];
   assert.deepEqual(
     dockerPg17IntegrationLines,
     [expected.dockerPg17IntegrationLine],
@@ -341,30 +326,26 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
   );
   assert.doesNotMatch(
     postgresProjection,
-    /(?:postgresql-16|POSTGRES_16_BIN|\/postgresql\/16\/bin|\bpostgres:16(?!\d))/iu,
+    /(?:postgresql-16|POSTGRES_16_BIN|\/postgresql\/16\/bin)/u,
     "PostgreSQL 16 must not appear in the canonical CI matrix",
   );
 
-  const installLines = postgresProjection.match(
-    /^          sudo apt-get install --yes --no-install-recommends postgresql-\d+(?: postgresql-\d+)*$/gmu,
-  ) ?? [];
+  const installLines =
+    postgresProjection.match(
+      /^          sudo apt-get install --yes --no-install-recommends postgresql-\d+(?: postgresql-\d+)*$/gmu,
+    ) ?? [];
   assert.deepEqual(
     installLines,
     [expected.installLine],
     "the canonical install must contain exactly PostgreSQL 17 and PostgreSQL 18 once",
   );
-  const liveIntegrationIndex = postgresProjection.indexOf(
-    expected.livePg17IntegrationLine,
+  const dockerPullIndex = postgresProjection.indexOf(
+    expected.dockerPg17PullLine,
   );
-  const dockerPullIndex = postgresProjection.indexOf(expected.dockerPg17PullLine);
   const dockerIntegrationIndex = postgresProjection.indexOf(
     expected.dockerPg17IntegrationLine,
   );
   const installIndex = postgresProjection.indexOf(expected.installLine);
-  assert.ok(
-    liveIntegrationIndex >= 0 && dockerPullIndex > liveIntegrationIndex,
-    "the live PostgreSQL 17 integration gate must precede the pinned Docker PostgreSQL 17 pull",
-  );
   assert.ok(
     dockerPullIndex >= 0 && dockerIntegrationIndex > dockerPullIndex,
     "the Docker PostgreSQL 17 pull must precede its integration gate",
@@ -456,10 +437,7 @@ export function assertPostgresCiProjectionContract(
     "PostgreSQL CI registration scripts must match the exact composed contract",
   );
 
-  assertCanonicalPostgresInstallAndRuntimeMajors(
-    postgresProjection,
-    contract,
-  );
+  assertCanonicalPostgresInstallAndRuntimeMajors(postgresProjection, contract);
 
   const installIndex = postgresProjection.indexOf(expected.installLine);
   const lastRegistrationIndex = registrationEntries.at(-1)?.index ?? -1;

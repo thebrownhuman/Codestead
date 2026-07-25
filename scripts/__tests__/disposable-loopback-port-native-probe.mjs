@@ -6,10 +6,7 @@ const allocatorModuleUrl = new URL(
 );
 const allocatorModule = await import(allocatorModuleUrl.href);
 
-assert.equal(
-  typeof allocatorModule.allocateDisposableLoopbackPort,
-  "function",
-);
+assert.equal(typeof allocatorModule.allocateDisposableLoopbackPort, "function");
 
 const assignedPorts = [5432, 54_321];
 const events = [];
@@ -42,9 +39,11 @@ assert.equal(kernelAssignedPort > 0, true);
 assert.equal(kernelAssignedPort <= 65_535, true);
 assert.notEqual(kernelAssignedPort, 5432);
 
-process.stdout.write(`${JSON.stringify({
-  deterministicPort,
-  events,
-  kernelAssignedPort,
-  modulePath: allocatorModuleUrl.pathname,
-})}\n`);
+process.stdout.write(
+  `${JSON.stringify({
+    deterministicPort,
+    events,
+    kernelAssignedPort,
+    modulePath: allocatorModuleUrl.pathname,
+  })}\n`,
+);

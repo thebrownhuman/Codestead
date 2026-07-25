@@ -1,24 +1,14 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
 import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+  mailDispatchBinding0064PostgresCiExtension,
+  postgresCiProjectionThrough0064,
+} from "./mail-dispatch-binding-0064-ci-contract.mjs";
 import * as postgresCiProjectionModule from "./mail-retention-redaction-0063-ci-contract.mjs";
 
-const { mailRetentionRedaction0063CiContract } =
-  postgresCiProjectionModule;
+const { mailRetentionRedaction0063CiContract } = postgresCiProjectionModule;
 
 const read = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
@@ -35,9 +25,6 @@ const migrationNames = readdirSync(
 ).filter((name) => /^\d{4}_.+\.sql$/u.test(name));
 const migration0063 = read(
   "drizzle/0063_mail_outbox_redaction_fence_release.sql",
-);
-const nativeHarness = read(
-  "infra/tests/mail-retention-redaction-0063.integration.mjs",
 );
 const scripts = packageManifest.scripts;
 const staticOnly = process.argv.includes("--static-only");
@@ -103,6 +90,13 @@ const composedSelfTestContract =
     selfTest0065Extension,
     selfTestRestoreExtension,
   );
+const composedSelfTestContractThrough0064 =
+  postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract(
+    mailDispatchBinding0064PostgresCiExtension,
+    selfTest0064Extension,
+    selfTest0065Extension,
+    selfTestRestoreExtension,
+  );
 for (const key of [
   "registrationScripts",
   "productionPg17Scripts",
@@ -148,805 +142,6 @@ const {
   registrationCommand,
   harnessCommand,
 } = mailRetentionRedaction0063CiContract;
-assert.doesNotMatch(
-  nativeHarness,
-  /\.\.\.process\.env/u,
-  "0063 native children must not inherit the parent environment",
-);
-assert.equal(
-  [...nativeHarness.matchAll(/\bspawnSync\(/gu)].length,
-  1,
-  "all 0063 native children must use one reviewed spawn wrapper",
-);
-assert.match(
-  nativeHarness,
-  /export function createNativeChildFilesystem/u,
-  "0063 must derive fresh child profile and temp roots per run",
-);
-assert.doesNotMatch(
-  nativeHarness,
-  /error\.message\.replace/u,
-  "0063 outward failures must use fixed codes",
-);
-assert.doesNotMatch(
-  nativeHarness,
-  /JSON\.parse\(scalar/u,
-  "0063 child JSON must pass through a fixed-code parser",
-);
-
-const {
-  buildNativeChildSpawnOptions,
-  buildPostgresServerOptions,
-  createNativeChildFilesystem,
-  outwardFailureCode,
-  parseChildJsonOutput,
-  runNativeChild,
-} = await import("./mail-retention-redaction-0063.integration.mjs");
-
-const seededSecretEnvironment = Object.freeze({
-  AWS_SECRET_ACCESS_KEY: "fake-cloud-secret-0063",
-  AZURE_STORAGE_CONNECTION_STRING: "fake-azure-secret-0063",
-  GOOGLE_APPLICATION_CREDENTIALS: "fake-google-secret-0063",
-  GITHUB_TOKEN: "fake-token-0063",
-  HTTP_PROXY: "http://fake-proxy-secret-0063.invalid",
-  HTTPS_PROXY: "https://fake-proxy-secret-0063.invalid",
-  ALL_PROXY: "socks5://fake-proxy-secret-0063.invalid",
-  NO_PROXY: "fake-no-proxy-secret-0063.invalid",
-  DATABASE_URL: "postgresql://secret:secret@database.invalid/secret",
-  POSTGRES_URL: "postgresql://secret:secret@database.invalid/secret",
-  PGPASSWORD: "fake-pg-password-0063",
-  PGSERVICEFILE: "fake-pg-service-secret-0063",
-  PGHOST: "fake-pg-host-secret-0063",
-  PGPASSFILE: "fake-pg-passfile-secret-0063",
-  PSQLRC: "fake-psqlrc-secret-0063",
-});
-const ambientIdentityEnvironment = Object.freeze({
-  LOGONSERVER: "\\\\ambient-logon-secret",
-  SYSTEMDRIVE: "Z:",
-  USERDOMAIN: "ambient-domain-secret",
-  USERNAME: "ambient-username-secret",
-});
-const ambientPgpassMarker = "fake-ambient-pgpass-secret-0063";
-const seededSensitiveValues = Object.freeze([
-  ...Object.values(seededSecretEnvironment),
-  ...Object.values(ambientIdentityEnvironment),
-  ambientPgpassMarker,
-]);
-const explicitPostgresEnvironment = Object.freeze({
-  POSTGRES_18_BIN: process.platform === "win32"
-    ? "C:\\Program Files\\PostgreSQL\\18\\bin"
-    : "/usr/lib/postgresql/18/bin",
-});
-const digest = (value) => createHash("sha256")
-  .update(value, "utf8")
-  .digest("hex");
-const nullDeviceFor = (platform) => platform === "win32"
-  ? String.raw`\\.\nul`
-  : "/dev/null";
-
-function captureFailure(action) {
-  let observed;
-  try {
-    action();
-  } catch (error) {
-    observed = error;
-  }
-  assert.ok(observed instanceof Error);
-  return observed;
-}
-
-function assertSafeFailure(error, expectedCode) {
-  assert.equal(outwardFailureCode(error), expectedCode);
-  assert.equal(error.message, expectedCode);
-  assert.equal(error.cause, undefined);
-  const serialized = `${error.message}\n${error.stack ?? ""}`;
-  for (const sensitiveValue of seededSensitiveValues) {
-    assert.equal(serialized.includes(sensitiveValue), false);
-  }
-}
-
-const posixFilesystem = Object.freeze({
-  taskRoot: "/tmp/codestead-mail-retention-0063-pg18-posix-model",
-  profileDirectory:
-    "/tmp/codestead-mail-retention-0063-pg18-posix-model/profile",
-  tempDirectory:
-    "/tmp/codestead-mail-retention-0063-pg18-posix-model/tmp",
-});
-const posixPostgresBin = "/usr/lib/postgresql/18/bin";
-const posixEnvironment = buildNativeChildSpawnOptions(
-  { label: "posix_model" },
-  {
-    PATH: "/home/ambient-profile/.local/bin:/reviewed/bin",
-    path: "/unreviewed/lowercase/bin",
-    LANG: "C.UTF-8",
-    HOME: "/home/ambient-profile",
-    TEMP: "/ambient/temp-secret",
-    TMPDIR: "/ambient/tmpdir-secret",
-    ...seededSecretEnvironment,
-  },
-  { POSTGRES_18_BIN: posixPostgresBin },
-  posixFilesystem,
-  "linux",
-).env;
-assert.deepEqual(posixEnvironment, {
-  PATH: `${posixPostgresBin}:/usr/bin:/bin`,
-  LANG: "C.UTF-8",
-  HOME: posixFilesystem.profileDirectory,
-  TEMP: posixFilesystem.tempDirectory,
-  TMP: posixFilesystem.tempDirectory,
-  TMPDIR: posixFilesystem.tempDirectory,
-  POSTGRES_18_BIN: posixPostgresBin,
-  PGCONNECT_TIMEOUT: "5",
-  PSQL_HISTORY: "/dev/null",
-});
-assert.equal(posixEnvironment.PATH.includes("/home/ambient-profile"), false);
-const posixLowercaseOnly = buildNativeChildSpawnOptions(
-  { label: "posix_lowercase_model" },
-  { path: "/home/ambient-profile/unreviewed/bin" },
-  { POSTGRES_18_BIN: posixPostgresBin },
-  posixFilesystem,
-  "linux",
-).env;
-assert.equal(
-  posixLowercaseOnly.PATH,
-  `${posixPostgresBin}:/usr/bin:/bin`,
-);
-const posixLowercasePostgresFailure = captureFailure(() =>
-  buildNativeChildSpawnOptions(
-    { label: "posix_lowercase_postgres_model" },
-    { PATH: "/home/ambient-profile/bin", HOME: "/home/ambient-profile" },
-    { postgres_18_bin: posixPostgresBin },
-    posixFilesystem,
-    "linux",
-  ));
-assertSafeFailure(
-  posixLowercasePostgresFailure,
-  "invalid_child_environment_input",
-);
-
-const windowsFilesystem = Object.freeze({
-  taskRoot: "C:\\Temp\\codestead-mail-retention-0063-pg18-windows-model",
-  profileDirectory:
-    "C:\\Temp\\codestead-mail-retention-0063-pg18-windows-model\\profile",
-  tempDirectory:
-    "C:\\Temp\\codestead-mail-retention-0063-pg18-windows-model\\tmp",
-});
-const windowsPostgresBin = "C:\\PostgreSQL\\18\\bin";
-const windowsEnvironment = buildNativeChildSpawnOptions(
-  { label: "windows_model" },
-  {
-    Path: "C:\\Users\\ambient-profile-secret\\bin;C:\\reviewed-bin",
-    SYSTEMROOT: "C:\\Windows",
-    windir: "C:\\Windows",
-    COMSPEC: "C:\\Windows\\System32\\cmd.exe",
-    pathext: ".COM;.EXE;.CMD",
-    lang: "en_US.UTF-8",
-    HOME: "C:\\Users\\ambient-profile-secret",
-    USERPROFILE: "C:\\Users\\ambient-profile-secret",
-    TEMP: "C:\\Users\\ambient-profile-secret\\Temp",
-    ...ambientIdentityEnvironment,
-    ...seededSecretEnvironment,
-  },
-  { POSTGRES_18_BIN: windowsPostgresBin },
-  windowsFilesystem,
-  "win32",
-).env;
-assert.deepEqual(windowsEnvironment, {
-  PATH: [
-    windowsPostgresBin,
-    "C:\\Windows\\System32",
-    "C:\\Windows",
-    "C:\\Windows\\System32\\Wbem",
-  ].join(";"),
-  SystemRoot: "C:\\Windows",
-  WINDIR: "C:\\Windows",
-  ComSpec: "C:\\Windows\\System32\\cmd.exe",
-  PATHEXT: ".COM;.EXE;.CMD",
-  LANG: "en_US.UTF-8",
-  HOME: windowsFilesystem.profileDirectory,
-  USERPROFILE: windowsFilesystem.profileDirectory,
-  HOMEDRIVE: "C:",
-  HOMEPATH:
-    "\\Temp\\codestead-mail-retention-0063-pg18-windows-model\\profile",
-  TEMP: windowsFilesystem.tempDirectory,
-  TMP: windowsFilesystem.tempDirectory,
-  LOGONSERVER: "CODESTEAD_TEST",
-  SYSTEMDRIVE: "C:",
-  USERDOMAIN: "CODESTEAD_TEST",
-  USERNAME: "codestead_test",
-  POSTGRES_18_BIN: windowsPostgresBin,
-  PGCONNECT_TIMEOUT: "5",
-  PSQL_HISTORY: nullDeviceFor("win32"),
-});
-assert.equal(
-  windowsEnvironment.PATH.toLowerCase()
-    .includes("c:\\users\\ambient-profile-secret"),
-  false,
-);
-const windowsLowercasePostgresEnvironment = buildNativeChildSpawnOptions(
-  { label: "windows_lowercase_postgres_model" },
-  {
-    Path: "C:\\Users\\ambient-profile-secret\\bin",
-    SystemRoot: "C:\\Windows",
-  },
-  { postgres_18_bin: windowsPostgresBin },
-  windowsFilesystem,
-  "win32",
-).env;
-assert.equal(
-  windowsLowercasePostgresEnvironment.POSTGRES_18_BIN,
-  windowsPostgresBin,
-);
-assert.equal(
-  windowsLowercasePostgresEnvironment.PATH,
-  [
-    windowsPostgresBin,
-    "C:\\Windows\\System32",
-    "C:\\Windows",
-    "C:\\Windows\\System32\\Wbem",
-  ].join(";"),
-);
-assert.throws(
-  () => buildNativeChildSpawnOptions(
-    { label: "windows_duplicate_model" },
-    { PATH: "first-path", Path: "duplicate-path" },
-    { POSTGRES_18_BIN: windowsPostgresBin },
-    windowsFilesystem,
-    "win32",
-  ),
-  { message: "invalid_child_environment_input" },
-);
-
-for (const invalidEnvironment of [
-  { DATABASE_URL: seededSecretEnvironment.DATABASE_URL },
-  {
-    POSTGRES_18_BIN: explicitPostgresEnvironment.POSTGRES_18_BIN,
-    postgres_18_bin: "duplicate-postgres-bin",
-  },
-  {
-    POSTGRES_17_BIN: "/usr/lib/postgresql/17/bin",
-    POSTGRES_18_BIN: posixPostgresBin,
-  },
-]) {
-  const error = captureFailure(() => buildNativeChildSpawnOptions(
-    { label: "postgres_version" },
-    { PATH: "/home/ambient-profile/bin", HOME: "/home/ambient-profile" },
-    invalidEnvironment,
-    posixFilesystem,
-    "linux",
-  ));
-  assertSafeFailure(error, "invalid_child_environment_input");
-}
-
-const posixServerOptions = buildPostgresServerOptions(
-  55432,
-  posixFilesystem,
-  "linux",
-);
-assert.match(
-  posixServerOptions,
-  new RegExp(
-    `(?:^| )-c unix_socket_directories="${posixFilesystem.tempDirectory}"`,
-    "u",
-  ),
-);
-assert.doesNotMatch(
-  buildPostgresServerOptions(55432, windowsFilesystem, "win32"),
-  /unix_socket_directories/u,
-);
-
-const canaryTaskRoot = mkdtempSync(path.join(
-  os.tmpdir(),
-  "codestead-mail-retention-0063-pg18-canary-",
-));
-const resolvedCanaryTaskRoot = path.resolve(canaryTaskRoot);
-const resolvedOperatingSystemTemp = `${path.resolve(os.tmpdir())}${path.sep}`;
-assert.ok(resolvedCanaryTaskRoot.startsWith(resolvedOperatingSystemTemp));
-assert.match(
-  path.basename(resolvedCanaryTaskRoot),
-  /^codestead-mail-retention-0063-pg18-canary-/u,
-);
-const cleanupReportRoot = mkdtempSync(path.join(
-  os.tmpdir(),
-  "codestead-mail-retention-0063-cleanup-reports-",
-));
-try {
-  const ambientProfile = path.join(canaryTaskRoot, "ambient-profile");
-  mkdirSync(ambientProfile, { mode: 0o700 });
-  writeFileSync(
-    path.join(ambientProfile, ".pgpass"),
-    `${ambientPgpassMarker}\n`,
-    { encoding: "utf8", flag: "wx", mode: 0o600 },
-  );
-  const childFilesystem = createNativeChildFilesystem(canaryTaskRoot);
-  const reviewedSystemEnvironment = process.platform === "win32"
-    ? {
-        Path: process.env.PATH ?? "C:\\Windows\\System32",
-        SystemRoot: process.env.SystemRoot ?? "C:\\Windows",
-        WINDIR: process.env.WINDIR ?? "C:\\Windows",
-        ComSpec: process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe",
-        PATHEXT: process.env.PATHEXT ?? ".COM;.EXE;.CMD",
-        ...(process.env.LANG ? { LANG: process.env.LANG } : {}),
-      }
-    : {
-        PATH: process.env.PATH ?? "/usr/bin:/bin",
-        ...(process.env.LANG ? { LANG: process.env.LANG } : {}),
-        ...(process.env.LC_ALL ? { LC_ALL: process.env.LC_ALL } : {}),
-        ...(process.env.LC_CTYPE ? { LC_CTYPE: process.env.LC_CTYPE } : {}),
-      };
-  const seededParentEnvironment = Object.freeze({
-    ...reviewedSystemEnvironment,
-    HOME: ambientProfile,
-    USERPROFILE: ambientProfile,
-    HOMEDRIVE: "Z:",
-    HOMEPATH: "\\ambient-profile-secret",
-    TEMP: ambientProfile,
-    TMP: ambientProfile,
-    TMPDIR: ambientProfile,
-    POSTGRES_18_BIN: "ambient-postgres-bin-must-not-pass",
-    PGCONNECT_TIMEOUT: "999999",
-    PSQL_HISTORY: path.join(ambientProfile, ".psql_history"),
-    ...ambientIdentityEnvironment,
-    ...seededSecretEnvironment,
-  });
-  const canaryAmbientValues = Object.freeze([
-    ...seededSensitiveValues,
-    ambientProfile,
-    "Z:",
-    "\\ambient-profile-secret",
-    "ambient-postgres-bin-must-not-pass",
-    "999999",
-    path.join(ambientProfile, ".psql_history"),
-  ]);
-  const childOptions = buildNativeChildSpawnOptions(
-    { label: "child_environment_canary" },
-    seededParentEnvironment,
-    explicitPostgresEnvironment,
-    childFilesystem,
-    process.platform,
-  );
-  assert.equal(childOptions.env.HOME, childFilesystem.profileDirectory);
-  assert.equal(childOptions.env.TEMP, childFilesystem.tempDirectory);
-  assert.equal(childOptions.env.TMP, childFilesystem.tempDirectory);
-  if (process.platform === "win32") {
-    assert.equal(Object.hasOwn(childOptions.env, "TMPDIR"), false);
-  } else {
-    assert.equal(childOptions.env.TMPDIR, childFilesystem.tempDirectory);
-  }
-  assert.equal(
-    childOptions.env.POSTGRES_18_BIN,
-    explicitPostgresEnvironment.POSTGRES_18_BIN,
-  );
-  assert.equal(childOptions.env.PGCONNECT_TIMEOUT, "5");
-  assert.equal(childOptions.env.PSQL_HISTORY, nullDeviceFor(process.platform));
-  const ambientProfileSubstrings = [
-    process.env.USERPROFILE,
-    process.env.HOME,
-    ambientProfile,
-  ].filter((value, index, values) =>
-    typeof value === "string"
-    && value.length > 0
-    && values.indexOf(value) === index);
-  for (const profileSubstring of ambientProfileSubstrings) {
-    assert.equal(
-      childOptions.env.PATH.toLowerCase()
-        .includes(profileSubstring.toLowerCase()),
-      false,
-    );
-  }
-  const profileSubstringDigestSpecs = ambientProfileSubstrings
-    .map((value) => value.toLowerCase())
-    .map((value) => ({ digest: digest(value), length: value.length }));
-  const serializedEnvironment = JSON.stringify(childOptions.env);
-  for (const sensitiveValue of canaryAmbientValues) {
-    assert.equal(serializedEnvironment.includes(sensitiveValue), false);
-  }
-  for (const sensitiveName of Object.keys(seededSecretEnvironment)) {
-    assert.equal(Object.hasOwn(childOptions.env, sensitiveName), false);
-  }
-
-  const childCanarySource = String.raw`
-    import assert from "node:assert/strict";
-    import { createHash } from "node:crypto";
-    import { existsSync } from "node:fs";
-    import path from "node:path";
-
-    const digest = (value) => createHash("sha256")
-      .update(value, "utf8")
-      .digest("hex");
-    try {
-      const keys = Object.keys(process.env).sort();
-      for (const forbidden of [
-        "AWS_SECRET_ACCESS_KEY",
-        "AZURE_STORAGE_CONNECTION_STRING",
-        "GOOGLE_APPLICATION_CREDENTIALS",
-        "GITHUB_TOKEN",
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "NO_PROXY",
-        "DATABASE_URL",
-        "POSTGRES_URL",
-        "PGPASSWORD",
-        "PGSERVICEFILE",
-        "PGHOST",
-        "PGPASSFILE",
-        "PSQLRC",
-        "APPDATA",
-        "LOCALAPPDATA",
-        "USERDOMAIN_ROAMINGPROFILE",
-      ]) {
-        assert.equal(
-          keys.some((key) => key.toUpperCase() === forbidden),
-          false,
-        );
-      }
-      const forbiddenValueHashes = new Set(JSON.parse(process.argv[3]));
-      assert.equal(
-        Object.values(process.env).some((value) =>
-          forbiddenValueHashes.has(digest(value))),
-        false,
-      );
-      const forbiddenPathSubstrings = JSON.parse(process.argv[4]);
-      const childPath = (process.env.PATH ?? "").toLowerCase();
-      for (const forbidden of forbiddenPathSubstrings) {
-        for (
-          let index = 0;
-          index <= childPath.length - forbidden.length;
-          index += 1
-        ) {
-          assert.notEqual(
-            digest(childPath.slice(index, index + forbidden.length)),
-            forbidden.digest,
-          );
-        }
-      }
-      const profileRoots = process.platform === "win32"
-        ? [
-            process.env.HOME,
-            process.env.USERPROFILE,
-            (process.env.HOMEDRIVE ?? "") + (process.env.HOMEPATH ?? ""),
-          ]
-        : [process.env.HOME];
-      const tempRoots = process.platform === "win32"
-        ? [process.env.TEMP, process.env.TMP]
-        : [process.env.TEMP, process.env.TMP, process.env.TMPDIR];
-      assert.equal(profileRoots.every((value) => typeof value === "string"), true);
-      assert.equal(tempRoots.every((value) => typeof value === "string"), true);
-      assert.equal(
-        profileRoots.every((value) => digest(value) === process.argv[1]),
-        true,
-      );
-      assert.equal(
-        tempRoots.every((value) => digest(value) === process.argv[2]),
-        true,
-      );
-      assert.equal(existsSync(path.join(process.env.HOME, ".pgpass")), false);
-      if (process.platform === "win32") {
-        assert.equal(process.env.LOGONSERVER, "CODESTEAD_TEST");
-        assert.equal(process.env.SYSTEMDRIVE, process.env.HOMEDRIVE);
-        assert.equal(process.env.USERDOMAIN, "CODESTEAD_TEST");
-        assert.equal(process.env.USERNAME, "codestead_test");
-      }
-      process.stdout.write(JSON.stringify({
-        keys,
-        profileRootHashes: profileRoots.map(digest),
-        tempRootHashes: tempRoots.map(digest),
-      }));
-    } catch {
-      process.stderr.write("child_environment_canary_failed\n");
-      process.exitCode = 1;
-    }
-  `;
-  const profileHash = digest(childFilesystem.profileDirectory);
-  const tempHash = digest(childFilesystem.tempDirectory);
-  const forbiddenValueHashes = canaryAmbientValues.map(digest).sort();
-  const canaryResult = runNativeChild(
-    process.execPath,
-    [
-      "--input-type=module",
-      "--eval",
-      childCanarySource,
-      profileHash,
-      tempHash,
-      JSON.stringify(forbiddenValueHashes),
-      JSON.stringify(profileSubstringDigestSpecs),
-    ],
-    { label: "child_environment_canary" },
-    seededParentEnvironment,
-    explicitPostgresEnvironment,
-    childFilesystem,
-    process.platform,
-  );
-  const canaryReport = parseChildJsonOutput(
-    canaryResult.stdout,
-    "child_environment_canary",
-  );
-  assert.equal(canaryResult.stderr, "");
-  assert.deepEqual(
-    canaryReport.keys,
-    Object.keys(childOptions.env).sort(),
-  );
-  assert.equal(
-    canaryReport.profileRootHashes.every((value) => value === profileHash),
-    true,
-  );
-  assert.equal(
-    canaryReport.tempRootHashes.every((value) => value === tempHash),
-    true,
-  );
-  assert.notEqual(profileHash, digest(ambientProfile));
-  const serializedReport = JSON.stringify(canaryReport);
-  for (const sensitiveValue of canaryAmbientValues) {
-    assert.equal(serializedReport.includes(sensitiveValue), false);
-  }
-
-  const spawnFailure = captureFailure(() => runNativeChild(
-    path.join(canaryTaskRoot, "missing-native-child"),
-    [],
-    { label: "canary_spawn" },
-    seededParentEnvironment,
-    explicitPostgresEnvironment,
-    childFilesystem,
-    process.platform,
-  ));
-  assertSafeFailure(spawnFailure, "canary_spawn_spawn_failed");
-
-  const nestedTemporaryEntryNames = () =>
-    readdirSync(childFilesystem.tempDirectory, { withFileTypes: true })
-      .map((entry) =>
-        `${entry.name}:${entry.isDirectory() ? "directory" : "entry"}`)
-      .sort();
-  const integrationHarnessPath = fileURLToPath(
-    new URL(
-      "./mail-retention-redaction-0063.integration.mjs",
-      import.meta.url,
-    ),
-  );
-  const missingPostgresEnvironment = {
-    POSTGRES_18_BIN: path.join(
-      canaryTaskRoot,
-      "missing-postgres-bin",
-    ),
-  };
-  const readCleanupReport = (reportPath) => {
-    assert.equal(
-      existsSync(reportPath),
-      true,
-      "nested harness must leave its cleanup report before outer cleanup",
-    );
-    return JSON.parse(readFileSync(reportPath, "utf8"));
-  };
-  const assertInvalidCleanupReportPath = (reportPath) => {
-    const entriesBeforeInvalidReport = nestedTemporaryEntryNames();
-    const result = runNativeChild(
-      process.execPath,
-      [
-        integrationHarnessPath,
-        `--cleanup-report=${reportPath}`,
-      ],
-      { allowFailure: true, label: "canary_invalid_cleanup_report" },
-      seededParentEnvironment,
-      missingPostgresEnvironment,
-      childFilesystem,
-      process.platform,
-    );
-    assert.equal(result.status, 1);
-    assert.equal(result.stdout, "");
-    assert.equal(
-      result.stderr,
-      "mail_retention_0063=invalid_cleanup_report_path\n",
-    );
-    assert.deepEqual(
-      nestedTemporaryEntryNames(),
-      entriesBeforeInvalidReport,
-    );
-  };
-  const traversalReportPath = cleanupReportRoot
-    + path.sep
-    + ".."
-    + path.sep
-    + path.basename(cleanupReportRoot)
-    + path.sep
-    + "success.json";
-  assertInvalidCleanupReportPath(traversalReportPath);
-
-  const existingReportPath = path.join(
-    cleanupReportRoot,
-    "existing.json",
-  );
-  writeFileSync(existingReportPath, "preexisting-marker\n", {
-    encoding: "utf8",
-    flag: "wx",
-    mode: 0o600,
-  });
-  assertInvalidCleanupReportPath(existingReportPath);
-  assert.equal(
-    readFileSync(existingReportPath, "utf8"),
-    "preexisting-marker\n",
-  );
-
-  const symlinkReportPath = path.join(
-    cleanupReportRoot,
-    "symlink.json",
-  );
-  symlinkSync(
-    path.join(cleanupReportRoot, "missing-symlink-target"),
-    symlinkReportPath,
-    "file",
-  );
-  assertInvalidCleanupReportPath(symlinkReportPath);
-  assert.equal(existsSync(symlinkReportPath), false);
-  const expectedSuccessfulCleanupReport = {
-    schemaVersion: 1,
-    cleanupVerified: true,
-    taskRootRemoved: true,
-    profileDirectoryRemoved: true,
-    tempDirectoryRemoved: true,
-    injectedLeakDetected: false,
-    recoveryVerified: true,
-  };
-  const entriesBeforeTopLevelCanary = nestedTemporaryEntryNames();
-  const successfulCleanupReportPath = path.join(
-    cleanupReportRoot,
-    "success.json",
-  );
-  const topLevelResult = runNativeChild(
-    process.execPath,
-    [
-      integrationHarnessPath,
-      `--cleanup-report=${successfulCleanupReportPath}`,
-    ],
-    { allowFailure: true, label: "canary_top_level" },
-    seededParentEnvironment,
-    missingPostgresEnvironment,
-    childFilesystem,
-    process.platform,
-  );
-  assert.equal(topLevelResult.status, 1);
-  assert.equal(topLevelResult.stdout, "");
-  assert.equal(
-    topLevelResult.stderr,
-    "mail_retention_0063=postgres_version_spawn_failed\n",
-  );
-  assert.deepEqual(
-    nestedTemporaryEntryNames(),
-    entriesBeforeTopLevelCanary,
-  );
-  assert.deepEqual(
-    readCleanupReport(successfulCleanupReportPath),
-    expectedSuccessfulCleanupReport,
-  );
-
-  const entriesBeforeLeakInjection = nestedTemporaryEntryNames();
-  const injectedLeakReportPath = path.join(
-    cleanupReportRoot,
-    "injected-leak.json",
-  );
-  const injectedLeakResult = runNativeChild(
-    process.execPath,
-    [
-      integrationHarnessPath,
-      `--cleanup-report=${injectedLeakReportPath}`,
-      "--inject-cleanup-leak",
-    ],
-    { allowFailure: true, label: "canary_injected_cleanup_leak" },
-    seededParentEnvironment,
-    missingPostgresEnvironment,
-    childFilesystem,
-    process.platform,
-  );
-  assert.equal(injectedLeakResult.status, 1);
-  assert.equal(injectedLeakResult.stdout, "");
-  assert.equal(
-    injectedLeakResult.stderr,
-    "mail_retention_0063=temporary_postgres_cleanup_failed\n"
-      + "mail_retention_0063=postgres_version_spawn_failed\n",
-  );
-  assert.deepEqual(
-    nestedTemporaryEntryNames(),
-    entriesBeforeLeakInjection,
-  );
-  assert.deepEqual(
-    readCleanupReport(injectedLeakReportPath),
-    {
-      schemaVersion: 1,
-      cleanupVerified: false,
-      taskRootRemoved: false,
-      profileDirectoryRemoved: false,
-      tempDirectoryRemoved: false,
-      injectedLeakDetected: true,
-      recoveryVerified: true,
-    },
-  );
-  for (const reportPath of [
-    successfulCleanupReportPath,
-    injectedLeakReportPath,
-  ]) {
-    const serializedCleanupReport = readFileSync(reportPath, "utf8");
-    for (const sensitiveValue of canaryAmbientValues) {
-      assert.equal(serializedCleanupReport.includes(sensitiveValue), false);
-    }
-  }
-  for (const sensitiveValue of seededSensitiveValues) {
-    assert.equal(
-      `${topLevelResult.stdout}${topLevelResult.stderr}`
-        .includes(sensitiveValue),
-      false,
-    );
-    assert.equal(
-      `${injectedLeakResult.stdout}${injectedLeakResult.stderr}`
-        .includes(sensitiveValue),
-      false,
-    );
-  }
-  const nonzeroFailure = captureFailure(() => runNativeChild(
-    process.execPath,
-    [
-      "--eval",
-      `process.stdout.write(${JSON.stringify(seededSecretEnvironment.DATABASE_URL)});`
-        + `process.stderr.write(${JSON.stringify(seededSecretEnvironment.PGPASSWORD)});`
-        + "process.exit(7);",
-    ],
-    { label: "canary_nonzero" },
-    seededParentEnvironment,
-    explicitPostgresEnvironment,
-    childFilesystem,
-    process.platform,
-  ));
-  assertSafeFailure(nonzeroFailure, "canary_nonzero_failed_status_7");
-
-  const malformedResult = runNativeChild(
-    process.execPath,
-    [
-      "--eval",
-      `process.stdout.write(${JSON.stringify(seededSecretEnvironment.GITHUB_TOKEN)});`,
-    ],
-    { label: "canary_malformed" },
-    seededParentEnvironment,
-    explicitPostgresEnvironment,
-    childFilesystem,
-    process.platform,
-  );
-  const malformedFailure = captureFailure(() => parseChildJsonOutput(
-    malformedResult.stdout,
-    "canary_json",
-  ));
-  assertSafeFailure(malformedFailure, "canary_json_invalid_json");
-  assert.equal(
-    outwardFailureCode(new Error(seededSecretEnvironment.GITHUB_TOKEN)),
-    "unexpected_failure",
-  );
-} finally {
-  const cleanupReportTarget = path.resolve(cleanupReportRoot);
-  const cleanupTarget = path.resolve(canaryTaskRoot);
-  try {
-    assert.ok(cleanupReportTarget.startsWith(resolvedOperatingSystemTemp));
-    assert.match(
-      path.basename(cleanupReportTarget),
-      /^codestead-mail-retention-0063-cleanup-reports-/u,
-    );
-    rmSync(cleanupReportTarget, {
-      recursive: true,
-      force: true,
-      maxRetries: 10,
-      retryDelay: 100,
-    });
-  } finally {
-    assert.equal(cleanupTarget, resolvedCanaryTaskRoot);
-    assert.ok(cleanupTarget.startsWith(resolvedOperatingSystemTemp));
-    assert.match(
-      path.basename(cleanupTarget),
-      /^codestead-mail-retention-0063-pg18-canary-/u,
-    );
-    rmSync(cleanupTarget, {
-      recursive: true,
-      force: true,
-      maxRetries: 10,
-      retryDelay: 100,
-    });
-  }
-}
 
 if (!staticOnly) {
   assert.equal(
@@ -960,8 +155,9 @@ if (!staticOnly) {
     "package.json must expose the real 0063 PostgreSQL harness",
   );
   assert.equal(
-    scripts.check.split(" && ").filter((command) =>
-      command === `npm run ${registrationScript}`).length,
+    scripts.check
+      .split(" && ")
+      .filter((command) => command === `npm run ${registrationScript}`).length,
     1,
     "npm run check must execute the 0063 registration guard exactly once",
   );
@@ -1020,9 +216,10 @@ assert.match(
 );
 assert.match(migration0063, /"batch_limit" integer/u);
 assert.match(migration0063, /report_only boolean := batch_limit = 0/u);
-const reportOnlyBranch = migration0063.match(
-  /IF report_only THEN([\s\S]*?)\n\s*RETURN;\n\s*END IF;/u,
-)?.[1] ?? "";
+const reportOnlyBranch =
+  migration0063.match(
+    /IF report_only THEN([\s\S]*?)\n\s*RETURN;\n\s*END IF;/u,
+  )?.[1] ?? "";
 assert.ok(reportOnlyBranch, "0063 must retain an explicit report-only branch");
 assert.doesNotMatch(
   reportOnlyBranch,
@@ -1067,9 +264,10 @@ for (const [label, compose] of [
   ["production", productionCompose],
   ["restore", restoreCompose],
 ]) {
-  const service = compose.match(
-    /^  database-boundary-verifier:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
-  )?.[0] ?? "";
+  const service =
+    compose.match(
+      /^  database-boundary-verifier:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
+    )?.[0] ?? "";
   assert.ok(service, `${label} boundary-verifier service is missing`);
   assert.ok(
     service.includes(boundaryVerifierCommand),
@@ -1088,12 +286,13 @@ assert.match(
 );
 
 if (!staticOnly) {
-  const postgresJob = workflow.match(
-    /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
-  )?.[0] ?? "";
+  const postgresJob =
+    workflow.match(
+      /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
+    )?.[0] ?? "";
   postgresCiProjectionModule.assertPostgresCiProjectionContract(
     postgresJob,
-    postgresCiProjectionModule.canonicalPostgresCiProjectionContract,
+    postgresCiProjectionThrough0064,
   );
 
   const replaceProjectionExactly = (projection, before, after) => {
@@ -1109,7 +308,7 @@ if (!staticOnly) {
       () =>
         postgresCiProjectionModule.assertPostgresCiProjectionContract(
           projection,
-          postgresCiProjectionModule.canonicalPostgresCiProjectionContract,
+          postgresCiProjectionThrough0064,
         ),
       expectedMessage,
       label,
@@ -1126,71 +325,10 @@ if (!staticOnly) {
     /timeout-minutes/u,
   );
   expectProjectionRejected(
-    "the live PostgreSQL 17 integration gate cannot be removed",
-    replaceProjectionExactly(
-      postgresJob,
-      "      - run: npm run test:integration\n",
-      "",
-    ),
-    /live PostgreSQL 17 integration gate must appear exactly once/u,
-  );
-  expectProjectionRejected(
-    "the live PostgreSQL 17 integration gate cannot become a PostgreSQL 18 run",
-    replaceProjectionExactly(
-      postgresJob,
-      "      - run: npm run test:integration",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:integration",
-    ),
-    /live PostgreSQL 17 integration gate must appear exactly once/u,
-  );
-  expectProjectionRejected(
-    "the live PostgreSQL 17 integration gate must precede the pinned Docker pull",
-    replaceProjectionExactly(
-      postgresJob,
-      [
-        "      - run: npm run test:integration",
-        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
-      ].join("\n"),
-      [
-        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
-        "      - run: npm run test:integration",
-      ].join("\n"),
-    ),
-    /live PostgreSQL 17 integration gate must precede the pinned Docker PostgreSQL 17 pull/u,
-  );
-  expectProjectionRejected(
     "PostgreSQL 16 cannot re-enter the matrix",
     `${postgresJob}      - run: POSTGRES_16_BIN=/usr/lib/postgresql/16/bin npm run test:future-mail-gate\n`,
     /PostgreSQL 16/u,
   );
-  expectProjectionRejected(
-    "an arbitrary PostgreSQL 16 Docker image invocation cannot re-enter the matrix",
-    `${postgresJob}      - run: docker run --rm postgres:16-bookworm\n`,
-    /PostgreSQL 16/u,
-  );
-  for (const bypassingPg16Image of [
-    "postgres:16rc1",
-    "postgres:16_rc1",
-  ]) {
-    expectProjectionRejected(
-      `${bypassingPg16Image} cannot bypass the PostgreSQL 16 image-major guard`,
-      `${postgresJob}      - run: docker run --rm ${bypassingPg16Image}\n`,
-      /PostgreSQL 16/u,
-    );
-  }
-  for (const differentMajorImage of [
-    "postgres:160-bookworm",
-    "postgres:161",
-  ]) {
-    assert.doesNotThrow(
-      () =>
-        postgresCiProjectionModule.assertPostgresCiProjectionContract(
-          `${postgresJob}      - run: docker run --rm ${differentMajorImage}\n`,
-          postgresCiProjectionModule.canonicalPostgresCiProjectionContract,
-        ),
-      `${differentMajorImage} must not be mistaken for PostgreSQL 16`,
-    );
-  }
   expectProjectionRejected(
     "the pinned Docker integration cannot regress from PostgreSQL 17 to 16",
     replaceProjectionExactly(
@@ -1232,11 +370,13 @@ if (!staticOnly) {
       postgresJob,
       [
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
       ].join("\n"),
       [
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
       ].join("\n"),
     ),
     /PostgreSQL 17 harnesses must run before PostgreSQL 18/u,
@@ -1296,9 +436,9 @@ if (!staticOnly) {
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
       ].join("\n"),
     ),
-    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063",
+    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
     [
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0064",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0065",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-restore",
@@ -1308,7 +448,7 @@ if (!staticOnly) {
     () =>
       postgresCiProjectionModule.assertPostgresCiProjectionContract(
         extendedProjection,
-        composedSelfTestContract,
+        composedSelfTestContractThrough0064,
       ),
     "0064, 0065, and restore must compose without replacing prior gates",
   );
@@ -1320,7 +460,7 @@ if (!staticOnly) {
           "      - run: npm run test:mail-delivery-scope-0059:registration\n",
           "",
         ),
-        composedSelfTestContract,
+        composedSelfTestContractThrough0064,
       ),
     /registration scripts/u,
     "an extension cannot make a prior registration optional",

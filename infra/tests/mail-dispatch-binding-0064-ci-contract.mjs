@@ -1,27 +1,47 @@
 import assert from "node:assert/strict";
+import {
+  assertPostgresCiProjectionContract,
+  composeCanonicalPostgresCiProjectionContract,
+  definePostgresCiProjectionExtension,
+} from "./mail-retention-redaction-0063-ci-contract.mjs";
 
 export const mailDispatchBinding0064CiContract = Object.freeze({
   registrationScript: "test:mail-dispatch-binding-0064:registration",
   roleContractScript: "test:mail-dispatch-binding-0064:roles",
-  harnessScript: "test:mail-dispatch-binding-0064:pg18",
+  pg17Script: "test:mail-dispatch-binding-0064:pg17",
+  pg18Script: "test:mail-dispatch-binding-0064:pg18",
   registrationCommand:
     "node infra/tests/mail-dispatch-binding-0064-registration.test.mjs",
   roleContractCommand:
     "node --test infra/tests/mail-dispatch-binding-0064-role-contract.test.mjs",
-  harnessCommand:
+  nativeHarnessCommand:
     "node infra/tests/mail-dispatch-binding-0064.integration.mjs",
   pg18Command:
-    "POSTGRES_MAJOR=18 POSTGRES_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
+    "POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
 });
+
+export const mailDispatchBinding0064PostgresCiExtension =
+  definePostgresCiProjectionExtension({
+    id: "mail-dispatch-binding-0064",
+    registrationScripts: [mailDispatchBinding0064CiContract.registrationScript],
+    productionPg17Scripts: [mailDispatchBinding0064CiContract.pg17Script],
+    targetedPg18Scripts: [mailDispatchBinding0064CiContract.pg18Script],
+  });
+
+export const postgresCiProjectionThrough0064 =
+  composeCanonicalPostgresCiProjectionContract(
+    mailDispatchBinding0064PostgresCiExtension,
+  );
 
 export function assertMailDispatchBinding0064PostgresProjection(
   postgresProjection,
 ) {
-  const {
-    registrationScript,
-    roleContractScript,
-    pg18Command,
-  } = mailDispatchBinding0064CiContract;
+  assertPostgresCiProjectionContract(
+    postgresProjection,
+    postgresCiProjectionThrough0064,
+  );
+  const { registrationScript, roleContractScript, pg18Command } =
+    mailDispatchBinding0064CiContract;
   assert.match(
     postgresProjection,
     /^    runs-on: ubuntu-24\.04$/mu,

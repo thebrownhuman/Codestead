@@ -1,12 +1,5 @@
 import pg from "pg";
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const { Pool } = pg;
 const ROW_PREFIX = "65000000-0000-4000-8000-";
@@ -16,7 +9,8 @@ const CLAIM_PREFIX = "65300000-0000-4000-8000-";
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`${name} is required for the 0064 integration gate`);
+  if (!value)
+    throw new Error(`${name} is required for the 0064 integration gate`);
   return value;
 }
 
@@ -77,7 +71,8 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
     const setupClient = await owner.connect();
     try {
       await setupClient.query("BEGIN");
-      await setupClient.query(`
+      await setupClient.query(
+        `
         INSERT INTO public.email_outbox (
           id, operation_id, user_id, delivery_scope_key, to_email, template,
           template_version, variables, idempotency_key, status,
@@ -102,14 +97,17 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
           pg_catalog.statement_timestamp(),
           pg_catalog.statement_timestamp()
         )
-      `, [
-        row.id,
-        row.operationId,
-        `dispatch-${row.suffix}@integration.invalid`,
-        row.sourceId,
-        row.suffix,
-      ]);
-      await setupClient.query(`
+      `,
+        [
+          row.id,
+          row.operationId,
+          `dispatch-${row.suffix}@integration.invalid`,
+          row.sourceId,
+          row.suffix,
+        ],
+      );
+      await setupClient.query(
+        `
         UPDATE public.email_outbox
            SET status = 'sending',
                attempt_count = 1,
@@ -121,7 +119,9 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
                last_error_code = NULL,
                updated_at = pg_catalog.statement_timestamp()
          WHERE id = $1::uuid
-      `, [row.id, row.claimToken]);
+      `,
+        [row.id, row.claimToken],
+      );
       await setupClient.query("COMMIT");
     } catch (error) {
       await setupClient.query("ROLLBACK");
@@ -195,7 +195,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
              acl.is_grantable
         FROM pg_catalog.pg_proc proc
         CROSS JOIN LATERAL pg_catalog.aclexplode(
-          pg_catalog.coalesce(
+          coalesce(
             proc.proacl,
             pg_catalog.acldefault('f', proc.proowner)
           )
@@ -204,14 +204,16 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
        ORDER BY grantee, privilege_type, is_grantable
     `);
-    expect(routine.rows).toEqual([{
-      owner: "learncoding_owner",
-      prosecdef: false,
-      proconfig: ["search_path=pg_catalog"],
-      grantee: "learncoding_owner",
-      privilege_type: "EXECUTE",
-      is_grantable: false,
-    }]);
+    expect(routine.rows).toEqual([
+      {
+        owner: "learncoding_owner",
+        prosecdef: false,
+        proconfig: ["search_path=pg_catalog"],
+        grantee: "learncoding_owner",
+        privilege_type: "EXECUTE",
+        is_grantable: false,
+      },
+    ]);
 
     const columns = await owner.query<{
       name: string;
@@ -244,12 +246,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
         LEFT JOIN pg_catalog.pg_attrdef default_value
           ON default_value.adrelid = attribute.attrelid
          AND default_value.adnum = attribute.attnum
-        CROSS JOIN LATERAL pg_catalog.aclexplode(
-          pg_catalog.coalesce(
-            attribute.attacl,
-            '{}'::pg_catalog.aclitem[]
-          )
-        ) acl
+        CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) acl
        WHERE attribute.attrelid =
          'public.email_outbox'::pg_catalog.regclass
          AND attribute.attname IN (
@@ -309,15 +306,17 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
          AND trigger.tgname = 'email_outbox_dispatch_binding_guard'
          AND NOT trigger.tgisinternal
     `);
-    expect(trigger.rows).toEqual([{
-      tgenabled: "O",
-      tgtype: 23,
-      tgqual: null,
-      tgnargs: 0,
-      tgattr: "",
-      function_name: "enforce_email_outbox_dispatch_binding",
-      constraint_validated: true,
-    }]);
+    expect(trigger.rows).toEqual([
+      {
+        tgenabled: "O",
+        tgtype: 23,
+        tgqual: null,
+        tgnargs: 0,
+        tgattr: "",
+        function_name: "enforce_email_outbox_dispatch_binding",
+        constraint_validated: true,
+      },
+    ]);
   });
 
   it("accepts only exact one-shot Gmail/console arms and denies old-code shapes", async () => {
@@ -325,16 +324,20 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
     const consoleRow = fixture(211);
     await Promise.all([insertAndClaim(gmail), insertAndClaim(consoleRow)]);
 
-    await expect(arm(gmail, {
-      adapter: "gmail",
-      version: "gmail-raw-v1",
-      digest: "a".repeat(64),
-    })).resolves.toMatchObject({ rowCount: 1 });
-    await expect(arm(consoleRow, {
-      adapter: "console",
-      version: "console-json-v1",
-      digest: "b".repeat(64),
-    })).resolves.toMatchObject({ rowCount: 1 });
+    await expect(
+      arm(gmail, {
+        adapter: "gmail",
+        version: "gmail-raw-v1",
+        digest: "a".repeat(64),
+      }),
+    ).resolves.toMatchObject({ rowCount: 1 });
+    await expect(
+      arm(consoleRow, {
+        adapter: "console",
+        version: "console-json-v1",
+        digest: "b".repeat(64),
+      }),
+    ).resolves.toMatchObject({ rowCount: 1 });
 
     const invalidCases = [
       ["gmail", "gmail-raw-v1", null, 30],
@@ -351,22 +354,29 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
     for (const [index, testCase] of invalidCases.entries()) {
       const row = fixture(220 + index);
       await insertAndClaim(row);
-      await expect(arm(row, {
-        adapter: testCase[0],
-        version: testCase[1],
-        digest: testCase[2],
-        leaseSeconds: testCase[3],
-      })).rejects.toMatchObject({ code: "23514" });
+      await expect(
+        arm(row, {
+          adapter: testCase[0],
+          version: testCase[1],
+          digest: testCase[2],
+          leaseSeconds: testCase[3],
+        }),
+      ).rejects.toMatchObject({ code: "23514" });
     }
 
     const prebinding = fixture(240);
     await insertAndClaim(prebinding);
-    await expect(worker.query(`
+    await expect(
+      worker.query(
+        `
       UPDATE public.email_outbox
          SET dispatch_binding_version = 'gmail-raw-v1',
              dispatch_binding_sha256 = $2::text
        WHERE id = $1::uuid
-    `, [prebinding.id, "a".repeat(64)])).rejects.toMatchObject({
+    `,
+        [prebinding.id, "a".repeat(64)],
+      ),
+    ).rejects.toMatchObject({
       code: "23514",
     });
   });
@@ -379,29 +389,38 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       insertAndClaim(stateAttempt),
     ]);
 
-    await expect(owner.query(
-      armSql(ownerAttempt, {
+    await expect(
+      owner.query(
+        armSql(ownerAttempt, {
+          adapter: "gmail",
+          version: "gmail-raw-v1",
+          digest: "a".repeat(64),
+        }),
+        [ownerAttempt.id, "gmail", "gmail-raw-v1", "a".repeat(64), 30],
+      ),
+    ).rejects.toMatchObject({ code: "42501" });
+    await expect(
+      arm(stateAttempt, {
         adapter: "gmail",
         version: "gmail-raw-v1",
         digest: "a".repeat(64),
+        extraAssignments: ["attempt_count = attempt_count + 1"],
       }),
-      [ownerAttempt.id, "gmail", "gmail-raw-v1", "a".repeat(64), 30],
-    )).rejects.toMatchObject({ code: "42501" });
-    await expect(arm(stateAttempt, {
-      adapter: "gmail",
-      version: "gmail-raw-v1",
-      digest: "a".repeat(64),
-      extraAssignments: ["attempt_count = attempt_count + 1"],
-    })).rejects.toMatchObject({ code: "23514" });
-    await expect(worker.query(
-      "UPDATE public.email_outbox SET to_email = $2 WHERE id = $1::uuid",
-      [stateAttempt.id, "forbidden@integration.invalid"],
-    )).rejects.toMatchObject({ code: "42501" });
-    await expect(worker.query(
-      "DELETE FROM public.email_outbox WHERE id = $1::uuid",
-      [stateAttempt.id],
-    )).rejects.toMatchObject({ code: "42501" });
-    await expect(worker.query(`
+    ).rejects.toMatchObject({ code: "23514" });
+    await expect(
+      worker.query(
+        "UPDATE public.email_outbox SET to_email = $2 WHERE id = $1::uuid",
+        [stateAttempt.id, "forbidden@integration.invalid"],
+      ),
+    ).rejects.toMatchObject({ code: "42501" });
+    await expect(
+      worker.query("DELETE FROM public.email_outbox WHERE id = $1::uuid", [
+        stateAttempt.id,
+      ]),
+    ).rejects.toMatchObject({ code: "42501" });
+    await expect(
+      worker.query(
+        `
       INSERT INTO public.email_outbox (
         operation_id, user_id, delivery_scope_key, to_email, template,
         template_version, variables, idempotency_key,
@@ -418,11 +437,14 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
         'dispatch-binding-pg17-worker-insert',
         NULL, NULL
       )
-    `, [
-      `${OPERATION_PREFIX}000000000298`,
-      "insert-binding@integration.invalid",
-      `${SOURCE_PREFIX}000000000298`,
-    ])).rejects.toMatchObject({ code: "42501" });
+    `,
+        [
+          `${OPERATION_PREFIX}000000000298`,
+          "insert-binding@integration.invalid",
+          `${SOURCE_PREFIX}000000000298`,
+        ],
+      ),
+    ).rejects.toMatchObject({ code: "42501" });
   });
 
   it("proves rollback, competing-arm CAS, and 0063 redaction preservation", async () => {
@@ -460,12 +482,11 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       dispatch_binding_version: null,
     });
 
-    const raceStatement =
-      `${armSql(raceRow, {
-        adapter: "gmail",
-        version: "gmail-raw-v1",
-        digest: "d".repeat(64),
-      })}
+    const raceStatement = `${armSql(raceRow, {
+      adapter: "gmail",
+      version: "gmail-raw-v1",
+      digest: "d".repeat(64),
+    })}
        AND provider_call_started IS NULL
        AND adapter IS NULL
        AND dispatch_binding_version IS NULL
@@ -473,10 +494,18 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
        RETURNING id`;
     const raceResults = await Promise.all([
       worker.query(raceStatement, [
-        raceRow.id, "gmail", "gmail-raw-v1", "d".repeat(64), 30,
+        raceRow.id,
+        "gmail",
+        "gmail-raw-v1",
+        "d".repeat(64),
+        30,
       ]),
       worker.query(raceStatement, [
-        raceRow.id, "gmail", "gmail-raw-v1", "d".repeat(64), 30,
+        raceRow.id,
+        "gmail",
+        "gmail-raw-v1",
+        "d".repeat(64),
+        30,
       ]),
     ]);
     expect(raceResults.map(({ rowCount }) => rowCount).sort()).toEqual([0, 1]);
@@ -486,7 +515,8 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       version: "gmail-raw-v1",
       digest: "e".repeat(64),
     });
-    await worker.query(`
+    await worker.query(
+      `
       UPDATE public.email_outbox
          SET status = 'quarantined',
              claim_token = NULL,
@@ -498,7 +528,9 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
              updated_at =
                pg_catalog.statement_timestamp() - interval '31 days'
        WHERE id = $1::uuid
-    `, [redactionRow.id]);
+    `,
+      [redactionRow.id],
+    );
     const redactionSummary = await ops.query<{
       disposition: string;
       eligible: string;
@@ -523,10 +555,13 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       to_email: string;
       dispatch_binding_version: string;
       dispatch_binding_sha256: string;
-    }>(`
+    }>(
+      `
       SELECT to_email, dispatch_binding_version, dispatch_binding_sha256
         FROM public.email_outbox WHERE id = $1::uuid
-    `, [redactionRow.id]);
+    `,
+      [redactionRow.id],
+    );
     expect(preserved.rows[0]).toEqual({
       to_email: `redacted+${redactionRow.id}@invalid.local`,
       dispatch_binding_version: "gmail-raw-v1",

@@ -11,26 +11,40 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { Client } from "pg";
+
+import { verifyPostMigrationReviewedContractsBeforeReconciliation } from "../../scripts/bootstrap-database-roles.mjs";
+import { allocateDisposableLoopbackPort } from "../../scripts/lib/disposable-loopback-port.mjs";
+
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
 const migrationDirectory = path.join(repositoryRoot, "drizzle");
-const postgresMajor = process.env.POSTGRES_MAJOR;
-const postgresBin = process.env.POSTGRES_BIN;
+const selectedPostgresRuntime = [
+  ["17", process.env.POSTGRES_17_BIN],
+  ["18", process.env.POSTGRES_18_BIN],
+].filter(([, binaryDirectory]) => binaryDirectory !== undefined);
 const executableSuffix = process.platform === "win32" ? ".exe" : "";
 
-assert.match(
-  postgresMajor ?? "",
-  /^18$/u,
-  "POSTGRES_MAJOR must select the targeted native PostgreSQL 18 gate",
+assert.equal(
+  selectedPostgresRuntime.length,
+  1,
+  "exactly one of POSTGRES_17_BIN or POSTGRES_18_BIN must select the native gate",
 );
+const [postgresMajor, postgresBin] = selectedPostgresRuntime[0];
+assert.match(postgresMajor, /^(?:17|18)$/u);
+// The CI PGDG repository intentionally floats within major 18. The live
+// server check binds the selected major. This is not byte-pinned evidence.
 assert.ok(
   postgresBin,
-  "POSTGRES_BIN must name the selected PostgreSQL major-version binary directory",
+  "the selected PostgreSQL binary directory must be non-empty",
+);
+const escapedPostgresMajor = postgresMajor.replace(
+  /[.*+?^${}()|[\]\\]/gu,
+  "\\$&",
 );
 
 function executable(name) {
@@ -57,8 +71,8 @@ function run(command, args, options = {}) {
   if (result.error) throw result.error;
   if (!options.allowFailure && result.status !== 0) {
     throw new Error(
-      `${path.basename(command)} failed with status ${result.status}\n`
-      + `${result.stdout ?? ""}${result.stderr ?? ""}`.trim(),
+      `${path.basename(command)} failed with status ${result.status}\n` +
+        `${result.stdout ?? ""}${result.stderr ?? ""}`.trim(),
     );
   }
   return result;
@@ -94,23 +108,12 @@ function scalar(port, database, sql, username = "postgres") {
   }).stdout.trim();
 }
 
-async function unusedLoopbackPort() {
-  const server = net.createServer();
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
-  const address = server.address();
-  assert.ok(address && typeof address === "object");
-  await new Promise((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
-  return address.port;
-}
-
 function assertMigrationLineage() {
   const journal = JSON.parse(
-    readFileSync(path.join(migrationDirectory, "meta", "_journal.json"), "utf8"),
+    readFileSync(
+      path.join(migrationDirectory, "meta", "_journal.json"),
+      "utf8",
+    ),
   );
   const names = readdirSync(migrationDirectory)
     .filter((name) => /^\d{4}_.+\.sql$/u.test(name))
@@ -138,22 +141,31 @@ function assertMigrationLineage() {
   assert.equal(journal.entries[64].tag, "0064_mail_outbox_dispatch_binding");
 }
 
-function stagedMigrationsThrough0063(temporaryRoot) {
-  const staged = path.join(temporaryRoot, "migrations-through-0063");
+function stagedMigrationsThrough(temporaryRoot, maximumIndex) {
+  assert.ok(
+    Number.isInteger(maximumIndex) && maximumIndex >= 0 && maximumIndex <= 63,
+  );
+  const suffix = String(maximumIndex).padStart(4, "0");
+  const staged = path.join(temporaryRoot, `migrations-through-${suffix}`);
   const meta = path.join(staged, "meta");
   mkdirSync(meta, { recursive: true });
   for (const name of readdirSync(migrationDirectory)) {
     if (
-      /^\d{4}_.+\.sql$/u.test(name)
-      && Number.parseInt(name.slice(0, 4), 10) <= 63
+      /^\d{4}_.+\.sql$/u.test(name) &&
+      Number.parseInt(name.slice(0, 4), 10) <= maximumIndex
     ) {
       cpSync(path.join(migrationDirectory, name), path.join(staged, name));
     }
   }
   const journal = JSON.parse(
-    readFileSync(path.join(migrationDirectory, "meta", "_journal.json"), "utf8"),
+    readFileSync(
+      path.join(migrationDirectory, "meta", "_journal.json"),
+      "utf8",
+    ),
   );
-  journal.entries = journal.entries.filter((entry) => entry.idx <= 63);
+  journal.entries = journal.entries.filter(
+    (entry) => entry.idx <= maximumIndex,
+  );
   writeFileSync(
     path.join(meta, "_journal.json"),
     `${JSON.stringify(journal, null, 2)}\n`,
@@ -163,15 +175,104 @@ function stagedMigrationsThrough0063(temporaryRoot) {
 }
 
 function ownerSql(port, database, sql) {
-  return psql(
-    port,
-    database,
-    `SET ROLE learncoding_owner;\n${sql}`,
-    { username: "learncoding_migrator" },
-  );
+  return psql(port, database, `SET ROLE learncoding_owner;\n${sql}`, {
+    username: "learncoding_migrator",
+  });
 }
 
-function expectSqlState(port, database, username, sql, expectedSqlState, prefix = "") {
+async function verifyRawReviewedPhase(connectionString) {
+  const client = new Client({
+    connectionString,
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 5_000,
+  });
+  await client.connect();
+  try {
+    assert.equal(
+      await verifyPostMigrationReviewedContractsBeforeReconciliation(client),
+      1,
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+async function proveRawPhaseTamperDetection(port, database, connectionString) {
+  ownerSql(
+    port,
+    database,
+    `
+GRANT EXECUTE ON FUNCTION
+  public.classify_email_outbox_retention_redaction(
+    public.email_outbox,
+    timestamp with time zone
+  ) TO learncoding_app;`,
+  );
+  try {
+    await assert.rejects(
+      verifyRawReviewedPhase(connectionString),
+      /database role boundary verification failed/u,
+    );
+  } finally {
+    ownerSql(
+      port,
+      database,
+      `
+REVOKE EXECUTE ON FUNCTION
+  public.classify_email_outbox_retention_redaction(
+    public.email_outbox,
+    timestamp with time zone
+  ) FROM learncoding_app;`,
+    );
+  }
+  await verifyRawReviewedPhase(connectionString);
+
+  psql(
+    port,
+    database,
+    `
+ALTER ROLE learncoding_app INHERIT;
+GRANT learncoding_owner TO learncoding_app
+  WITH ADMIN FALSE, INHERIT TRUE, SET FALSE;`,
+  );
+  try {
+    assert.equal(
+      scalar(
+        port,
+        database,
+        `SELECT pg_catalog.has_function_privilege(
+           'learncoding_app',
+           'public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)',
+           'EXECUTE'
+         );`,
+      ),
+      "t",
+      "inherited owner membership did not create the intended EXECUTE drift",
+    );
+    await assert.rejects(
+      verifyRawReviewedPhase(connectionString),
+      /database role boundary verification failed/u,
+    );
+  } finally {
+    psql(
+      port,
+      database,
+      `
+REVOKE learncoding_owner FROM learncoding_app;
+ALTER ROLE learncoding_app NOINHERIT;`,
+    );
+  }
+  await verifyRawReviewedPhase(connectionString);
+}
+
+function expectSqlState(
+  port,
+  database,
+  username,
+  sql,
+  expectedSqlState,
+  prefix = "",
+) {
   psql(
     port,
     database,
@@ -246,9 +347,10 @@ function armSql(fixture, adapter, version, digest, options = {}) {
   const extraAssignments = options.extraAssignments ?? [];
   assert.ok(Number.isInteger(leaseSeconds));
   assert.ok(Array.isArray(extraAssignments));
-  const extraSql = extraAssignments.length > 0
-    ? `${extraAssignments.join(",\n       ")},\n       `
-    : "";
+  const extraSql =
+    extraAssignments.length > 0
+      ? `${extraAssignments.join(",\n       ")},\n       `
+      : "";
   return `
 UPDATE public.email_outbox
    SET ${extraSql}provider_call_started = pg_catalog.statement_timestamp(),
@@ -273,27 +375,28 @@ function catalogDigest(port, database) {
        pg_catalog.pg_get_constraintdef(constraint_row.oid, true) || E'\\n' ||
        pg_catalog.pg_get_userbyid(routine.proowner) || ':' ||
        routine.prosecdef::text || ':' ||
-       pg_catalog.coalesce(
+       coalesce(
          pg_catalog.array_to_string(routine.proconfig, ','),
          ''
        ) || ':' ||
-       pg_catalog.coalesce(routine.proacl::text, '') || E'\\n' ||
-       trigger.tgenabled || ':' || trigger.tgtype::text || ':' ||
-       pg_catalog.coalesce(trigger.tgqual::text, '') || ':' ||
+       coalesce(routine.proacl::text, '') || E'\\n' ||
+       trigger.tgenabled::text || ':' || trigger.tgtype::text || ':' ||
+       coalesce(trigger.tgqual::text, '') || ':' ||
        pg_catalog.encode(trigger.tgargs, 'hex') || ':' ||
        trigger.tgattr::text || ':' || trigger.tgfoid::text || E'\\n' ||
        constraint_row.convalidated::text || E'\\n' ||
-       pg_catalog.coalesce(pg_catalog.string_agg(
+       coalesce(pg_catalog.string_agg(
          attribute.attname || ':' ||
          pg_catalog.format_type(attribute.atttypid, attribute.atttypmod) || ':' ||
-         attribute.attnotnull::text || ':' || attribute.attgenerated || ':' ||
-         pg_catalog.coalesce(
+         attribute.attnotnull::text || ':' ||
+         attribute.attgenerated::text || ':' ||
+         coalesce(
            pg_catalog.pg_get_expr(
              default_value.adbin,
              default_value.adrelid
            ),
            ''
-         ) || ':' || pg_catalog.coalesce(attribute.attacl::text, ''),
+         ) || ':' || coalesce(attribute.attacl::text, ''),
          '|' ORDER BY attribute.attnum
        ), '')
      )
@@ -324,7 +427,10 @@ function catalogDigest(port, database) {
 }
 
 function proveCatalogContract(port, database) {
-  psql(port, database, `
+  psql(
+    port,
+    database,
+    `
 DO $proof$
 DECLARE
   function_row record;
@@ -352,7 +458,7 @@ BEGIN
          )
     INTO function_acl
     FROM pg_catalog.aclexplode(
-      pg_catalog.coalesce(
+      coalesce(
         function_row.proacl,
         pg_catalog.acldefault('f', function_row.proowner)
       )
@@ -382,11 +488,11 @@ BEGIN
      OR trigger_row.tgattr <> ''::pg_catalog.int2vector
      OR trigger_row.tgfoid <>
        'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
-     OR pg_catalog.position(
+     OR position(
        'BEFORE INSERT OR UPDATE' IN trigger_row.definition
      ) = 0
-     OR pg_catalog.position('UPDATE OF' IN trigger_row.definition) <> 0
-     OR pg_catalog.position(
+     OR position('UPDATE OF' IN trigger_row.definition) <> 0
+     OR position(
        'enforce_email_outbox_dispatch_binding()' IN trigger_row.definition
      ) = 0 THEN
     RAISE EXCEPTION 'dispatch binding trigger catalog contract failed';
@@ -438,9 +544,7 @@ BEGIN
                acl.is_grantable::text
                ORDER BY acl.grantee, acl.privilege_type, acl.is_grantable
              ) entries
-        FROM pg_catalog.aclexplode(
-          pg_catalog.coalesce(attribute.attacl, '{}'::pg_catalog.aclitem[])
-        ) acl
+        FROM pg_catalog.aclexplode(attribute.attacl) acl
     ) observed_acl ON true
    WHERE attribute.attrelid = 'public.email_outbox'::pg_catalog.regclass
      AND attribute.attname IN (
@@ -486,16 +590,21 @@ BEGIN
     RAISE EXCEPTION 'dispatch binding column privilege contract failed';
   END IF;
 END
-$proof$;`);
+$proof$;`,
+  );
 }
 
 function restoreTriggerFunctionAcl(port, database) {
-  ownerSql(port, database, `
+  ownerSql(
+    port,
+    database,
+    `
 REVOKE ALL ON FUNCTION public.enforce_email_outbox_dispatch_binding()
   FROM PUBLIC, learncoding_app, learncoding_worker, learncoding_migrator,
        learncoding_ops, learncoding_owner;
 GRANT EXECUTE ON FUNCTION public.enforce_email_outbox_dispatch_binding()
-  TO learncoding_owner;`);
+  TO learncoding_owner;`,
+  );
 }
 
 function proveCatalogAclTamperDetection(port, database) {
@@ -550,7 +659,10 @@ function proveCatalogAclTamperDetection(port, database) {
 }
 
 function restoreBindingColumnAcls(port, database) {
-  ownerSql(port, database, `
+  ownerSql(
+    port,
+    database,
+    `
 REVOKE ALL (
   dispatch_binding_version,
   dispatch_binding_sha256
@@ -560,7 +672,8 @@ REVOKE ALL (
 GRANT UPDATE (
   dispatch_binding_version,
   dispatch_binding_sha256
-) ON public.email_outbox TO learncoding_worker;`);
+) ON public.email_outbox TO learncoding_worker;`,
+  );
 }
 
 function proveColumnAclTamperDetection(port, database) {
@@ -674,12 +787,7 @@ function proveTransitionMatrix(port, database) {
   psql(
     port,
     database,
-    `${armSql(
-      consoleFixture,
-      "console",
-      "console-json-v1",
-      "b".repeat(64),
-    )};`,
+    `${armSql(consoleFixture, "console", "console-json-v1", "b".repeat(64))};`,
     { username: "learncoding_worker" },
   );
 
@@ -1023,17 +1131,9 @@ async function proveExtendedTransitionMatrix(port, database) {
       port,
       database,
       "learncoding_worker",
-      armSql(
-        payloadMutation,
-        "gmail",
-        "gmail-raw-v1",
-        "a".repeat(64),
-        {
-          extraAssignments: [
-            "to_email = 'mutated-payload@example.invalid'",
-          ],
-        },
-      ),
+      armSql(payloadMutation, "gmail", "gmail-raw-v1", "a".repeat(64), {
+        extraAssignments: ["to_email = 'mutated-payload@example.invalid'"],
+      }),
       "23514",
     );
   } finally {
@@ -1043,7 +1143,12 @@ async function proveExtendedTransitionMatrix(port, database) {
       "REVOKE UPDATE (to_email) ON public.email_outbox FROM learncoding_worker;",
     );
   }
-  expectUnbound(port, database, payloadMutation, "payload mutation armed a row");
+  expectUnbound(
+    port,
+    database,
+    payloadMutation,
+    "payload mutation armed a row",
+  );
 
   expectSqlState(
     port,
@@ -1061,13 +1166,9 @@ async function proveExtendedTransitionMatrix(port, database) {
     port,
     database,
     "learncoding_worker",
-    armSql(
-      providerMessageMutation,
-      "gmail",
-      "gmail-raw-v1",
-      "a".repeat(64),
-      { extraAssignments: ["provider_message_id = 'premature-provider-id'"] },
-    ),
+    armSql(providerMessageMutation, "gmail", "gmail-raw-v1", "a".repeat(64), {
+      extraAssignments: ["provider_message_id = 'premature-provider-id'"],
+    }),
     "23514",
   );
   expectUnbound(
@@ -1154,12 +1255,7 @@ async function proveExtendedTransitionMatrix(port, database) {
   psql(
     port,
     database,
-    `${armSql(
-      rollbackFixture,
-      "gmail",
-      "gmail-raw-v1",
-      "c".repeat(64),
-    )};`,
+    `${armSql(rollbackFixture, "gmail", "gmail-raw-v1", "c".repeat(64))};`,
     { username: "learncoding_worker" },
   );
 
@@ -1167,13 +1263,12 @@ async function proveExtendedTransitionMatrix(port, database) {
   const second = new Client(clientOptions);
   await Promise.all([first.connect(), second.connect()]);
   try {
-    const competingSql =
-      `${armSql(
-        raceFixture,
-        "gmail",
-        "gmail-raw-v1",
-        "d".repeat(64),
-      )}
+    const competingSql = `${armSql(
+      raceFixture,
+      "gmail",
+      "gmail-raw-v1",
+      "d".repeat(64),
+    )}
        AND provider_call_started IS NULL
        AND adapter IS NULL
        AND dispatch_binding_version IS NULL
@@ -1195,12 +1290,7 @@ async function proveExtendedTransitionMatrix(port, database) {
   psql(
     port,
     database,
-    `${armSql(
-      redactionFixture,
-      "gmail",
-      "gmail-raw-v1",
-      "e".repeat(64),
-    )};`,
+    `${armSql(redactionFixture, "gmail", "gmail-raw-v1", "e".repeat(64))};`,
     { username: "learncoding_worker" },
   );
   psql(
@@ -1254,7 +1344,7 @@ async function main() {
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(
     version,
-    new RegExp(`PostgreSQL\\) ${postgresMajor.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\\.`, "u"),
+    new RegExp(`PostgreSQL\\) ${escapedPostgresMajor}\\.`, "u"),
   );
 
   const temporaryRoot = mkdtempSync(
@@ -1263,8 +1353,9 @@ async function main() {
   const dataDirectory = path.join(temporaryRoot, "data");
   const logFile = path.join(temporaryRoot, "postgres.log");
   const database = "mail_dispatch_binding_0064";
-  const stagedMigrations = stagedMigrationsThrough0063(temporaryRoot);
-  const port = await unusedLoopbackPort();
+  const stagedMigrations0062 = stagedMigrationsThrough(temporaryRoot, 62);
+  const stagedMigrations0063 = stagedMigrationsThrough(temporaryRoot, 63);
+  const port = await allocateDisposableLoopbackPort();
   let operationError;
   let startAttempted = false;
 
@@ -1276,10 +1367,9 @@ async function main() {
       "--encoding=UTF8",
       "--no-locale",
     ]);
-    const controlData = run(
-      executable("pg_controldata"),
-      [dataDirectory],
-    ).stdout;
+    const controlData = run(executable("pg_controldata"), [
+      dataDirectory,
+    ]).stdout;
     const controlIdentifier = controlData.match(
       /^Database system identifier:\s*([0-9]+)\s*$/mu,
     )?.[1];
@@ -1298,6 +1388,16 @@ async function main() {
         "start",
       ],
       { stdio: "ignore", timeoutMs: 60_000 },
+    );
+    const runningServerVersion = scalar(
+      port,
+      "postgres",
+      "SELECT pg_catalog.current_setting('server_version_num');",
+    );
+    assert.match(
+      runningServerVersion,
+      new RegExp(`^${escapedPostgresMajor}[0-9]{4}$`, "u"),
+      `the running disposable server must be PostgreSQL major ${postgresMajor}`,
     );
     assert.equal(
       path.resolve(
@@ -1319,13 +1419,18 @@ async function main() {
       controlIdentifier,
       "temporary PostgreSQL system identifier mismatch before DDL",
     );
-    psql(port, "postgres", `
-CREATE ROLE learncoding_owner NOLOGIN;
-CREATE ROLE learncoding_migrator LOGIN;
-CREATE ROLE learncoding_app LOGIN;
-CREATE ROLE learncoding_worker LOGIN;
-CREATE ROLE learncoding_ops LOGIN;
-GRANT learncoding_owner TO learncoding_migrator;`);
+    psql(
+      port,
+      "postgres",
+      `
+CREATE ROLE learncoding_owner NOLOGIN NOINHERIT;
+CREATE ROLE learncoding_migrator LOGIN NOINHERIT;
+CREATE ROLE learncoding_app LOGIN NOINHERIT;
+CREATE ROLE learncoding_worker LOGIN NOINHERIT;
+CREATE ROLE learncoding_ops LOGIN NOINHERIT;
+GRANT learncoding_owner TO learncoding_migrator
+  WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;`,
+    );
     run(executable("createdb"), [
       "--host=127.0.0.1",
       `--port=${port}`,
@@ -1334,14 +1439,27 @@ GRANT learncoding_owner TO learncoding_migrator;`);
       database,
     ]);
 
-    const { runProductionMigration } = await import(
-      "../../scripts/migrate-production.mjs"
-    );
-    const connectionString =
-      `postgresql://learncoding_migrator@127.0.0.1:${port}/${database}`;
+    const { runProductionMigration } =
+      await import("../../scripts/migrate-production.mjs");
+    const connectionString = `postgresql://learncoding_migrator@127.0.0.1:${port}/${database}`;
+    const adminConnectionString = `postgresql://postgres@127.0.0.1:${port}/${database}`;
     await runProductionMigration({
       connectionString,
-      migrationsFolder: stagedMigrations,
+      migrationsFolder: stagedMigrations0062,
+    });
+    assert.equal(
+      scalar(
+        port,
+        database,
+        "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
+      ),
+      "63",
+    );
+    await verifyRawReviewedPhase(adminConnectionString);
+
+    await runProductionMigration({
+      connectionString,
+      migrationsFolder: stagedMigrations0063,
     });
     assert.equal(
       scalar(
@@ -1351,8 +1469,13 @@ GRANT learncoding_owner TO learncoding_migrator;`);
       ),
       "64",
     );
+    await verifyRawReviewedPhase(adminConnectionString);
+    await proveRawPhaseTamperDetection(port, database, adminConnectionString);
 
-    ownerSql(port, database, `
+    ownerSql(
+      port,
+      database,
+      `
 INSERT INTO public.email_outbox (
   id, operation_id, user_id, delivery_scope_key, to_email, template,
   template_version, variables, idempotency_key, status,
@@ -1394,7 +1517,8 @@ INSERT INTO public.email_outbox (
   'gmail',
   pg_catalog.statement_timestamp(),
   pg_catalog.statement_timestamp()
-);`);
+);`,
+    );
 
     const tableNodeBefore = scalar(
       port,
@@ -1469,6 +1593,7 @@ INSERT INTO public.email_outbox (
       connectionString,
       migrationsFolder: migrationDirectory,
     });
+    await verifyRawReviewedPhase(adminConnectionString);
     assert.equal(
       scalar(
         port,
@@ -1546,12 +1671,24 @@ INSERT INTO public.email_outbox (
       "65",
     );
 
-    process.stdout.write("mail_dispatch_binding_0064=migration_rollback:pass\n");
-    process.stdout.write("mail_dispatch_binding_0064=legacy_grandfather:pass\n");
+    process.stdout.write(
+      "mail_dispatch_binding_0064=migration_rollback:pass\n",
+    );
+    process.stdout.write(
+      "mail_dispatch_binding_0064=legacy_grandfather:pass\n",
+    );
     process.stdout.write("mail_dispatch_binding_0064=transition_matrix:pass\n");
     process.stdout.write("mail_dispatch_binding_0064=catalog_contract:pass\n");
-    process.stdout.write("mail_dispatch_binding_0064=privilege_contract:pass\n");
+    process.stdout.write(
+      "mail_dispatch_binding_0064=privilege_contract:pass\n",
+    );
     process.stdout.write("mail_dispatch_binding_0064=migration_replay:pass\n");
+    process.stdout.write(
+      "mail_dispatch_binding_0064=raw_phase_contracts:pass\n",
+    );
+    process.stdout.write(
+      "mail_dispatch_binding_0064=raw_phase_tamper_detection:pass\n",
+    );
     process.stdout.write(
       `mail_dispatch_binding_0064=postgres:${postgresMajor}:${version}:pass\n`,
     );
@@ -1596,7 +1733,7 @@ INSERT INTO public.email_outbox (
 
 main().catch((error) => {
   process.stderr.write(
-    `${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
+    `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
   );
   process.exitCode = 1;
 });
