@@ -645,7 +645,7 @@ function inactivityAuthorityQuery(
            and mail.variables ->> 'url' = $6 || '/learn'
            and source_episode.learner_first_queued_at between source_episode.eligible_at and $3 - interval '48 hours'
            and source_episode.learner_second_queued_at between source_episode.second_eligible_at and $3
-           and source_episode.learner_first_queued_at <= source_episode.learner_second_queued_at)
+           and source_episode.learner_second_queued_at >= source_episode.learner_first_queued_at + interval '48 hours')
          or (mail.template = 'inactivity-admin-notice'
            and recipient_user.role = 'admin'
            and lower(btrim(recipient_user.email)) = mail.to_email
