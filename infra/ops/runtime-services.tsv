@@ -1,0 +1,14 @@
+SCHEMA_VERSION=1
+OPERATIONS_CONFIG_COMPATIBILITY_VERSION=1
+service	image_policy	release_phase	rollback_phase	smoke_role	database_mutator
+postgres	retain	core	retained	database	false
+app	restore	core	core	application	true
+runner-egress-gateway	restore	core	core	gateway	false
+mail-worker	restore	core	core	worker	true
+reward-worker	restore	core	core	worker	true
+regrade-worker	restore	core	core	worker	true
+exam-finalization-worker	restore	core	core	worker	true
+file-erasure-worker	restore	core	core	worker	true
+practice-runner-recovery-worker	restore	core	core	worker	true
+project-review-correction-worker	restore	core	core	worker	true
+cloudflared	restore	tunnel	tunnel	tunnel	false

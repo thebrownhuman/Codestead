@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 rollback="$repo_root/infra/ops/rollback-production.sh"
 fixture_generator="$repo_root/infra/tests/fixtures/create-release-tree-fixture.py"
 ingress_control_script="$repo_root/infra/ops/ingress-control.py"
+runtime_service_manifest="$repo_root/infra/ops/runtime-services.tsv"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -22,6 +23,7 @@ printf '%s\n' 'APP_URL=https://pilot.example.test' >"$work/compose.env"
 printf '%s\n' 'reviewed host firewall fixture' >"$work/repo/infra/runner-vm/host-runner.nft"
 cp "$repo_root/infra/ops/package-release-tree.py" "$work/repo/infra/ops/package-release-tree.py"
 cp "$ingress_control_script" "$work/repo/infra/ops/ingress-control.py"
+cp "$runtime_service_manifest" "$work/repo/infra/ops/runtime-services.tsv"
 chmod 0755 "$work/repo/infra/ops/package-release-tree.py"
 chmod 0755 "$work/repo/infra/ops/ingress-control.py"
 cat >"$work/repo/.gitignore" <<'EOF'
@@ -34,7 +36,8 @@ git -C "$work/repo" config user.name 'Codestead rollback test'
 git -C "$work/repo" config user.email 'rollback-test@codestead.invalid'
 git -C "$work/repo" config core.autocrlf false
 git -C "$work/repo" remote add origin https://github.com/example/codestead
-git -C "$work/repo" add .gitignore compose.yaml infra/ops/package-release-tree.py infra/ops/ingress-control.py infra/runner-vm/host-runner.nft
+git -C "$work/repo" add .gitignore compose.yaml infra/ops/package-release-tree.py infra/ops/ingress-control.py \
+  infra/ops/runtime-services.tsv infra/runner-vm/host-runner.nft
 git -C "$work/repo" commit -qm 'fixture rollback checkout'
 /usr/bin/python3 "$fixture_generator" \
   --source "$work/repo" \
@@ -68,21 +71,24 @@ chmod 0600 "$work/records/current-release.env" "$work/records/latest-candidate.e
 {
   printf 'services:\n'
   for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker \
+    project-review-correction-worker cloudflared; do
     printf '  %s:\n' "$service"
     printf '    image: "registry.example.test/codestead/previous-%s@sha256:%064d"\n' "$service" 7
   done
 } >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 {
   for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker \
+    project-review-correction-worker cloudflared; do
     printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
       "$service" "$service" 7 8
   done
 } >"$work/records/20260719T000000Z-2/previous-running-images.tsv"
 {
   for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker \
+    project-review-correction-worker cloudflared; do
     printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
       "$service" "$service" 7 8
   done
@@ -131,7 +137,7 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 \
   service="${4#restored-}"
   service="${service%-container}"
   case "$service" in
-    app|cloudflared|exam-finalization-worker|mail-worker|practice-runner-recovery-worker|project-review-correction-worker|regrade-worker|reward-worker|runner-egress-gateway)
+    app|cloudflared|exam-finalization-worker|file-erasure-worker|mail-worker|practice-runner-recovery-worker|project-review-correction-worker|regrade-worker|reward-worker|runner-egress-gateway)
       if [[ "${FAKE_SCENARIO:-}" == legacy-gateway-transition && "$service" == runner-egress-gateway ]]; then
         printf '%s\t/learncoding-%s-1\tregistry.example.test/codestead/gateway@sha256:%064d\tsha256:%064d\n' \
           "$service" "$service" 9 8
@@ -333,6 +339,21 @@ grep -Fq 'canonical lowercase public HTTPS origin' "$ROLLBACK_CASE/stderr" || {
 }
 printf '%s\n' 'APP_URL=https://pilot.example.test' >"$work/compose.env"
 echo "ok - rollback rejects an IPv4 APP_URL before Docker"
+
+cp "$work/repo/infra/ops/runtime-services.tsv" "$work/runtime-services.valid.tsv"
+sed -i 's/^app\trestore\t/app\tmutable\t/' "$work/repo/infra/ops/runtime-services.tsv"
+rm -f "$work/control/release-quarantine"
+run_rollback invalid-runtime-service-manifest --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted an invalid runtime service manifest"
+[[ ! -s "$ROLLBACK_CASE/docker.log" ]] || fail "invalid runtime service manifest reached Docker"
+[[ ! -e "$work/control/release-quarantine" ]] || {
+  fail "invalid runtime service manifest created durable quarantine"
+}
+grep -Fqi 'runtime service manifest' "$ROLLBACK_CASE/stderr" || {
+  fail "invalid runtime service manifest rejection was not explicit"
+}
+mv "$work/runtime-services.valid.tsv" "$work/repo/infra/ops/runtime-services.tsv"
+echo "ok - rollback validates the canonical runtime service manifest before mutation"
 
 authority_environment=(
   DOCKER_HOST
@@ -682,7 +703,7 @@ cmp -s "$active_state" "$work/records/20260719T000000Z-2/rollback-active-release
 }
 mapfile -t rollback_services < <(cut -f1 "$managed_state")
 expected_rollback_services=(
-  app cloudflared exam-finalization-worker mail-worker postgres
+  app cloudflared exam-finalization-worker file-erasure-worker mail-worker postgres
   practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker runner-egress-gateway
 )
 [[ "${rollback_services[*]}" == "${expected_rollback_services[*]}" ]] || fail "rollback inventory coverage is invalid"
