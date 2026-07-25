@@ -8,7 +8,9 @@ import path from "node:path";
 import pg from "pg";
 
 import {
+  deriveFullSchemaArchiveEvidence,
   runFullSchemaArchiveDump,
+  runFullSchemaArchiveList,
   runFullSchemaArchiveRestore,
   type FullSchemaRestoreBuildChildLaunch,
   type FullSchemaRestoreChildController,
@@ -18,6 +20,9 @@ import {
 } from "./lib/full-schema-restore-lifecycle";
 import {
   collectFullSchemaRestoreSnapshot,
+  prepareFullSchemaAclSuppressionControl,
+  requireFullSchemaAclSuppressionControl,
+  requireExactFullSchemaRestoreOwnerRole,
   runFullSchemaRestoreDatabaseSmoke,
   type FullSchemaRestoreQueryClient,
 } from "./lib/full-schema-restore-database";
@@ -121,6 +126,14 @@ type BootstrapModule = Readonly<{
     cleanupTimeoutMs: number;
     pool: InstanceType<typeof Pool>;
   }>) => Promise<unknown>;
+  verifyPostMigrationReviewedContractsBeforeReconciliation?: (
+    client: FullSchemaRestoreQueryClient,
+  ) => Promise<unknown>;
+  verifyDatabaseRoleBootstrapState: (
+    client: FullSchemaRestoreQueryClient,
+    postgresDatabase: string,
+    postgresUser: string,
+  ) => Promise<unknown>;
 }>;
 
 type MigrationModule = Readonly<{
@@ -134,13 +147,16 @@ type BoundaryModule = Readonly<{
   verifyDatabaseRoleBoundaries: (
     input: Record<string, unknown>,
   ) => Promise<unknown>;
-  verifyReviewedMailAuthorityCatalogContracts: (
-    client: InstanceType<typeof Pool>,
+  verifyReviewedMailAuthorityCatalogContracts?: (
+    client: FullSchemaRestoreQueryClient,
   ) => Promise<unknown>;
 }>;
 
 type DatabaseContext = Readonly<{
   database: string;
+  requireRestoreOwnerRole: () => Promise<void>;
+  prepareAclSuppressionControl: () => Promise<void>;
+  verifyAclSuppressionControl: () => Promise<Awaited<ReturnType<typeof requireFullSchemaAclSuppressionControl>>>;
   adminUrl: string;
   ownerUrl: string;
   roleUrls: DisposableRoleUrls;
@@ -149,6 +165,7 @@ type DatabaseContext = Readonly<{
     requireApplicationObjects: boolean,
   ) => Promise<void>;
   verifyMailAuthorityCatalog: () => Promise<void>;
+  verifyPreRepairMailAuthorityCatalog: () => Promise<void>;
   migrate: () => Promise<void>;
   seedRepresentativeMailRows: () => Promise<void>;
   snapshot: () => ReturnType<typeof collectFullSchemaRestoreSnapshot>;
@@ -281,6 +298,7 @@ async function createDatabaseContext(input: Readonly<{
   port: number;
   database: string;
   credentials: RoleCredentials;
+  migrationTailIndex: number;
 }>): Promise<DatabaseContext> {
   const adminUrl = databaseUrl({
     username: POSTGRES_USER,
@@ -303,6 +321,18 @@ async function createDatabaseContext(input: Readonly<{
     database: input.database,
     adminUrl,
     ownerUrl: scopedOwnerUrl,
+    requireRestoreOwnerRole: () => withPools(
+      [adminUrl],
+      async ([admin]) => requireExactFullSchemaRestoreOwnerRole(admin!),
+    ),
+    prepareAclSuppressionControl: () => withPools(
+      [adminUrl],
+      async ([admin]) => prepareFullSchemaAclSuppressionControl(admin!),
+    ),
+    verifyAclSuppressionControl: () => withPools(
+      [scopedOwnerUrl],
+      async ([owner]) => requireFullSchemaAclSuppressionControl(owner!),
+    ),
     roleUrls: scopedRoleUrls,
     async reconcileRoles() {
       const bootstrapModule = await import(
@@ -371,13 +401,24 @@ async function createDatabaseContext(input: Readonly<{
       const boundaryModule = await import(
         /* @vite-ignore */ boundaryModulePath
       ) as BoundaryModule;
-      if (
-        typeof boundaryModule
-          .verifyReviewedMailAuthorityCatalogContracts !== "function"
-      ) {
-        throw new Error(
-          "full-schema restore reviewed catalog verifier is unavailable",
-        );
+      const verifier = boundaryModule
+        .verifyReviewedMailAuthorityCatalogContracts;
+      if (typeof verifier !== "function") {
+        if (input.migrationTailIndex >= 64) {
+          throw new Error(
+            "full-schema restore reviewed catalog verifier is unavailable",
+          );
+        }
+        const bootstrapModule = await import(
+          /* @vite-ignore */ bootstrapModulePath
+        ) as BootstrapModule;
+        return withPools([adminUrl], async ([admin]) => {
+          await bootstrapModule.verifyDatabaseRoleBootstrapState(
+            admin!,
+            input.database,
+            POSTGRES_USER,
+          );
+        });
       }
       const pool = new Pool({
         connectionString: scopedOwnerUrl,
@@ -385,8 +426,47 @@ async function createDatabaseContext(input: Readonly<{
         max: 1,
       });
       try {
-        await boundaryModule
-          .verifyReviewedMailAuthorityCatalogContracts(pool);
+        await verifier(pool);
+      } finally {
+        await pool.end();
+      }
+    },
+    async verifyPreRepairMailAuthorityCatalog() {
+      const bootstrapModule = await import(
+        /* @vite-ignore */ bootstrapModulePath
+      ) as BootstrapModule;
+      const rawVerifier = bootstrapModule
+        .verifyPostMigrationReviewedContractsBeforeReconciliation;
+      if (input.migrationTailIndex < 64) {
+        return withPools([adminUrl], async ([admin]) => {
+          await bootstrapModule.verifyDatabaseRoleBootstrapState(
+            admin!,
+            input.database,
+            POSTGRES_USER,
+          );
+        });
+      }
+      const boundaryModule = await import(
+        /* @vite-ignore */ boundaryModulePath
+      ) as BoundaryModule;
+      const aggregateVerifier = boundaryModule
+        .verifyReviewedMailAuthorityCatalogContracts;
+      if (
+        typeof rawVerifier !== "function"
+        || typeof aggregateVerifier !== "function"
+      ) {
+        throw new Error(
+          "full-schema restore pre-repair catalog verifier is unavailable",
+        );
+      }
+      const pool = new Pool({
+        connectionString: scopedOwnerUrl,
+        application_name: "codestead_full_schema_restore_raw_catalog",
+        max: 1,
+      });
+      try {
+        await rawVerifier(pool);
+        await aggregateVerifier(pool);
       } finally {
         await pool.end();
       }
@@ -749,11 +829,13 @@ async function main(): Promise<void> {
       port: sourcePort,
       database: SOURCE_DATABASE,
       credentials: sourceCredentials,
+      migrationTailIndex: migration.tailIndex,
     });
     const targetContext = await createDatabaseContext({
       port: targetPort,
       database: TARGET_DATABASE,
       credentials: targetCredentials,
+      migrationTailIndex: migration.tailIndex,
     });
     const buildChildLaunch =
       childLaunchModule.buildDisposableIntegrationChildLaunch;
@@ -771,6 +853,37 @@ async function main(): Promise<void> {
         controller: childController,
         buildChildLaunch,
       }),
+      inspectArchive: async (archive, sourceSnapshot) => {
+        const toc = await runFullSchemaArchiveList({
+          ...archiveCommands.list,
+          environment: toolEnvironment,
+          archive,
+          maxStdoutBytes: 4 * 1024 * 1024,
+          timeoutMs: TOOL_TIMEOUT_MS,
+          controller: childController,
+          buildChildLaunch,
+        });
+        try {
+          return deriveFullSchemaArchiveEvidence({
+            archive,
+            toc,
+            sourceObjectContractSha256:
+              sourceSnapshot.objectContractSha256,
+          });
+        } finally {
+          toc.fill(0);
+        }
+      },
+      restoreTargetWithoutAcl: (archive) =>
+        runFullSchemaArchiveRestore({
+          ...archiveCommands.restoreWithoutAcl,
+          environment: toolEnvironment,
+          archive,
+          maxStdoutBytes: 1024 * 1024,
+          timeoutMs: TOOL_TIMEOUT_MS,
+          controller: childController,
+          buildChildLaunch,
+        }),
       restoreTarget: (archive) => runFullSchemaArchiveRestore({
         ...archiveCommands.restore,
         environment: toolEnvironment,
@@ -789,6 +902,12 @@ async function main(): Promise<void> {
       postgresMajor,
       migrationCount: evidence.migration.entryCount,
       migrationTail: evidence.migration.tailTag,
+      aclSuppressionControlProaclNull:
+        evidence.aclSuppressionControl.proaclIsNull,
+      aclSuppressionControlPublicExecute:
+        evidence.aclSuppressionControl.publicExecute,
+      archiveAclEntries: evidence.archive.aclEntryCount,
+      archiveRoutineAclEntries: evidence.archive.routineAclEntryCount,
       mailRows: evidence.restored.mailRowCount,
       claimedRows: evidence.smoke.claimedRows,
       redactedRows: evidence.smoke.redactedRows,

@@ -143,6 +143,10 @@ Creation validates and packages the application credential master key, backup pr
 
 ## Safe staged restore
 
+PostgreSQL object ACLs are preserved in both normal and emergency custom-format dumps. Restore keeps source ownership commands disabled and creates objects through the exact non-login `learncoding_owner` role, but it does not suppress ACL entries. Suppressing routine ACLs can recreate a function with `proacl = NULL`, which restores PostgreSQL's default PUBLIC `EXECUTE`; treat that as a failed restore.
+
+The full-schema gate lists the same custom archive and requires routine ACL entries, binds the list and archive digests to the source catalog contract, and compares the untouched restored catalog with the source before any post-restore role reconciliation. The raw comparison includes owners, ACLs, security-definer flags, `search_path` configuration, and complete function definitions. Reconciliation and restricted-role smoke tests run only after the raw comparison passes.
+
 Never restore into the live database or `/srv/learncoding`. Attach one offline identity read-only, choose a brand-new empty staging directory, and use a database name beginning `learncoding_restore_`:
 
 ```bash

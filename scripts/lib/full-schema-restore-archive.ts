@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   spawn,
   type ChildProcessWithoutNullStreams,
@@ -33,6 +34,15 @@ export type FullSchemaArchiveChildResult = Readonly<{
   stdout: Buffer;
 }>;
 
+export type FullSchemaRestoreArchiveEvidence = Readonly<{
+  archiveSha256: string;
+  tocSha256: string;
+  sourceObjectContractSha256: string;
+  sourceBindingSha256: string;
+  aclEntryCount: number;
+  routineAclEntryCount: number;
+}>;
+
 export type FullSchemaRestoreBuildChildLaunch = (input: Readonly<{
   args: readonly string[];
   command: string;
@@ -50,6 +60,53 @@ type SpawnProcess = (
     windowsHide: true;
   }>,
 ) => ChildProcessWithoutNullStreams;
+
+function sha256(value: Buffer | string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+export function deriveFullSchemaArchiveEvidence(input: Readonly<{
+  archive: Buffer;
+  toc: Buffer;
+  sourceObjectContractSha256: string;
+}>): FullSchemaRestoreArchiveEvidence {
+  if (
+    input.archive.length === 0
+    || input.toc.length === 0
+    || !/^[0-9a-f]{64}$/u.test(input.sourceObjectContractSha256)
+  ) {
+    throw new Error("full-schema restore archive ACL evidence failed");
+  }
+  const tocText = input.toc.toString("utf8");
+  if (tocText.includes("\0") || tocText.includes("\uFFFD")) {
+    throw new Error("full-schema restore archive ACL evidence failed");
+  }
+  const aclEntries = tocText
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) =>
+      /^[0-9]+;\s+[0-9]+\s+[0-9]+\s+ACL\s+/u.test(line));
+  const routineAclEntryCount = aclEntries.filter((line) =>
+    /\sACL\s+\S+\s+(?:FUNCTION|PROCEDURE)\s+/u.test(line)).length;
+  if (aclEntries.length === 0 || routineAclEntryCount === 0) {
+    throw new Error("full-schema restore archive ACL evidence failed");
+  }
+  const archiveSha256 = sha256(input.archive);
+  const tocSha256 = sha256(input.toc);
+  return {
+    archiveSha256,
+    tocSha256,
+    sourceObjectContractSha256: input.sourceObjectContractSha256,
+    sourceBindingSha256: sha256([
+      "full-schema-restore-archive-source-binding-v1",
+      archiveSha256,
+      tocSha256,
+      input.sourceObjectContractSha256,
+    ].join("\n")),
+    aclEntryCount: aclEntries.length,
+    routineAclEntryCount,
+  };
+}
 
 function positiveBound(value: number): number {
   if (!Number.isSafeInteger(value) || value <= 0) {
@@ -219,6 +276,38 @@ export async function runFullSchemaArchiveDump(input: Readonly<{
 }>): Promise<Buffer> {
   const result = await runFullSchemaArchiveChild(input);
   return requireSuccessfulFullSchemaArchiveDump(result);
+}
+
+export async function runFullSchemaArchiveList(input: Readonly<{
+  command: string;
+  args: readonly string[];
+  environment: NodeJS.ProcessEnv;
+  archive: Buffer;
+  maxStdoutBytes: number;
+  timeoutMs: number;
+  controller: FullSchemaRestoreChildController;
+  buildChildLaunch: FullSchemaRestoreBuildChildLaunch;
+}>): Promise<Buffer> {
+  const result = await runFullSchemaArchiveChild({
+    command: input.command,
+    args: input.args,
+    environment: input.environment,
+    stdin: input.archive,
+    maxStdoutBytes: input.maxStdoutBytes,
+    timeoutMs: input.timeoutMs,
+    controller: input.controller,
+    buildChildLaunch: input.buildChildLaunch,
+  });
+  if (
+    result.failed
+    || result.exitCode !== 0
+    || result.signalCode !== null
+    || result.stdout.length === 0
+  ) {
+    result.stdout.fill(0);
+    throw new Error("full-schema restore archive list failed");
+  }
+  return result.stdout;
 }
 
 export async function runFullSchemaArchiveRestore(input: Readonly<{

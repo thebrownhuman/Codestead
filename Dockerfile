@@ -92,10 +92,13 @@ CMD ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"]
 
 FROM worker AS operations
 COPY --chown=node:node content ./content
+COPY --chown=node:node drizzle ./drizzle
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
 COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
 COPY --chown=node:node scripts/lib/reviewed-migration-ledger.mjs ./scripts/lib/reviewed-migration-ledger.mjs
 COPY --chown=node:node scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs
+COPY --chown=node:node scripts/verify-pre-repair-restored-database.mjs ./scripts/verify-pre-repair-restored-database.mjs
+COPY --chown=node:node scripts/lib/restore-migration-ledger.mjs ./scripts/lib/restore-migration-ledger.mjs
 COPY --chown=node:node scripts/backup/create-credential-probe.ts ./scripts/backup/create-credential-probe.ts
 COPY --chown=node:node scripts/lib/runner-power-rehearsal-cli.ts ./scripts/lib/runner-power-rehearsal-cli.ts
 COPY --chown=node:node scripts/runner-power-rehearsal.ts ./scripts/runner-power-rehearsal.ts

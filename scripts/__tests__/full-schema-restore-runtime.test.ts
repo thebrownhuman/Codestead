@@ -91,7 +91,7 @@ describe("full-schema restore exact container authority", () => {
     })).toThrow("full-schema restore container identity is invalid");
   });
 
-  it("builds password-free exact-ID dump and restore commands", () => {
+  it("builds ACL-preserving, owner-controlled dump/list/restore commands", () => {
     expect(buildPostgresArchiveCommands({
       dockerCommand: "docker",
       sourceContainerId: sourceId,
@@ -108,9 +108,40 @@ describe("full-schema restore exact container authority", () => {
           "pg_dump",
           "--format=custom",
           "--compress=0",
+          "--no-owner",
           "--no-password",
           "--username=learncoding_restore_it",
           "--dbname=learncoding_restore_source",
+        ],
+      },
+      list: {
+        command: "docker",
+        args: [
+          "exec",
+          "--interactive",
+          targetId,
+          "pg_restore",
+          "--list",
+          "--no-password",
+        ],
+      },
+      restoreWithoutAcl: {
+        command: "docker",
+        args: [
+          "exec",
+          "--interactive",
+          targetId,
+          "pg_restore",
+          "--clean",
+          "--if-exists",
+          "--exit-on-error",
+          "--single-transaction",
+          "--no-owner",
+          "--role=learncoding_owner",
+          "--no-acl",
+          "--no-password",
+          "--username=learncoding_restore_it",
+          "--dbname=learncoding_restore_target",
         ],
       },
       restore: {
@@ -124,20 +155,26 @@ describe("full-schema restore exact container authority", () => {
           "--if-exists",
           "--exit-on-error",
           "--single-transaction",
+          "--no-owner",
+          "--role=learncoding_owner",
           "--no-password",
           "--username=learncoding_restore_it",
           "--dbname=learncoding_restore_target",
         ],
       },
     });
-    expect(JSON.stringify(buildPostgresArchiveCommands({
+    const commands = buildPostgresArchiveCommands({
       dockerCommand: "docker",
       sourceContainerId: sourceId,
       targetContainerId: targetId,
       sourceDatabase: "learncoding_restore_source",
       targetDatabase: "learncoding_restore_target",
       postgresUser: "learncoding_restore_it",
-    }))).not.toMatch(/password=|postgresql:\/\//iu);
+    });
+    expect(JSON.stringify(commands)).not.toMatch(/password=|postgresql:\/\//iu);
+    expect(commands.dump.args).not.toContain("--no-acl");
+    expect(commands.restore.args).not.toContain("--no-acl");
+    expect(commands.restoreWithoutAcl.args).toContain("--no-acl");
   });
 });
 

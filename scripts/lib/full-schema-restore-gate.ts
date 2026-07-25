@@ -39,6 +39,21 @@ export type FullSchemaRestoreSnapshot = Readonly<{
   mailRowCount: number;
 }>;
 
+export type FullSchemaRestoreArchiveEvidence = Readonly<{
+  archiveSha256: string;
+  tocSha256: string;
+  sourceObjectContractSha256: string;
+  sourceBindingSha256: string;
+  aclEntryCount: number;
+  routineAclEntryCount: number;
+}>;
+
+export type FullSchemaAclSuppressionControl = Readonly<{
+  proaclIsNull: true;
+  publicExecute: true;
+  routine: string;
+}>;
+
 export type FullSchemaRestoreSmoke = Readonly<{
   claimedRows: number;
   redactedRows: number;
@@ -51,6 +66,7 @@ type SourceDatabase = Readonly<{
     requireApplicationObjects: boolean,
   ) => Promise<void>;
   migrate: () => Promise<void>;
+  verifyPreRepairMailAuthorityCatalog: () => Promise<void>;
   verifyMailAuthorityCatalog: () => Promise<void>;
   seedRepresentativeMailRows: () => Promise<void>;
   snapshot: () => Promise<FullSchemaRestoreSnapshot>;
@@ -62,6 +78,10 @@ type TargetDatabase = Readonly<{
     requireApplicationObjects: boolean,
   ) => Promise<void>;
   verifyMailAuthorityCatalog: () => Promise<void>;
+  verifyPreRepairMailAuthorityCatalog: () => Promise<void>;
+  requireRestoreOwnerRole: () => Promise<void>;
+  prepareAclSuppressionControl: () => Promise<void>;
+  verifyAclSuppressionControl: () => Promise<FullSchemaAclSuppressionControl>;
   snapshot: () => Promise<FullSchemaRestoreSnapshot>;
   runNonNetworkSmoke: () => Promise<FullSchemaRestoreSmoke>;
 }>;
@@ -72,6 +92,11 @@ type FullSchemaRestoreDependencies<Archive> = Readonly<{
   source: SourceDatabase;
   target: TargetDatabase;
   dumpSource: () => Promise<Archive>;
+  inspectArchive: (
+    archive: Archive,
+    source: FullSchemaRestoreSnapshot,
+  ) => Promise<FullSchemaRestoreArchiveEvidence>;
+  restoreTargetWithoutAcl: (archive: Archive) => Promise<void>;
   restoreTarget: (archive: Archive) => Promise<void>;
   disposeArchive: (archive: Archive) => void;
 }>;
@@ -268,6 +293,44 @@ function snapshotMatchesMigration(
   );
 }
 
+function validatedArchiveEvidence(
+  value: FullSchemaRestoreArchiveEvidence,
+  source: FullSchemaRestoreSnapshot,
+): FullSchemaRestoreArchiveEvidence {
+  if (
+    !validSha256(value.archiveSha256)
+    || !validSha256(value.tocSha256)
+    || !validSha256(value.sourceObjectContractSha256)
+    || !validSha256(value.sourceBindingSha256)
+    || value.sourceObjectContractSha256 !==
+      source.objectContractSha256
+    || !Number.isSafeInteger(value.aclEntryCount)
+    || value.aclEntryCount < 1
+    || !Number.isSafeInteger(value.routineAclEntryCount)
+    || value.routineAclEntryCount < 1
+    || value.routineAclEntryCount > value.aclEntryCount
+  ) {
+    throw new Error("full-schema restore archive ACL evidence failed");
+  }
+  return value;
+}
+
+function validatedAclSuppressionControl(
+  value: FullSchemaAclSuppressionControl,
+): FullSchemaAclSuppressionControl {
+  if (
+    value.proaclIsNull !== true
+    || value.publicExecute !== true
+    || value.routine !==
+      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)"
+  ) {
+    throw new Error(
+      "full-schema restore ACL suppression control failed",
+    );
+  }
+  return value;
+}
+
 function failVerification(): never {
   throw new Error("full-schema restore verification failed");
 }
@@ -295,17 +358,32 @@ export async function runFullSchemaRestoreVerification<Archive>(
   );
   const { source, target } = dependencies;
 
+  // The first bootstrap creates the role topology on a blank disposable
+  // database. Every snapshot below is taken before the next reconciliation.
   await source.reconcileRoles();
   await source.verifyRoleBoundaries(false);
   await source.migrate();
-  await source.verifyMailAuthorityCatalog();
+  await source.verifyPreRepairMailAuthorityCatalog();
+  await source.seedRepresentativeMailRows();
+  const rawSourceSnapshot = await source.snapshot();
+  if (
+    !validSnapshot(rawSourceSnapshot)
+    || !snapshotMatchesMigration(
+      rawSourceSnapshot,
+      dependencies.migration,
+      dependencies.expectedPostgresMajor,
+    )
+  ) {
+    return failVerification();
+  }
+
   await source.reconcileRoles();
   await source.verifyRoleBoundaries(true);
   await source.verifyMailAuthorityCatalog();
-  await source.seedRepresentativeMailRows();
   const sourceSnapshot = await source.snapshot();
   if (
     !validSnapshot(sourceSnapshot)
+    || !sameSnapshot(rawSourceSnapshot, sourceSnapshot)
     || !snapshotMatchesMigration(
       sourceSnapshot,
       dependencies.migration,
@@ -316,14 +394,51 @@ export async function runFullSchemaRestoreVerification<Archive>(
   }
 
   const archive = await dependencies.dumpSource();
+  let archiveEvidence: FullSchemaRestoreArchiveEvidence | undefined;
+  let aclSuppressionControl: FullSchemaAclSuppressionControl | undefined;
   try {
+    archiveEvidence = validatedArchiveEvidence(
+      await dependencies.inspectArchive(archive, sourceSnapshot),
+      sourceSnapshot,
+    );
     await target.reconcileRoles();
     await target.verifyRoleBoundaries(false);
+    await target.requireRestoreOwnerRole();
+    await target.prepareAclSuppressionControl();
+    // This disposable negative control proves the historical suppression
+    // flag recreates PostgreSQL's implicit PUBLIC EXECUTE default. The
+    // immediately following clean restore must replace that state before
+    // any release-success evidence is collected.
+    await dependencies.restoreTargetWithoutAcl(archive);
+    aclSuppressionControl = validatedAclSuppressionControl(
+      await target.verifyAclSuppressionControl(),
+    );
+    await target.reconcileRoles();
+    await target.verifyRoleBoundaries(false);
+    await target.requireRestoreOwnerRole();
     await dependencies.restoreTarget(archive);
   } finally {
     dependencies.disposeArchive(archive);
   }
-  await target.verifyMailAuthorityCatalog();
+  if (archiveEvidence === undefined) {
+    throw new Error("full-schema restore archive ACL evidence failed");
+  }
+  if (aclSuppressionControl === undefined) {
+    throw new Error(
+      "full-schema restore ACL suppression control failed",
+    );
+  }
+
+  // No post-restore bootstrap or ACL repair is allowed before these checks.
+  await target.verifyPreRepairMailAuthorityCatalog();
+  const rawRestoredSnapshot = await target.snapshot();
+  if (
+    !validSnapshot(rawRestoredSnapshot)
+    || !sameSnapshot(sourceSnapshot, rawRestoredSnapshot)
+  ) {
+    return failVerification();
+  }
+
   await target.reconcileRoles();
   await target.verifyRoleBoundaries(true);
   await target.verifyMailAuthorityCatalog();
@@ -331,13 +446,18 @@ export async function runFullSchemaRestoreVerification<Archive>(
   if (
     !validSnapshot(restoredSnapshot)
     || !sameSnapshot(sourceSnapshot, restoredSnapshot)
+    || !sameSnapshot(rawRestoredSnapshot, restoredSnapshot)
   ) {
     return failVerification();
   }
 
   const smoke = validatedSmoke(await target.runNonNetworkSmoke());
   return {
+    aclSuppressionControl,
+    archive: archiveEvidence,
     migration: dependencies.migration,
+    rawSource: rawSourceSnapshot,
+    rawRestored: rawRestoredSnapshot,
     source: sourceSnapshot,
     restored: restoredSnapshot,
     smoke,

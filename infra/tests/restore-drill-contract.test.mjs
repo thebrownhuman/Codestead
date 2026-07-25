@@ -10,6 +10,7 @@ const drill = [
   readFileSync(path.join(root, "scripts/backup/restore-drill-isolated.sh"), "utf8"),
   readFileSync(path.join(root, "scripts/backup/validate-restore-metrics.sh"), "utf8"),
 ].join("\n");
+const isolatedDrill = readFileSync(path.join(root, "scripts/backup/restore-drill-isolated.sh"), "utf8");
 const smoke = readFileSync(path.join(root, "scripts/verify-restored-backup.ts"), "utf8");
 
 function requireText(document, text, label) {
@@ -62,6 +63,8 @@ for (const expected of [
   "database-boundary-preflight",
   "database-boundary-verifier",
   "--role=learncoding_owner",
+  "verify-pre-repair-restored-database.mjs",
+  "restore_pre_repair_catalog_valid=true",
   "--host=/run/learncoding-postgres",
   "pg_catalog.current_setting('server_version_num')",
   "codestead-restore-drill-pg-major-v1",
@@ -80,6 +83,19 @@ for (const expected of [
   "rpo_within_24h=true",
   "rto_within_4h=true",
 ]) requireText(drill, expected, "restore drill");
+
+requireText(
+  isolatedDrill,
+  "RESTORE_DATABASE_NAME=learncoding_restore_drill",
+  "isolated restore drill",
+);
+if (isolatedDrill.includes("RESTORE_DATABASE_NAME=learncoding_restore\n")) {
+  throw new Error("restore drill database name must include an isolated suffix");
+}
+
+if (/pg_restore[^\n]*--no-acl/u.test(drill)) {
+  throw new Error("restore drill must not suppress archive ACL entries");
+}
 
 if (!/RESTORE_OPERATIONS_IMAGE[^\n]*@sha256:/.test(drill)) {
   throw new Error("restore drill must reject a mutable operations image reference");
