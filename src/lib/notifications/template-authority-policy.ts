@@ -62,12 +62,20 @@ export type AccountMailAuthorityPolicy = Readonly<{
   states: NonEmptyReadonlyArray<AccountState>;
 }>;
 
-export type SystemEmailProducer =
-  | "access-request-admin"
-  | "access-request-approved"
-  | "access-request-rejected";
+export const SYSTEM_EMAIL_PRODUCERS = Object.freeze([
+  "access-request-approved",
+  "access-request-admin",
+  "access-request-rejected",
+] as const);
 
-export type AccountDeletionNoticeCapability = "account-deletion-notice-v1";
+export type SystemEmailProducer = (typeof SYSTEM_EMAIL_PRODUCERS)[number];
+
+export const ACCOUNT_DELETION_NOTICE_CAPABILITIES = Object.freeze([
+  "account-deletion-notice-v1",
+] as const);
+
+export type AccountDeletionNoticeCapability =
+  (typeof ACCOUNT_DELETION_NOTICE_CAPABILITIES)[number];
 
 type AccountTemplateAuthorityPolicy = Readonly<{
   scope: "account";
@@ -334,14 +342,6 @@ const ACCOUNT_STATUSES = Object.freeze([
   "deletion_pending",
   "deleted",
 ] as const);
-const SYSTEM_EMAIL_PRODUCERS = Object.freeze([
-  "access-request-admin",
-  "access-request-approved",
-  "access-request-rejected",
-] as const);
-const ACCOUNT_DELETION_NOTICE_CAPABILITIES = Object.freeze([
-  "account-deletion-notice-v1",
-] as const);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -353,6 +353,36 @@ function hasValue<const Values extends readonly string[]>(
 ): value is Values[number] {
   return typeof value === "string"
     && values.some((candidate) => candidate === value);
+}
+
+function assertExactAuthorityCoverage(
+  declared: readonly string[],
+  mapped: readonly string[],
+  label: string,
+) {
+  const counts = new Map<string, number>();
+  for (const authority of mapped) {
+    counts.set(authority, (counts.get(authority) ?? 0) + 1);
+  }
+  const declaredSet = new Set(declared);
+  const missing = declared.filter((authority) => !counts.has(authority));
+  const duplicate = declared.filter(
+    (authority) => (counts.get(authority) ?? 0) > 1,
+  );
+  const extra = [...new Set(
+    mapped.filter((authority) => !declaredSet.has(authority)),
+  )];
+  if (missing.length === 0 && duplicate.length === 0 && extra.length === 0) {
+    return;
+  }
+  const details = [
+    missing.length > 0 ? `missing ${missing.join(", ")}` : "",
+    extra.length > 0 ? `extra ${extra.join(", ")}` : "",
+    duplicate.length > 0 ? `duplicate ${duplicate.join(", ")}` : "",
+  ].filter(Boolean).join("; ");
+  throw new Error(
+    `${label} coverage must map each declared authority to exactly one template: ${details}.`,
+  );
 }
 
 function assertExactKeys(
@@ -502,7 +532,9 @@ function parseTemplatePolicy(
       label,
     );
     if (!hasValue(SYSTEM_EMAIL_PRODUCERS, value.producer)) {
-      throw new Error(`Template ${template} system producer is invalid.`);
+      throw new Error(
+        `Template ${template} references undeclared system email producer ${String(value.producer)}.`,
+      );
     }
     return Object.freeze({
       scope: "system",
@@ -523,7 +555,9 @@ function parseTemplatePolicy(
       ACCOUNT_DELETION_NOTICE_CAPABILITIES,
       value.capability,
     )) {
-      throw new Error(`Template ${template} deletion capability is invalid.`);
+      throw new Error(
+        `Template ${template} references undeclared deletion capability ${String(value.capability)}.`,
+      );
     }
     if (value.account === null) {
       throw new Error(`Template ${template} requires an account policy.`);
@@ -582,31 +616,17 @@ export function createTemplateAuthorityRegistry(
     }
   }
 
-  const systemProducers = new Set<SystemEmailProducer>();
-  const deletionCapabilities = new Set<AccountDeletionNoticeCapability>();
+  const systemProducers: SystemEmailProducer[] = [];
+  const deletionCapabilities: AccountDeletionNoticeCapability[] = [];
   let accountAuthorities = 0;
-  let systemAuthorities = 0;
-  let deletionAuthorities = 0;
   const policyEntries = productionTemplates.map((template) => {
     const parsed = parseTemplatePolicy(inputPolicies[template], template);
     if (parsed.scope === "account") {
       accountAuthorities += 1;
     } else if (parsed.scope === "system") {
-      systemAuthorities += 1;
-      if (systemProducers.has(parsed.producer)) {
-        throw new Error(
-          `System producer ${parsed.producer} must map to exactly one template authority.`,
-        );
-      }
-      systemProducers.add(parsed.producer);
+      systemProducers.push(parsed.producer);
     } else {
-      deletionAuthorities += 1;
-      if (deletionCapabilities.has(parsed.capability)) {
-        throw new Error(
-          `Deletion capability ${parsed.capability} must map to exactly one template authority.`,
-        );
-      }
-      deletionCapabilities.add(parsed.capability);
+      deletionCapabilities.push(parsed.capability);
     }
     return [template, parsed] as const;
   });
@@ -614,14 +634,16 @@ export function createTemplateAuthorityRegistry(
   if (accountAuthorities === 0) {
     throw new Error("At least one account template authority is required.");
   }
-  if (systemAuthorities === 0) {
-    throw new Error("At least one system email template authority is required.");
-  }
-  if (deletionAuthorities === 0) {
-    throw new Error(
-      "At least one deletion capability template authority is required.",
-    );
-  }
+  assertExactAuthorityCoverage(
+    SYSTEM_EMAIL_PRODUCERS,
+    systemProducers,
+    "System email producer",
+  );
+  assertExactAuthorityCoverage(
+    ACCOUNT_DELETION_NOTICE_CAPABILITIES,
+    deletionCapabilities,
+    "Deletion capability",
+  );
 
   const policies = Object.freeze(Object.fromEntries(policyEntries)) as
     Readonly<Record<string, EmailTemplateAuthorityPolicy>>;
@@ -670,54 +692,54 @@ function nonEmptyAuthorityVersions(
 }
 
 function collectSystemEmailTemplateAuthorities() {
-  const authorities = PRODUCTION_EMAIL_TEMPLATES.flatMap(
+  const mappedAuthorities = PRODUCTION_EMAIL_TEMPLATES.flatMap(
     (template): SystemEmailTemplateAuthority[] => {
       const policy = TEMPLATE_AUTHORITY_POLICIES[template];
       if (policy.scope !== "system") return [];
-      return [{
+      return [Object.freeze({
         template,
         versions: nonEmptyAuthorityVersions(template, policy.versions),
         producer: policy.producer,
-      }];
+      })];
     },
   );
-  if (authorities.length === 0) {
-    throw new Error("At least one system email template authority is required.");
-  }
-  const producers = new Set(authorities.map((authority) => authority.producer));
-  if (producers.size !== authorities.length) {
-    throw new Error("System email producers must map to exactly one template authority.");
-  }
-  return Object.freeze(
-    authorities.map((authority) => Object.freeze(authority)),
-  );
+  return Object.freeze(SYSTEM_EMAIL_PRODUCERS.map((producer) => {
+    const matches = mappedAuthorities.filter(
+      (authority) => authority.producer === producer,
+    );
+    if (matches.length !== 1) {
+      throw new Error(
+        `System email producer ${producer} must have exactly one template authority.`,
+      );
+    }
+    return matches[0]!;
+  }));
 }
 
 function collectDeletionCapabilityTemplateAuthorities() {
-  const authorities = PRODUCTION_EMAIL_TEMPLATES.flatMap(
+  const mappedAuthorities = PRODUCTION_EMAIL_TEMPLATES.flatMap(
     (template): DeletionCapabilityTemplateAuthority[] => {
       const policy = TEMPLATE_AUTHORITY_POLICIES[template];
       if (policy.scope !== "deletion-capability") return [];
-      return [{
+      return [Object.freeze({
         template,
         versions: nonEmptyAuthorityVersions(template, policy.versions),
         capability: policy.capability,
-      }];
+      })];
     },
   );
-  if (authorities.length === 0) {
-    throw new Error("At least one deletion capability template authority is required.");
-  }
-  const capabilities = new Set(
-    authorities.map((authority) => authority.capability),
-  );
-  if (capabilities.size !== authorities.length) {
-    throw new Error(
-      "Deletion capabilities must map to exactly one template authority.",
-    );
-  }
   return Object.freeze(
-    authorities.map((authority) => Object.freeze(authority)),
+    ACCOUNT_DELETION_NOTICE_CAPABILITIES.map((capability) => {
+      const matches = mappedAuthorities.filter(
+        (authority) => authority.capability === capability,
+      );
+      if (matches.length !== 1) {
+        throw new Error(
+          `Deletion capability ${capability} must have exactly one template authority.`,
+        );
+      }
+      return matches[0]!;
+    }),
   );
 }
 
