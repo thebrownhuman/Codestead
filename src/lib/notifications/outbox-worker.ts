@@ -82,6 +82,12 @@ export class ProviderBoundaryCommitUnknownError extends Error {
   }
 }
 
+export class PostProviderPersistenceUnknownError extends Error {
+  constructor(readonly exit: PostProviderExit) {
+    super("Post-provider persistence result is unknown.");
+    this.name = "PostProviderPersistenceUnknownError";
+  }
+}
 export class GuardedDispatchCommitUnknownError extends Error {
   constructor(readonly exit: PostProviderExit) {
     super("Guarded dispatch commit result is unknown.");
