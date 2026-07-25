@@ -59,6 +59,13 @@ export type AccountMailAuthorityPolicy = Readonly<{
   states: readonly AccountState[];
 }>;
 
+export type SystemEmailProducer =
+  | "access-request-admin"
+  | "access-request-approved"
+  | "access-request-rejected";
+
+export type AccountDeletionNoticeCapability = "account-deletion-notice-v1";
+
 type AccountTemplateAuthorityPolicy = Readonly<{
   scope: "account";
   versions: readonly string[];
@@ -68,17 +75,14 @@ type AccountTemplateAuthorityPolicy = Readonly<{
 type SystemTemplateAuthorityPolicy = Readonly<{
   scope: "system";
   versions: readonly string[];
-  producer:
-    | "access-request-admin"
-    | "access-request-approved"
-    | "access-request-rejected";
+  producer: SystemEmailProducer;
   account: AccountMailAuthorityPolicy | null;
 }>;
 
 type DeletionTemplateAuthorityPolicy = Readonly<{
   scope: "deletion-capability";
   versions: readonly string[];
-  capability: "account-deletion-notice-v1";
+  capability: AccountDeletionNoticeCapability;
   account: AccountMailAuthorityPolicy;
 }>;
 
@@ -297,6 +301,114 @@ export const TEMPLATE_AUTHORITY_POLICIES = Object.freeze({
 } as const satisfies Readonly<
   Record<EmailTemplate, EmailTemplateAuthorityPolicy>
 >);
+
+export type SystemEmailTemplateAuthority = Readonly<{
+  template: EmailTemplate;
+  versions: readonly string[];
+  producer: SystemEmailProducer;
+}>;
+
+export type DeletionCapabilityTemplateAuthority = Readonly<{
+  template: EmailTemplate;
+  versions: readonly string[];
+  capability: AccountDeletionNoticeCapability;
+}>;
+
+function nonEmptyAuthorityVersions(
+  template: EmailTemplate,
+  versions: readonly string[],
+): readonly string[] {
+  if (versions.length === 0) {
+    throw new Error(`Template authority ${template} must allow at least one version.`);
+  }
+  return Object.freeze([...versions]);
+}
+
+function collectSystemEmailTemplateAuthorities() {
+  const authorities = PRODUCTION_EMAIL_TEMPLATES.flatMap(
+    (template): SystemEmailTemplateAuthority[] => {
+      const policy = TEMPLATE_AUTHORITY_POLICIES[template];
+      if (policy.scope !== "system") return [];
+      return [{
+        template,
+        versions: nonEmptyAuthorityVersions(template, policy.versions),
+        producer: policy.producer,
+      }];
+    },
+  );
+  if (authorities.length === 0) {
+    throw new Error("At least one system email template authority is required.");
+  }
+  const producers = new Set(authorities.map((authority) => authority.producer));
+  if (producers.size !== authorities.length) {
+    throw new Error("System email producers must map to exactly one template authority.");
+  }
+  return Object.freeze(
+    authorities.map((authority) => Object.freeze(authority)),
+  );
+}
+
+function collectDeletionCapabilityTemplateAuthorities() {
+  const authorities = PRODUCTION_EMAIL_TEMPLATES.flatMap(
+    (template): DeletionCapabilityTemplateAuthority[] => {
+      const policy = TEMPLATE_AUTHORITY_POLICIES[template];
+      if (policy.scope !== "deletion-capability") return [];
+      return [{
+        template,
+        versions: nonEmptyAuthorityVersions(template, policy.versions),
+        capability: policy.capability,
+      }];
+    },
+  );
+  if (authorities.length === 0) {
+    throw new Error("At least one deletion capability template authority is required.");
+  }
+  const capabilities = new Set(
+    authorities.map((authority) => authority.capability),
+  );
+  if (capabilities.size !== authorities.length) {
+    throw new Error(
+      "Deletion capabilities must map to exactly one template authority.",
+    );
+  }
+  return Object.freeze(
+    authorities.map((authority) => Object.freeze(authority)),
+  );
+}
+
+export const SYSTEM_EMAIL_TEMPLATE_AUTHORITIES =
+  collectSystemEmailTemplateAuthorities();
+
+export const DELETION_CAPABILITY_TEMPLATE_AUTHORITIES =
+  collectDeletionCapabilityTemplateAuthorities();
+
+export function requireSystemEmailTemplateAuthority(
+  producer: SystemEmailProducer,
+): SystemEmailTemplateAuthority {
+  const matches = SYSTEM_EMAIL_TEMPLATE_AUTHORITIES.filter(
+    (authority) => authority.producer === producer,
+  );
+  if (matches.length !== 1) {
+    throw new Error(
+      `System email producer ${producer} must have exactly one template authority.`,
+    );
+  }
+  return matches[0]!;
+}
+
+export function requireDeletionCapabilityTemplateAuthority(
+  capability: AccountDeletionNoticeCapability,
+): DeletionCapabilityTemplateAuthority {
+  const matches = DELETION_CAPABILITY_TEMPLATE_AUTHORITIES.filter(
+    (authority) => authority.capability === capability,
+  );
+  if (matches.length !== 1) {
+    throw new Error(
+      `Deletion capability ${capability} must have exactly one template authority.`,
+    );
+  }
+  return matches[0]!;
+}
 
 export type ResolvedEmailTemplateAuthorityPolicy = Readonly<{
   template: EmailTemplate;

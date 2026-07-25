@@ -16,14 +16,16 @@ import type { GmailReconciliationFence } from "./gmail-reconciliation";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 import {
   accountDeletionNoticeBinding,
-  ACCOUNT_DELETION_NOTICE_TEMPLATE,
-  ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION,
   deletionNoticeSecret,
   type AccountDeletionNoticeVariables,
 } from "./deletion-notice-capability";
 import {
   PRODUCTION_EMAIL_TEMPLATES,
+  requireDeletionCapabilityTemplateAuthority,
+  requireSystemEmailTemplateAuthority,
   TEMPLATE_AUTHORITY_POLICIES,
+  type DeletionCapabilityTemplateAuthority,
+  type SystemEmailTemplateAuthority,
 } from "./template-authority-policy";
 
 export type EmailOutboxPayload = Readonly<{
@@ -155,6 +157,27 @@ const INVALID_DELETION_NOTICE_EVIDENCE: DeletionNoticeCapabilityEvidence = {
   payloadSha256: null,
 };
 
+const ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY =
+  requireSystemEmailTemplateAuthority("access-request-admin");
+const ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY =
+  requireSystemEmailTemplateAuthority("access-request-approved");
+const ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY =
+  requireSystemEmailTemplateAuthority("access-request-rejected");
+const DELETION_NOTICE_TEMPLATE_AUTHORITY =
+  requireDeletionCapabilityTemplateAuthority("account-deletion-notice-v1");
+
+type SpecializedTemplateAuthority =
+  | SystemEmailTemplateAuthority
+  | DeletionCapabilityTemplateAuthority;
+
+function matchesTemplateAuthority(
+  payload: EmailOutboxPayload,
+  authority: SpecializedTemplateAuthority,
+) {
+  return payload.template === authority.template
+    && authority.versions.some((version) => version === payload.templateVersion);
+}
+
 function exactDeletionNoticeVariables(
   value: unknown,
 ): AccountDeletionNoticeVariables | null {
@@ -183,8 +206,7 @@ function deletionNoticeCapabilityEvidence(
   payload: EmailOutboxPayload,
 ): DeletionNoticeCapabilityEvidence {
   if (
-    payload.template !== ACCOUNT_DELETION_NOTICE_TEMPLATE
-    || payload.templateVersion !== ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION
+    !matchesTemplateAuthority(payload, DELETION_NOTICE_TEMPLATE_AUTHORITY)
     || !payload.to.trim()
   ) {
     return INVALID_DELETION_NOTICE_EVIDENCE;
@@ -201,6 +223,28 @@ function deletionNoticeCapabilityEvidence(
 
 function trustedSqlLiteral(value: string) {
   return `'${value.replaceAll("'", "''")}'`;
+}
+
+const DELETION_NOTICE_TEMPLATE_SQL = trustedSqlLiteral(
+  DELETION_NOTICE_TEMPLATE_AUTHORITY.template,
+);
+
+function templateVersionAuthorityPredicate(
+  outbox: string,
+  authority: SpecializedTemplateAuthority,
+) {
+  if (authority.versions.length === 0) {
+    throw new Error(
+      `Template authority ${authority.template} must allow at least one version.`,
+    );
+  }
+  const versions = authority.versions
+    .map((version) => `${outbox}.template_version = ${trustedSqlLiteral(version)}`)
+    .join(" or ");
+  return `(
+    ${outbox}.template = ${trustedSqlLiteral(authority.template)}
+    and (${versions})
+  )`;
 }
 
 const ACCOUNT_TEMPLATE_AUTHORITY_SQL = PRODUCTION_EMAIL_TEMPLATES.flatMap(
@@ -260,15 +304,28 @@ function systemMailAuthorityPredicate(
     ? "for share of source_request"
     : "";
 
+  const adminTemplateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY,
+  );
+  const approvedTemplateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY,
+  );
+  const rejectedTemplateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY,
+  );
+
   return `(
     ${outbox}.user_id is null
-    and ${outbox}.template_version = '1'
     and ${outbox}.variables ->> '_mailOperationId' = ${outbox}.operation_id::text
     and ${outbox}.variables ->> '_mailRecipient' = ${outbox}.to_email
     and (
       (
-        ${outbox}.template = 'access-request-admin'
-        and ${outbox}.variables ->> '_mailProducer' = 'access-request-admin'
+        ${adminTemplateAuthority}
+        and ${outbox}.variables ->> '_mailProducer'
+              = ${trustedSqlLiteral(ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY.producer)}
         and ${outbox}.variables ->> 'name' = 'Administrator'
         and ${outbox}.variables ->> 'url'
               = $${input.adminAccessUrlParameter}::text
@@ -291,8 +348,9 @@ function systemMailAuthorityPredicate(
         )
       )
       or (
-        ${outbox}.template = 'invitation'
-        and ${outbox}.variables ->> '_mailProducer' = 'access-request-approved'
+        ${approvedTemplateAuthority}
+        and ${outbox}.variables ->> '_mailProducer'
+              = ${trustedSqlLiteral(ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY.producer)}
         and exists (
           select 1
           from public.invitation source_invitation
@@ -315,8 +373,9 @@ function systemMailAuthorityPredicate(
         )
       )
       or (
-        ${outbox}.template = 'access-rejected'
-        and ${outbox}.variables ->> '_mailProducer' = 'access-request-rejected'
+        ${rejectedTemplateAuthority}
+        and ${outbox}.variables ->> '_mailProducer'
+              = ${trustedSqlLiteral(ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY.producer)}
         and not (${outbox}.variables ? 'url')
         and exists (
           select 1
@@ -343,11 +402,14 @@ function deletionNoticeCapabilityPredicate(
     payloadDigestParameter: number;
   }>,
 ) {
+  const templateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    DELETION_NOTICE_TEMPLATE_AUTHORITY,
+  );
   return `(
     $${input.validParameter}::boolean
     and ${outbox}.user_id is not null
-    and ${outbox}.template = 'account-deleted'
-    and ${outbox}.template_version = '1'
+    and ${templateAuthority}
     and exists (
       select 1
       from public.account_deletion_tombstone tombstone
@@ -604,14 +666,23 @@ function canonicalAppOrigin(): string | null {
   }
 }
 
+function matchesSystemTemplateAuthority(
+  claim: OutboxClaim<EmailOutboxPayload>,
+  authority: SystemEmailTemplateAuthority,
+) {
+  return matchesTemplateAuthority(claim.payload, authority)
+    && claim.payload.variables._mailProducer === authority.producer;
+}
+
 function canonicalAdminAccessUrl(
   claim: OutboxClaim<EmailOutboxPayload>,
 ): string | null {
   if (
     claim.payload.userId !== null
-    || claim.payload.template !== "access-request-admin"
-    || claim.payload.templateVersion !== "1"
-    || claim.payload.variables._mailProducer !== "access-request-admin"
+    || !matchesSystemTemplateAuthority(
+      claim,
+      ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY,
+    )
   ) {
     return null;
   }
@@ -624,9 +695,10 @@ function canonicalActivationTokenHash(
 ): string | null {
   if (
     claim.payload.userId !== null
-    || claim.payload.template !== "invitation"
-    || claim.payload.templateVersion !== "1"
-    || claim.payload.variables._mailProducer !== "access-request-approved"
+    || !matchesSystemTemplateAuthority(
+      claim,
+      ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY,
+    )
   ) {
     return null;
   }
@@ -670,10 +742,10 @@ async function providerBoundaryDecision(
     select case
       when ${systemAuthoritySql} then 'allowed'
       when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
-      when outbox.template <> 'account-deleted' and ${accountAuthoritySql}
+      when outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL} and ${accountAuthoritySql}
         then 'allowed'
       when ${DECISION_DELETION_CAPABILITY_SQL} then 'allowed'
-      when outbox.template = 'account-deleted'
+      when outbox.template = ${DELETION_NOTICE_TEMPLATE_SQL}
         then 'DELETION_NOTICE_CAPABILITY_INVALID'
       else 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
     end as decision
@@ -1237,13 +1309,14 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and (
               (
                 $7::text = 'DELETION_NOTICE_CAPABILITY_INVALID'
-                and outbox.template = 'account-deleted'
+                and outbox.template = ${DELETION_NOTICE_TEMPLATE_SQL}
                 and not (${SUPPRESSION_DELETION_CAPABILITY_SQL})
               )
               or (
                 $7::text = 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
                 and outbox.user_id is not null
-                and outbox.template <> 'account-deleted' and not (${ACCOUNT_MAIL_AUTHORITY_SQL})
+                and outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL}
+                and not (${ACCOUNT_MAIL_AUTHORITY_SQL})
               )
               or (
                 $7::text = 'SYSTEM_EMAIL_AUTHORITY_INVALID'
@@ -1302,7 +1375,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and (
             ${BOUNDARY_SYSTEM_MAIL_AUTHORITY_SQL}
             or (
-              outbox.template <> 'account-deleted' and ${ACCOUNT_MAIL_AUTHORITY_SQL}
+              outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL}
+              and ${ACCOUNT_MAIL_AUTHORITY_SQL}
             )
             or ${BOUNDARY_DELETION_CAPABILITY_SQL}
           )

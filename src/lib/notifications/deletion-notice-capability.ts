@@ -1,7 +1,20 @@
 import { createHash, createHmac } from "node:crypto";
 
-export const ACCOUNT_DELETION_NOTICE_TEMPLATE = "account-deleted";
-export const ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION = "1";
+import {
+  requireDeletionCapabilityTemplateAuthority,
+} from "./template-authority-policy";
+
+const ACCOUNT_DELETION_NOTICE_AUTHORITY =
+  requireDeletionCapabilityTemplateAuthority("account-deletion-notice-v1");
+if (ACCOUNT_DELETION_NOTICE_AUTHORITY.versions.length !== 1) {
+  throw new Error(
+    "Account deletion notice must have exactly one canonical template version.",
+  );
+}
+export const ACCOUNT_DELETION_NOTICE_TEMPLATE =
+  ACCOUNT_DELETION_NOTICE_AUTHORITY.template;
+export const ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION =
+  ACCOUNT_DELETION_NOTICE_AUTHORITY.versions[0]!;
 
 export type AccountDeletionNoticeVariables = Readonly<{
   backupRetentionUntil: string;
