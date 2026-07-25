@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   cpSync,
@@ -17,6 +18,10 @@ import { fileURLToPath } from "node:url";
 
 import { allocateDisposableLoopbackPort } from
   "../../scripts/lib/disposable-loopback-port.mjs";
+import {
+  REVIEWED_MIGRATION_LEDGER,
+  verifyAppliedMigrationLedger,
+} from "../../scripts/lib/reviewed-migration-ledger.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
@@ -139,6 +144,67 @@ function stagedMigrationsThrough(temporaryRoot, maximumIndex) {
   return staged;
 }
 
+function prefixMigrationVerifier(maximumIndex) {
+  const expected = REVIEWED_MIGRATION_LEDGER.slice(0, maximumIndex + 1);
+  assert.equal(expected.at(-1)?.idx, maximumIndex);
+  return {
+    verifyReviewedMigrationRepository({ drizzleDirectory }) {
+      const journal = JSON.parse(readFileSync(
+        path.join(drizzleDirectory, "meta", "_journal.json"),
+        "utf8",
+      ));
+      assert.deepEqual(
+        journal,
+        {
+          version: "7",
+          dialect: "postgresql",
+          entries: expected.map(({ sqlSha256: omitted, ...entry }) => {
+            assert.match(omitted, /^[0-9a-f]{64}$/u);
+            return entry;
+          }),
+        },
+        `staged migration journal must be the exact prefix through ${maximumIndex}`,
+      );
+      const actualNames = readdirSync(drizzleDirectory)
+        .filter((name) => /^\d{4}_.+\.sql$/u.test(name))
+        .sort();
+      assert.deepEqual(
+        actualNames,
+        expected.map(({ tag }) => `${tag}.sql`),
+        `staged SQL inventory must be exact through ${maximumIndex}`,
+      );
+      for (const entry of expected) {
+        assert.equal(
+          createHash("sha256")
+            .update(readFileSync(path.join(
+              drizzleDirectory,
+              `${entry.tag}.sql`,
+            )))
+            .digest("hex"),
+          entry.sqlSha256,
+          `staged migration ${entry.idx} bytes differ from the reviewed ledger`,
+        );
+      }
+    },
+    async verifyAppliedMigrationLedgerPrefix(
+      client,
+      { requireComplete = false } = {},
+    ) {
+      const result = await verifyAppliedMigrationLedger(client, {
+        requireComplete: false,
+      });
+      if (requireComplete) {
+        assert.equal(
+          result.appliedCount,
+          expected.length,
+          `database migration prefix through ${maximumIndex} is incomplete`,
+        );
+      }
+      return result;
+    },
+  };
+}
+
 function apply0066(port, database) {
   psql(
     port,
@@ -146,6 +212,113 @@ function apply0066(port, database) {
     `SET ROLE learncoding_owner;\n${migration0066}`,
     {
       username: "learncoding_migrator",
+      singleTransaction: true,
+      timeoutMs: 60_000,
+    },
+  );
+}
+
+function apply0066WithDelegatedAcl(port, database) {
+  const functionSealMarker = "DO $seal_function_acl$";
+  const columnSealMarker = "DO $seal_column_acl$";
+  const functionSealIndex = migration0066.indexOf(functionSealMarker);
+  const columnSealIndex = migration0066.indexOf(columnSealMarker);
+  assert.notEqual(functionSealIndex, -1);
+  assert.notEqual(columnSealIndex, -1);
+  assert.ok(functionSealIndex < columnSealIndex);
+
+  const beforeFunctionSeal = migration0066.slice(0, functionSealIndex);
+  const beforeColumnSeal = migration0066.slice(
+    functionSealIndex,
+    columnSealIndex,
+  );
+  const fromColumnSeal = migration0066.slice(columnSealIndex);
+  const pendingRowId = fixture(4).id;
+  const authorityColumns = [
+    "provider_correlation_version",
+    "provider_evidence_version",
+    "provider_evidence_sha256",
+  ];
+  const mutationProof = authorityColumns.map((column) => `
+    WITH changed AS (
+      UPDATE public.email_outbox
+         SET ${column} = ${column}
+       WHERE id = '${pendingRowId}'::uuid
+       RETURNING id
+    )
+    SELECT 1 / CASE WHEN pg_catalog.count(*) = 1 THEN 1 ELSE 0 END
+      FROM changed;
+  `).join("\n");
+
+  psql(
+    port,
+    database,
+    `
+      SET ROLE learncoding_owner;
+      ${beforeFunctionSeal}
+      RESET ROLE;
+      SET ROLE mail_acl_probe;
+      GRANT EXECUTE ON FUNCTION
+        public.enforce_email_outbox_provider_correlation_evidence()
+        TO mail_acl_leaf;
+      RESET ROLE;
+      SELECT 1 / CASE WHEN pg_catalog.has_function_privilege(
+        'mail_acl_leaf',
+        'public.enforce_email_outbox_provider_correlation_evidence()',
+        'EXECUTE'
+      ) THEN 1 ELSE 0 END;
+
+      SET ROLE learncoding_owner;
+      ${beforeColumnSeal}
+      GRANT SELECT ON TABLE public.email_outbox TO mail_acl_leaf;
+      GRANT UPDATE (
+        provider_correlation_version,
+        provider_evidence_version,
+        provider_evidence_sha256
+      ) ON TABLE public.email_outbox
+        TO mail_acl_probe WITH GRANT OPTION;
+      RESET ROLE;
+      SET ROLE mail_acl_probe;
+      GRANT UPDATE (
+        provider_correlation_version,
+        provider_evidence_version,
+        provider_evidence_sha256
+      ) ON TABLE public.email_outbox TO mail_acl_leaf;
+      RESET ROLE;
+      SELECT 1 / CASE WHEN (
+        NOT pg_catalog.has_table_privilege(
+          'mail_acl_leaf',
+          'public.email_outbox',
+          'UPDATE'
+        )
+        AND pg_catalog.has_column_privilege(
+          'mail_acl_leaf',
+          'public.email_outbox',
+          'provider_correlation_version',
+          'UPDATE'
+        )
+        AND pg_catalog.has_column_privilege(
+          'mail_acl_leaf',
+          'public.email_outbox',
+          'provider_evidence_version',
+          'UPDATE'
+        )
+        AND pg_catalog.has_column_privilege(
+          'mail_acl_leaf',
+          'public.email_outbox',
+          'provider_evidence_sha256',
+          'UPDATE'
+        )
+      ) THEN 1 ELSE 0 END;
+      SET ROLE mail_acl_leaf;
+      ${mutationProof}
+      RESET ROLE;
+
+      SET ROLE learncoding_owner;
+      ${fromColumnSeal}
+    `,
+    {
+      username: "postgres",
       singleTransaction: true,
       timeoutMs: 60_000,
     },
@@ -359,12 +532,46 @@ function routineContract(port, database) {
     database,
     `
       SELECT pg_catalog.current_setting('server_version_num') || '|' ||
+             namespace.nspname || '|' ||
+             routine.proname || '|' ||
              pg_catalog.pg_get_userbyid(routine.proowner) || '|' ||
              routine.prosecdef::text || '|' ||
              COALESCE(
                pg_catalog.array_to_string(routine.proconfig, ','),
                ''
              ) || '|' ||
+             language.lanname || '|' ||
+             routine.prokind::text || '|' ||
+             routine.provolatile::text || '|' ||
+             routine.proisstrict::text || '|' ||
+             routine.proparallel::text || '|' ||
+             routine.proleakproof::text || '|' ||
+             pg_catalog.cardinality(
+               COALESCE(routine.proargnames, '{}'::text[])
+             )::text || '|' ||
+             pg_catalog.cardinality(
+               COALESCE(routine.proargmodes, '{}'::"char"[])
+             )::text || '|' ||
+             pg_catalog.cardinality(
+               COALESCE(
+                 routine.proallargtypes,
+                 routine.proargtypes::pg_catalog.oid[]
+               )
+             )::text || '|' ||
+             routine.pronargs::text || '|' ||
+             routine.pronargdefaults::text || '|' ||
+             (routine.proargdefaults IS NULL)::text || '|' ||
+             pg_catalog.format_type(routine.prorettype, NULL) || '|' ||
+             routine.proretset::text || '|' ||
+             (routine.provariadic <> 0)::text || '|' ||
+             routine.procost::text || '|' ||
+             routine.prorows::text || '|' ||
+             (routine.prosupport = 0)::text || '|' ||
+             pg_catalog.cardinality(
+               COALESCE(routine.protrftypes, '{}'::pg_catalog.oid[])
+             )::text || '|' ||
+             (routine.probin IS NULL)::text || '|' ||
+             (routine.prosqlbody IS NULL)::text || '|' ||
              pg_catalog.encode(
                pg_catalog.sha256(
                  pg_catalog.convert_to(routine.prosrc, 'UTF8')
@@ -381,6 +588,10 @@ function routineContract(port, database) {
                'hex'
              )
         FROM pg_catalog.pg_proc routine
+        JOIN pg_catalog.pg_namespace namespace
+          ON namespace.oid = routine.pronamespace
+        JOIN pg_catalog.pg_language language
+          ON language.oid = routine.prolang
        WHERE routine.oid =
          'public.enforce_email_outbox_provider_correlation_evidence()'
            ::pg_catalog.regprocedure;
@@ -394,12 +605,17 @@ function functionAcl(port, database) {
     database,
     `
       SELECT pg_catalog.string_agg(
+               CASE WHEN acl.grantor = 0
+                 THEN 'PUBLIC'
+                 ELSE pg_catalog.pg_get_userbyid(acl.grantor)
+               END || '->' ||
                CASE WHEN acl.grantee = 0
                  THEN 'PUBLIC'
                  ELSE pg_catalog.pg_get_userbyid(acl.grantee)
                END || ':' || acl.privilege_type || ':' ||
                acl.is_grantable::text,
-               ',' ORDER BY acl.grantee, acl.privilege_type
+               ',' ORDER BY acl.grantor, acl.grantee,
+                 acl.privilege_type
              )
         FROM pg_catalog.pg_proc routine
         CROSS JOIN LATERAL pg_catalog.aclexplode(
@@ -422,18 +638,53 @@ function columnAcl(port, database) {
     `
       SELECT pg_catalog.string_agg(
                attribute.attname || ':' ||
+               CASE WHEN acl.grantor = 0
+                 THEN 'PUBLIC'
+                 ELSE pg_catalog.pg_get_userbyid(acl.grantor)
+               END || '->' ||
                CASE WHEN acl.grantee = 0
                  THEN 'PUBLIC'
                  ELSE pg_catalog.pg_get_userbyid(acl.grantee)
                END || ':' || acl.privilege_type || ':' ||
                acl.is_grantable::text,
-               ',' ORDER BY attribute.attname, acl.grantee,
-                 acl.privilege_type
+               ',' ORDER BY attribute.attname, acl.grantor,
+                 acl.grantee, acl.privilege_type
              )
         FROM pg_catalog.pg_attribute attribute
         CROSS JOIN LATERAL pg_catalog.aclexplode(
           attribute.attacl
         ) acl
+       WHERE attribute.attrelid =
+         'public.email_outbox'::pg_catalog.regclass
+         AND attribute.attname = ANY (ARRAY[
+           'provider_correlation_version',
+           'provider_evidence_version',
+           'provider_evidence_sha256'
+         ]::pg_catalog.name[]);
+    `,
+  );
+}
+
+function columnContract(port, database) {
+  return scalar(
+    port,
+    database,
+    `
+      SELECT pg_catalog.string_agg(
+               attribute.attname || ':' ||
+               pg_catalog.format_type(
+                 attribute.atttypid,
+                 attribute.atttypmod
+               ) || ':' ||
+               attribute.atttypmod::text || ':' ||
+               attribute.attnotnull::text || ':' ||
+               attribute.atthasdef::text || ':' ||
+               attribute.attgenerated::text || ':' ||
+               attribute.attidentity::text || ':' ||
+               attribute.attisdropped::text,
+               ',' ORDER BY attribute.attname
+             )
+        FROM pg_catalog.pg_attribute attribute
        WHERE attribute.attrelid =
          'public.email_outbox'::pg_catalog.regclass
          AND attribute.attname = ANY (ARRAY[
@@ -487,21 +738,45 @@ function proveCatalog(port, database) {
   assert.match(
     routine,
     new RegExp(
-      `^${postgresMajor}[0-9]{4}\\|learncoding_owner\\|false\\|`
-      + "search_path=pg_catalog\\|[0-9a-f]{64}\\|[0-9a-f]{64}$",
+      `^${postgresMajor}[0-9]{4}\\|public\\|`
+      + "enforce_email_outbox_provider_correlation_evidence\\|"
+      + "learncoding_owner\\|false\\|search_path=pg_catalog\\|"
+      + "plpgsql\\|f\\|v\\|false\\|u\\|false\\|"
+      + "0\\|0\\|0\\|0\\|0\\|true\\|trigger\\|false\\|false\\|"
+      + "100\\|0\\|true\\|0\\|true\\|true\\|"
+      + "62ff4885055979fb7eaf0fda3ae8170a14a430cb69d8f310e6aba742cf700e1a\\|"
+      + "afaab6796f97aa0294ff5a761679895f9ccfb78fea21e0be362979c5c4e5ab11$",
       "u",
     ),
   );
   assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.pg_get_userbyid(relation.relowner)
+         FROM pg_catalog.pg_class relation
+        WHERE relation.oid = 'public.email_outbox'::pg_catalog.regclass;`,
+    ),
+    "learncoding_owner",
+  );
+  assert.equal(
     functionAcl(port, database),
-    "learncoding_owner:EXECUTE:false",
+    "learncoding_owner->learncoding_owner:EXECUTE:false",
   );
   assert.equal(
     columnAcl(port, database),
     [
-      "provider_correlation_version:learncoding_worker:UPDATE:false",
-      "provider_evidence_sha256:learncoding_worker:UPDATE:false",
-      "provider_evidence_version:learncoding_worker:UPDATE:false",
+      "provider_correlation_version:learncoding_owner->learncoding_worker:UPDATE:false",
+      "provider_evidence_sha256:learncoding_owner->learncoding_worker:UPDATE:false",
+      "provider_evidence_version:learncoding_owner->learncoding_worker:UPDATE:false",
+    ].join(","),
+  );
+  assert.equal(
+    columnContract(port, database),
+    [
+      "provider_correlation_version:text:-1:false:false:::false",
+      "provider_evidence_sha256:text:-1:false:false:::false",
+      "provider_evidence_version:text:-1:false:false:::false",
     ].join(","),
   );
   assert.equal(
@@ -510,11 +785,25 @@ function proveCatalog(port, database) {
       database,
       `
         SELECT trigger.tgname || '|' ||
+               pg_catalog.pg_get_userbyid(relation.relowner) || '|' ||
                trigger.tgenabled::text || '|' ||
-               trigger.tgtype::text || '|' || routine.proname
+               trigger.tgtype::text || '|' ||
+               (trigger.tgfoid =
+                 'public.enforce_email_outbox_provider_correlation_evidence()'
+                   ::pg_catalog.regprocedure)::text || '|' ||
+               (pg_catalog.pg_get_expr(
+                 trigger.tgqual,
+                 trigger.tgrelid
+               ) IS NULL)::text || '|' ||
+               (trigger.tgnargs = 0)::text || '|' ||
+               (pg_catalog.octet_length(trigger.tgargs) = 0)::text || '|' ||
+               (pg_catalog.cardinality(
+                 trigger.tgattr::smallint[]
+               ) = 0)::text || '|' ||
+               trigger.tgisinternal::text
           FROM pg_catalog.pg_trigger trigger
-          JOIN pg_catalog.pg_proc routine
-            ON routine.oid = trigger.tgfoid
+          JOIN pg_catalog.pg_class relation
+            ON relation.oid = trigger.tgrelid
          WHERE trigger.tgrelid =
            'public.email_outbox'::pg_catalog.regclass
            AND trigger.tgname =
@@ -522,15 +811,18 @@ function proveCatalog(port, database) {
            AND NOT trigger.tgisinternal;
       `,
     ),
-    "email_outbox_provider_correlation_evidence_guard|O|23|"
-      + "enforce_email_outbox_provider_correlation_evidence",
+    "email_outbox_provider_correlation_evidence_guard|learncoding_owner|"
+      + "O|23|true|true|true|true|true|false",
   );
   assert.equal(
     scalar(
       port,
       database,
       `
-        SELECT constraint_data.convalidated::text || '|' ||
+        SELECT pg_catalog.pg_get_userbyid(relation.relowner) || '|' ||
+               constraint_data.contype::text || '|' ||
+               constraint_data.convalidated::text || '|' ||
+               constraint_data.connoinherit::text || '|' ||
                pg_catalog.array_to_string(
                  ARRAY(
                    SELECT attribute.attname
@@ -541,29 +833,87 @@ function proveCatalog(port, database) {
                        ON attribute.attrelid =
                             constraint_data.conrelid
                       AND attribute.attnum = key.attnum
-                    ORDER BY key.position
+                    ORDER BY attribute.attname
                  ),
                  ','
                )
           FROM pg_catalog.pg_constraint constraint_data
+          JOIN pg_catalog.pg_class relation
+            ON relation.oid = constraint_data.conrelid
          WHERE constraint_data.conrelid =
            'public.email_outbox'::pg_catalog.regclass
            AND constraint_data.conname =
              'email_outbox_provider_correlation_evidence_valid';
       `,
     ),
-    "true|provider_call_started,adapter,provider_message_id,last_error_code,"
-      + "dispatch_binding_version,"
-      + "dispatch_binding_sha256,provider_correlation_version,"
-      + "provider_evidence_version,provider_evidence_sha256,status,"
-      + "claim_version,claim_token,claim_owner,lease_expires_at,sent_at,"
-      + "quarantined_at",
+    "learncoding_owner|c|true|false|adapter,claim_owner,claim_token,"
+      + "claim_version,dispatch_binding_sha256,dispatch_binding_version,"
+      + "last_error_code,lease_expires_at,provider_call_started,"
+      + "provider_correlation_version,provider_evidence_sha256,"
+      + "provider_evidence_version,provider_message_id,quarantined_at,"
+      + "sent_at,status",
   );
   assert.equal(
     constraintExpressionHash(port, database),
     "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
   );
   return routine;
+}
+
+function proveDelegatedAclRevocation(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.has_function_privilege(
+         'mail_acl_leaf',
+         'public.enforce_email_outbox_provider_correlation_evidence()',
+         'EXECUTE'
+       )::text;`,
+    ),
+    "false",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.has_table_privilege(
+         'mail_acl_leaf',
+         'public.email_outbox',
+         'UPDATE'
+       )::text;`,
+    ),
+    "false",
+  );
+  for (const column of [
+    "provider_correlation_version",
+    "provider_evidence_version",
+    "provider_evidence_sha256",
+  ]) {
+    assert.equal(
+      scalar(
+        port,
+        database,
+        `SELECT pg_catalog.has_column_privilege(
+           'mail_acl_leaf',
+           'public.email_outbox',
+           '${column}',
+           'UPDATE'
+         )::text;`,
+      ),
+      "false",
+    );
+    expectSqlState(
+      port,
+      database,
+      "postgres",
+      `UPDATE public.email_outbox
+          SET ${column} = ${column}
+        WHERE id = '${fixture(4).id}'::uuid`,
+      "42501",
+      "SET ROLE mail_acl_leaf;",
+    );
+  }
 }
 
 function proveBackfill(port, database) {
@@ -743,7 +1093,8 @@ function proveWorkerPrivileges(port, database) {
       database,
       `
         WITH grants AS (
-          SELECT acl.is_grantable
+          SELECT acl.grantor = relation.relowner grantor_exact,
+                 acl.is_grantable
             FROM pg_catalog.pg_class relation
             CROSS JOIN LATERAL pg_catalog.aclexplode(
               COALESCE(
@@ -754,18 +1105,23 @@ function proveWorkerPrivileges(port, database) {
            WHERE relation.oid = 'public.email_outbox'::pg_catalog.regclass
              AND acl.grantee = pg_catalog.to_regrole('learncoding_worker')
           UNION ALL
-          SELECT acl.is_grantable
+          SELECT acl.grantor = relation.relowner grantor_exact,
+                 acl.is_grantable
             FROM pg_catalog.pg_attribute attribute
+            JOIN pg_catalog.pg_class relation
+              ON relation.oid = attribute.attrelid
             CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) acl
            WHERE attribute.attrelid =
                    'public.email_outbox'::pg_catalog.regclass
              AND acl.grantee = pg_catalog.to_regrole('learncoding_worker')
         )
-        SELECT COALESCE(pg_catalog.bool_or(is_grantable), false)::text
+        SELECT COALESCE(pg_catalog.bool_and(grantor_exact), false)::text
+               || '|' ||
+               COALESCE(pg_catalog.bool_or(is_grantable), false)::text
           FROM grants;
       `,
     ),
-    "false",
+    "true|false",
   );
 }
 
@@ -1181,6 +1537,8 @@ async function main() {
     temporaryRoot,
     64,
   );
+  const baselineVerifier = prefixMigrationVerifier(63);
+  const predecessorVerifier = prefixMigrationVerifier(64);
   const port = await allocateDisposableLoopbackPort();
   let startAttempted = false;
   let operationError;
@@ -1242,6 +1600,10 @@ async function main() {
       connectionString:
         `postgresql://learncoding_migrator@127.0.0.1:${port}/mail0066_template`,
       migrationsFolder: baselineMigrations,
+      verifyReviewedMigrationRepository:
+        baselineVerifier.verifyReviewedMigrationRepository,
+      verifyAppliedMigrationLedger:
+        baselineVerifier.verifyAppliedMigrationLedgerPrefix,
     });
     const scenarioDatabases = [
       "mail0066_absent",
@@ -1268,6 +1630,10 @@ async function main() {
         connectionString:
           `postgresql://learncoding_migrator@127.0.0.1:${port}/${database}`,
         migrationsFolder: predecessorMigrations,
+        verifyReviewedMigrationRepository:
+          predecessorVerifier.verifyReviewedMigrationRepository,
+        verifyAppliedMigrationLedger:
+          predecessorVerifier.verifyAppliedMigrationLedgerPrefix,
       });
     }
     for (const database of ["mail0066_absent", "mail0066_present"]) {
@@ -1335,10 +1701,20 @@ async function main() {
       `
         CREATE ROLE learncoding_backup_reporter NOLOGIN NOINHERIT;
         CREATE ROLE mail_default_grantee NOLOGIN NOINHERIT;
+        CREATE ROLE mail_acl_probe NOLOGIN NOINHERIT;
+        CREATE ROLE mail_acl_leaf NOLOGIN NOINHERIT;
+        ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner
+          IN SCHEMA public
+          GRANT EXECUTE ON FUNCTIONS TO learncoding_owner
+          WITH GRANT OPTION;
         ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner
           IN SCHEMA public
           GRANT EXECUTE ON FUNCTIONS
           TO learncoding_backup_reporter, mail_default_grantee;
+        ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner
+          IN SCHEMA public
+          GRANT EXECUTE ON FUNCTIONS TO mail_acl_probe
+          WITH GRANT OPTION;
         SET ROLE learncoding_owner;
         CREATE FUNCTION public.default_acl_sentinel_0066()
         RETURNS integer
@@ -1371,7 +1747,61 @@ async function main() {
     );
     assert.match(sentinelAcl, /learncoding_backup_reporter/u);
     assert.match(sentinelAcl, /mail_default_grantee/u);
-    apply0066(port, "mail0066_present");
+    assert.equal(
+      scalar(
+        port,
+        "mail0066_present",
+        `
+          SELECT COALESCE(
+                   pg_catalog.bool_or(
+                     acl.grantee =
+                       pg_catalog.to_regrole('learncoding_owner')
+                     AND acl.is_grantable
+                   ),
+                   false
+                 )::text
+            FROM pg_catalog.pg_proc routine
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                routine.proacl,
+                pg_catalog.acldefault('f', routine.proowner)
+              )
+            ) acl
+           WHERE routine.oid =
+             'public.default_acl_sentinel_0066()'::pg_catalog.regprocedure;
+        `,
+      ),
+      "true",
+      "the owner grant-option poison fixture must be effective before 0066",
+    );
+    assert.equal(
+      scalar(
+        port,
+        "mail0066_present",
+        `
+          SELECT COALESCE(
+                   pg_catalog.bool_or(
+                     acl.grantee =
+                       pg_catalog.to_regrole('mail_acl_probe')
+                     AND acl.is_grantable
+                   ),
+                   false
+                 )::text
+            FROM pg_catalog.pg_proc routine
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                routine.proacl,
+                pg_catalog.acldefault('f', routine.proowner)
+              )
+            ) acl
+           WHERE routine.oid =
+             'public.default_acl_sentinel_0066()'::pg_catalog.regprocedure;
+        `,
+      ),
+      "true",
+      "the delegated probe must inherit function grant option before 0066",
+    );
+    apply0066WithDelegatedAcl(port, "mail0066_present");
 
     const absentContract = proveCatalog(port, "mail0066_absent");
     const presentContract = proveCatalog(port, "mail0066_present");
@@ -1379,6 +1809,7 @@ async function main() {
     proveBackfill(port, "mail0066_absent");
     proveBackfill(port, "mail0066_present");
     proveWorkerPrivileges(port, "mail0066_absent");
+    proveDelegatedAclRevocation(port, "mail0066_present");
     proveCatalogGrantProbe(port, "mail0066_absent");
     proveTransitionMatrix(port, "mail0066_absent");
     process.stdout.write(
