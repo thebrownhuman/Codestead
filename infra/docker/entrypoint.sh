@@ -33,6 +33,7 @@ for variable in \
   DATABASE_MIGRATOR_URL \
   DATABASE_WORKER_URL \
   DATABASE_OPS_URL \
+  DATABASE_BACKUP_REPORTER_URL \
   BOOTSTRAP_ADMIN_PASSWORD \
   BETTER_AUTH_SECRET \
   LOST_DEVICE_PROOF_KEY \
@@ -49,7 +50,7 @@ done
 
 if [ "${NODE_ENV:-}" = "production" ]; then
   if [ -n "${DATABASE_BOOTSTRAP_URL:-}" ]; then
-    for variable in DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL; do
+    for variable in DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
       eval "value=\${$variable-}"
       if [ -z "$value" ]; then
         echo "fatal: the complete database role credential set is required" >&2

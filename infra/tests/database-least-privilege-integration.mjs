@@ -28,6 +28,8 @@ function options(database, generation) {
     databaseMigratorUrl: url("learncoding_migrator", secret("migrator", generation), database),
     databaseWorkerUrl: url("learncoding_worker", secret("worker", generation), database),
     databaseOpsUrl: url("learncoding_ops", secret("ops", generation), database),
+    databaseBackupReporterUrl:
+      url("learncoding_backup_reporter", secret("backup-reporter", generation), database),
     lockTimeoutMs: 10_000,
     cleanupTimeoutMs: 5_000,
   };

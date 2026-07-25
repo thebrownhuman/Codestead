@@ -62,6 +62,7 @@ services:
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+      DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
       - source: database_bootstrap_url
         target: database_bootstrap_url
@@ -73,6 +74,8 @@ services:
         target: database_worker_url
       - source: database_ops_url
         target: database_ops_url
+      - source: database_backup_reporter_url
+        target: database_backup_reporter_url
     group_add:
       - "${RESTORE_SECRETS_GID:-2000}"
     depends_on:
@@ -222,6 +225,8 @@ secrets:
     file: ${RESTORE_DATABASE_WORKER_URL_FILE:?Set RESTORE_DATABASE_WORKER_URL_FILE}
   database_ops_url:
     file: ${RESTORE_DATABASE_OPS_URL_FILE:?Set RESTORE_DATABASE_OPS_URL_FILE}
+  database_backup_reporter_url:
+    file: ${RESTORE_DATABASE_BACKUP_REPORTER_URL_FILE:?Set RESTORE_DATABASE_BACKUP_REPORTER_URL_FILE}
 
 networks:
   restore-data:

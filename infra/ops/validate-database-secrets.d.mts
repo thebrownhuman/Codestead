@@ -7,6 +7,7 @@ export interface DatabaseSecretValues {
   databaseMigratorUrl: string;
   databaseWorkerUrl: string;
   databaseOpsUrl: string;
+  databaseBackupReporterUrl: string;
 }
 
 export interface ValidatedDatabaseSecretValues {

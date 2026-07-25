@@ -16,6 +16,7 @@ type DatabaseRoleModule = {
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
     databaseOpsUrl: string;
+    databaseBackupReporterUrl: string;
   }) => Record<string, { username: string; hostname: string; database: string }>;
   validateOwnershipInventory: (input: {
     postgresUser: string;
@@ -60,6 +61,8 @@ const urls = {
   databaseWorkerUrl:
     "postgresql://learncoding_worker:worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
   databaseOpsUrl: "postgresql://learncoding_ops:ops-Fake-E-000000000000000000000@postgres:5432/learncoding",
+  databaseBackupReporterUrl:
+    "postgresql://learncoding_backup_reporter:backup-reporter-Fake-F-000000000000@postgres:5432/learncoding",
 };
 
 describe("database least-privilege bootstrap", () => {
@@ -72,7 +75,7 @@ describe("database least-privilege bootstrap", () => {
     );
   });
 
-  it("reconciles one exact reviewed ops routine after the blanket revoke", async () => {
+  it("reconciles only the three reviewed owner routines after the blanket revoke", async () => {
     const databaseRoleBootstrap = await loadDatabaseRoleModule();
 
     expect(databaseRoleBootstrap).not.toBeNull();
@@ -84,6 +87,18 @@ describe("database least-privilege bootstrap", () => {
         grantSql:
           "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
       },
+      {
+        signature: "public.enqueue_backup_status_mail_authority(text,text)",
+        role: "learncoding_backup_reporter",
+        grantSql:
+          "grant execute on function public.enqueue_backup_status_mail_authority(text, text) to learncoding_backup_reporter",
+      },
+      {
+        signature: "public.backup_status_mail_authorized(uuid)",
+        role: "learncoding_worker",
+        grantSql:
+          "grant execute on function public.backup_status_mail_authorized(uuid) to learncoding_worker",
+      },
     ]);
     const reviewedGrant = databaseRoleBootstrap!
       .reviewedApplicationFunctionPrivilegesSql()
@@ -91,7 +106,15 @@ describe("database least-privilege bootstrap", () => {
     expect(reviewedGrant).toContain(
       "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
     );
-    expect(reviewedGrant).not.toMatch(/to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu);
+    expect(reviewedGrant).toContain(
+      "grant execute on function public.enqueue_backup_status_mail_authority(text, text) to learncoding_backup_reporter",
+    );
+    expect(reviewedGrant).toContain(
+      "grant execute on function public.backup_status_mail_authorized(uuid) to learncoding_worker",
+    );
+    expect(reviewedGrant).not.toMatch(
+      /to\s+(public|learncoding_app|learncoding_migrator)\b/iu,
+    );
 
     const source = await import("node:fs/promises").then(({ readFile }) =>
       readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
@@ -157,6 +180,7 @@ describe("database least-privilege bootstrap", () => {
       "learncoding_owner",
       "learncoding_migrator",
       "learncoding_app",
+      "learncoding_backup_reporter",
       "learncoding_worker",
       "learncoding_ops",
     ]) {
@@ -230,6 +254,7 @@ describe("database least-privilege bootstrap", () => {
       migrator: ["learncoding_migrator", "postgres", "learncoding"],
       worker: ["learncoding_worker", "postgres", "learncoding"],
       ops: ["learncoding_ops", "postgres", "learncoding"],
+      backupReporter: ["learncoding_backup_reporter", "postgres", "learncoding"],
     });
   });
 

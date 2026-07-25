@@ -11,7 +11,7 @@ sha256_bin=/usr/bin/sha256sum
 perl_bin=/usr/bin/perl
 validator="$repo_root/infra/ops/validate-runtime.sh"
 validator_shebang='#!/usr/bin/env bash'
-validator_reviewed_sha256='ca635db9105e002c0c1a101ffa4d88ece4c146e3e84f49a2cc0b8aa1eb4e13c5'
+validator_reviewed_sha256='c0f4efaef94d039dc44d6ecb8715951ca160c77b3dd44816e80827499b73a601'
 
 if [[ "$(/usr/bin/uname -s 2>/dev/null || true)" != Linux ]]; then
   echo 'FAIL: authoritative runtime contract requires Linux Bubblewrap containment' >&2
@@ -897,14 +897,15 @@ set -Eeuo pipefail
 if [[ "$#" == 2 && "$1" == --check && "$2" == "$FAKE_EXPECTED_OBJECT_PREPARER" ]]; then
   exit "$FAKE_NODE_OBJECT_CHECK_STATUS"
 fi
-if [[ "$#" == 9 && "$1" == "$FAKE_EXPECTED_DATABASE_VALIDATOR" && \
+if [[ "$#" == 10 && "$1" == "$FAKE_EXPECTED_DATABASE_VALIDATOR" && \
   "$2" == learncoding && "$3" == learncoding && \
   "$4" == "$FAKE_EXPECTED_SECRETS_DIR/postgres_password" && \
   "$5" == "$FAKE_EXPECTED_SECRETS_DIR/database_bootstrap_url" && \
   "$6" == "$FAKE_EXPECTED_SECRETS_DIR/database_url" && \
   "$7" == "$FAKE_EXPECTED_SECRETS_DIR/database_migrator_url" && \
   "$8" == "$FAKE_EXPECTED_SECRETS_DIR/database_worker_url" && \
-  "$9" == "$FAKE_EXPECTED_SECRETS_DIR/database_ops_url" ]]; then
+  "$9" == "$FAKE_EXPECTED_SECRETS_DIR/database_ops_url" && \
+  "${10}" == "$FAKE_EXPECTED_SECRETS_DIR/database_backup_reporter_url" ]]; then
   printf '%s\n' 'database secret topology valid'
   exit 0
 fi
@@ -1127,6 +1128,7 @@ EOF
   printf '%s' "postgresql://learncoding_migrator:migrator-$database_canary@postgres/learncoding" >"$secrets/database_migrator_url"
   printf '%s' "postgresql://learncoding_worker:worker-$database_canary@postgres/learncoding" >"$secrets/database_worker_url"
   printf '%s' "postgresql://learncoding_ops:ops-$database_canary@postgres/learncoding" >"$secrets/database_ops_url"
+  printf '%s' "postgresql://learncoding_backup_reporter:backup-reporter-$database_canary@postgres/learncoding" >"$secrets/database_backup_reporter_url"
   printf '%s' 'better-auth-secret-at-least-thirty-two-bytes' >"$secrets/better_auth_secret"
   printf '%s' 'lost-device-proof-key-at-least-thirty-two-bytes' >"$secrets/lost_device_proof_key"
   printf '%s' 'deletion-tombstone-key-at-least-thirty-two-bytes' >"$secrets/deletion_tombstone_key"

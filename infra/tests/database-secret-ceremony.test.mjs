@@ -22,6 +22,7 @@ const secretNames = [
   "database_migrator_url",
   "database_worker_url",
   "database_ops_url",
+  "database_backup_reporter_url",
 ];
 
 let temporaryRoot;
@@ -79,6 +80,7 @@ before(() => {
     databaseMigratorUrl: readSecret("database_migrator_url"),
     databaseWorkerUrl: readSecret("database_worker_url"),
     databaseOpsUrl: readSecret("database_ops_url"),
+    databaseBackupReporterUrl: readSecret("database_backup_reporter_url"),
   };
 });
 
@@ -95,6 +97,7 @@ test("the public ceremony creates a clean validator-compatible inventory", () =>
       "learncoding_migrator",
       "learncoding_worker",
       "learncoding_ops",
+      "learncoding_backup_reporter",
     ],
   });
 
@@ -110,13 +113,15 @@ test("the public ceremony creates a clean validator-compatible inventory", () =>
     values.databaseMigratorUrl,
     values.databaseWorkerUrl,
     values.databaseOpsUrl,
+    values.databaseBackupReporterUrl,
   ].map((value) => (value.includes("://") ? new URL(value).password : value));
-  assert.equal(new Set(passwords).size, 5);
+  assert.equal(new Set(passwords).size, 6);
   for (const password of passwords) assert.match(password, /^[0-9a-f]{64}$/u);
 });
 
 test("a missing database URL fails closed", () => {
   expectInvalid({ databaseOpsUrl: undefined });
+  expectInvalid({ databaseBackupReporterUrl: undefined });
 });
 
 test("a wrong fixed role user fails closed", () => {

@@ -120,11 +120,12 @@ restore_database_app_url_file="$restore_secret_root/database_url"
 restore_database_migrator_url_file="$restore_secret_root/database_migrator_url"
 restore_database_worker_url_file="$restore_secret_root/database_worker_url"
 restore_database_ops_url_file="$restore_secret_root/database_ops_url"
+restore_database_backup_reporter_url_file="$restore_secret_root/database_backup_reporter_url"
 
 mapfile -t restore_passwords < <(
-  python3 -c 'import secrets; [print(secrets.token_urlsafe(48)) for _ in range(5)]'
+  python3 -c 'import secrets; [print(secrets.token_urlsafe(48)) for _ in range(6)]'
 )
-[[ ${#restore_passwords[@]} -eq 5 ]] || die "restore database credential generation failed"
+[[ ${#restore_passwords[@]} -eq 6 ]] || die "restore database credential generation failed"
 declare -A restore_password_set=()
 for restore_password in "${restore_passwords[@]}"; do
   [[ "$restore_password" =~ ^[A-Za-z0-9_-]{48,}$ \
@@ -154,6 +155,8 @@ write_restore_secret "$restore_database_worker_url_file" \
   "postgresql://learncoding_worker:${restore_passwords[3]}@postgres:5432/learncoding_restore"
 write_restore_secret "$restore_database_ops_url_file" \
   "postgresql://learncoding_ops:${restore_passwords[4]}@postgres:5432/learncoding_restore"
+write_restore_secret "$restore_database_backup_reporter_url_file" \
+  "postgresql://learncoding_backup_reporter:${restore_passwords[5]}@postgres:5432/learncoding_restore"
 unset restore_password restore_passwords restore_password_set restore_postgres_password
 
 archive_name=unknown
@@ -195,6 +198,7 @@ restore_compose() {
   RESTORE_DATABASE_MIGRATOR_URL_FILE="$restore_database_migrator_url_file" \
   RESTORE_DATABASE_WORKER_URL_FILE="$restore_database_worker_url_file" \
   RESTORE_DATABASE_OPS_URL_FILE="$restore_database_ops_url_file" \
+  RESTORE_DATABASE_BACKUP_REPORTER_URL_FILE="$restore_database_backup_reporter_url_file" \
   RESTORE_EXTRACTED_ROOT="$extracted" \
   RESTORE_APP_DATA_ROOT_HOST="$app_data_root" \
   RESTORE_CREDENTIAL_MASTER_KEY_FILE="$credential_key" \

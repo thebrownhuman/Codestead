@@ -26,6 +26,7 @@ type RoleBootstrapRunner = (options: {
   readonly databaseMigratorUrl: string;
   readonly databaseWorkerUrl: string;
   readonly databaseOpsUrl: string;
+  readonly databaseBackupReporterUrl: string;
   readonly lockTimeoutMs: number;
   readonly cleanupTimeoutMs: number;
   readonly pool: InstanceType<typeof Pool>;
@@ -63,6 +64,7 @@ type DisposableRoleCredentials = Readonly<{
   migrator: string;
   worker: string;
   ops: string;
+  backupReporter: string;
 }>;
 
 function executable(name: "docker" | "npm") {
@@ -201,6 +203,10 @@ async function reconcileDisposableIntegrationRoles(input: {
       input.credentials.worker,
     ),
     databaseOpsUrl: canonical("learncoding_ops", input.credentials.ops),
+    databaseBackupReporterUrl: canonical(
+      "learncoding_backup_reporter",
+      input.credentials.backupReporter,
+    ),
     lockTimeoutMs: 10_000,
     cleanupTimeoutMs: 5_000,
     pool,
@@ -398,6 +404,7 @@ async function main() {
     migrator: generatedPassword(),
     worker: generatedPassword(),
     ops: generatedPassword(),
+    backupReporter: generatedPassword(),
   });
   const port = await availablePort();
   const image = process.env.INTEGRATION_POSTGRES_IMAGE ??

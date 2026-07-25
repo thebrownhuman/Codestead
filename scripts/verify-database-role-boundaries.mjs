@@ -239,6 +239,69 @@ async function verifyApplicationObjectAccess(client, objects) {
   return positiveChecks;
 }
 
+async function verifyPrivilegedApplicationRoutines(client) {
+  const expected = JSON.stringify([
+    {
+      signature: "public.enqueue_backup_status_mail_authority(text,text)",
+      allowedRole: "learncoding_backup_reporter",
+    },
+    {
+      signature: "public.backup_status_mail_authorized(uuid)",
+      allowedRole: "learncoding_worker",
+    },
+  ]);
+  const result = await client.query(
+    `select count(p.oid) = pg_catalog.jsonb_array_length($1::jsonb)
+              and pg_catalog.coalesce(
+                pg_catalog.bool_and(
+                  p.prokind = 'f'
+                  and owner_role.rolname = 'learncoding_owner'
+                  and p.prosecdef
+                  and p.proconfig =
+                      array['search_path=pg_catalog']::text[]
+                  and not pg_catalog.has_function_privilege(
+                    0, p.oid, 'EXECUTE'
+                  )
+                  and (
+                    select pg_catalog.count(*) = 1
+                      from pg_catalog.aclexplode(
+                        pg_catalog.coalesce(
+                          p.proacl,
+                          pg_catalog.acldefault('f', p.proowner)
+                        )
+                      ) acl
+                     where acl.grantee <> p.proowner
+                  )
+                  and exists (
+                    select 1
+                      from pg_catalog.aclexplode(
+                        pg_catalog.coalesce(
+                          p.proacl,
+                          pg_catalog.acldefault('f', p.proowner)
+                        )
+                      ) acl
+                     where acl.grantee <> p.proowner
+                       and acl.grantee = allowed_role.oid
+                       and acl.grantor = p.proowner
+                       and acl.privilege_type = 'EXECUTE'
+                       and acl.is_grantable = false
+                  )
+                ),
+                false
+              ) routines_exact
+       from pg_catalog.jsonb_to_recordset($1::jsonb)
+            expected(signature text, "allowedRole" text)
+       left join pg_catalog.pg_proc p
+         on p.oid = pg_catalog.to_regprocedure(expected.signature)
+       left join pg_catalog.pg_roles owner_role
+         on owner_role.oid = p.proowner
+       left join pg_catalog.pg_roles allowed_role
+         on allowed_role.rolname = expected."allowedRole"`,
+    [expected],
+  );
+  if (result.rows[0]?.routines_exact !== true) fail();
+}
+
 async function verifyRole({ client, role, database, objects }) {
   let positiveChecks = 0;
   let negativeChecks = 0;
@@ -347,6 +410,10 @@ export async function verifyDatabaseRoleBoundaries(options) {
     const objects = requireApplicationObjects
       ? await discoverApplicationObjects(lockClient)
       : undefined;
+    if (requireApplicationObjects) {
+      await verifyPrivilegedApplicationRoutines(lockClient);
+      positiveChecks += 1;
+    }
     for (const [name] of ROLE_SPECS) {
       const role = parsed[name];
       const result = await verifyRole({

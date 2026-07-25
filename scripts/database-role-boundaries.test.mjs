@@ -180,6 +180,13 @@ function makeClient(role, database, options) {
           column_name: "id",
         }] };
       }
+      if (normalized.includes("routines_exact")) {
+        return {
+          rows: [{
+            routines_exact: options.privilegedRoutinesExact !== false,
+          }],
+        };
+      }
       if (normalized.includes("from pg_class c") && normalized.includes("c.relkind = 's'")) {
         return { rows: [{ schema_name: "public", object_name: "sample_id_seq" }] };
       }
@@ -267,7 +274,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 4,
-    positiveChecks: 31,
+    positiveChecks: 32,
     negativeChecks: 23,
   });
   for (const role of ["learncoding_app", "learncoding_worker", "learncoding_ops"]) {
@@ -293,7 +300,7 @@ test("accepts PostgreSQL's no-op GRANT only when the privilege remains undelegat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 4,
-    positiveChecks: 31,
+    positiveChecks: 32,
     negativeChecks: 23,
   });
 
@@ -311,6 +318,20 @@ test("accepts PostgreSQL's no-op GRANT only when the privilege remains undelegat
     DatabaseRoleBoundaryError,
   );
   assert.equal(delegated.pools.every((pool) => pool.ended), true);
+});
+
+test("post-migration mode fails closed on insecure or missing authority routines", async () => {
+  const harness = makePoolHarness({ privilegedRoutinesExact: false });
+  await assert.rejects(
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: harness.factory,
+      lockTimeoutMs: 50,
+      requireApplicationObjects: true,
+    }),
+    DatabaseRoleBoundaryError,
+  );
+  assert.equal(harness.pools.every((pool) => pool.ended), true);
 });
 
 test("fails closed when a forbidden statement succeeds or the lock remains held", async () => {

@@ -7,8 +7,13 @@ const root = path.resolve(import.meta.dirname, "../..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 function serviceBlock(compose, name) {
-  const start = compose.indexOf(`  ${name}:`);
-  assert.notEqual(start, -1, `missing Compose service ${name}`);
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const serviceMatch = new RegExp(
+    `^  ${escapedName}:\\s*$`,
+    "mu",
+  ).exec(compose);
+  assert.ok(serviceMatch, `missing Compose service ${name}`);
+  const start = serviceMatch.index;
   const remainder = compose.slice(start + 1);
   const next = remainder.search(/^  [a-zA-Z0-9][a-zA-Z0-9-]*:\s*$/mu);
   return next === -1 ? compose.slice(start) : compose.slice(start, start + 1 + next);
@@ -21,6 +26,7 @@ function databaseSecretTargets(block) {
     "database_migrator_url",
     "database_worker_url",
     "database_ops_url",
+    "database_backup_reporter_url",
     "postgres_password",
   ];
   return databaseSources.flatMap((source) => {
@@ -48,6 +54,7 @@ test("Compose mounts the exact database credential matrix", () => {
       "database_migrator_url:database_migrator_url",
       "database_worker_url:database_worker_url",
       "database_ops_url:database_ops_url",
+      "database_backup_reporter_url:database_backup_reporter_url",
     ],
     migrate: ["database_migrator_url:database_url"],
     app: ["database_url:database_url"],
@@ -61,6 +68,7 @@ test("Compose mounts the exact database credential matrix", () => {
     lifecycle: ["database_ops_url:database_url"],
     "platform-seed": ["database_ops_url:database_url"],
     "admin-bootstrap": ["database_ops_url:database_url"],
+    "backup-status-reporter": ["database_backup_reporter_url:database_backup_reporter_url"],
   };
 
   for (const [service, mounts] of Object.entries(expected)) {
@@ -142,12 +150,15 @@ test("bootstrap and migration share the administration lock without broad reassi
   assert.match(migration, /session_user/u);
 });
 
-test("bootstrap preserves only the reviewed retention routine for ops", () => {
+test("bootstrap preserves only the three reviewed application routines", () => {
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
 
   assert.match(bootstrap, /redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\)/u);
   assert.match(bootstrap, /grant execute on function public\.redact_unresolved_email_outbox_authority\(timestamp with time zone, integer\) to learncoding_ops/iu);
+  assert.match(bootstrap, /grant execute on function public\.enqueue_backup_status_mail_authority\(text, text\) to learncoding_backup_reporter/iu);
+  assert.match(bootstrap, /grant execute on function public\.backup_status_mail_authorized\(uuid\) to learncoding_worker/iu);
   assert.match(bootstrap, /has_function_privilege\(0, p\.oid, 'EXECUTE'\)[\s\S]+is distinct from exists/iu);
+  assert.match(bootstrap, /routine_security_exact/u);
 });
 
 test("mail worker outbox grants allow queue state changes but deny payload mutation", () => {
@@ -215,6 +226,7 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
   assert.match(restore, /learncoding_app/u);
   assert.match(restore, /learncoding_worker/u);
   assert.match(restore, /learncoding_ops/u);
+  assert.match(restore, /learncoding_backup_reporter/u);
   assert.match(restore, /negative/u);
   assert.ok(firstBootstrap >= 0 && firstBootstrap < restoreDatabase);
   assert.ok(restoreDatabase < secondBootstrap && secondBootstrap < verifier);
@@ -225,7 +237,6 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
 test("operator PostgreSQL clients name the custom socket", () => {
   for (const file of [
     "scripts/backup/backup.sh",
-    "scripts/backup/common.sh",
     "scripts/backup/emergency-backup.sh",
     "scripts/backup/restore.sh",
     "scripts/backup/restore-drill-isolated.sh",
@@ -245,4 +256,12 @@ test("operator PostgreSQL clients name the custom socket", () => {
       );
     }
   }
+});
+
+test("host backup status reporting contains no direct PostgreSQL client", () => {
+  const common = read("scripts/backup/common.sh");
+  assert.doesNotMatch(
+    common,
+    /\b(pg_dump|pg_restore|psql|createdb|dropdb|pg_isready)\b/u,
+  );
 });

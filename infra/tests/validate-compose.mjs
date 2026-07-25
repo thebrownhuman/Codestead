@@ -30,6 +30,7 @@ const pilotServices = [
 ];
 const operationServices = [
   "admin-bootstrap",
+  "backup-status-reporter",
   "database-boundary-verifier",
   "database-negative-probes",
   "database-role-bootstrap",
@@ -241,6 +242,7 @@ const expectedNetworks = {
   postgres: ["data"],
   migrate: ["data"],
   "database-role-bootstrap": ["data"],
+  "backup-status-reporter": ["data"],
   "database-negative-probes": ["data"],
   "database-boundary-verifier": ["data"],
   app: ["data", "frontend", "runner-client"],
@@ -351,6 +353,7 @@ expect(config.services?.app?.networks?.["runner-client"]?.interface_name === "ru
 const expectedSecretSources = {
   postgres: ["postgres_password"],
   "database-role-bootstrap": [
+    "database_backup_reporter_url",
     "database_bootstrap_url",
     "database_migrator_url",
     "database_ops_url",
@@ -369,6 +372,7 @@ const expectedSecretSources = {
     "database_url",
     "database_worker_url",
   ],
+  "backup-status-reporter": ["database_backup_reporter_url"],
   migrate: ["database_migrator_url"],
   app: [
     "better_auth_secret",
@@ -411,6 +415,7 @@ expect(
     "credential_master_key",
     "database_url",
     "database_bootstrap_url",
+    "database_backup_reporter_url",
     "database_migrator_url",
     "database_ops_url",
     "database_worker_url",
@@ -441,6 +446,7 @@ const expectedVolumes = {
   "database-role-bootstrap": [],
   "database-negative-probes": [],
   "database-boundary-verifier": [],
+  "backup-status-reporter": [],
   app: [
     "bind:/srv/learncoding/next-cache:/app/.next/cache:rw",
     "bind:/srv/learncoding/app-data/objects:/var/lib/learncoding/objects:rw",
@@ -486,6 +492,7 @@ const expectedDependencies = {
   "database-role-bootstrap": ["postgres:service_healthy"],
   "database-negative-probes": ["postgres:service_healthy"],
   "database-boundary-verifier": ["postgres:service_healthy"],
+  "backup-status-reporter": ["migrate:service_completed_successfully"],
   app: ["postgres:service_healthy", "runner-egress-gateway:service_healthy"],
   "runner-egress-gateway": [],
   "mail-worker": ["postgres:service_healthy"],
@@ -512,6 +519,7 @@ const expectedBuildTargets = {
   "database-role-bootstrap": "operations",
   "database-negative-probes": "operations",
   "database-boundary-verifier": "operations",
+  "backup-status-reporter": "operations",
   app: "runtime",
   "mail-worker": "worker",
   "reward-worker": "worker",
@@ -537,6 +545,7 @@ const expectedImages = {
   "database-role-bootstrap": applicationImages.APP_OPERATIONS_IMAGE,
   "database-negative-probes": applicationImages.APP_OPERATIONS_IMAGE,
   "database-boundary-verifier": applicationImages.APP_OPERATIONS_IMAGE,
+  "backup-status-reporter": applicationImages.APP_OPERATIONS_IMAGE,
   "mail-worker": applicationImages.APP_WORKER_IMAGE,
   "reward-worker": applicationImages.APP_WORKER_IMAGE,
   "regrade-worker": applicationImages.APP_REGRADE_WORKER_IMAGE,
@@ -558,6 +567,7 @@ const operationCommands = {
   "database-role-bootstrap": ["node", "/app/scripts/bootstrap-database-roles.mjs"],
   "database-negative-probes": ["node", "/app/scripts/verify-database-role-boundaries.mjs"],
   "database-boundary-verifier": ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"],
+  "backup-status-reporter": ["node", "/app/scripts/backup/enqueue-backup-status.mjs"],
   lifecycle: [
     "node",
     "--import",
@@ -579,6 +589,7 @@ expect(config.services?.migrate?.restart === "no", "migrate must remain a one-sh
 const databaseBoundaryEnvironments = {
   "database-role-bootstrap": {
     DATABASE_APP_URL_FILE: "/run/secrets/database_app_url",
+    DATABASE_BACKUP_REPORTER_URL_FILE: "/run/secrets/database_backup_reporter_url",
     DATABASE_BOOTSTRAP_URL_FILE: "/run/secrets/database_bootstrap_url",
     DATABASE_MIGRATOR_URL_FILE: "/run/secrets/database_migrator_url",
     DATABASE_OPS_URL_FILE: "/run/secrets/database_ops_url",
@@ -607,6 +618,24 @@ for (const [name, expectedEnvironment] of Object.entries(databaseBoundaryEnviron
     `${name} environment allowlist drifted`,
   );
 }
+expect(
+  orderedSame(config.services?.["backup-status-reporter"]?.environment ?? {}, {
+    DATABASE_BACKUP_REPORTER_URL_FILE:
+      "/run/secrets/database_backup_reporter_url",
+    POSTGRES_DB: "learncoding",
+  }),
+  "backup-status-reporter environment allowlist drifted",
+);
+expect(
+  Array.isArray(config.services?.["backup-status-reporter"]?.entrypoint)
+    && config.services["backup-status-reporter"].entrypoint.length === 0,
+  "backup-status-reporter must preserve its file secret by clearing the generic entrypoint",
+);
+expect(
+  config.services?.["backup-status-reporter"]?.user === undefined,
+  "backup-status-reporter must use the unprivileged operations-image identity",
+);
+
 expect(
   same(keys(config.services?.["platform-seed"]?.environment), ["DATABASE_URL_FILE"]),
   "platform-seed environment allowlist drifted",
