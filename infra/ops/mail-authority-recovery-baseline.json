@@ -1,0 +1,410 @@
+{
+  "schemaVersion": 1,
+  "scope": "mail-delivery-authority-and-retention",
+  "recordedOn": "2026-07-25",
+  "baseline": {
+    "contentBase": {
+      "commit": "ad912541330954dc7516fe870eb383ba814d6a63",
+      "tree": "99128096b868f604a5e210839809e76f185d8a95",
+      "subject": "test(ops): exercise real dispatch capability lineage"
+    },
+    "recoveryAnchor": {
+      "commit": "03d9bfa308b440c3fce1636d37019a3e6690763c",
+      "tree": "99128096b868f604a5e210839809e76f185d8a95",
+      "subject": "WIP transfer recovery batch 16/16"
+    },
+    "policy": "The recovery anchor preserves candidate history as merge ancestry while retaining the exact content tree of the coherent content base. Candidate trees are not applied by ancestry alone.",
+    "allowedCurrentHeadDeltaPaths": [
+      "infra/ops/mail-authority-recovery-baseline.json",
+      "infra/tests/mail-authority-recovery-baseline.test.mjs"
+    ]
+  },
+  "statusDefinitions": {
+    "accepted-component": "Independently reviewed component evidence that may be replayed or regenerated in the declared order; it is not integrated into the baseline.",
+    "wip": "Incomplete or deliberately red checkpoint retained for selective continuation; never merge the source tree wholesale.",
+    "reference-only": "Useful design or test evidence that is divergent, partial, or represented by a newer checkpoint; inspect but do not apply directly.",
+    "rejected": "Known-unsound implementation or lineage; never apply.",
+    "superseded": "Older evidence replaced by a stronger artifact; never apply."
+  },
+  "artifacts": [
+    {
+      "id": "mail-authority-acl-0063",
+      "commit": "5be5fde7a3cb7e86890ca24ec0fcedbe47b76f36",
+      "tree": "9a139842e10f6bedd49185e28eec695772b8c256",
+      "subject": "fix: converge 0063 mail authority ACLs",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Canonical accepted 0063 ACL-scrub component."
+    },
+    {
+      "id": "mail-acl-0064-red-contract",
+      "commit": "1c3c82c794379fa672cddfdbc9acb7b9007c427b",
+      "tree": "af9bd57bf92ab447806eb5818483e990cc33485f",
+      "subject": "test(mail): expose 0064 ACL convergence gap",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Failing contract for the missing dynamic ACL/CASCADE implementation."
+    },
+    {
+      "id": "backup-authority-acl-0065",
+      "commit": "1447ef149a3edc8e4999d77ab2eb74315ad3f3df",
+      "tree": "c2a22f830e77966134f88fdae0f9046d560db45a",
+      "subject": "fix(db): normalize backup authority ACLs",
+      "status": "accepted-component",
+      "integrationAction": "regenerate-after-corrected-0064",
+      "sourceTreeApplied": false,
+      "reason": "Accepted behavior on an obsolete prefix; regenerate hashes and snapshots after corrected 0064."
+    },
+    {
+      "id": "provider-correlation-0066-contract",
+      "commit": "68b520efd4b733a6103f8549cc1f86a495fc25d2",
+      "tree": "7a0e2578384d0027e6c500cacb4f85ea15136b84",
+      "subject": "test(mail): align 0066 ACL sealing contract",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Partial database and ACL contract; runtime and final metadata are incomplete."
+    },
+    {
+      "id": "provider-correlation-0066-ci",
+      "commit": "d5d72b64c93a02485418dac91f26f768c7f573c4",
+      "tree": "9517d87a4fa1f05b6ed94625b4c69318150ad26e",
+      "subject": "test(ci): register provider correlation authority",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Hash-independent CI registration to adapt after final 0066 exists."
+    },
+    {
+      "id": "durable-dedup-0067",
+      "commit": "15601862d396cf1bfa2568d82e1188b8d093a641",
+      "tree": "ba2965dc2c8180f311a4da9c4136e64c22e2213d",
+      "subject": "wip(transfer): preserve mail-durable-dedup-authority before one-main recovery",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Durable dedup and producer-contract work remains incomplete and contains transfer debris."
+    },
+    {
+      "id": "retention-redaction-0068",
+      "commit": "a66cbc63f5c95050aced4bb34863c7216df82e6b",
+      "tree": "edcbcc5a48a30c93f891e6538a01813998b52db7",
+      "subject": "wip(transfer): preserve mail-quarantine-redaction-0068-successor before one-main recovery",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Newer 0068 redaction work depends on final 0067 and still has an intentional red contract."
+    },
+    {
+      "id": "retention-fail-closed-core",
+      "commit": "c6b438a13d457a9971881919a94bf4acbc0a8c64",
+      "tree": "11e63cd283b7e289d8c384968b9f32e9e1cd0124",
+      "subject": "fix(retention): partition quarantined mail privacy",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted fail-closed retention partitioning component."
+    },
+    {
+      "id": "exact-byte-dispatch-wrapper",
+      "commit": "406f9086433f55c19928a90484c018b761a12958",
+      "tree": "9470f913990d2124ae6078ecb2b038cb327cce89",
+      "subject": "fix(mail): bind exact bytes to committed dispatch receipt",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted isolated exact-byte delivery wrapper."
+    },
+    {
+      "id": "protected-authority-cleanup-helper",
+      "commit": "aa46842b9938ac8e3523d553bbb0ec0f8520539a",
+      "tree": "07f491380c6f20844a281ee17c1d371575cb5b27",
+      "subject": "test(db): preserve protected authority during integration cleanup",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted cleanup helper needed by destructive database integration tests."
+    },
+    {
+      "id": "runtime-timing-policy",
+      "commit": "c3170356e40519776ed353186c100f1b40df30b5",
+      "tree": "8ca04613579b79674edaa4ddc8f25a38fe09ae6e",
+      "subject": "fix(mail): reserve teardown watchdog margin",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted timing policy; do not double-apply through derivative runtime checkpoints."
+    },
+    {
+      "id": "native-watchdog",
+      "commit": "6187a362682b8a71f9c84c67eae064d9bae70874",
+      "tree": "51bfe1b500473edb6cdc149b619fccc03b8d2f7f",
+      "subject": "fix(mail): close watchdog fail-stop audit gaps",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted replacement for the rejected watchdog implementation."
+    },
+    {
+      "id": "guarded-runtime-startup-capacity",
+      "commit": "2fe0e9f5618717ef89d98deafdd897610effc37b",
+      "tree": "4269b4f6a104101fa0ebc2b44e74632e9b2fe405",
+      "subject": "wip(transfer): preserve mail-startup-capacity-ad912541-successor before one-main recovery",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Large runtime transfer checkpoint with unresolved guarded-dispatch integration blockers."
+    },
+    {
+      "id": "guarded-store-tx2",
+      "commit": "ff44ad82298f34ecac705f970695b6eb08601c42",
+      "tree": "90b5fe023fb409190d13532a35a5eb809ebae0c5",
+      "subject": "wip(transfer): preserve mail-guarded-store-tx2 before one-main recovery",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "TX2/store checkpoint with pool-drift and composition work still open."
+    },
+    {
+      "id": "deletion-race-harness",
+      "commit": "da3ade412f1feb7d9a0dee0b8ccdf4d85ee3e5d1",
+      "tree": "65db1a0cbff77bd9efd35b3cc7f6c2b962e1c355",
+      "subject": "checkpoint: preserve deletion race and Windows ACL WIP",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Deletion race and Windows ACL work was preserved before live post-restart proof."
+    },
+    {
+      "id": "database-role-boundary-ci",
+      "commit": "9116f85ed0cd90185742deff772b539eb3e37275",
+      "tree": "b7d0d49b25a40d049c2a926854ad404138714bde",
+      "subject": "test(ci): register database role boundaries",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted registration for behavioral role-boundary tests."
+    },
+    {
+      "id": "staged-prefix-harness",
+      "commit": "edc00aa0b829dfd256d2edbd054823d686fbd9f6",
+      "tree": "dcd911a11dfb15a09f0e10656cdcae8bed6d21ae",
+      "subject": "test(db): verify staged migration prefixes exactly",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted stronger staged-prefix migration harness."
+    },
+    {
+      "id": "backup-run-receipts",
+      "commit": "576516c49fdd42aff6c0c80ef7f254829814e606",
+      "tree": "62962b207fc9b5d179aba47a6d1349ade2a388a6",
+      "subject": "wip(backup): persist mail status run receipts",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Receipt reporter is useful, but surrounding backup fixtures were not green."
+    },
+    {
+      "id": "credential-reveal-replay-regression",
+      "commit": "92fbc234c3ee8738ade536d839822949d5c19e22",
+      "tree": "3ac6adae391fa37313aa7ebcc294186300ee6b21",
+      "subject": "wip(mail): checkpoint credential reveal replay regression",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Deliberately incomplete red-test checkpoint; repair syntax before execution."
+    },
+    {
+      "id": "restore-release-hardening",
+      "commit": "aded4430981e5956ed8266ba3adf0daab816fb17",
+      "tree": "7dcc659e2af4eedb2042480300d2e36e1b83e692",
+      "subject": "fix(backup): harden restore verification",
+      "status": "accepted-component",
+      "integrationAction": "adapt-after-final-ledger",
+      "sourceTreeApplied": false,
+      "reason": "Accepted restore/release component that must be adapted to the final migration tail."
+    },
+    {
+      "id": "restore-final-adaptations",
+      "commit": "0b2168e2f546df39ced2013791659b18d8406a48",
+      "tree": "681a0f5fe33a59aeeed302079d1dccbb501a488c",
+      "subject": "wip(transfer): preserve pg17-release-restore-successor before one-main recovery",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "Final-tail restore adaptation checkpoint remains incomplete."
+    },
+    {
+      "id": "ci-contract-restart",
+      "commit": "d7714b1677dd4d5ca1be6a5131a29707d0ad7751",
+      "tree": "aeea2453d5494ad49ba20d0628f8df2e93450e80",
+      "subject": "wip(transfer): preserve mail-ci-contract-restart before one-main recovery",
+      "status": "wip",
+      "integrationAction": "continue-selectively",
+      "sourceTreeApplied": false,
+      "reason": "CI projection and registration cleanup remains incomplete."
+    },
+    {
+      "id": "p3-2-deferral-record",
+      "commit": "50e37c9160d23582776d6d89f9eeb4a5651352f0",
+      "tree": "ec5f5a5d968359de701cb0f842a662c9a488955c",
+      "subject": "docs(security): bind P3-2 deferral scope",
+      "status": "accepted-component",
+      "integrationAction": "replay-after-revalidation",
+      "sourceTreeApplied": false,
+      "reason": "Accepted risk record only; broad database privileges remain technically unresolved."
+    },
+    {
+      "id": "tx2-identity-prototype",
+      "commit": "8d3f270684bc78ee2c9e9a17f38c866dca7a8978",
+      "tree": "4cb27c6bacf3ffb2cbeb80398bffbe1e9fdf922f",
+      "subject": "type startup pool authority by identity",
+      "status": "reference-only",
+      "integrationAction": "inspect-only",
+      "sourceTreeApplied": false,
+      "reason": "Approved mechanism on a divergent tree; use as design evidence, not as a cherry-pick."
+    },
+    {
+      "id": "tx2-race-harness-prototype",
+      "commit": "6f97c79e008727fcd19710c44cba6512ae7fa89c",
+      "tree": "cd0a30dd6b6e417ed0b41236d4dc24d7c92bbc5e",
+      "subject": "test(mail): modernize live race authority harness",
+      "status": "reference-only",
+      "integrationAction": "inspect-only",
+      "sourceTreeApplied": false,
+      "reason": "Useful newer race harness, but its schema/runtime lineage is incomplete."
+    },
+    {
+      "id": "runtime-component-baseline",
+      "commit": "ae968e4d2808aabf7bd39e2d83d626220f69146e",
+      "tree": "3c973d076d0535f79ce9bae1d8af7c7d5bc5a418",
+      "subject": "fix(mail): close watchdog fail-stop audit gaps",
+      "status": "reference-only",
+      "integrationAction": "inspect-only",
+      "sourceTreeApplied": false,
+      "reason": "Clean runtime component baseline represented by newer transfer checkpoints."
+    },
+    {
+      "id": "rejected-static-0064",
+      "commit": "84410a8ad312a4b7ecb432a71c212df26f6afbd8",
+      "tree": "de4aea6c017babbff078849aaf54c959e7b1eebb",
+      "subject": "Harden 0064 mail authority verification",
+      "status": "rejected",
+      "integrationAction": "never-apply",
+      "sourceTreeApplied": false,
+      "reason": "Static ACL implementation does not dynamically scrub hostile/delegated grants with REVOKE ALL CASCADE."
+    },
+    {
+      "id": "rejected-watchdog",
+      "commit": "146a2eeeff307c364856638bfe41f15cb51077f9",
+      "tree": "462e853238a716d23579bd682231dc4d4d748e46",
+      "subject": "fix(mail): harden watchdog fatal termination",
+      "status": "rejected",
+      "integrationAction": "never-apply",
+      "sourceTreeApplied": false,
+      "reason": "Rejected implementation superseded by the native watchdog component."
+    },
+    {
+      "id": "rejected-redaction-v2",
+      "commit": "f60449af6fea75fd01a6485e0682b41e20969c33",
+      "tree": "06fd891cedaf9ea3b580c3424dae9ea0b2bfa2f7",
+      "subject": "fix(mail): add quarantined outbox redaction authority v2",
+      "status": "rejected",
+      "integrationAction": "never-apply",
+      "sourceTreeApplied": false,
+      "reason": "Old redaction authority is stale and replaced by the 0068 successor work."
+    },
+    {
+      "id": "rejected-redaction-v2-transfer",
+      "commit": "792f851c25cb4b8aa625548c2e5548466300e57b",
+      "tree": "bd8a5ac2033b4fa91b240d965fd318deecb50981",
+      "subject": "wip(transfer): preserve mail-quarantine-redaction-authority-v2 before one-main recovery",
+      "status": "rejected",
+      "integrationAction": "never-apply",
+      "sourceTreeApplied": false,
+      "reason": "Transfer checkpoint carries the rejected old redaction lineage."
+    },
+    {
+      "id": "superseded-prefix-harness",
+      "commit": "01d3a36f5fa2cd8b59ae1aa21294a4d44b8ab1dc",
+      "tree": "790e05224954c93421aad9aa56194cee5a0c0a57",
+      "subject": "test(db): separate prefix replay from full migration",
+      "status": "superseded",
+      "integrationAction": "never-apply",
+      "sourceTreeApplied": false,
+      "reason": "Weaker prefix harness superseded by staged-prefix-harness."
+    }
+  ],
+  "integrationPlan": [
+    {
+      "order": 1,
+      "name": "database-authority-prefix",
+      "artifacts": [
+        "mail-authority-acl-0063",
+        "mail-acl-0064-red-contract",
+        "backup-authority-acl-0065",
+        "protected-authority-cleanup-helper",
+        "staged-prefix-harness"
+      ]
+    },
+    {
+      "order": 2,
+      "name": "provider-correlation-0066",
+      "artifacts": [
+        "provider-correlation-0066-contract",
+        "provider-correlation-0066-ci"
+      ]
+    },
+    {
+      "order": 3,
+      "name": "durable-dedup-0067",
+      "artifacts": [
+        "durable-dedup-0067"
+      ]
+    },
+    {
+      "order": 4,
+      "name": "retention-redaction-0068",
+      "artifacts": [
+        "retention-redaction-0068",
+        "retention-fail-closed-core"
+      ]
+    },
+    {
+      "order": 5,
+      "name": "guarded-dispatch-runtime",
+      "artifacts": [
+        "exact-byte-dispatch-wrapper",
+        "runtime-timing-policy",
+        "native-watchdog",
+        "guarded-runtime-startup-capacity",
+        "guarded-store-tx2",
+        "deletion-race-harness"
+      ]
+    },
+    {
+      "order": 6,
+      "name": "ci-restore-release-and-risk-record",
+      "artifacts": [
+        "database-role-boundary-ci",
+        "backup-run-receipts",
+        "credential-reveal-replay-regression",
+        "restore-release-hardening",
+        "restore-final-adaptations",
+        "ci-contract-restart",
+        "p3-2-deferral-record"
+      ]
+    }
+  ],
+  "excludedExternalEvidence": [
+    "live Gmail OAuth/send/reconciliation",
+    "NUC runtime and KVM limits",
+    "Cloudflare no-port tunnel",
+    "Google Drive backup/restore",
+    "reboot and supervised AC-cut recovery",
+    "physical-device accessibility"
+  ]
+}
