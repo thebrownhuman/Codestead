@@ -68,6 +68,13 @@ export type GuardedDispatchInput = Readonly<{
   invoke(signal: AbortSignal): Promise<PostProviderExit>;
 }>;
 
+export class FatalProviderTransportError extends Error {
+  constructor(readonly code: string) {
+    super(Fatal provider transport failure (${code}).);
+    this.name = "FatalProviderTransportError";
+  }
+}
+
 export class ProviderBoundaryCommitUnknownError extends Error {
   constructor() {
     super("Provider boundary commit result is unknown.");
