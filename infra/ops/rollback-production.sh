@@ -125,8 +125,73 @@ readonly mail_outbox_contract_required_commit=abe2a67ad20215bff64317182cc306b332
 readonly mail_outbox_retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
 readonly mail_outbox_dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050b9e14c6a5d91b5
 readonly mail_outbox_dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
+readonly mail_outbox_dispatch_binding_capability_mode=100644
+readonly mail_outbox_dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
 readonly dispatch_binding_runtime_contract=exact-adapter-payload-sha256-before-provider-call-v1
 readonly dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
+readonly -a mail_outbox_forward_only_capability_registry=(
+  '0064_mail_outbox_dispatch_binding|b73788a4b4d213e6423d737050b9e14c6a5d91b5|infra/ops/mail-outbox-dispatch-binding-capability.env|100644|ea707715f84608b1e1a33ac1832d533b878b6c07|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|DISPATCH_BINDING_RUNTIME=exact-adapter-payload-sha256-before-provider-call-v1|DISPATCH_BINDING_PRIVILEGE=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1'
+)
+
+# A later forward-only mail authority gets a distinct registry row, boundary
+# commit, manifest path, mode, and blob. An unhandled row fails closed until
+# its release-record schema and compatibility checks are implemented.
+validate_mail_outbox_capability_registry() {
+  local record migration boundary_commit capability_path capability_mode
+  local capability_blob schema_line worker_line runtime_line privilege_line extra
+  local dispatch_binding_entries=0
+  local -A seen_migrations=() seen_boundaries=() seen_paths=() seen_blobs=()
+
+  for record in "${mail_outbox_forward_only_capability_registry[@]}"; do
+    IFS='|' read -r migration boundary_commit capability_path capability_mode \
+      capability_blob schema_line worker_line runtime_line privilege_line extra \
+      <<<"$record"
+    [[ -z "$extra" \
+      && "$migration" =~ ^[0-9]{4}_[a-z0-9_]+$ \
+      && "$boundary_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+      && "$capability_path" =~ ^infra/ops/[a-z0-9-]+-capability\.env$ \
+      && "$capability_mode" == 100644 \
+      && "$capability_blob" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+      && "$schema_line" =~ ^SCHEMA_VERSION=[1-9][0-9]*$ \
+      && "$worker_line" =~ ^OUTBOX_WORKER_MODE=[a-z0-9-]+$ \
+      && "$runtime_line" =~ ^DISPATCH_BINDING_RUNTIME=[a-z0-9-]+$ \
+      && "$privilege_line" =~ ^DISPATCH_BINDING_PRIVILEGE=[a-z0-9-]+$ ]] || {
+      fatal "mail outbox capability registry is malformed"
+    }
+    [[ -z "${seen_migrations[$migration]+present}" \
+      && -z "${seen_boundaries[$boundary_commit]+present}" \
+      && -z "${seen_paths[$capability_path]+present}" \
+      && -z "${seen_blobs[$capability_blob]+present}" ]] || {
+      fatal "mail outbox capability registry aliases a forward-only authority"
+    }
+    seen_migrations["$migration"]=1
+    seen_boundaries["$boundary_commit"]=1
+    seen_paths["$capability_path"]=1
+    seen_blobs["$capability_blob"]=1
+
+    case "$migration" in
+      0064_mail_outbox_dispatch_binding)
+        [[ "$boundary_commit" == "$mail_outbox_dispatch_binding_boundary_commit" \
+          && "$capability_path" == "$mail_outbox_dispatch_binding_capability_path" \
+          && "$capability_mode" == "$mail_outbox_dispatch_binding_capability_mode" \
+          && "$capability_blob" == "$mail_outbox_dispatch_binding_capability_blob" \
+          && "$schema_line" == SCHEMA_VERSION=1 \
+          && "$worker_line" == OUTBOX_WORKER_MODE=fenced-postgres-v1 \
+          && "$runtime_line" == "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
+          && "$privilege_line" == "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" ]] || {
+          fatal "0064 dispatch binding capability registry entry is inconsistent"
+        }
+        dispatch_binding_entries="$((dispatch_binding_entries + 1))"
+        ;;
+      *) fatal "mail outbox capability registry contains an unsupported forward-only authority" ;;
+    esac
+  done
+  [[ "$dispatch_binding_entries" == 1 ]] || {
+    fatal "mail outbox capability registry omits the 0064 authority"
+  }
+}
+
+validate_mail_outbox_capability_registry
 
 if [[ -n "$test_harness_root" ]]; then
   [[ "$test_harness_root" == /* && -d "$test_harness_root" && ! -L "$test_harness_root" ]] || {
@@ -988,37 +1053,42 @@ run_local_evidence_git() {
 }
 
 load_dispatch_binding_capability() {
-  local commit="$1" label="$2" entry metadata entry_path entry_extra
-  local mode object_type object_id metadata_extra content expected_object_id
+  local commit="$1" expected_tree="$2" label="$3" entry metadata entry_path entry_extra
+  local tree_from_commit
+  local mode object_type object_id metadata_extra content
   local -a capability_lines=()
   LOADED_DISPATCH_BINDING_RUNTIME=none
   LOADED_DISPATCH_BINDING_PRIVILEGE=none
-  expected_object_id="$(
-    printf '%s\n' \
-      'SCHEMA_VERSION=1' \
-      'OUTBOX_WORKER_MODE=fenced-postgres-v1' \
-      "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
-      "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" \
-      | run_local_evidence_git hash-object --stdin
-  )" || fatal "unable to derive the exact dispatch binding capability object"
-  entry="$(run_local_evidence_git ls-tree "$commit" -- \
+  [[ "$expected_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+    fatal "$label dispatch binding capability tree evidence is invalid"
+  }
+  tree_from_commit="$(run_local_evidence_git rev-parse --verify \
+    "${commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify $label dispatch binding capability tree"
+  }
+  [[ "$tree_from_commit" == "$expected_tree" ]] || {
+    fatal "$label dispatch binding capability tree does not match repository objects"
+  }
+  entry="$(run_local_evidence_git ls-tree "$expected_tree" -- \
     "$mail_outbox_dispatch_binding_capability_path" 2>/dev/null)" || {
     fatal "unable to verify $label dispatch binding capability"
   }
   [[ -n "$entry" ]] || return 1
   IFS=$'\t' read -r metadata entry_path entry_extra <<<"$entry"
   IFS=' ' read -r mode object_type object_id metadata_extra <<<"$metadata"
-  [[ "$mode" == 100644 && "$object_type" == blob \
-    && "$object_id" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+  [[ "$mode" == "$mail_outbox_dispatch_binding_capability_mode" \
+    && "$object_type" == blob \
+    && "$object_id" == "$mail_outbox_dispatch_binding_capability_blob" \
     && "$entry_path" == "$mail_outbox_dispatch_binding_capability_path" \
     && -z "$entry_extra" && -z "$metadata_extra" ]] || {
-    fatal "$label dispatch binding capability is not a canonical regular Git blob"
-  }
-  [[ "$object_id" == "$expected_object_id" ]] || {
+    if [[ "$mode" != "$mail_outbox_dispatch_binding_capability_mode" \
+      || "$object_type" != blob ]]; then
+      fatal "$label dispatch binding capability is not a canonical regular Git blob"
+    fi
     fatal "$label dispatch binding capability has an absent, unknown, or mismatched version"
   }
-  content="$(run_local_evidence_git show \
-    "$commit:$mail_outbox_dispatch_binding_capability_path" 2>/dev/null)" || {
+  content="$(run_local_evidence_git cat-file blob \
+    "$object_id" 2>/dev/null)" || {
     fatal "unable to read $label dispatch binding capability"
   }
   [[ "$content" != *$'\r'* ]] || fatal "$label dispatch binding capability is malformed"
@@ -1118,7 +1188,7 @@ verify_dispatch_binding_rollback_contract() {
   [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ]] || {
     fatal "0064_mail_outbox_dispatch_binding is forward-only; SCHEMA_VERSION=3 exact dispatch binding capability evidence is required"
   }
-  load_dispatch_binding_capability "$record_git_commit" "source image" || {
+  load_dispatch_binding_capability "$record_git_commit" "$record_git_tree" "source image" || {
     fatal "0064_mail_outbox_dispatch_binding requires a checked-in dispatch binding capability in the source image"
   }
   source_runtime="$LOADED_DISPATCH_BINDING_RUNTIME"
@@ -1134,7 +1204,7 @@ verify_dispatch_binding_rollback_contract() {
   [[ "$target_contains_boundary" == true ]] || {
     fatal "0064_mail_outbox_dispatch_binding is forward-only; the previous image predates exact dispatch binding"
   }
-  load_dispatch_binding_capability "$previous_git_commit" "previous image" || {
+  load_dispatch_binding_capability "$previous_git_commit" "$previous_git_tree" "previous image" || {
     fatal "0064_mail_outbox_dispatch_binding is forward-only; the previous image lacks the checked-in dispatch binding capability"
   }
   target_runtime="$LOADED_DISPATCH_BINDING_RUNTIME"
