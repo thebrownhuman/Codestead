@@ -280,8 +280,19 @@ function setRedactionCategories(
   );
 }
 
-function hasRedactionFailure(categories: Readonly<Record<string, RetentionCategoryReport>>) {
-  return categories.unresolvedEmailDeliveryAuthority?.outcome === "failed";
+function requiresRedactionRetry(
+  categories: Readonly<Record<string, RetentionCategoryReport>>,
+  dryRun: boolean,
+) {
+  const authority = categories.unresolvedEmailDeliveryAuthority;
+  if (authority?.outcome === "failed") return true;
+  if (dryRun) return false;
+
+  return [
+    authority,
+    categories.unresolvedEmailDeliveryAuthorityBlocked,
+    categories.unresolvedEmailDeliveryAuthorityMalformed,
+  ].some((category) => category?.hasMore === true);
 }
 
 async function deleteBounded(
@@ -610,8 +621,11 @@ async function commitObjectRetentionCheckpoint(
   }
 }
 
-function reportOutcome(categories: Readonly<Record<string, RetentionCategoryReport>>) {
-  if (hasRedactionFailure(categories)) {
+function reportOutcome(
+  categories: Readonly<Record<string, RetentionCategoryReport>>,
+  dryRun: boolean,
+) {
+  if (requiresRedactionRetry(categories, dryRun)) {
     return { outcome: "completed_with_errors" as const, requiresRetry: true as const };
   }
   return { outcome: "succeeded" as const, requiresRetry: false as const };
@@ -689,7 +703,7 @@ export async function runRetention(input: {
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });
-      const outcome = reportOutcome(fileCheckpoint.categories);
+      const outcome = reportOutcome(fileCheckpoint.categories, false);
       const report: RetentionReport = {
         runId,
         policyVersion: RETENTION_POLICY.version,
@@ -1021,7 +1035,7 @@ export async function runRetention(input: {
       objectFiles.failed = fileSummary.failed;
     }
     setDurableCategories(categories, durableCounts);
-    const outcome = reportOutcome(categories);
+    const outcome = reportOutcome(categories, input.dryRun);
 
     const report: RetentionReport = {
       runId,

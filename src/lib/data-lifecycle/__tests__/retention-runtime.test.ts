@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => {
     failRedaction: false,
     failRollbackTo: false,
     failReleaseSavepoint: false,
+    redactionBlocked: 0,
+    redactionTransitioned: 2,
     deletedObjectCount: 2,
   };
   const objects = [
@@ -165,9 +167,17 @@ const mocks = vi.hoisted(() => {
       }
       return {
         rows: [
-          { disposition: "eligible", eligible: "2", transitioned: "1" },
-          { disposition: "blocked", eligible: "3", transitioned: "0" },
-          { disposition: "malformed", eligible: "1", transitioned: "0" },
+          {
+            disposition: "eligible",
+            eligible: "2",
+            transitioned: String(state.redactionTransitioned),
+          },
+          {
+            disposition: "blocked",
+            eligible: String(state.redactionBlocked),
+            transitioned: "0",
+          },
+          { disposition: "malformed", eligible: "1", transitioned: "1" },
         ],
         rowCount: 3,
       };
@@ -226,6 +236,8 @@ describe("retention runtime orchestration", () => {
     mocks.state.failRedaction = false;
     mocks.state.failRollbackTo = false;
     mocks.state.failReleaseSavepoint = false;
+    mocks.state.redactionBlocked = 0;
+    mocks.state.redactionTransitioned = 2;
     mocks.state.deletedObjectCount = 2;
     mocks.unlink.mockResolvedValue(undefined);
     mocks.enqueueFileErasures.mockResolvedValue(2);
@@ -266,10 +278,10 @@ describe("retention runtime orchestration", () => {
       hasMore: true,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityBlocked).toMatchObject({
-      eligible: 3,
+      eligible: 0,
       transitioned: 0,
-      retained: 3,
-      hasMore: true,
+      retained: 0,
+      hasMore: false,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityMalformed).toMatchObject({
       eligible: 1,
@@ -352,7 +364,9 @@ describe("retention runtime orchestration", () => {
     expect(relationalCheckpoint.cutoffs).toEqual(report.cutoffs);
   });
 
-  it("redacts released authority and reports held or malformed backlog through one capability", async () => {
+  it("redacts released authority and makes a held backlog explicitly retryable", async () => {
+    mocks.state.redactionBlocked = 3;
+
     const report = await runRetention({
       idempotencyKey: "retention:test:quarantined-email",
       dryRun: false,
@@ -380,13 +394,16 @@ describe("retention runtime orchestration", () => {
     expect(statements).not.toContain("rollback to savepoint retention_email_redaction");
     expect(statements[redaction]).toContain("$1::timestamptz, $2::integer");
     expect(statements[redaction]).not.toContain("update email_outbox");
-    expect(report).toMatchObject({ outcome: "succeeded", requiresRetry: false });
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+    });
     expect(report.categories.unresolvedEmailDeliveryAuthority).toMatchObject({
       eligible: 2,
       deleted: 0,
       retained: 2,
-      transitioned: 1,
-      hasMore: true,
+      transitioned: 2,
+      hasMore: false,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityBlocked).toMatchObject({
       eligible: 3,
@@ -399,8 +416,32 @@ describe("retention runtime orchestration", () => {
       eligible: 1,
       deleted: 0,
       retained: 1,
-      transitioned: 0,
-      hasMore: true,
+      transitioned: 1,
+      hasMore: false,
+    });
+  });
+
+  it("requires retry when a bounded redaction batch leaves aged PII", async () => {
+    mocks.state.redactionTransitioned = 1;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:redaction-backlog",
+      dryRun: false,
+      batchSize: 1,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthority: {
+          eligible: 2,
+          transitioned: 1,
+          hasMore: true,
+        },
+      },
     });
   });
 

@@ -1,46 +1,296 @@
 -- Forward-only SQL component. Journal/snapshot/ledger metadata is added only
 -- after the exact reviewed 0065/0066 predecessor chain is frozen.
+LOCK TABLE ONLY public.email_outbox IN ACCESS EXCLUSIVE MODE;--> statement-breakpoint
 DO $preflight$
 BEGIN
-  IF (
-    SELECT pg_catalog.count(*) <> 3
-      FROM pg_catalog.pg_attribute AS attribute
-     WHERE attribute.attrelid =
-             'public.email_outbox'::pg_catalog.regclass
-       AND attribute.attname IN (
-         'provider_correlation_version',
-         'provider_evidence_version',
-         'provider_evidence_sha256'
-       )
-       AND NOT attribute.attisdropped
-  )
-  OR pg_catalog.to_regprocedure(
-       'public.enforce_email_outbox_provider_correlation_evidence()'
-     ) IS NULL
-  OR NOT EXISTS (
-    SELECT 1
-      FROM pg_catalog.pg_constraint AS constraint_record
-     WHERE constraint_record.conrelid =
-             'public.email_outbox'::pg_catalog.regclass
-       AND constraint_record.conname =
-             'email_outbox_provider_correlation_evidence_valid'
-       AND constraint_record.contype = 'c'
-       AND constraint_record.convalidated
-       AND NOT constraint_record.connoinherit
-  )
-  OR NOT EXISTS (
-    SELECT 1
-      FROM pg_catalog.pg_trigger AS trigger_record
-     WHERE trigger_record.tgrelid =
-             'public.email_outbox'::pg_catalog.regclass
-       AND trigger_record.tgname =
-             'email_outbox_provider_correlation_evidence_guard'
-       AND NOT trigger_record.tgisinternal
-       AND trigger_record.tgfoid = pg_catalog.to_regprocedure(
-             'public.enforce_email_outbox_provider_correlation_evidence()'
-           )
-       AND trigger_record.tgenabled = 'O'
-  ) THEN
+  IF NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_proc AS routine
+         JOIN pg_catalog.pg_language AS language
+           ON language.oid = routine.prolang
+        WHERE routine.oid = pg_catalog.to_regprocedure(
+                'public.enforce_email_outbox_provider_correlation_evidence()'
+              )
+          AND pg_catalog.pg_get_userbyid(routine.proowner) =
+                'learncoding_owner'
+          AND NOT routine.prosecdef
+          AND routine.proconfig IS NOT DISTINCT FROM
+                ARRAY['search_path=pg_catalog']::text[]
+          AND language.lanname = 'plpgsql'
+          AND routine.prokind = 'f'
+          AND routine.provolatile = 'v'
+          AND NOT routine.proisstrict
+          AND routine.proparallel = 'u'
+          AND NOT routine.proleakproof
+          AND routine.pronargs = 0
+          AND routine.pronargdefaults = 0
+          AND routine.proargnames IS NULL
+          AND routine.proargmodes IS NULL
+          AND routine.proallargtypes IS NULL
+          AND routine.proargtypes = ''::pg_catalog.oidvector
+          AND routine.prorettype =
+                'pg_catalog.trigger'::pg_catalog.regtype
+          AND NOT routine.proretset
+          AND routine.provariadic = 0
+          AND pg_catalog.current_setting(
+                'server_version_num'
+              )::integer >= 170000
+          AND pg_catalog.current_setting(
+                'server_version_num'
+              )::integer < 190000
+          AND pg_catalog.encode(
+                pg_catalog.sha256(
+                  pg_catalog.convert_to(routine.prosrc, 'UTF8')
+                ),
+                'hex'
+              ) =
+                '62ff4885055979fb7eaf0fda3ae8170a14a430cb69d8f310e6aba742cf700e1a'
+          AND pg_catalog.encode(
+                pg_catalog.sha256(
+                  pg_catalog.convert_to(
+                    pg_catalog.pg_get_functiondef(routine.oid),
+                    'UTF8'
+                  )
+                ),
+                'hex'
+              ) =
+                'afaab6796f97aa0294ff5a761679895f9ccfb78fea21e0be362979c5c4e5ab11'
+          AND (
+            SELECT pg_catalog.array_agg(
+                     pg_catalog.pg_get_userbyid(acl.grantor) || '|' ||
+                     (
+                       CASE WHEN acl.grantee = 0
+                         THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(acl.grantee)
+                       END
+                     ) || '|' || acl.privilege_type || '|' ||
+                     acl.is_grantable::text
+                     ORDER BY
+                       pg_catalog.pg_get_userbyid(acl.grantor),
+                       CASE WHEN acl.grantee = 0
+                         THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(acl.grantee)
+                       END,
+                       acl.privilege_type,
+                       acl.is_grantable
+                   )
+              FROM pg_catalog.aclexplode(
+                COALESCE(
+                  routine.proacl,
+                  pg_catalog.acldefault('f', routine.proowner)
+                )
+              ) AS acl
+          ) IS NOT DISTINCT FROM ARRAY[
+                'learncoding_owner|learncoding_owner|EXECUTE|false'
+              ]::text[]
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_trigger AS trigger_record
+        WHERE trigger_record.tgrelid =
+                'public.email_outbox'::pg_catalog.regclass
+          AND trigger_record.tgname =
+                'email_outbox_provider_correlation_evidence_guard'
+          AND NOT trigger_record.tgisinternal
+          AND trigger_record.tgfoid = pg_catalog.to_regprocedure(
+                'public.enforce_email_outbox_provider_correlation_evidence()'
+              )
+          AND trigger_record.tgenabled = 'O'
+          AND trigger_record.tgtype = 23
+          AND trigger_record.tgqual IS NULL
+          AND trigger_record.tgnargs = 0
+          AND pg_catalog.octet_length(trigger_record.tgargs) = 0
+          AND trigger_record.tgattr = ''::pg_catalog.int2vector
+          AND trigger_record.tgparentid = 0
+          AND trigger_record.tgconstraint = 0
+          AND trigger_record.tgconstrrelid = 0
+          AND trigger_record.tgconstrindid = 0
+          AND NOT trigger_record.tgdeferrable
+          AND NOT trigger_record.tginitdeferred
+          AND trigger_record.tgoldtable IS NULL
+          AND trigger_record.tgnewtable IS NULL
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_constraint AS constraint_record
+        WHERE constraint_record.conrelid =
+                'public.email_outbox'::pg_catalog.regclass
+          AND constraint_record.conname =
+                'email_outbox_provider_correlation_evidence_valid'
+          AND constraint_record.contype = 'c'
+          AND constraint_record.convalidated
+          AND COALESCE(
+                (
+                  pg_catalog.to_jsonb(constraint_record)
+                  ->> 'conenforced'
+                )::boolean,
+                true
+              )
+          AND NOT constraint_record.connoinherit
+          AND NOT constraint_record.condeferrable
+          AND NOT constraint_record.condeferred
+          AND pg_catalog.encode(
+                pg_catalog.sha256(
+                  pg_catalog.convert_to(
+                    pg_catalog.pg_get_expr(
+                      constraint_record.conbin,
+                      constraint_record.conrelid,
+                      false
+                    ),
+                    'UTF8'
+                  )
+                ),
+                'hex'
+              ) =
+                CASE
+                  WHEN pg_catalog.current_setting(
+                         'server_version_num'
+                       )::integer >= 170000
+                   AND pg_catalog.current_setting(
+                         'server_version_num'
+                       )::integer < 190000
+                    THEN
+                      'cc196df96da9024d65c85ef3451eae1f1dd059672226ba8c37c2e7d2af374bd9'
+                  ELSE NULL
+                END
+          AND pg_catalog.encode(
+                pg_catalog.sha256(
+                  pg_catalog.convert_to(
+                    pg_catalog.pg_get_constraintdef(
+                      constraint_record.oid,
+                      false
+                    ),
+                    'UTF8'
+                  )
+                ),
+                'hex'
+              ) =
+                CASE
+                  WHEN pg_catalog.current_setting(
+                         'server_version_num'
+                       )::integer >= 170000
+                   AND pg_catalog.current_setting(
+                         'server_version_num'
+                       )::integer < 190000
+                    THEN
+                      'fa3258f9172adbefc2cbb58a57d63533f8933811c77d0d3eb1b285f6bd2dd4da'
+                  ELSE NULL
+                END
+          AND (
+            SELECT pg_catalog.array_agg(
+                     attribute.attname::text ORDER BY constrained.position
+                   )
+              FROM pg_catalog.unnest(constraint_record.conkey)
+                   WITH ORDINALITY AS constrained(attnum, position)
+              JOIN pg_catalog.pg_attribute AS attribute
+                ON attribute.attrelid = constraint_record.conrelid
+               AND attribute.attnum = constrained.attnum
+          ) IS NOT DISTINCT FROM ARRAY[
+                'provider_call_started',
+                'adapter',
+                'provider_message_id',
+                'last_error_code',
+                'dispatch_binding_version',
+                'dispatch_binding_sha256',
+                'provider_correlation_version',
+                'provider_evidence_version',
+                'provider_evidence_sha256',
+                'status',
+                'claim_version',
+                'claim_token',
+                'claim_owner',
+                'lease_expires_at',
+                'sent_at',
+                'quarantined_at'
+              ]::text[]
+     )
+     OR (
+       SELECT pg_catalog.count(*) <> 3
+              OR NOT pg_catalog.bool_and(
+                attribute.atttypid =
+                  'pg_catalog.text'::pg_catalog.regtype
+                AND attribute.atttypmod = -1
+                AND attribute.attcollation =
+                      pg_catalog.to_regcollation('pg_catalog."default"')
+                AND NOT attribute.attnotnull
+                AND NOT attribute.atthasdef
+                AND attribute.attidentity = ''
+                AND attribute.attgenerated = ''
+                AND NOT attribute.attisdropped
+                AND attribute.attislocal
+                AND attribute.attinhcount = 0
+                AND (
+                  SELECT pg_catalog.array_agg(
+                           pg_catalog.pg_get_userbyid(acl.grantor) || '|' ||
+                           (
+                             CASE WHEN acl.grantee = 0
+                               THEN 'PUBLIC'
+                               ELSE pg_catalog.pg_get_userbyid(acl.grantee)
+                             END
+                           ) || '|' || acl.privilege_type || '|' ||
+                           acl.is_grantable::text
+                           ORDER BY
+                             pg_catalog.pg_get_userbyid(acl.grantor),
+                             CASE WHEN acl.grantee = 0
+                               THEN 'PUBLIC'
+                               ELSE pg_catalog.pg_get_userbyid(acl.grantee)
+                             END,
+                             acl.privilege_type,
+                             acl.is_grantable
+                         )
+                    FROM pg_catalog.aclexplode(attribute.attacl) AS acl
+                ) IS NOT DISTINCT FROM ARRAY[
+                      'learncoding_owner|learncoding_worker|UPDATE|false'
+                    ]::text[]
+              )
+         FROM pg_catalog.pg_attribute AS attribute
+        WHERE attribute.attrelid =
+                'public.email_outbox'::pg_catalog.regclass
+          AND attribute.attname = ANY (ARRAY[
+                'provider_correlation_version',
+                'provider_evidence_version',
+                'provider_evidence_sha256'
+              ]::pg_catalog.name[])
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_class AS relation
+        WHERE relation.oid =
+                'public.email_outbox'::pg_catalog.regclass
+          AND relation.relkind = 'r'
+          AND relation.relpersistence = 'p'
+          AND pg_catalog.pg_get_userbyid(relation.relowner) =
+                'learncoding_owner'
+          AND NOT relation.relrowsecurity
+          AND NOT relation.relforcerowsecurity
+          AND NOT relation.relispartition
+          AND relation.relpartbound IS NULL
+          AND relation.reloftype = 0
+          AND NOT relation.relhassubclass
+          AND NOT relation.relhasrules
+          AND NOT EXISTS (
+                SELECT 1
+                  FROM pg_catalog.pg_inherits AS inheritance
+                 WHERE inheritance.inhrelid = relation.oid
+                    OR inheritance.inhparent = relation.oid
+              )
+          AND NOT EXISTS (
+                SELECT 1
+                  FROM pg_catalog.pg_rewrite AS rewrite_rule
+                 WHERE rewrite_rule.ev_class = relation.oid
+              )
+          AND pg_catalog.has_table_privilege(
+                'learncoding_worker',
+                relation.oid,
+                'SELECT'
+              )
+          AND NOT pg_catalog.has_table_privilege(
+                'learncoding_worker',
+                relation.oid,
+                'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'
+              )
+     )
+  THEN
     RAISE EXCEPTION
       'email outbox quarantine redaction predecessor is invalid'
       USING ERRCODE = '23514';
@@ -63,6 +313,7 @@ DECLARE
   expected_email text;
   expected_variables jsonb;
   raw_disposition text;
+  claim_authority_parts integer;
 BEGIN
   IF candidate.id IS NULL
      OR cutoff_at IS NULL
@@ -142,13 +393,27 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  IF candidate.claim_token IS NULL
-     AND candidate.claim_owner IS NULL
-     AND candidate.lease_expires_at IS NULL THEN
+  claim_authority_parts := pg_catalog.num_nonnulls(
+    candidate.claim_token,
+    candidate.claim_owner,
+    candidate.lease_expires_at
+  );
+  IF claim_authority_parts = 0 THEN
     RETURN raw_disposition;
   END IF;
+  IF claim_authority_parts BETWEEN 1 AND 2 THEN
+    -- Partial tuples cannot become a valid resend claim. Redact the payload
+    -- while preserving the malformed non-PII authority for operator repair.
+    RETURN raw_disposition;
+  END IF;
+  IF claim_authority_parts = 3
+     AND candidate.lease_expires_at >
+           pg_catalog.statement_timestamp() THEN
+    RETURN 'blocked';
+  END IF;
 
-  RETURN 'blocked';
+  -- A complete but expired claim no longer carries live send authority.
+  RETURN raw_disposition;
 END
 $function$;--> statement-breakpoint
 ALTER FUNCTION
@@ -160,8 +425,13 @@ REVOKE ALL ON FUNCTION
   "public"."classify_email_outbox_quarantine_redaction_v2"(
     "public"."email_outbox",
     timestamp with time zone
+  ) FROM learncoding_owner CASCADE;--> statement-breakpoint
+REVOKE ALL ON FUNCTION
+  "public"."classify_email_outbox_quarantine_redaction_v2"(
+    "public"."email_outbox",
+    timestamp with time zone
   ) FROM PUBLIC, learncoding_app, learncoding_worker,
-         learncoding_migrator, learncoding_ops;--> statement-breakpoint
+         learncoding_migrator, learncoding_ops CASCADE;--> statement-breakpoint
 DO $seal_classifier_acl$
 DECLARE
   candidate_grantee oid;
@@ -181,20 +451,20 @@ BEGIN
      WHERE routine.oid = pg_catalog.to_regprocedure(
        'public.classify_email_outbox_quarantine_redaction_v2(public.email_outbox,timestamp with time zone)'
      )
-       AND expanded.grantee <> routine.proowner
+
   LOOP
     IF candidate_grantee = 0 THEN
       EXECUTE
         'REVOKE ALL ON FUNCTION ' ||
         'public.classify_email_outbox_quarantine_redaction_v2(' ||
-        'public.email_outbox, timestamp with time zone) FROM PUBLIC';
+        'public.email_outbox, timestamp with time zone) FROM PUBLIC CASCADE';
     ELSE
       candidate_name := pg_catalog.pg_get_userbyid(candidate_grantee);
       IF candidate_name IS NOT NULL THEN
         EXECUTE pg_catalog.format(
           'REVOKE ALL ON FUNCTION ' ||
           'public.classify_email_outbox_quarantine_redaction_v2(' ||
-          'public.email_outbox, timestamp with time zone) FROM %I',
+          'public.email_outbox, timestamp with time zone) FROM %I CASCADE',
           candidate_name
         );
       END IF;
@@ -202,6 +472,11 @@ BEGIN
   END LOOP;
 END
 $seal_classifier_acl$;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION
+  "public"."classify_email_outbox_quarantine_redaction_v2"(
+    "public"."email_outbox",
+    timestamp with time zone
+  ) TO learncoding_owner;--> statement-breakpoint
 CREATE OR REPLACE FUNCTION
   "public"."enforce_email_outbox_payload_immutable"()
 RETURNS trigger
@@ -322,8 +597,11 @@ ALTER FUNCTION "public"."enforce_email_outbox_payload_immutable"()
   OWNER TO learncoding_owner;--> statement-breakpoint
 REVOKE ALL ON FUNCTION
   "public"."enforce_email_outbox_payload_immutable"()
+  FROM learncoding_owner CASCADE;--> statement-breakpoint
+REVOKE ALL ON FUNCTION
+  "public"."enforce_email_outbox_payload_immutable"()
   FROM PUBLIC, learncoding_app, learncoding_worker,
-       learncoding_migrator, learncoding_ops;--> statement-breakpoint
+       learncoding_migrator, learncoding_ops CASCADE;--> statement-breakpoint
 DO $seal_payload_trigger_acl$
 DECLARE
   candidate_grantee oid;
@@ -343,18 +621,18 @@ BEGIN
      WHERE routine.oid = pg_catalog.to_regprocedure(
        'public.enforce_email_outbox_payload_immutable()'
      )
-       AND expanded.grantee <> routine.proowner
+
   LOOP
     IF candidate_grantee = 0 THEN
       EXECUTE
         'REVOKE ALL ON FUNCTION ' ||
-        'public.enforce_email_outbox_payload_immutable() FROM PUBLIC';
+        'public.enforce_email_outbox_payload_immutable() FROM PUBLIC CASCADE';
     ELSE
       candidate_name := pg_catalog.pg_get_userbyid(candidate_grantee);
       IF candidate_name IS NOT NULL THEN
         EXECUTE pg_catalog.format(
           'REVOKE ALL ON FUNCTION ' ||
-          'public.enforce_email_outbox_payload_immutable() FROM %I',
+          'public.enforce_email_outbox_payload_immutable() FROM %I CASCADE',
           candidate_name
         );
       END IF;
@@ -362,6 +640,25 @@ BEGIN
   END LOOP;
 END
 $seal_payload_trigger_acl$;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION
+  "public"."enforce_email_outbox_payload_immutable"()
+  TO learncoding_owner;--> statement-breakpoint
+DROP TRIGGER IF EXISTS "email_outbox_payload_immutable"
+  ON public.email_outbox;--> statement-breakpoint
+CREATE TRIGGER "email_outbox_payload_immutable"
+BEFORE UPDATE OF
+  "user_id",
+  "to_email",
+  "template",
+  "template_version",
+  "variables",
+  "idempotency_key",
+  "operation_id",
+  "delivery_scope_key"
+ON public.email_outbox
+FOR EACH ROW
+EXECUTE FUNCTION
+  "public"."enforce_email_outbox_payload_immutable"();--> statement-breakpoint
 CREATE OR REPLACE FUNCTION
   "public"."redact_quarantined_email_outbox_authority_v2"(
     "cutoff_at" timestamp with time zone,
@@ -574,8 +871,13 @@ REVOKE ALL ON FUNCTION
   "public"."redact_quarantined_email_outbox_authority_v2"(
     timestamp with time zone,
     integer
+  ) FROM learncoding_owner CASCADE;--> statement-breakpoint
+REVOKE ALL ON FUNCTION
+  "public"."redact_quarantined_email_outbox_authority_v2"(
+    timestamp with time zone,
+    integer
   ) FROM PUBLIC, learncoding_app, learncoding_worker,
-         learncoding_migrator, learncoding_ops;--> statement-breakpoint
+         learncoding_migrator, learncoding_ops CASCADE;--> statement-breakpoint
 DO $seal_redactor_acl$
 DECLARE
   candidate_grantee oid;
@@ -595,20 +897,20 @@ BEGIN
      WHERE routine.oid = pg_catalog.to_regprocedure(
        'public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)'
      )
-       AND expanded.grantee <> routine.proowner
+
   LOOP
     IF candidate_grantee = 0 THEN
       EXECUTE
         'REVOKE ALL ON FUNCTION ' ||
         'public.redact_quarantined_email_outbox_authority_v2(' ||
-        'timestamp with time zone, integer) FROM PUBLIC';
+        'timestamp with time zone, integer) FROM PUBLIC CASCADE';
     ELSE
       candidate_name := pg_catalog.pg_get_userbyid(candidate_grantee);
       IF candidate_name IS NOT NULL THEN
         EXECUTE pg_catalog.format(
           'REVOKE ALL ON FUNCTION ' ||
           'public.redact_quarantined_email_outbox_authority_v2(' ||
-          'timestamp with time zone, integer) FROM %I',
+          'timestamp with time zone, integer) FROM %I CASCADE',
           candidate_name
         );
       END IF;
@@ -616,6 +918,11 @@ BEGIN
   END LOOP;
 END
 $seal_redactor_acl$;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION
+  "public"."redact_quarantined_email_outbox_authority_v2"(
+    timestamp with time zone,
+    integer
+  ) TO learncoding_owner;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION
   "public"."redact_quarantined_email_outbox_authority_v2"(
     timestamp with time zone,

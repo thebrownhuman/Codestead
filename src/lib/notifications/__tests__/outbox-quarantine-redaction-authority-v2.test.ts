@@ -61,13 +61,11 @@ describe("0067 quarantined mail payload-redaction authority v2", () => {
     );
   });
 
-  it("ages on quarantine evidence, releases only an empty fence, and does not depend on provider receipt completeness", () => {
+  it("ages on quarantine evidence without depending on provider receipt completeness", () => {
     expect(migration).toMatch(
       /coalesce\(\s*candidate\.quarantined_at,\s*candidate\.updated_at,\s*candidate\.created_at\s*\)/u,
     );
-    expect(migration).toContain("candidate.claim_token is null");
-    expect(migration).toContain("candidate.claim_owner is null");
-    expect(migration).toContain("candidate.lease_expires_at is null");
+
     expect(migration).toContain("return 'blocked'");
 
     const classifierStart = migration.indexOf(
@@ -78,6 +76,25 @@ describe("0067 quarantined mail payload-redaction authority v2", () => {
     expect(classifier).not.toContain("provider_message_id is null");
     expect(classifier).not.toContain("provider_evidence_sha256 ~");
     expect(classifier).not.toContain("adapter = 'gmail'");
+  });
+
+  it("redacts every partial claim tuple and blocks only a complete held tuple", () => {
+    expect(migration).toContain(
+      "claim_authority_parts := pg_catalog.num_nonnulls(",
+    );
+    expect(migration).toContain("if claim_authority_parts = 0 then");
+    expect(migration).toContain(
+      "if claim_authority_parts between 1 and 2 then",
+    );
+    expect(migration).toMatch(
+      /if claim_authority_parts between 1 and 2 then[\s\S]*?return raw_disposition;/u,
+    );
+    expect(migration).toMatch(
+      /if claim_authority_parts = 3[\s\S]*?candidate\.lease_expires_at\s*>\s*pg_catalog\.statement_timestamp\(\)[\s\S]*?return 'blocked';/u,
+    );
+    expect(migration).toMatch(
+      /return 'blocked';[\s\S]*?return raw_disposition;/u,
+    );
   });
 
   it("redacts valid account/system/operation scopes and malformed scopes without changing authority", () => {
@@ -128,6 +145,40 @@ describe("0067 quarantined mail payload-redaction authority v2", () => {
   it("binds the owner routines and ops-only mutator to an exact hardened catalog shape", () => {
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = pg_catalog");
+    for (const predecessorProof of [
+      "pg_catalog.pg_get_functiondef",
+      "routine.prosrc",
+      "routine.prosecdef",
+      "routine.proconfig",
+      "acl.grantor",
+      "trigger_record.tgtype = 23",
+      "trigger_record.tgqual is null",
+      "trigger_record.tgnargs = 0",
+      "trigger_record.tgattr = ''::pg_catalog.int2vector",
+      "constraint_record.conkey",
+      "pg_catalog.pg_get_expr",
+      "cc196df96da9024d65c85ef3451eae1f1dd059672226ba8c37c2e7d2af374bd9",
+      "fa3258f9172adbefc2cbb58a57d63533f8933811c77d0d3eb1b285f6bd2dd4da",
+      "pg_catalog.pg_get_constraintdef",
+      "pg_catalog.to_jsonb(constraint_record)",
+      "conenforced",
+      "attribute.attacl",
+      "relation.relowner",
+      "relation.relrowsecurity",
+      "relation.relforcerowsecurity",
+      "relation.relispartition",
+      "relation.reloftype",
+      "relation.relhassubclass",
+      "relation.relhasrules",
+      "pg_catalog.pg_inherits",
+      "pg_catalog.pg_rewrite",
+      "pg_catalog.has_table_privilege",
+      "attribute.attcollation",
+      "trigger_record.tgparentid",
+      "trigger_record.tgconstraint",
+    ]) {
+      expect(migration, predecessorProof).toContain(predecessorProof);
+    }
     expect(migration).toContain("session_user <> 'learncoding_ops'");
     expect(migration).toContain("current_user <> 'learncoding_owner'");
     expect(migration).toMatch(
@@ -138,7 +189,39 @@ describe("0067 quarantined mail payload-redaction authority v2", () => {
     );
     expect(migration).toContain("from public, learncoding_app, learncoding_worker");
     expect(migration).toContain("learncoding_migrator, learncoding_ops");
-    expect(migration).toContain("expanded.grantee <> routine.proowner");
+    expect(migration).not.toContain("expanded.grantee <> routine.proowner");
+    expect(
+      migration.match(/from learncoding_owner cascade/gu),
+    ).toHaveLength(3);
+    expect(
+      migration.match(/to learncoding_owner/gu)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(3);
+    expect(migration.match(/from public cascade/gu)).toHaveLength(3);
+    expect(migration.match(/from %i cascade/gu)).toHaveLength(3);
+    expect(migration).toContain(
+      "lock table only public.email_outbox in access exclusive mode",
+    );
+    expect(migration).toMatch(
+      /drop trigger if exists "email_outbox_payload_immutable"\s+on public\.email_outbox/u,
+    );
+    const repairedTrigger = migration
+      .split("--> statement-breakpoint")
+      .find((statement) =>
+        statement.includes('create trigger "email_outbox_payload_immutable"'),
+      ) ?? "";
+    expect(repairedTrigger).toContain("before update of");
+    for (const column of [
+      "user_id",
+      "to_email",
+      "template",
+      "template_version",
+      "variables",
+      "idempotency_key",
+      "operation_id",
+      "delivery_scope_key",
+    ]) {
+      expect(repairedTrigger).toContain(`"${column}"`);
+    }
   });
 
   it("makes the application call only v2 and never terminal-deletes a quarantine", () => {
