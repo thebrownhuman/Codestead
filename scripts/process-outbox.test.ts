@@ -43,7 +43,10 @@ const mocks = vi.hoisted(() => {
   const discardGuardedPreparedDispatch = vi.fn(() => true);
   const processOutboxBatch = vi.fn();
   const materializedDispatch = Object.freeze({});
-  const createConfiguredMaterializedDispatch = vi.fn(() => materializedDispatch);
+  const createConfiguredMaterializedDispatch = vi.fn((input: object) => {
+    void input;
+    return materializedDispatch;
+  });
   const materializeDelivery = vi.fn();
   const watchdog = Object.freeze({
     arm: vi.fn(async () => Object.freeze({})),
@@ -494,7 +497,10 @@ describe("mail worker production composition", () => {
 
     await loadWorkerOnce();
 
-    const input = mocks.createConfiguredMaterializedDispatch.mock.calls[0]![0];
+    const input = mocks.createConfiguredMaterializedDispatch.mock.calls[0]![0] as {
+      source: { variables: Record<string, string> };
+      delivery?: unknown;
+    };
     expect(input.source.variables).toEqual(sourceVariables);
     expect(input.source.variables).not.toHaveProperty("url");
     expect(input.delivery).toEqual({
