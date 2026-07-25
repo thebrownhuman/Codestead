@@ -36,6 +36,48 @@ git -C "$work/repo" config core.autocrlf false
 git -C "$work/repo" remote add origin https://github.com/example/codestead
 git -C "$work/repo" add .gitignore compose.yaml infra/ops/package-release-tree.py infra/ops/ingress-control.py infra/runner-vm/host-runner.nft
 git -C "$work/repo" commit -qm 'fixture rollback checkout'
+retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
+retention_boundary_tree=2fd3e0b2c4fe6bceb3a70755e2b4b951ada0fbed
+pre_retention_commit=9ec43e87cc786ea73c0cd4eed3e7b9638e2cde89
+pre_retention_tree=354bf1afe68f0e35582a52e5d9eebaf65be104c5
+older_pre_retention_commit=6a0220b0c2ca9931461f59960282773daa0457a9
+older_pre_retention_tree=99ce219eee07992a3dde57fa0a9895e9b770dce3
+declare -a source_git
+if source_git_dir="$(
+  git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null
+)"; then
+  source_git=(git -C "$repo_root")
+else
+  if ! command -v git.exe >/dev/null || ! command -v wslpath >/dev/null; then
+    fail "source Git repository is unavailable"
+  fi
+  source_repo_windows="$(wslpath -w "$repo_root")"
+  source_git=(git.exe -C "$source_repo_windows")
+  source_git_dir_windows="$(
+    "${source_git[@]}" rev-parse --path-format=absolute --git-common-dir | tr -d '\r'
+  )"
+  source_git_dir="$(wslpath -u "$source_git_dir_windows")"
+fi
+[[ -d "$source_git_dir" ]] || fail "source Git directory is unavailable"
+source_ref="$(
+  "${source_git[@]}" for-each-ref --contains "$retention_boundary_commit" \
+    --format='%(refname)' refs/heads refs/remotes | tr -d '\r' | sed -n '1p'
+)"
+[[ "$source_ref" == refs/* ]] || fail "0062 boundary is not reachable from a trusted source ref"
+source_distance="$(
+  "${source_git[@]}" rev-list --count "$retention_boundary_commit..$source_ref" | tr -d '\r'
+)"
+[[ "$source_distance" =~ ^[0-9]+$ ]] || fail "0062 boundary source distance is invalid"
+source_depth="$((source_distance + 3))"
+git -C "$work/repo" remote add retention-boundary \
+  "ext::git -c safe.directory=$source_git_dir -c uploadpack.allowFilter=true upload-pack $source_git_dir"
+git -C "$work/repo" config extensions.partialClone retention-boundary
+git -C "$work/repo" config remote.retention-boundary.promisor true
+git -C "$work/repo" config remote.retention-boundary.partialclonefilter blob:none
+git -c protocol.ext.allow=always -C "$work/repo" fetch --quiet --filter=blob:none \
+  --depth="$source_depth" retention-boundary "$source_ref" 2>/dev/null || {
+  fail "unable to import the complete 0062 boundary fixture"
+}
 /usr/bin/python3 "$fixture_generator" \
   --source "$work/repo" \
   --packager "$work/repo/infra/ops/package-release-tree.py" \
@@ -46,6 +88,7 @@ cp "$work/repo/RELEASE.SHA256SUMS" "$work/valid-release-manifest"
 previous_commit="1111111111111111111111111111111111111111"
 candidate_commit="2222222222222222222222222222222222222222"
 previous_tree="3333333333333333333333333333333333333333"
+candidate_tree="4444444444444444444444444444444444444444"
 printf '%s\n' "$previous_commit" >"$work/records/20260719T000000Z-1/git-commit.txt"
 printf '%s\n' "$previous_tree" >"$work/records/20260719T000000Z-1/git-tree.txt"
 printf '%s\n' 'previous verified application image record bytes' \
@@ -56,6 +99,7 @@ printf '%s\n' 'result=completed' >"$work/records/20260719T000000Z-1/status.env"
 printf '%s\n' '20260719T000000Z-1' >"$work/records/20260719T000000Z-2/previous-release-id.txt"
 printf '%s\n' "$previous_commit" >"$work/records/20260719T000000Z-2/previous-git-commit.txt"
 printf '%s\n' "$candidate_commit" >"$work/records/20260719T000000Z-2/git-commit.txt"
+printf '%s\n' "$candidate_tree" >"$work/records/20260719T000000Z-2/git-tree.txt"
 printf '%s\n' \
   'release_id=20260719T000000Z-2' \
   'result=failed' \
@@ -302,6 +346,19 @@ run_rollback() {
   ROLLBACK_CASE="$case_dir"
 }
 
+set_rollback_git_evidence() {
+  local source_commit="$1" source_tree="$2" target_commit="$3" target_tree="$4"
+  printf '%s\n' "$source_commit" >"$work/records/20260719T000000Z-2/git-commit.txt"
+  printf '%s\n' "$source_tree" >"$work/records/20260719T000000Z-2/git-tree.txt"
+  printf '%s\n' "$target_commit" >"$work/records/20260719T000000Z-2/previous-git-commit.txt"
+  printf '%s\n' "$target_commit" >"$work/records/20260719T000000Z-1/git-commit.txt"
+  printf '%s\n' "$target_tree" >"$work/records/20260719T000000Z-1/git-tree.txt"
+  printf '%s\n' 'release_id=20260719T000000Z-1' "git_commit=$target_commit" \
+    >"$work/records/current-release.env"
+  printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$source_commit" \
+    >"$work/records/latest-candidate.env"
+}
+
 assert_only_quarantine_stops() {
   local log="$1" label="$2" line
   local command env_flag env_path file_flag file_path action timeout_flag seconds service extra
@@ -334,6 +391,111 @@ grep -Fq 'canonical lowercase public HTTPS origin' "$ROLLBACK_CASE/stderr" || {
 printf '%s\n' 'APP_URL=https://pilot.example.test' >"$work/compose.env"
 echo "ok - rollback rejects an IPv4 APP_URL before Docker"
 mail_contract_path="$work/records/20260719T000000Z-2/mail-outbox-contract.env"
+set_rollback_git_evidence \
+  "$retention_boundary_commit" "$retention_boundary_tree" \
+  "$pre_retention_commit" "$pre_retention_tree"
+cat >"$mail_contract_path" <<'EOF'
+SCHEMA_VERSION=1
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+EOF
+chmod 0600 "$mail_contract_path"
+cp "$work/records/current-release.env" "$work/v1-contract-current-before.env"
+cp "$work/records/latest-candidate.env" "$work/v1-contract-candidate-before.env"
+run_rollback v1-contract-across-0062 --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted a v1 fenced contract across 0062"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "v1 contract 0062 rollback refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "v1 contract 0062 refusal reached smoke"
+[[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "v1 contract 0062 refusal wrote stdout"
+grep -Fq '0062_mail_outbox_retention_redaction' "$ROLLBACK_CASE/stderr" || {
+  fail "v1 contract 0062 refusal did not name the boundary"
+}
+grep -Fq 'SCHEMA_VERSION=1' "$ROLLBACK_CASE/stderr" || {
+  fail "v1 contract 0062 refusal did not identify the insufficient schema"
+}
+if grep -Fq 'previous verified application image record bytes' \
+  "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+  fail "v1 contract 0062 refusal disclosed retained release evidence"
+fi
+cmp -s "$work/records/current-release.env" "$work/v1-contract-current-before.env" || {
+  fail "v1 contract 0062 refusal changed the current pointer"
+}
+cmp -s "$work/records/latest-candidate.env" "$work/v1-contract-candidate-before.env" || {
+  fail "v1 contract 0062 refusal changed the candidate pointer"
+}
+echo "ok - rollback refuses a v1 fenced contract across 0062"
+
+rm -f "$mail_contract_path"
+cp "$work/records/current-release.env" "$work/missing-contract-current-before.env"
+cp "$work/records/latest-candidate.env" "$work/missing-contract-candidate-before.env"
+run_rollback missing-contract-across-0062 --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted an absent contract across 0062"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "absent contract 0062 rollback refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "absent contract 0062 refusal reached smoke"
+[[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "absent contract 0062 refusal wrote stdout"
+grep -Fq '0062_mail_outbox_retention_redaction' "$ROLLBACK_CASE/stderr" || {
+  fail "absent contract 0062 refusal did not name the boundary"
+}
+grep -Fq 'mail outbox contract evidence is absent' "$ROLLBACK_CASE/stderr" || {
+  fail "absent contract 0062 refusal did not identify the missing evidence"
+}
+if grep -Fq 'previous verified application image record bytes' \
+  "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+  fail "absent contract 0062 refusal disclosed retained release evidence"
+fi
+cmp -s "$work/records/current-release.env" "$work/missing-contract-current-before.env" || {
+  fail "absent contract 0062 refusal changed the current pointer"
+}
+cmp -s "$work/records/latest-candidate.env" "$work/missing-contract-candidate-before.env" || {
+  fail "absent contract 0062 refusal changed the candidate pointer"
+}
+echo "ok - rollback refuses an absent contract across 0062"
+
+set_rollback_git_evidence \
+  "$pre_retention_commit" "$pre_retention_tree" \
+  "$older_pre_retention_commit" "$candidate_tree"
+run_rollback missing-contract-untrusted-tree --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted mismatched pre-0062 Git tree evidence"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "mismatched pre-0062 tree refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "mismatched pre-0062 tree refusal reached smoke"
+[[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "mismatched pre-0062 tree refusal wrote stdout"
+grep -Fq 'trusted release Git tree evidence does not match repository objects' \
+  "$ROLLBACK_CASE/stderr" || {
+  fail "mismatched pre-0062 tree refusal was not explicit"
+}
+if grep -Fq 'previous verified application image record bytes' \
+  "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+  fail "mismatched pre-0062 tree refusal disclosed retained release evidence"
+fi
+echo "ok - rollback rejects mismatched pre-0062 Git tree evidence"
+
+set_rollback_git_evidence \
+  "$pre_retention_commit" "$pre_retention_tree" \
+  "$older_pre_retention_commit" "$older_pre_retention_tree"
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/pre-retention-valid.override.yaml"
+printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+run_rollback missing-contract-wholly-pre-0062 --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "pre-0062 gate fixture unexpectedly completed rollback"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "wholly pre-0062 contract exception"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "wholly pre-0062 contract exception reached smoke"
+grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" || {
+  fail "exact wholly pre-0062 evidence did not pass the legacy contract gate"
+}
+if grep -Eq 'contract evidence is absent|SCHEMA_VERSION=1|migration lineage' \
+  "$ROLLBACK_CASE/stderr"; then
+  fail "exact wholly pre-0062 evidence was rejected by the legacy contract gate"
+fi
+mv "$work/pre-retention-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+echo "ok - rollback permits the absent-contract gate only wholly before 0062"
+
+set_rollback_git_evidence \
+  "$candidate_commit" "$candidate_tree" "$previous_commit" "$previous_tree"
 cp "$work/records/current-release.env" "$work/mail-boundary-current-before.env"
 cp "$work/records/latest-candidate.env" "$work/mail-boundary-candidate-before.env"
 cat >"$mail_contract_path" <<'EOF'
@@ -541,6 +703,20 @@ run_rollback repeated-signal-early-cleanup --schema-backward-compatible
 }
 assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "repeated early rollback cleanup signals"
 
+cat >"$mail_contract_path" <<'EOF'
+SCHEMA_VERSION=2
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+PREVIOUS_RUNTIME_COMPATIBLE=true
+FORWARD_ONLY_MIGRATION=none
+EOF
+chmod 0600 "$mail_contract_path"
+
 run_rollback repeated-signal-late-cleanup --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" == 51 ]] || fail "repeated late rollback signals did not preserve the smoke failure status"
 [[ "$(cat "$ROLLBACK_CASE/quarantine-stop.count")" -ge 3 ]] || {
@@ -704,19 +880,6 @@ chmod 0644 "$rollback_application_blob"
 echo "ok - rollback rejects a corrupted pre-existing content-addressed record"
 
 
-cat >"$mail_contract_path" <<'EOF'
-SCHEMA_VERSION=2
-MAIL_OUTBOX_PHASE=dual-write-v1
-OUTBOX_WORKER_MODE=fenced-postgres-v1
-OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
-STORE_CUTOVER=false
-PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
-PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
-PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
-PREVIOUS_RUNTIME_COMPATIBLE=true
-FORWARD_ONLY_MIGRATION=none
-EOF
-chmod 0600 "$mail_contract_path"
 run_rollback success --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" == 0 ]] || {
   cat "$ROLLBACK_CASE/stderr" >&2
