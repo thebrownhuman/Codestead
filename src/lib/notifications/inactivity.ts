@@ -5,8 +5,13 @@ import type { Pool, PoolClient } from "pg";
 import { pool } from "@/lib/db/client";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 import type { EmailTemplate } from "./outbox";
+import {
+  createInactivitySourceVariables,
+  INACTIVITY_MAIL_POLICY_VERSION,
+  requireRevocableSourceVariables,
+} from "./revocable-source-authority";
 
-export const INACTIVITY_POLICY_VERSION = "inactivity-2026-07.v2";
+export const INACTIVITY_POLICY_VERSION = INACTIVITY_MAIL_POLICY_VERSION;
 export const FIRST_REMINDER_AFTER_MS = 24 * 60 * 60 * 1_000;
 export const SECOND_REMINDER_AFTER_MS = 72 * 60 * 60 * 1_000;
 const MINIMUM_REMINDER_SPACING_MS = 48 * 60 * 60 * 1_000;
@@ -154,7 +159,7 @@ async function loadCandidateIds(client: PoolClient) {
     `select u.id as user_id
        from "user" u
        join learner_profile lp on lp.user_id = u.id and lp.onboarding_completed_at is not null
-      where u.role = 'learner' and u.status = 'active'
+      where u.role = 'learner' and u.status = 'active' and u.banned = false
       order by u.id`,
   );
 }
@@ -182,7 +187,7 @@ async function loadCandidate(client: PoolClient, userId: string) {
        order by cr.occurred_at desc, cr.created_at desc, cr.id desc
        limit 1
      ) consent on true
-     where u.id = $1 and u.role = 'learner' and u.status = 'active'
+     where u.id = $1 and u.role = 'learner' and u.status = 'active' and u.banned = false
      for update of u`,
     [userId],
   );
@@ -248,7 +253,7 @@ export async function scheduleInactivityReminders(
     schedulerLockHeld = true;
     const administrator = (await client.query<Administrator>(
       `select id, email from "user"
-        where role = 'admin' and status = 'active'
+        where role = 'admin' and status = 'active' and banned = false
         order by created_at, id limit 1`,
     )).rows[0] ?? null;
     const candidateIds = (await loadCandidateIds(client)).rows;
@@ -352,7 +357,15 @@ export async function scheduleInactivityReminders(
           to: candidate.email,
           userId: candidate.user_id,
           template: "inactivity-reminder",
-          variables: { name: candidate.name, url: applicationUrl("/learn") },
+          variables: requireRevocableSourceVariables(
+            createInactivitySourceVariables({
+              applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+              episodeId,
+              name: candidate.name,
+              template: "inactivity-reminder",
+              url: applicationUrl("/learn"),
+            }),
+          ),
           seed: `${episodeId}:learner-first`,
         });
         if (durable) {
@@ -375,7 +388,15 @@ export async function scheduleInactivityReminders(
             to: administrator.email,
             userId: administrator.id,
             template: "inactivity-admin-notice",
-            variables: { name: "administrator", url: applicationUrl("/admin") },
+            variables: requireRevocableSourceVariables(
+              createInactivitySourceVariables({
+                applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+                episodeId,
+                name: "administrator",
+                template: "inactivity-admin-notice",
+                url: applicationUrl("/admin"),
+              }),
+            ),
             seed: `${episodeId}:admin`,
           });
           if (durable) {
@@ -400,7 +421,15 @@ export async function scheduleInactivityReminders(
             to: candidate.email,
             userId: candidate.user_id,
             template: "inactivity-reminder-followup",
-            variables: { name: candidate.name, url: applicationUrl("/learn") },
+            variables: requireRevocableSourceVariables(
+              createInactivitySourceVariables({
+                applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+                episodeId,
+                name: candidate.name,
+                template: "inactivity-reminder-followup",
+                url: applicationUrl("/learn"),
+              }),
+            ),
             seed: `${episodeId}:learner-second`,
           });
           if (durable) {

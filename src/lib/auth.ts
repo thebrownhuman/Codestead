@@ -7,9 +7,15 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin, twoFactor } from "better-auth/plugins";
 
-import { db } from "@/lib/db/client";
+import { db, pool } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { enqueueEmail } from "@/lib/notifications/outbox";
+import {
+  createResetPasswordSourceVariables,
+  loadResetPasswordVerificationSource,
+  requireRevocableSourceVariables,
+  RevocableSourceAuthorityError,
+} from "@/lib/notifications/revocable-source-authority";
 import {
   archiveDeletedSession,
   archiveExpiredSessions,
@@ -61,13 +67,29 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: async ({ user: authUser, url }) => {
+    sendResetPassword: async ({ user: authUser, url, token }) => {
+      const verificationId = await loadResetPasswordVerificationSource(pool, {
+        token,
+        userId: authUser.id,
+      });
+      if (!verificationId) {
+        throw new RevocableSourceAuthorityError("RESET_PASSWORD_SOURCE_UNAVAILABLE");
+      }
+      const variables = requireRevocableSourceVariables(
+        createResetPasswordSourceVariables({
+          applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+          name: authUser.name,
+          token,
+          url,
+          verificationId,
+        }),
+      );
       await enqueueEmail({
         to: authUser.email,
         userId: authUser.id,
         template: "reset-password",
-        variables: { name: authUser.name, url },
-        idempotencySeed: url,
+        variables,
+        idempotencySeed: `reset-password:${verificationId}`,
       });
     },
   },

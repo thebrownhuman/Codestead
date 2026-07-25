@@ -71,7 +71,7 @@ describe("lost-device mailbox proof", () => {
       "utf8",
     );
     const queuedVariables = recovery.match(
-      /template: "lost-device-proof",\s*variables: \{([^}]+)\}/g,
+      /createLostDeviceProofSourceVariables\(\{[\s\S]*?\}\)/g,
     );
     expect(queuedVariables).toHaveLength(2);
     for (const block of queuedVariables ?? []) {

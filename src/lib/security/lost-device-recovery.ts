@@ -11,6 +11,11 @@ import {
   user,
 } from "@/lib/db/schema";
 import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
+import {
+  createLostDeviceProofSourceVariables,
+  createSessionRevocationSourceVariables,
+  requireRevocableSourceVariables,
+} from "@/lib/notifications/revocable-source-authority";
 import { writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 
 export const LOST_DEVICE_PROOF_TTL_MS = 15 * 60_000;
@@ -86,6 +91,7 @@ export async function issueLostDeviceProof(
         eq(user.role, "learner"),
         eq(user.status, "active"),
         eq(user.emailVerified, true),
+        eq(user.banned, false),
       ),
     )
     .limit(1);
@@ -135,7 +141,12 @@ export async function issueLostDeviceProof(
         to: candidate.email,
         userId: candidate.userId,
         template: "lost-device-proof",
-        variables: { name: candidate.name, recoveryRequestId: open.id },
+        variables: requireRevocableSourceVariables(
+          createLostDeviceProofSourceVariables({
+            name: candidate.name,
+            recoveryRequestId: open.id,
+          }),
+        ),
         idempotencySeed: open.id,
       });
       return { requestId: open.id, expiresAt: open.expiresAt };
@@ -164,7 +175,12 @@ export async function issueLostDeviceProof(
       to: candidate.email,
       userId: candidate.userId,
       template: "lost-device-proof",
-      variables: { name: candidate.name, recoveryRequestId: requestId },
+      variables: requireRevocableSourceVariables(
+        createLostDeviceProofSourceVariables({
+          name: candidate.name,
+          recoveryRequestId: requestId,
+        }),
+      ),
       idempotencySeed: requestId,
     });
     await writeAuditEventInTransaction(tx, {
@@ -233,6 +249,7 @@ export async function verifyLostDeviceProof(input: {
           eq(user.role, "learner"),
           eq(user.status, "active"),
           eq(user.emailVerified, true),
+          eq(user.banned, false),
         ),
       )
       .limit(1);
@@ -271,8 +288,16 @@ export async function verifyLostDeviceProof(input: {
       const admins = await tx
         .select({ id: user.id, email: user.email, name: user.name })
         .from(user)
-        .where(and(eq(user.role, "admin"), eq(user.status, "active")));
-      const actionUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/admin/learners/${claim.userId}`;
+        .where(and(
+          eq(user.role, "admin"),
+          eq(user.status, "active"),
+          eq(user.banned, false),
+        ));
+      const applicationUrl = process.env.APP_URL ?? "http://localhost:3000";
+      const actionUrl = new URL(
+        `/admin/learners/${claim.userId}`,
+        applicationUrl,
+      ).toString();
       for (const admin of admins) {
         await tx.insert(notification).values({
           userId: admin.id,
@@ -285,11 +310,15 @@ export async function verifyLostDeviceProof(input: {
           to: admin.email,
           userId: admin.id,
           template: "session-revocation-requested",
-          variables: {
-            name: admin.name,
-            device: "the learner's only approved browser profile",
-            url: actionUrl,
-          },
+          variables: requireRevocableSourceVariables(
+            createSessionRevocationSourceVariables({
+              applicationUrl,
+              name: admin.name,
+              device: "the learner's only approved browser profile",
+              requestId: existing.id,
+              url: actionUrl,
+            }),
+          ),
           idempotencySeed: existing.id,
         });
       }
