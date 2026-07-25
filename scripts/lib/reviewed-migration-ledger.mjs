@@ -206,12 +206,12 @@ export const REVIEWED_MIGRATION_LEDGER = Object.freeze([
   Object.freeze({ idx: 60, version: "7", when: 1784898036015, tag: "0060_mail_outbox_payload_immutability", breakpoints: true, sqlSha256: "704683f9e3fe7b628694efe5761fc981373fbdbbc1664e1ad8a2c1af789139e6" }),
   Object.freeze({ idx: 61, version: "7", when: 1784921980000, tag: "0061_mail_worker_outbox_privileges", breakpoints: true, sqlSha256: "103b14bc21213df916eb1deb565a7ba3beed4e149f02070e4b5d931ae135e608" }),
   Object.freeze({ idx: 62, version: "7", when: 1784925600000, tag: "0062_mail_outbox_retention_redaction", breakpoints: true, sqlSha256: "98cd8b0fd5b57822bab9a3793094e738d926d5dab8a2dc700f89037bd0cbc13b" }),
-  Object.freeze({ idx: 63, version: "7", when: 1784929200000, tag: "0063_mail_outbox_redaction_fence_release", breakpoints: true, sqlSha256: "b1ff8b57084dcaf6e677aa5eb73d3f0e1156dca406d50f547c8d2c5590260ea2" }),
-  Object.freeze({ idx: 64, version: "7", when: 1784932800000, tag: "0064_mail_outbox_dispatch_binding", breakpoints: true, sqlSha256: "c6f057b8726602c3e6330c68a5a97e5698a1451b5b0d6ca2e3020db4f35975b9" }),
+  Object.freeze({ idx: 63, version: "7", when: 1784929200000, tag: "0063_mail_outbox_redaction_fence_release", breakpoints: true, sqlSha256: "e945482f1311c88ee41bb13b12a566aab31a0e1aadd2a1d9ce98ac12acd5c63c" }),
+  Object.freeze({ idx: 64, version: "7", when: 1784932800000, tag: "0064_mail_outbox_dispatch_binding", breakpoints: true, sqlSha256: "5667b105cb1511cf2851c315959086ca49453be52db09a4b0ffc9844c966d1aa" }),
 ]);
 
 export const REVIEWED_MIGRATION_LEDGER_SHA256 =
-  "9e7d11aa21ee3813f7ac41c99a624ea918eaeab5e3e0e0b0f35cc96d5dc77b61";
+  "a9f490fbfa6e6918068c94393b78dd5e2ac92057ddd6625ceb14ca33458b3d59";
 
 validateReviewedMigrationLedger(REVIEWED_MIGRATION_LEDGER, "CONTRACT_INVALID");
 if (

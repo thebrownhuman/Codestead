@@ -2,8 +2,10 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   cpSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -19,6 +21,10 @@ import { Client } from "pg";
 
 import { verifyPostMigrationReviewedContractsBeforeReconciliation } from "../../scripts/bootstrap-database-roles.mjs";
 import { allocateDisposableLoopbackPort } from "../../scripts/lib/disposable-loopback-port.mjs";
+import {
+  REVIEWED_MIGRATION_LEDGER,
+  reviewedMigrationLedgerSha256,
+} from "../../scripts/lib/reviewed-migration-ledger.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
@@ -172,6 +178,169 @@ function stagedMigrationsThrough(temporaryRoot, maximumIndex) {
     "utf8",
   );
   return staged;
+}
+
+function prefixMigrationVerifier(maximumIndex) {
+  assert.ok(
+    Number.isInteger(maximumIndex) &&
+      maximumIndex >= 0 &&
+      maximumIndex <= REVIEWED_MIGRATION_LEDGER.at(-1).idx,
+    "staged migration verifier index is outside the reviewed ledger",
+  );
+  const expectedLedger = REVIEWED_MIGRATION_LEDGER.slice(0, maximumIndex + 1);
+  const expectedLedgerSha256 = reviewedMigrationLedgerSha256(expectedLedger);
+  const expectedTail = expectedLedger.at(-1);
+
+  function verifyReviewedMigrationRepository({ drizzleDirectory }) {
+    const resolvedDirectory = path.resolve(drizzleDirectory);
+    const journalPath = path.join(resolvedDirectory, "meta", "_journal.json");
+    const journalMetadata = lstatSync(journalPath);
+    assert.ok(
+      journalMetadata.isFile() && !journalMetadata.isSymbolicLink(),
+      "staged migration journal must be a regular file",
+    );
+    const journal = JSON.parse(readFileSync(journalPath, "utf8"));
+    assert.deepEqual(
+      Object.keys(journal).sort(),
+      ["dialect", "entries", "version"],
+      "staged migration journal root shape changed",
+    );
+    assert.equal(journal.version, "7");
+    assert.equal(journal.dialect, "postgresql");
+    assert.ok(Array.isArray(journal.entries));
+    assert.equal(
+      journal.entries.length,
+      expectedLedger.length,
+      "staged migration journal length changed",
+    );
+    journal.entries.forEach((entry, index) => {
+      const reviewed = expectedLedger[index];
+      assert.deepEqual(
+        Object.keys(entry).sort(),
+        ["breakpoints", "idx", "tag", "version", "when"],
+        `staged migration journal entry ${index} shape changed`,
+      );
+      assert.deepEqual(entry, {
+        idx: reviewed.idx,
+        version: reviewed.version,
+        when: reviewed.when,
+        tag: reviewed.tag,
+        breakpoints: reviewed.breakpoints,
+      });
+    });
+
+    const actualSqlNames = readdirSync(resolvedDirectory, {
+      withFileTypes: true,
+    })
+      .filter(
+        (entry) =>
+          entry.isFile() && /^[0-9]{4}_[a-z0-9_]+\.sql$/u.test(entry.name),
+      )
+      .map((entry) => entry.name)
+      .sort();
+    const expectedSqlNames = expectedLedger.map(
+      (entry) => `${entry.tag}.sql`,
+    );
+    assert.deepEqual(
+      actualSqlNames,
+      expectedSqlNames,
+      "staged migration SQL inventory changed",
+    );
+
+    for (const entry of expectedLedger) {
+      const migrationPath = path.join(resolvedDirectory, `${entry.tag}.sql`);
+      const migrationMetadata = lstatSync(migrationPath);
+      assert.ok(
+        migrationMetadata.isFile() && !migrationMetadata.isSymbolicLink(),
+        `staged migration ${entry.tag} must be a regular file`,
+      );
+      assert.equal(
+        createHash("sha256")
+          .update(readFileSync(migrationPath))
+          .digest("hex"),
+        entry.sqlSha256,
+        `staged migration ${entry.tag} digest changed`,
+      );
+    }
+
+    return Object.freeze({
+      entryCount: expectedLedger.length,
+      ledgerSha256: expectedLedgerSha256,
+      tailIndex: expectedTail.idx,
+      tailTag: expectedTail.tag,
+    });
+  }
+
+  async function verifyAppliedMigrationLedger(
+    client,
+    { requireComplete = false } = {},
+  ) {
+    const presence = await client.query(`
+      SELECT pg_catalog.to_regclass(
+               'drizzle.__drizzle_migrations'
+             ) IS NOT NULL reviewed_migration_journal_present`);
+    assert.equal(presence?.rows?.length, 1);
+    const present = presence.rows[0]?.reviewed_migration_journal_present;
+    assert.equal(typeof present, "boolean");
+    if (!present) {
+      assert.equal(
+        requireComplete,
+        false,
+        "staged database migration ledger is incomplete",
+      );
+      return Object.freeze({
+        appliedCount: 0,
+        complete: false,
+        ledgerSha256: expectedLedgerSha256,
+      });
+    }
+
+    const result = await client.query(`
+      SELECT journal.id::text id,
+             journal.hash::text hash,
+             journal.created_at::text created_at
+        FROM drizzle.__drizzle_migrations journal
+       ORDER BY journal.id
+       /* reviewed_staged_migration_journal_rows */`);
+    assert.ok(Array.isArray(result?.rows));
+    assert.ok(
+      result.rows.length <= expectedLedger.length,
+      "staged database migration ledger contains extra rows",
+    );
+    let previousId = -1n;
+    result.rows.forEach((row, index) => {
+      const reviewed = expectedLedger[index];
+      assert.deepEqual(
+        Object.keys(row).sort(),
+        ["created_at", "hash", "id"],
+        `staged database migration row ${index} shape changed`,
+      );
+      assert.equal(typeof row.id, "string");
+      assert.match(row.id, /^[0-9]+$/u);
+      const id = BigInt(row.id);
+      assert.ok(id > previousId, "staged database migration IDs are unordered");
+      assert.equal(row.hash, reviewed.sqlSha256);
+      assert.equal(row.created_at, String(reviewed.when));
+      previousId = id;
+    });
+    if (requireComplete) {
+      assert.equal(
+        result.rows.length,
+        expectedLedger.length,
+        "staged database migration ledger is incomplete",
+      );
+    }
+    return Object.freeze({
+      appliedCount: result.rows.length,
+      complete: result.rows.length === expectedLedger.length,
+      ledgerSha256: expectedLedgerSha256,
+    });
+  }
+
+  return Object.freeze({
+    verifyReviewedMigrationRepository,
+    verifyAppliedMigrationLedger,
+  });
 }
 
 function ownerSql(port, database, sql) {
@@ -1339,8 +1508,218 @@ async function proveExtendedTransitionMatrix(port, database) {
   );
 }
 
+function installHostilePre0064CatalogState(port, database) {
+  psql(
+    port,
+    database,
+    `
+CREATE ROLE mail_dispatch_hostile_default NOLOGIN;
+CREATE ROLE mail_dispatch_hostile_grantor NOLOGIN;
+CREATE ROLE mail_dispatch_hostile_leaf NOLOGIN;
+
+SET ROLE learncoding_owner;
+GRANT USAGE ON SCHEMA public
+  TO mail_dispatch_hostile_default,
+     mail_dispatch_hostile_grantor,
+     mail_dispatch_hostile_leaf;
+ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS
+  TO mail_dispatch_hostile_default WITH GRANT OPTION;
+CREATE FUNCTION public.enforce_email_outbox_dispatch_binding()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $hostile_dispatch_guard$
+BEGIN
+  RETURN NEW;
+END
+$hostile_dispatch_guard$;
+GRANT EXECUTE ON FUNCTION
+  public.enforce_email_outbox_dispatch_binding()
+  TO mail_dispatch_hostile_grantor WITH GRANT OPTION;
+RESET ROLE;
+
+SET ROLE mail_dispatch_hostile_default;
+GRANT EXECUTE ON FUNCTION
+  public.enforce_email_outbox_dispatch_binding()
+  TO mail_dispatch_hostile_leaf;
+RESET ROLE;
+
+SET ROLE mail_dispatch_hostile_grantor;
+GRANT EXECUTE ON FUNCTION
+  public.enforce_email_outbox_dispatch_binding()
+  TO mail_dispatch_hostile_leaf;
+RESET ROLE;
+
+SET ROLE learncoding_owner;
+REVOKE USAGE ON SCHEMA public
+  FROM mail_dispatch_hostile_default,
+       mail_dispatch_hostile_grantor,
+       mail_dispatch_hostile_leaf;
+RESET ROLE;`,
+  );
+}
+
+function assertHostilePre0064CatalogState(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_default_acl AS default_acl
+         JOIN pg_catalog.pg_namespace AS namespace
+           ON namespace.oid = default_acl.defaclnamespace
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           default_acl.defaclacl
+         ) AS access
+         JOIN pg_catalog.pg_roles AS owner_role
+           ON owner_role.oid = default_acl.defaclrole
+         JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE owner_role.rolname = 'learncoding_owner'
+          AND namespace.nspname = 'public'
+          AND default_acl.defaclobjtype = 'f'
+          AND grantee.rolname = 'mail_dispatch_hostile_default'
+          AND access.privilege_type = 'EXECUTE'
+          AND access.is_grantable;`,
+    ),
+    "1",
+    "hostile owner default ACL fixture was not installed",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_proc AS routine
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) AS access
+         JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
+          AND grantee.rolname IN (
+            'mail_dispatch_hostile_default',
+            'mail_dispatch_hostile_grantor',
+            'mail_dispatch_hostile_leaf'
+          );`,
+    ),
+    "4",
+    "hostile direct/default/delegated function ACL fixture was incomplete",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_proc AS routine
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) AS access
+         JOIN pg_catalog.pg_roles AS grantor
+           ON grantor.oid = access.grantor
+         JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
+          AND grantor.rolname IN (
+            'mail_dispatch_hostile_default',
+            'mail_dispatch_hostile_grantor'
+          )
+          AND grantee.rolname = 'mail_dispatch_hostile_leaf'
+          AND NOT access.is_grantable;`,
+    ),
+    "2",
+    "hostile grantor-to-leaf delegation fixture was incomplete",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT routine.prosecdef::text || '|' ||
+              pg_catalog.array_to_string(routine.proconfig, ',')
+         FROM pg_catalog.pg_proc AS routine
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure;`,
+    ),
+    "true|search_path=public",
+    "hostile function-shape fixture was incomplete",
+  );
+}
+
+function assertHostilePost0064FunctionAclsRemoved(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_proc AS routine
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) AS access
+         LEFT JOIN pg_catalog.pg_roles AS grantor
+           ON grantor.oid = access.grantor
+         LEFT JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
+          AND (
+            grantor.rolname LIKE 'mail_dispatch_hostile_%'
+            OR grantee.rolname LIKE 'mail_dispatch_hostile_%'
+          );`,
+    ),
+    "0",
+    "0064 left a hostile direct or delegated function ACL",
+  );
+}
+
+function removeHostilePost0064CatalogState(port, database) {
+  psql(
+    port,
+    database,
+    `
+SET ROLE learncoding_owner;
+ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM mail_dispatch_hostile_default;
+RESET ROLE;
+DROP ROLE mail_dispatch_hostile_leaf;
+DROP ROLE mail_dispatch_hostile_grantor;
+DROP ROLE mail_dispatch_hostile_default;`,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_roles
+        WHERE rolname LIKE 'mail_dispatch_hostile_%';`,
+    ),
+    "0",
+    "hostile ACL fixture roles remained after exact convergence",
+  );
+}
+
 async function main() {
   assertMigrationLineage();
+  const fullReviewedMigrationCount = String(
+    JSON.parse(
+      readFileSync(
+        path.join(migrationDirectory, "meta", "_journal.json"),
+        "utf8",
+      ),
+    ).entries.length,
+  );
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(
     version,
@@ -1351,10 +1730,18 @@ async function main() {
     path.join(os.tmpdir(), `codestead-mail-0064-pg${postgresMajor}-`),
   );
   const dataDirectory = path.join(temporaryRoot, "data");
+  const socketDirectory = path.join(temporaryRoot, "socket");
+  mkdirSync(socketDirectory);
+  const socketOption =
+    process.platform === "win32"
+      ? ""
+      : ` -k "${socketDirectory}"`;
   const logFile = path.join(temporaryRoot, "postgres.log");
   const database = "mail_dispatch_binding_0064";
   const stagedMigrations0062 = stagedMigrationsThrough(temporaryRoot, 62);
   const stagedMigrations0063 = stagedMigrationsThrough(temporaryRoot, 63);
+  const stagedVerifier0062 = prefixMigrationVerifier(62);
+  const stagedVerifier0063 = prefixMigrationVerifier(63);
   const port = await allocateDisposableLoopbackPort();
   let operationError;
   let startAttempted = false;
@@ -1383,7 +1770,7 @@ async function main() {
         "-l",
         logFile,
         "-o",
-        `-p ${port} -h 127.0.0.1 -c max_connections=20`,
+        `-p ${port} -h 127.0.0.1${socketOption} -c max_connections=20`,
         "-w",
         "start",
       ],
@@ -1428,6 +1815,7 @@ CREATE ROLE learncoding_migrator LOGIN NOINHERIT;
 CREATE ROLE learncoding_app LOGIN NOINHERIT;
 CREATE ROLE learncoding_worker LOGIN NOINHERIT;
 CREATE ROLE learncoding_ops LOGIN NOINHERIT;
+CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;
 GRANT learncoding_owner TO learncoding_migrator
   WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;`,
     );
@@ -1446,6 +1834,7 @@ GRANT learncoding_owner TO learncoding_migrator
     await runProductionMigration({
       connectionString,
       migrationsFolder: stagedMigrations0062,
+      ...stagedVerifier0062,
     });
     assert.equal(
       scalar(
@@ -1460,6 +1849,7 @@ GRANT learncoding_owner TO learncoding_migrator
     await runProductionMigration({
       connectionString,
       migrationsFolder: stagedMigrations0063,
+      ...stagedVerifier0063,
     });
     assert.equal(
       scalar(
@@ -1471,6 +1861,8 @@ GRANT learncoding_owner TO learncoding_migrator
     );
     await verifyRawReviewedPhase(adminConnectionString);
     await proveRawPhaseTamperDetection(port, database, adminConnectionString);
+    installHostilePre0064CatalogState(port, database);
+    assertHostilePre0064CatalogState(port, database);
 
     ownerSql(
       port,
@@ -1570,9 +1962,10 @@ INSERT INTO public.email_outbox (
          ))::text
            FROM pg_catalog.pg_constraint;`,
       ),
-      "true|0",
-      "failed 0064 migration leaked privileged objects",
+      "false|0",
+      "failed 0064 migration removed the preexisting function or leaked its constraint",
     );
+    assertHostilePre0064CatalogState(port, database);
     assert.equal(
       scalar(
         port,
@@ -1594,13 +1987,15 @@ INSERT INTO public.email_outbox (
       migrationsFolder: migrationDirectory,
     });
     await verifyRawReviewedPhase(adminConnectionString);
+    assertHostilePost0064FunctionAclsRemoved(port, database);
+    removeHostilePost0064CatalogState(port, database);
     assert.equal(
       scalar(
         port,
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      "65",
+      fullReviewedMigrationCount,
     );
     assert.equal(
       scalar(
@@ -1668,7 +2063,7 @@ INSERT INTO public.email_outbox (
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      "65",
+      fullReviewedMigrationCount,
     );
 
     process.stdout.write(

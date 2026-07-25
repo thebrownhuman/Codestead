@@ -82,6 +82,35 @@ describe("0063 mail outbox retention redaction fence release", () => {
     );
   });
 
+  it("converges hostile function ACLs and rebuilds the exact payload trigger", () => {
+    for (const fragment of [
+      "pg_catalog.aclexplode(",
+      "pg_catalog.acldefault('f', target.proowner)",
+      "pg_catalog.pg_get_userbyid(expanded.grantee)",
+      "revoke all on function %s from %i cascade",
+      "grant execute on function %s to learncoding_owner",
+      "grant execute on function %s to learncoding_ops",
+      'drop trigger if exists "email_outbox_payload_immutable"',
+      'create trigger "email_outbox_payload_immutable"',
+      "before update of",
+      '"to_email"',
+      '"variables"',
+      '"template"',
+      '"template_version"',
+      '"idempotency_key"',
+      '"operation_id"',
+      '"delivery_scope_key"',
+      '"user_id"',
+      'execute function "public"."enforce_email_outbox_payload_immutable"()',
+    ]) {
+      expect(migration).toContain(fragment);
+    }
+
+    expect(migration).toContain("access.grantor");
+    expect(migration).toContain("access.is_grantable");
+    expect(migration).toContain("from public");
+  });
+
   it("classifies only fully released rows as eligible and exposes held or malformed backlog", () => {
     for (const fragment of [
       "candidate.claim_token is null",

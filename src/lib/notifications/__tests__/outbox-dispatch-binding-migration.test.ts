@@ -158,7 +158,7 @@ describe("0064 email outbox dispatch binding", () => {
 
   it("uses a separate global invoker trigger for the one legal arm transition", () => {
     expect(normalizedMigration).toContain(
-      'create function "public"."enforce_email_outbox_dispatch_binding"()',
+      'create or replace function "public"."enforce_email_outbox_dispatch_binding"()',
     );
     expect(normalizedMigration).toContain("security invoker");
     expect(normalizedMigration).toContain("set search_path = pg_catalog");
@@ -193,16 +193,34 @@ describe("0064 email outbox dispatch binding", () => {
       'alter function "public"."enforce_email_outbox_dispatch_binding"() owner to learncoding_owner',
     );
     expect(normalizedMigration).toContain(
-      'revoke all on function "public"."enforce_email_outbox_dispatch_binding"() from public, learncoding_app, learncoding_worker, learncoding_migrator, learncoding_ops, learncoding_owner',
+      "do $codestead_dispatch_binding_acl_scrub$",
+    );
+    expect(normalizedMigration).toContain(
+      "cross join lateral pg_catalog.aclexplode(",
+    );
+    expect(normalizedMigration).toContain(
+      "pg_catalog.acldefault('f', routine.proowner)",
+    );
+    expect(normalizedMigration).toContain(
+      "'revoke all privileges on function %s from %s cascade'",
+    );
+    expect(normalizedMigration).toContain(
+      "'revoke all privileges (%i) on table %s from %s cascade'",
     );
     expect(normalizedMigration).toContain(
       'grant execute on function "public"."enforce_email_outbox_dispatch_binding"() to learncoding_owner',
     );
     expect(normalizedMigration).toContain(
-      "revoke all ( dispatch_binding_version, dispatch_binding_sha256 ) on table public.email_outbox from public, learncoding_app, learncoding_worker, learncoding_migrator, learncoding_ops",
+      "array['learncoding_owner|execute|false']::text[]",
     );
     expect(normalizedMigration).toContain(
       "grant update ( dispatch_binding_version, dispatch_binding_sha256 ) on table public.email_outbox to learncoding_worker",
+    );
+    expect(normalizedMigration).toContain(
+      "array['learncoding_worker|update|false']::text[]",
+    );
+    expect(normalizedMigration).toContain(
+      "'e03d2be2455d53f9ddd0c0b7a8029efd07186a4d6804b86c2206b29031da7fdf'",
     );
     expect(normalizedMigration).not.toMatch(
       /grant insert \([^)]*dispatch_binding_/u,
@@ -319,5 +337,34 @@ describe("0064 email outbox dispatch binding", () => {
     expect(harness).toContain("catalog_contract:pass");
     expect(harness).toContain("privilege_contract:pass");
     expect(harness).toContain("migration_replay:pass");
+  });
+
+  it("verifies every staged migration directory and its applied prefix exactly", () => {
+    const harness = readFileSync(harnessPath, "utf8");
+
+    expect(harness).toContain(
+      "function prefixMigrationVerifier(maximumIndex)",
+    );
+    expect(harness).toContain(
+      "verifyReviewedMigrationRepository({ drizzleDirectory })",
+    );
+    expect(harness).toContain(
+      "async function verifyAppliedMigrationLedger(",
+    );
+    expect(harness).toContain(
+      "CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;",
+    );
+    for (const maximumIndex of [62, 63]) {
+      const suffix = String(maximumIndex).padStart(4, "0");
+      expect(harness).toContain(
+        `const stagedVerifier${suffix} = prefixMigrationVerifier(${maximumIndex});`,
+      );
+      expect(harness).toMatch(
+        new RegExp(
+          String.raw`runProductionMigration\(\{\s*connectionString,\s*migrationsFolder: stagedMigrations${suffix},\s*\.\.\.stagedVerifier${suffix},\s*\}\)`,
+          "u",
+        ),
+      );
+    }
   });
 });
